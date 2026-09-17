@@ -1,0 +1,303 @@
+/* =========================================================
+   Estilos específicos del Módulo de Odontología (React)
+   ========================================================= */
+
+.odontograma-container {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-top: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.odontograma-section {
+    margin-bottom: 30px;
+}
+
+.odontograma-section h4 {
+    color: var(--primary);
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-align: center;
+    border-bottom: 2px solid var(--primary-soft);
+    padding-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.odontograma-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.tooth-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 52px;
+    padding: 8px 4px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+}
+
+.tooth-item:hover {
+    background: #f8fafc;
+    border-color: var(--border);
+}
+
+.tooth-item.selected {
+    background: var(--primary-soft);
+    border-color: var(--primary-light);
+}
+
+.tooth-number {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.tooth-svg {
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+}
+
+/* 5 caras del diente en SVG */
+.tooth-face {
+    fill: #ffffff;
+    stroke: #64748b;
+    stroke-width: 1.5px;
+    transition: fill 0.2s ease, stroke 0.2s ease;
+}
+
+.tooth-face:hover {
+    fill: #e2e8f0;
+}
+
+/* Colores de estado en el SVG */
+.tooth-face.sano {
+    fill: #ffffff;
+}
+
+.tooth-face.caries {
+    fill: #ef4444 !important;
+    /* Rojo */
+}
+
+.tooth-face.obturado {
+    fill: #3b82f6 !important;
+    /* Azul */
+}
+
+.tooth-face.corona {
+    fill: #eab308 !important;
+    /* Amarillo */
+}
+
+.tooth-face.extraido {
+    fill: #475569 !important;
+    /* Gris */
+}
+
+/* Estado de diente completo ausente/extraído */
+.tooth-item.ausente {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.tooth-item.ausente .tooth-svg {
+    opacity: 0.35;
+}
+
+/* Barra de herramientas del Dentista */
+.dentist-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.state-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.state-selector-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.state-selector-btn.active {
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.state-selector-btn.active.sano {
+    background-color: #64748b;
+}
+
+.state-selector-btn.active.caries {
+    background-color: #ef4444;
+}
+
+.state-selector-btn.active.obturado {
+    background-color: #3b82f6;
+}
+
+.state-selector-btn.active.corona {
+    background-color: #eab308;
+}
+
+.state-selector-btn.active.extraido {
+    background-color: #475569;
+}
+
+.state-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.state-color-dot.sano {
+    background-color: #ffffff;
+    border-color: #64748b;
+}
+
+.state-color-dot.caries {
+    background-color: #ef4444;
+}
+
+.state-color-dot.obturado {
+    background-color: #3b82f6;
+}
+
+.state-color-dot.corona {
+    background-color: #eab308;
+}
+
+.state-color-dot.extraido {
+    background-color: #475569;
+}
+
+/* Leyenda del odontograma */
+.odontograma-legend {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Ficha Clínica Dental */
+.dental-history-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Botón Redondo de Registro de Insumo con Navegación Líquida y Tooltip */
+.liquid-round-btn-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.liquid-round-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--primary) 0%, #1e3a8a 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    outline: none;
+}
+
+.liquid-round-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.08);
+    box-shadow: 0 6px 18px rgba(30, 58, 138, 0.4);
+    background: linear-gradient(135deg, #1e40af 0%, #172554 100%);
+}
+
+.liquid-round-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.95);
+}
+
+.liquid-round-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.liquid-round-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px) scale(0.95);
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+    z-index: 10;
+}
+
+.liquid-round-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #0f172a transparent transparent transparent;
+}
+
+.liquid-round-btn-container:hover .liquid-round-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0) scale(1);
+}
