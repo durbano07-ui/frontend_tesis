@@ -5,6 +5,7 @@ import api from '../../api/axios';
 import '../../medical.css'; // Estilos unificados médicos y psicológicos
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
+import NotificationMenu from '../../components/NotificationMenu';
 import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 
@@ -128,6 +129,13 @@ const MedicoGeneral_page = () => {
     const [completingCita, setCompletingCita] = useState(null);
     const [notasDoctor, setNotasDoctor] = useState('');
     const [savingNotas, setSavingNotas] = useState(false);
+
+    const handleNavigateToCitasFromNotif = (fecha) => {
+        if (fecha) {
+            setCitasDate(fecha);
+        }
+        setActiveTab('citas');
+    };
 
     // Estados de Centro de Reportes
     const [activeReportSubTab, setActiveReportSubTab] = useState('diario');
@@ -2944,7 +2952,7 @@ const MedicoGeneral_page = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
+                            <NotificationMenu onNavigateToCitas={handleNavigateToCitasFromNotif} />
                             <UserProfileMenu />
                         </div>
                     </header>

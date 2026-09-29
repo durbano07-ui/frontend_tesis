@@ -19,6 +19,7 @@ import {
     Plus,
     Calendar,
     ChevronRight,
+    ChevronLeft,
     Activity,
     ClipboardList,
     CheckCircle,
@@ -279,15 +280,16 @@ const Administrador_page = () => {
 
     // Options mapping Tipo de Afiliación / Rol de Usuario
     const AFFILIATION_OPTIONS = [
-        { key: 'estudiante', label: 'Estudiante Universitario', id_tipo_usuario: 2, role: 'estudiante' },
-        { key: 'docente', label: 'Docente / Profesor', id_tipo_usuario: 3, role: 'docente' },
-        { key: 'administrativo', label: 'Personal Administrativo', id_tipo_usuario: 4, role: 'administrativo' },
-        { key: 'codigo_trabajo', label: 'Servidor Público / Código de Trabajo', id_tipo_usuario: 5, role: 'codigo_trabajo' },
+        { key: 'estudiante', label: 'Estudiante Universitario', id_tipo_usuario: 2, role: 'paciente' },
+        { key: 'docente', label: 'Docente / Profesor', id_tipo_usuario: 3, role: 'paciente' },
+        { key: 'administrativo', label: 'Personal Administrativo', id_tipo_usuario: 4, role: 'paciente' },
+        { key: 'codigo_trabajo', label: 'Servidor Público / Código de Trabajo', id_tipo_usuario: 5, role: 'paciente' },
         { key: 'medico_general', label: 'Médico General', id_tipo_usuario: 1, role: 'medico_general' },
         { key: 'enfermero', label: 'Enfermero / Enfermera', id_tipo_usuario: 1, role: 'enfermero' },
         { key: 'psicologo', label: 'Psicólogo / Psicóloga', id_tipo_usuario: 1, role: 'psicologo' },
         { key: 'odontologo', label: 'Odontólogo / Odontóloga', id_tipo_usuario: 1, role: 'odontologo' },
         { key: 'medico_ocupacional', label: 'Médico Ocupacional', id_tipo_usuario: 1, role: 'medico_ocupacional' },
+        { key: 'medico_coordinador', label: 'Médico Coordinador', id_tipo_usuario: 1, role: 'medico_coordinador' },
         { key: 'administrador', label: 'Administrador del Sistema', id_tipo_usuario: 1, role: 'administrador' },
     ];
 
@@ -329,7 +331,6 @@ const Administrador_page = () => {
                     await api.put(endpoint);
                     showSystemToast(`Usuario ${u.activo ? 'deshabilitado' : 'habilitado'} correctamente.`);
                     fetchUsers();
-                    fetchDashboardStats();
                 } catch (err) {
                     console.error(err);
                     showSystemToast("Error al actualizar estado del usuario.");
@@ -348,15 +349,22 @@ const Administrador_page = () => {
         else if (roles.includes('psicologo')) detectedKey = 'psicologo';
         else if (roles.includes('odontologo')) detectedKey = 'odontologo';
         else if (roles.includes('medico_ocupacional')) detectedKey = 'medico_ocupacional';
+        else if (roles.includes('medico_coordinador')) detectedKey = 'medico_coordinador';
         else if (roles.includes('administrador')) detectedKey = 'administrador';
-        else if (roles.includes('docente') || u.id_tipo_usuario === 3) detectedKey = 'docente';
-        else if (roles.includes('administrativo') || u.id_tipo_usuario === 4) detectedKey = 'administrativo';
-        else if (roles.includes('codigo_trabajo') || u.id_tipo_usuario === 5) detectedKey = 'codigo_trabajo';
-        else if (roles.includes('estudiante') || u.id_tipo_usuario === 2) detectedKey = 'estudiante';
+        else if (u.id_tipo_usuario === 3 || roles.includes('docente')) detectedKey = 'docente';
+        else if (u.id_tipo_usuario === 4 || roles.includes('administrativo')) detectedKey = 'administrativo';
+        else if (u.id_tipo_usuario === 5 || roles.includes('codigo_trabajo')) detectedKey = 'codigo_trabajo';
+        else if (u.id_tipo_usuario === 2 || roles.includes('estudiante')) detectedKey = 'estudiante';
+        else if (roles.includes('paciente')) {
+            if (u.id_tipo_usuario === 3) detectedKey = 'docente';
+            else if (u.id_tipo_usuario === 4) detectedKey = 'administrativo';
+            else if (u.id_tipo_usuario === 5) detectedKey = 'codigo_trabajo';
+            else detectedKey = 'estudiante';
+        }
         else if (u.id_tipo_usuario === 1) detectedKey = 'medico_general';
 
         setEditUserForm({
-            name: u.name || u.nombre_completo || '',
+            name: u.nombre_completo || u.name || '',
             email: u.email || '',
             affiliationKey: detectedKey,
             password: ''
@@ -390,7 +398,10 @@ const Administrador_page = () => {
             fetchUsers();
         } catch (err) {
             console.error(err);
-            showSystemToast(err.response?.data?.message || "Error al actualizar los datos del usuario.");
+            const errDetail = err.response?.data?.errors 
+                ? Object.values(err.response.data.errors).flat().join(' ')
+                : (err.response?.data?.message || "Error al actualizar los datos del usuario.");
+            showSystemToast(errDetail);
         } finally {
             setEditUserLoading(false);
         }
@@ -543,6 +554,7 @@ const Administrador_page = () => {
     const [loginAttemptsList, setLoginAttemptsList] = useState([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsSearchText, setLogsSearchText] = useState('');
+    const [logsSubTab, setLogsSubTab] = useState('audit'); // 'audit' | 'login' | 'security'
 
     const fetchLogs = async () => {
         setLogsLoading(true);
@@ -582,6 +594,190 @@ const Administrador_page = () => {
         }
     }, [activeTab]);
 
+    // Estados para filtros de fecha y paginación (12 filas por página)
+    const [auditDateFilter, setAuditDateFilter] = useState('');
+    const [auditPage, setAuditPage] = useState(1);
+
+    const [loginDateFilter, setLoginDateFilter] = useState('');
+    const [loginPage, setLoginPage] = useState(1);
+
+    const [securityDateFilter, setSecurityDateFilter] = useState('');
+    const [securityPage, setSecurityPage] = useState(1);
+
+    const LOGS_PER_PAGE = 12;
+
+    // Helpers para la pestaña de logs y auditoría
+    const matchesLogDate = (createdAt, filterDate) => {
+        if (!filterDate) return true;
+        if (!createdAt) return false;
+        if (createdAt.startsWith(filterDate)) return true;
+        try {
+            const d = new Date(createdAt);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}` === filterDate;
+        } catch {
+            return false;
+        }
+    };
+
+    const getFilteredAuditLogs = () => {
+        return auditLogsList.filter(l => {
+            const matchesText = !logsSearchText ||
+                (l.user?.name || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (l.user?.email || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (l.action || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (l.model_type || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (l.ip_address || '').includes(logsSearchText);
+
+            const matchesD = matchesLogDate(l.created_at, auditDateFilter);
+            return matchesText && matchesD;
+        });
+    };
+
+    const getFilteredLoginAttempts = () => {
+        return loginAttemptsList.filter(a => {
+            const isSuccess = Boolean(a.success ?? a.successful);
+            const statusStr = isSuccess ? 'exitoso exitosa success' : 'fallido fallida error failed';
+            const matchesText = !logsSearchText ||
+                (a.email || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (a.ip_address || '').includes(logsSearchText) ||
+                (a.user_agent || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                statusStr.includes(logsSearchText.toLowerCase());
+
+            const matchesD = matchesLogDate(a.created_at, loginDateFilter);
+            return matchesText && matchesD;
+        });
+    };
+
+    const getFilteredSecurityLogs = () => {
+        return securityLogsList.filter(s => {
+            const matchesText = !logsSearchText ||
+                (s.event_type || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (s.description || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
+                (s.ip_address || '').includes(logsSearchText) ||
+                (s.user?.email || '').toLowerCase().includes(logsSearchText.toLowerCase());
+
+            const matchesD = matchesLogDate(s.created_at, securityDateFilter);
+            return matchesText && matchesD;
+        });
+    };
+
+    const formatLogDate = (dateStr) => {
+        if (!dateStr) return '—';
+        try {
+            return new Date(dateStr).toLocaleString('es-EC', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+        } catch {
+            return dateStr.slice(0, 19).replace('T', ' ');
+        }
+    };
+
+    const formatLogAction = (action) => {
+        if (!action) return { label: 'Acción', bg: '#f1f5f9', color: '#475569' };
+        const act = action.toLowerCase();
+        if (act.includes('created') || act.includes('store') || act.includes('enabled') || act.includes('success')) {
+            return { label: action.replace(/_/g, ' '), bg: '#dcfce7', color: '#15803d' };
+        }
+        if (act.includes('delete') || act.includes('destroy') || act.includes('disabled') || act.includes('failed') || act.includes('blocked')) {
+            return { label: action.replace(/_/g, ' '), bg: '#fee2e2', color: '#b91c1c' };
+        }
+        if (act.includes('update') || act.includes('edit')) {
+            return { label: action.replace(/_/g, ' '), bg: '#e0f2fe', color: '#0369a1' };
+        }
+        return { label: action.replace(/_/g, ' '), bg: '#f1f5f9', color: '#475569' };
+    };
+
+    const renderPaginationBar = (currentPage, totalItems, onPageChange) => {
+        const totalPages = Math.max(1, Math.ceil(totalItems / LOGS_PER_PAGE));
+        if (totalItems === 0) return null;
+
+        const startIdx = (currentPage - 1) * LOGS_PER_PAGE + 1;
+        const endIdx = Math.min(currentPage * LOGS_PER_PAGE, totalItems);
+
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '16px',
+                paddingTop: '14px',
+                borderTop: '1px solid #f1f5f9',
+                flexWrap: 'wrap',
+                gap: '10px',
+                fontSize: '12px'
+            }}>
+                <div style={{ color: 'var(--text-muted)' }}>
+                    Mostrando <strong style={{ color: 'var(--text-primary)' }}>{startIdx}</strong> a <strong style={{ color: 'var(--text-primary)' }}>{endIdx}</strong> de <strong style={{ color: 'var(--text-primary)' }}>{totalItems}</strong> registros
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                        type="button"
+                        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                        disabled={currentPage <= 1}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            background: currentPage <= 1 ? '#f8fafc' : '#fff',
+                            color: currentPage <= 1 ? '#cbd5e1' : 'var(--text-primary)',
+                            cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            transition: 'all 0.15s ease'
+                        }}
+                    >
+                        <ChevronLeft size={13} /> Anterior
+                    </button>
+
+                    <span style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: '#eff6ff',
+                        color: 'var(--primary)',
+                        fontWeight: 650,
+                        fontSize: '11.5px',
+                        border: '1px solid #bfdbfe'
+                    }}>
+                        Página {currentPage} de {totalPages}
+                    </span>
+
+                    <button
+                        type="button"
+                        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage >= totalPages}
+                        style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            background: currentPage >= totalPages ? '#f8fafc' : '#fff',
+                            color: currentPage >= totalPages ? '#cbd5e1' : 'var(--text-primary)',
+                            cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            transition: 'all 0.15s ease'
+                        }}
+                    >
+                        Siguiente <ChevronRight size={13} />
+                    </button>
+                </div>
+            </div>
+        );
+    };
     // Filtrado de lista de usuarios localmente
     const getFilteredUsers = () => {
         return usersList.filter(u => {
@@ -1069,6 +1265,7 @@ const Administrador_page = () => {
                                                 <option value="psicologo">Psicólogo</option>
                                                 <option value="odontologo">Odontólogo</option>
                                                 <option value="medico_ocupacional">Médico Ocupacional</option>
+                                                <option value="medico_coordinador">Médico Coordinador</option>
                                                 <option value="administrador">Administrador</option>
                                             </select>
                                             <select value={usersStatusFilter} onChange={(e) => setUsersStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
@@ -1117,11 +1314,18 @@ const Administrador_page = () => {
                                                             <td>{u.email}</td>
                                                             <td>
                                                                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                                                                    {u.roles?.map((r, i) => (
-                                                                        <span key={i} className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '9.5px', textTransform: 'capitalize' }}>
-                                                                            {r.replace('_', ' ')}
-                                                                        </span>
-                                                                    ))}
+                                                                    {u.roles?.map((r, i) => {
+                                                                        let roleLabel = r.replace('_', ' ');
+                                                                        if (r === 'paciente') {
+                                                                            const subType = u.id_tipo_usuario === 3 ? 'Docente' : u.id_tipo_usuario === 4 ? 'Administrativo' : u.id_tipo_usuario === 5 ? 'Código Trabajo' : 'Estudiante';
+                                                                            roleLabel = `Paciente (${subType})`;
+                                                                        }
+                                                                        return (
+                                                                            <span key={i} className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '9.5px', textTransform: 'capitalize' }}>
+                                                                                {roleLabel}
+                                                                            </span>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </td>
                                                             <td>
@@ -1152,69 +1356,402 @@ const Administrador_page = () => {
 
 
                         {/* PESTAÑA 5: LOGS Y SEGURIDAD */}
-                        {activeTab === 'logs' && (
-                            <div>
-                                <div className="logs-search">
-                                    <Search size={16} />
-                                    <input
-                                        value={logsSearchText}
-                                        onChange={(e) => setLogsSearchText(e.target.value)}
-                                        placeholder="Filtrar logs por usuario, acción o IP..."
-                                    />
-                                </div>
+                        {activeTab === 'logs' && (() => {
+                            const filteredAudit = getFilteredAuditLogs();
+                            const paginatedAudit = filteredAudit.slice((auditPage - 1) * LOGS_PER_PAGE, auditPage * LOGS_PER_PAGE);
 
-                                <div className="module-grid">
-                                    {/* LOGS DE AUDITORÍA */}
-                                    <article className="nurse-card span-6" style={{ padding: '20px' }}>
-                                        <h3>Logs de Auditoría</h3>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '15px' }}>Historial de cambios y acciones de base de datos.</p>
-                                        <div style={{ maxHeight: '420px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {auditLogsList.length === 0 ? (
-                                                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                                                    No hay registros de auditoría aún.
-                                                </div>
-                                            ) : auditLogsList
-                                                .filter(x => !logsSearchText ||
-                                                    (x.user?.email || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
-                                                    (x.action || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
-                                                    (x.ip_address || '').includes(logsSearchText)
-                                                )
-                                                .map(log => (
-                                                    <div key={log.id} className="log-entry">
-                                                        <strong>{log.user?.email || 'Sistema'}</strong>
-                                                        <span>{log.action}</span>
-                                                        <span className="log-time">IP: {log.ip_address} · {log.created_at ? log.created_at.slice(0, 19) : ''}</span>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    </article>
+                            const filteredLogin = getFilteredLoginAttempts();
+                            const paginatedLogin = filteredLogin.slice((loginPage - 1) * LOGS_PER_PAGE, loginPage * LOGS_PER_PAGE);
 
-                                    {/* EVENTOS DE SEGURIDAD */}
-                                    <article className="nurse-card span-6" style={{ padding: '20px' }}>
-                                        <h3>Bitácora de Seguridad (Intentos de Login)</h3>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '15px' }}>Bloqueo de IPs e intentos fallidos de autenticación.</p>
-                                        <div style={{ maxHeight: '420px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {loginAttemptsList.length === 0 ? (
-                                                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                                                    No hay intentos de acceso registrados.
-                                                </div>
-                                            ) : loginAttemptsList
-                                                .filter(x => !logsSearchText ||
-                                                    (x.email || '').toLowerCase().includes(logsSearchText.toLowerCase()) ||
-                                                    (x.ip_address || '').includes(logsSearchText)
-                                                )
-                                                .map(attempt => (
-                                                    <div key={attempt.id} className={`log-entry ${attempt.successful ? 'log-entry--success' : 'log-entry--danger'}`}>
-                                                        <strong>{attempt.email}</strong>
-                                                        <span>{attempt.successful ? '✓ Autenticación Exitosa' : '✗ Intento de Acceso Fallido'}</span>
-                                                        <span className="log-time">IP: {attempt.ip_address} · {attempt.created_at ? attempt.created_at.slice(0, 19) : ''}</span>
-                                                    </div>
-                                                ))}
+                            const filteredSecurity = getFilteredSecurityLogs();
+                            const paginatedSecurity = filteredSecurity.slice((securityPage - 1) * LOGS_PER_PAGE, securityPage * LOGS_PER_PAGE);
+
+                            return (
+                                <div>
+                                    {/* HERO BANNER DE LOGS Y AUDITORÍA */}
+                                    <section className="page-hero">
+                                        <div>
+                                            <span className="page-hero__label"><Shield size={14} style={{ marginRight: '6px', display: 'inline' }} /> Auditoría y Seguridad</span>
+                                            <h2>Bitácora de Eventos y Auditoría</h2>
+                                            <p>Monitoreo integral de operaciones en base de datos, intentos de autenticación y alertas de seguridad institucional.</p>
                                         </div>
-                                    </article>
+                                        <div className="page-hero__icon"><History size={34} /></div>
+                                    </section>
+
+                                    {/* MICROPETAÑAS DE NAVEGACIÓN (ESTILO CAMPUS, FACULTADES Y CARRERAS) */}
+                                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                                        <div className="nurse-card" style={{ display: 'inline-flex', padding: '6px', gap: '6px', margin: 0 }}>
+                                            <button
+                                                className={`action-button ${logsSubTab === 'audit' ? 'action-button--primary' : 'action-button--light'}`}
+                                                onClick={() => setLogsSubTab('audit')}
+                                                style={{ height: '36px', borderRadius: '10px' }}
+                                            >
+                                                <History size={15} /> Logs de Auditoría ({filteredAudit.length})
+                                            </button>
+                                            <button
+                                                className={`action-button ${logsSubTab === 'login' ? 'action-button--primary' : 'action-button--light'}`}
+                                                onClick={() => setLogsSubTab('login')}
+                                                style={{ height: '36px', borderRadius: '10px' }}
+                                            >
+                                                <Key size={15} /> Intentos de Login ({filteredLogin.length})
+                                            </button>
+                                            <button
+                                                className={`action-button ${logsSubTab === 'security' ? 'action-button--primary' : 'action-button--light'}`}
+                                                onClick={() => setLogsSubTab('security')}
+                                                style={{ height: '36px', borderRadius: '10px' }}
+                                            >
+                                                <ShieldAlert size={15} /> Eventos de Seguridad ({filteredSecurity.length})
+                                            </button>
+                                        </div>
+
+                                        <button
+                                            onClick={fetchLogs}
+                                            disabled={logsLoading}
+                                            className="action-button action-button--light"
+                                            style={{ height: '38px', borderRadius: '10px' }}
+                                            title="Actualizar registros"
+                                        >
+                                            <RefreshCw size={15} className={logsLoading ? 'spinner' : ''} /> Actualizar Bitácoras
+                                        </button>
+                                    </div>
+
+                                    {/* BARRA DE BÚSQUEDA GENERAL */}
+                                    <div className="logs-search" style={{ marginTop: '16px' }}>
+                                        <Search size={16} />
+                                        <input
+                                            value={logsSearchText}
+                                            onChange={(e) => {
+                                                setLogsSearchText(e.target.value);
+                                                setAuditPage(1);
+                                                setLoginPage(1);
+                                                setSecurityPage(1);
+                                            }}
+                                            placeholder={`Buscar en ${logsSubTab === 'audit' ? 'auditoría' : logsSubTab === 'login' ? 'intentos de login' : 'eventos de seguridad'} por usuario, acción, IP o detalle...`}
+                                        />
+                                    </div>
+
+                                    {/* MICROPETAÑA 1: LOGS DE AUDITORÍA */}
+                                    {logsSubTab === 'audit' && (
+                                        <section className="nurse-card" style={{ marginTop: '20px', padding: '24px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div>
+                                                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', color: 'var(--primary)' }}>
+                                                        <History size={18} /> Logs de Auditoría del Sistema
+                                                    </h3>
+                                                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                                        Historial de modificaciones, creaciones y acciones sobre la base de datos del sistema.
+                                                    </p>
+                                                </div>
+
+                                                {/* Selector de Fecha y Contador */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                        <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
+                                                        <input
+                                                            type="date"
+                                                            value={auditDateFilter}
+                                                            onChange={(e) => {
+                                                                setAuditDateFilter(e.target.value);
+                                                                setAuditPage(1);
+                                                            }}
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                fontSize: '11.5px',
+                                                                color: 'var(--text-primary)',
+                                                                outline: 'none',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title="Filtrar auditoría por fecha"
+                                                        />
+                                                        {auditDateFilter && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setAuditDateFilter(''); setAuditPage(1); }}
+                                                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                                                                title="Quitar filtro de fecha"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <span className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px' }}>
+                                                        {filteredAudit.length} registros
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="table-wrapper">
+                                                {logsLoading ? (
+                                                    <div style={{ textAlign: 'center', padding: '40px' }}><span className="spinner"></span></div>
+                                                ) : filteredAudit.length === 0 ? (
+                                                    <div style={{ textAlign: 'center', padding: '35px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                        No se encontraron registros de auditoría para los filtros aplicados.
+                                                    </div>
+                                                ) : (
+                                                    <table className="clinical-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style={{ width: '60px' }}>#</th>
+                                                                <th>Usuario / Responsable</th>
+                                                                <th>Acción</th>
+                                                                <th>Módulo / Recurso</th>
+                                                                <th>Dirección IP</th>
+                                                                <th>Fecha y Hora</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {paginatedAudit.map((log) => {
+                                                                const badge = formatLogAction(log.action);
+                                                                const shortModel = log.model_type ? log.model_type.split('\\').pop() : '—';
+                                                                return (
+                                                                    <tr key={log.id}>
+                                                                        <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>#{log.id}</td>
+                                                                        <td>
+                                                                            <strong>{log.user?.nombre_completo || log.user?.name || log.user?.email || (log.user_id ? `Usuario #${log.user_id}` : 'Sistema')}</strong>
+                                                                            {log.user?.email && (log.user?.name || log.user?.nombre_completo) && (
+                                                                                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{log.user.email}</div>
+                                                                            )}
+                                                                        </td>
+                                                                        <td>
+                                                                            <span
+                                                                                className="status-badge"
+                                                                                style={{ background: badge.bg, color: badge.color, fontSize: '10px', textTransform: 'capitalize' }}
+                                                                            >
+                                                                                {badge.label}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span style={{ fontFamily: 'monospace', fontSize: '11px', background: '#f8fafc', padding: '3px 7px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                                                                                {shortModel}{log.model_id ? ` #${log.model_id}` : ''}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{log.ip_address || '—'}</td>
+                                                                        <td style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                                            {formatLogDate(log.created_at)}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+
+                                            {renderPaginationBar(auditPage, filteredAudit.length, setAuditPage)}
+                                        </section>
+                                    )}
+
+                                    {/* MICROPETAÑA 2: INTENTOS DE INICIO DE SESIÓN */}
+                                    {logsSubTab === 'login' && (
+                                        <section className="nurse-card" style={{ marginTop: '20px', padding: '24px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div>
+                                                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', color: 'var(--primary)' }}>
+                                                        <Key size={18} /> Historial de Intentos de Autenticación
+                                                    </h3>
+                                                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                                        Monitoreo de accesos al sistema, intentos fallidos y bloqueos por seguridad.
+                                                    </p>
+                                                </div>
+
+                                                {/* Selector de Fecha y Contador */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                        <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
+                                                        <input
+                                                            type="date"
+                                                            value={loginDateFilter}
+                                                            onChange={(e) => {
+                                                                setLoginDateFilter(e.target.value);
+                                                                setLoginPage(1);
+                                                            }}
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                fontSize: '11.5px',
+                                                                color: 'var(--text-primary)',
+                                                                outline: 'none',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title="Filtrar intentos por fecha"
+                                                        />
+                                                        {loginDateFilter && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setLoginDateFilter(''); setLoginPage(1); }}
+                                                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                                                                title="Quitar filtro de fecha"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <span className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px' }}>
+                                                        {filteredLogin.length} intentos
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="table-wrapper">
+                                                {logsLoading ? (
+                                                    <div style={{ textAlign: 'center', padding: '40px' }}><span className="spinner"></span></div>
+                                                ) : filteredLogin.length === 0 ? (
+                                                    <div style={{ textAlign: 'center', padding: '35px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                        No se encontraron intentos de inicio de sesión para los filtros aplicados.
+                                                    </div>
+                                                ) : (
+                                                    <table className="clinical-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style={{ width: '60px' }}>#</th>
+                                                                <th>Correo / Cuenta</th>
+                                                                <th>Resultado</th>
+                                                                <th>Dirección IP</th>
+                                                                <th>Navegador / Dispositivo</th>
+                                                                <th>Fecha y Hora</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {paginatedLogin.map((attempt) => {
+                                                                const isSuccess = Boolean(attempt.success ?? attempt.successful);
+                                                                return (
+                                                                    <tr key={attempt.id}>
+                                                                        <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>#{attempt.id}</td>
+                                                                        <td>
+                                                                            <strong>{attempt.email || '—'}</strong>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span
+                                                                                className={`status-badge ${isSuccess ? 'status-badge--active' : 'status-badge--inactive'}`}
+                                                                                style={{ fontSize: '10px' }}
+                                                                            >
+                                                                                {isSuccess ? '✓ Autenticación Exitosa' : '✗ Intento Fallido'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{attempt.ip_address || '—'}</td>
+                                                                        <td style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={attempt.user_agent}>
+                                                                            {attempt.user_agent || '—'}
+                                                                        </td>
+                                                                        <td style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                                            {formatLogDate(attempt.created_at)}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+
+                                            {renderPaginationBar(loginPage, filteredLogin.length, setLoginPage)}
+                                        </section>
+                                    )}
+
+                                    {/* MICROPETAÑA 3: EVENTOS DE SEGURIDAD */}
+                                    {logsSubTab === 'security' && (
+                                        <section className="nurse-card" style={{ marginTop: '20px', padding: '24px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div>
+                                                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', color: 'var(--primary)' }}>
+                                                        <ShieldAlert size={18} /> Eventos y Alertas de Seguridad
+                                                    </h3>
+                                                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                                                        Registro de alertas perimetrales, bloqueos preventivos de IP y anomalías detectadas.
+                                                    </p>
+                                                </div>
+
+                                                {/* Selector de Fecha y Contador */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#f8fafc', padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                        <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
+                                                        <input
+                                                            type="date"
+                                                            value={securityDateFilter}
+                                                            onChange={(e) => {
+                                                                setSecurityDateFilter(e.target.value);
+                                                                setSecurityPage(1);
+                                                            }}
+                                                            style={{
+                                                                border: 'none',
+                                                                background: 'transparent',
+                                                                fontSize: '11.5px',
+                                                                color: 'var(--text-primary)',
+                                                                outline: 'none',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title="Filtrar eventos por fecha"
+                                                        />
+                                                        {securityDateFilter && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { setSecurityDateFilter(''); setSecurityPage(1); }}
+                                                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                                                                title="Quitar filtro de fecha"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <span className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px' }}>
+                                                        {filteredSecurity.length} eventos
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="table-wrapper">
+                                                {logsLoading ? (
+                                                    <div style={{ textAlign: 'center', padding: '40px' }}><span className="spinner"></span></div>
+                                                ) : filteredSecurity.length === 0 ? (
+                                                    <div style={{ textAlign: 'center', padding: '35px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                                                        No hay alertas ni eventos de seguridad para los filtros aplicados.
+                                                    </div>
+                                                ) : (
+                                                    <table className="clinical-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style={{ width: '60px' }}>#</th>
+                                                                <th>Tipo de Evento</th>
+                                                                <th>Descripción</th>
+                                                                <th>Usuario Asociado</th>
+                                                                <th>Dirección IP</th>
+                                                                <th>Fecha y Hora</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {paginatedSecurity.map((sec) => (
+                                                                <tr key={sec.id}>
+                                                                    <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>#{sec.id}</td>
+                                                                    <td>
+                                                                        <span className="status-badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '10px' }}>
+                                                                            {sec.event_type || 'Alerta'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={{ fontSize: '11.5px' }}>{sec.description || '—'}</td>
+                                                                    <td>{sec.user?.email || (sec.user_id ? `Usuario #${sec.user_id}` : '—')}</td>
+                                                                    <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{sec.ip_address || '—'}</td>
+                                                                    <td style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                                        {formatLogDate(sec.created_at)}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                            </div>
+
+                                            {renderPaginationBar(securityPage, filteredSecurity.length, setSecurityPage)}
+                                        </section>
+                                    )}
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
                     </div>
                 </main>
             </div>

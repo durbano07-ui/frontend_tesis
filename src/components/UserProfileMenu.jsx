@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Lock, X, Key, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, X, Key, CheckCircle, AlertTriangle, Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/axios';
 
-const UserProfileMenu = () => {
+const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPhoto = false }) => {
     const { user, logout } = useAuthStore();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [avatarUrl]);
+
+    const resolvedAvatar = !imgError && (avatarUrl || user?.avatar_url || user?.photo_url || user?.foto_url || null);
 
     // Visibility toggles
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -108,25 +115,38 @@ const UserProfileMenu = () => {
             {/* Avatar Trigger Button */}
             <button
                 className="topbar-button"
+                title={user?.name || 'Perfil de Usuario'}
                 style={{ 
                     borderRadius: '50%', 
                     width: '42px', 
                     height: '42px', 
                     fontSize: '11.5px', 
                     fontWeight: '750', 
-                    background: 'linear-gradient(135deg, var(--primary, #002040), #0d3b66)',
+                    background: resolvedAvatar ? 'transparent' : 'linear-gradient(135deg, var(--primary, #002040), #0d3b66)',
                     color: '#fff',
-                    border: 'none',
+                    border: '2px solid rgba(255, 255, 255, 0.85)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    boxShadow: 'var(--shadow-sm)'
+                    boxShadow: '0 2px 6px rgba(0, 32, 64, 0.15)',
+                    overflow: 'hidden',
+                    padding: 0,
+                    transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={() => setIsDropdownOpen(true)}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-                {getInitials()}
+                {resolvedAvatar ? (
+                    <img
+                        src={resolvedAvatar}
+                        alt={user?.name || 'Perfil'}
+                        onError={() => setImgError(true)}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                ) : (
+                    getInitials()
+                )}
             </button>
 
             {/* Dropdown Menu */}
@@ -136,7 +156,7 @@ const UserProfileMenu = () => {
                         position: 'absolute',
                         top: '48px',
                         right: '0',
-                        width: '240px',
+                        width: '260px',
                         backgroundColor: '#fff',
                         borderRadius: '12px',
                         border: '1px solid var(--border, #e4e9ef)',
@@ -150,24 +170,47 @@ const UserProfileMenu = () => {
                     }}
                     onMouseLeave={() => setIsDropdownOpen(false)}
                 >
-                    <div style={{ borderBottom: '1px solid var(--border, #e4e9ef)', paddingBottom: '10px' }}>
-                        <div style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary, #002040)' }}>
-                            {user?.name || 'Usuario'}
-                        </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--text-muted, #98a2b3)', marginTop: '2px' }}>
-                            {user?.email}
-                        </div>
-                        <div style={{ 
-                            display: 'inline-block',
-                            marginTop: '6px',
-                            padding: '3px 8px',
-                            backgroundColor: 'var(--primary-soft, #eaf0f5)',
-                            color: 'var(--primary, #002040)',
-                            borderRadius: '20px',
-                            fontSize: '9.5px',
-                            fontWeight: '700'
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', borderBottom: '1px solid var(--border, #e4e9ef)', paddingBottom: '12px' }}>
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            background: resolvedAvatar ? 'transparent' : 'linear-gradient(135deg, var(--primary, #002040), #0d3b66)',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '13px',
+                            fontWeight: '750',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            border: '1.5px solid var(--border, #e4e9ef)'
                         }}>
-                            {getRoleLabel()}
+                            {resolvedAvatar ? (
+                                <img src={resolvedAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                                getInitials()
+                            )}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: '700', fontSize: '13px', color: 'var(--primary, #002040)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.name}>
+                                {user?.name || 'Usuario'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted, #98a2b3)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.email}>
+                                {user?.email}
+                            </div>
+                            <div style={{ 
+                                display: 'inline-block',
+                                marginTop: '4px',
+                                padding: '2px 8px',
+                                backgroundColor: 'var(--primary-soft, #eaf0f5)',
+                                color: 'var(--primary, #002040)',
+                                borderRadius: '20px',
+                                fontSize: '9.5px',
+                                fontWeight: '700'
+                            }}>
+                                {getRoleLabel()}
+                            </div>
                         </div>
                     </div>
 
@@ -280,41 +323,102 @@ const UserProfileMenu = () => {
                         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', maxHeight: '75vh' }}>
                             {/* User details card */}
                             <div style={{
-                                padding: '16px',
+                                padding: '18px',
                                 background: '#fafbfd',
                                 border: '1px solid var(--border, #e4e9ef)',
                                 borderRadius: '12px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: '8px'
+                                gap: '14px'
                             }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-muted, #98a2b3)', fontWeight: '600' }}>ESTADO DE CUENTA</span>
-                                    <span style={{ 
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        padding: '4px 10px',
-                                        background: '#dcfce7',
-                                        color: '#166534',
-                                        borderRadius: '20px',
-                                        fontSize: '10.5px',
-                                        fontWeight: '700'
-                                    }}>
-                                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#15803d' }}></span>
-                                        Activo
-                                    </span>
-                                </div>
-                                <div style={{ marginTop: '8px' }}>
-                                    <span style={{ fontSize: '10px', color: 'var(--text-muted, #98a2b3)', textTransform: 'uppercase', fontWeight: '750' }}>Nombre completo</span>
-                                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary, #17212b)', marginTop: '2px' }}>
-                                        {user?.name || '—'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <div style={{
+                                            width: '64px',
+                                            height: '64px',
+                                            borderRadius: '50%',
+                                            background: resolvedAvatar ? 'transparent' : 'linear-gradient(135deg, var(--primary, #002040), #0d3b66)',
+                                            color: '#fff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '18px',
+                                            fontWeight: '700',
+                                            overflow: 'hidden',
+                                            border: '2px solid #fff',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {resolvedAvatar ? (
+                                                <img src={resolvedAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                getInitials()
+                                            )}
+                                        </div>
+                                        {onPhotoChange && (
+                                            <label
+                                                htmlFor="user-profile-modal-photo-input"
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: '-2px',
+                                                    right: '-2px',
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    background: 'var(--accent, #b71a34)',
+                                                    color: '#fff',
+                                                    display: 'grid',
+                                                    placeItems: 'center',
+                                                    cursor: isUploadingPhoto ? 'wait' : 'pointer',
+                                                    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                                                    border: '2px solid #fff'
+                                                }}
+                                                title="Cambiar foto de perfil"
+                                            >
+                                                {isUploadingPhoto ? <Loader2 size={12} className="spinning" /> : <Camera size={12} />}
+                                                <input
+                                                    type="file"
+                                                    id="user-profile-modal-photo-input"
+                                                    accept="image/*"
+                                                    style={{ display: 'none' }}
+                                                    onChange={onPhotoChange}
+                                                    disabled={isUploadingPhoto}
+                                                />
+                                            </label>
+                                        )}
                                     </div>
-                                </div>
-                                <div style={{ marginTop: '4px' }}>
-                                    <span style={{ fontSize: '10px', color: 'var(--text-muted, #98a2b3)', textTransform: 'uppercase', fontWeight: '750' }}>Correo electrónico</span>
-                                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary, #17212b)', marginTop: '2px' }}>
-                                        {user?.email || '—'}
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontSize: '14.5px', fontWeight: '750', color: 'var(--text-primary, #17212b)', lineHeight: '1.2' }}>
+                                            {user?.name || 'Usuario'}
+                                        </div>
+                                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted, #98a2b3)', marginTop: '3px' }}>
+                                            {user?.email}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
+                                            <span style={{ 
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '2px 8px',
+                                                background: '#dcfce7',
+                                                color: '#166534',
+                                                borderRadius: '20px',
+                                                fontSize: '10px',
+                                                fontWeight: '700'
+                                            }}>
+                                                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#15803d' }}></span>
+                                                Activo
+                                            </span>
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                background: 'var(--primary-soft, #eaf0f5)',
+                                                color: 'var(--primary, #002040)',
+                                                borderRadius: '20px',
+                                                fontSize: '10px',
+                                                fontWeight: '700'
+                                            }}>
+                                                {getRoleLabel()}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

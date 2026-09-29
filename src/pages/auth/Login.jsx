@@ -8,11 +8,7 @@ import UEBLogo from '../../assets/leftUEB.png';
 import UEBpet from '../../assets/UEBpet.png';
 
 import {
-    ShieldCheck,
-    BadgeCheck,
     LockKeyhole,
-    ChartNoAxesCombined,
-    Fingerprint,
     Mail,
     Eye,
     EyeOff,
@@ -106,28 +102,13 @@ const Login = () => {
                         <p>
                             Construimos una comunidad más saludable mediante una atención cercana, organizada y respaldada por la tecnología.
                         </p>
-                        <div className="auth-benefits">
-                            <div className="auth-benefit">
-                                <BadgeCheck size={18} style={{ color: '#b71a34' }} />
-                                <strong>Tu bienestar, nuestra prioridad</strong>
-                                <span>Una experiencia pensada para brindar una atención segura, cercana y oportuna.</span>
-                            </div>
-                            <div className="auth-benefit">
-                                <LockKeyhole size={18} style={{ color: '#b71a34' }} />
-                                <strong>Datos cifrados</strong>
-                                <span>Información protegida para una atención responsable.</span>
-                            </div>
-                            <div className="auth-benefit">
-                                <ChartNoAxesCombined size={18} style={{ color: '#b71a34' }} />
-                                <strong>Todo en un solo lugar</strong>
-                                <span>Accede fácilmente a los servicios de salud disponibles.</span>
-                            </div>
-                        </div>
                     </div>
 
-                    <span className="auth-visual__footer">
-                        © 2026 Bienestar Universitario · Sistema Médico Universitario
-                    </span>
+                    <footer className="auth-visual__footer">
+                        <span className="auth-footer__line">Desarrollado por Diego Urbano y Alex Vega</span>
+                        <span className="auth-footer__line"><strong className="auth-footer__label">Tutor:</strong> Dr Henry Vallejo</span>
+                        <span className="auth-footer__line"><strong className="auth-footer__label">Pares:</strong> Edgar Rivadeneira y Darwin Carrión</span>
+                    </footer>
                 </section>
                 {/* Lado derecho: Formulario */}
                 <section className="auth-panel">
@@ -218,10 +199,11 @@ const Login = () => {
                                     ¿Aún no tienes una cuenta?
                                     <Link to="/registro" onClick={(e) => flipNav('/registro', e)}> Registrarse</Link>
                                 </p>
-                                <div className="security-note">
-                                    <ShieldCheck size={15} style={{ color: 'var(--success)', marginRight: '9px', flexShrink: 0 }} />
-                                    <span>Tu conexión está protegida. Nunca compartas tus credenciales institucionales con terceros.</span>
-                                </div>
+                                <footer className="auth-footer-mobile">
+                                    <span className="auth-footer__line">Desarrollado por Diego Urbano y Alex Vega</span>
+                                    <span className="auth-footer__line"><strong className="auth-footer__label">Tutor:</strong> Dr Henry Vallejo</span>
+                                    <span className="auth-footer__line"><strong className="auth-footer__label">Pares:</strong> Edgar Rivadeneira y Darwin Carrión</span>
+                                </footer>
                             </div>
                         )}
                     </AuthFlipCard>

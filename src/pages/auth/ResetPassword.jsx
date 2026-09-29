@@ -139,9 +139,11 @@ const ResetPassword = () => {
                             </div>
                         </div>
                     </div>
-                    <span className="auth-visual__footer">
-                        © 2026 Bienestar Universitario · Sistema Médico Universitario
-                    </span>
+                    <footer className="auth-visual__footer">
+                        <span className="auth-footer__line">Desarrollado por Diego Urbano y Alex Vega</span>
+                        <span className="auth-footer__line"><strong className="auth-footer__label">Tutor:</strong> Dr Henry Vallejo</span>
+                        <span className="auth-footer__line"><strong className="auth-footer__label">Pares:</strong> Edgar Rivadeneira y Darwin Carrión</span>
+                    </footer>
                 </section>
 
                 {/* Lado derecho: Formulario */}
@@ -254,6 +256,11 @@ const ResetPassword = () => {
                                 </Link>
                             </div>
                         )}
+                        <footer className="auth-footer-mobile">
+                            <span className="auth-footer__line">Desarrollado por Diego Urbano y Alex Vega</span>
+                            <span className="auth-footer__line"><strong className="auth-footer__label">Tutor:</strong> Dr Henry Vallejo</span>
+                            <span className="auth-footer__line"><strong className="auth-footer__label">Pares:</strong> Edgar Rivadeneira y Darwin Carrión</span>
+                        </footer>
                     </div>
                 </section>
             </div>

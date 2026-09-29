@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
@@ -6,6 +6,16 @@ import '../../medical.css';
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
+import { LAB_EXAM_CATEGORIES, LAB_EXAM_PRESETS } from '../../data/labExamsData';
+import logoUeb from '../../assets/ueb.png';
+import { logoBienestar } from '../../assets/logoBienestarBase64.js';
+import { logoUebTexto } from '../../assets/logoUebTextoBase64.js';
+import { headerBienestar } from '../../assets/headerBienestarBase64.js';
+import OfficialFichaIngresoModal, { printOfficialIngresoForm, compileOfficialIngresoFormHtml } from './OfficialFichaIngresoModal';
+import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetiroFormHtml } from './OfficialFichaRetiroModal';
+import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
+
+const uebBannerLogo = logoUeb;
 
 import {
     Menu,
@@ -17,6 +27,7 @@ import {
     History,
     FileText,
     Plus,
+    PlusCircle,
     Calendar,
     ChevronDown,
     ChevronUp,
@@ -39,6 +50,7 @@ import {
     Thermometer,
     HeartPulse,
     Brain,
+    Sparkles,
     BookOpen,
     Printer,
     FileCheck,
@@ -47,10 +59,12 @@ import {
     Clock,
     UserCheck,
     UserX,
+    Baby,
     Mail,
     Eye,
     EyeOff,
     BarChart3,
+    Accessibility,
     Pill,
     Package,
     Filter,
@@ -63,7 +77,10 @@ import {
     Download,
     AlertOctagon,
     Zap,
-    Building2
+    Building2,
+    Loader2,
+    Edit2,
+    ExternalLink
 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 
@@ -126,7 +143,7 @@ export default function MedicoOcupacionalPage() {
     const [activeTab, setActiveTab] = useState('atencion');
 
     // Sub-tabs
-    const [fichaSubTab, setFichaSubTab] = useState('ingreso'); // 'ingreso' | 'cese' | 'embarazadas' | 'discapacidad'
+    const [fichaSubTab, setFichaSubTab] = useState('ingreso'); // 'ingreso' | 'cese' | 'reintegro'
     const [vigilanciaSubTab, setVigilanciaSubTab] = useState('vacunas'); // 'vacunas' | 'ausentismo' | 'accidentes'
     const [reportSubTab, setReportSubTab] = useState('diario');
 
@@ -139,6 +156,62 @@ export default function MedicoOcupacionalPage() {
     const [isHistogramModalOpen, setIsHistogramModalOpen] = useState(false);
     const [isConsultaModalOpen, setIsConsultaModalOpen] = useState(false);
     const [isReintegroModalOpen, setIsReintegroModalOpen] = useState(false);
+    const [isReintegroDetailModalOpen, setIsReintegroDetailModalOpen] = useState(false);
+    const [selectedReintegroDetail, setSelectedReintegroDetail] = useState(null);
+    const [isReportMatrixModalOpen, setIsReportMatrixModalOpen] = useState(false);
+    const [isIngresoDetailModalOpen, setIsIngresoDetailModalOpen] = useState(false);
+    const [selectedIngresoDetail, setSelectedIngresoDetail] = useState(null);
+    const [isRetiroDetailModalOpen, setIsRetiroDetailModalOpen] = useState(false);
+    const [selectedRetiroDetail, setSelectedRetiroDetail] = useState(null);
+
+    const printHtmlDocument = (htmlContent, title = 'Informe Oficial UEB') => {
+        try {
+            let iframe = document.getElementById('printable-hidden-frame');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'printable-hidden-frame';
+                iframe.style.position = 'fixed';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                iframe.style.opacity = '0';
+                iframe.style.pointerEvents = 'none';
+                document.body.appendChild(iframe);
+            }
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(htmlContent);
+            iframe.contentWindow.document.close();
+            setTimeout(() => {
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    console.error('Error al imprimir mediante iframe:', e);
+                }
+            }, 350);
+            return;
+        } catch (err) {
+            console.warn('Error al imprimir documento:', err);
+        }
+    };
+
+    const printIframeDocument = (iframeRef, getFallbackHtml) => {
+        const iframe = iframeRef?.current;
+        if (iframe && iframe.contentWindow) {
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                return;
+            } catch (err) {
+                console.warn('Direct print from visible iframe failed:', err);
+            }
+        }
+        if (getFallbackHtml) {
+            printHtmlDocument(getFallbackHtml());
+        }
+    };
     const [isExamModalOpen, setIsExamModalOpen] = useState(false);
     const [isFichaModalOpen, setIsFichaModalOpen] = useState(false);
     const [activeActionModal, setActiveActionModal] = useState(null);
@@ -148,6 +221,8 @@ export default function MedicoOcupacionalPage() {
 
     // Patient & Search State
     const [searchTerm, setSearchTerm] = useState('');
+    const [patientSearchTerm, setPatientSearchTerm] = useState('');
+    const [isSearchingPatients, setIsSearchingPatients] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
     const [patientSelected, setPatientSelected] = useState(null);
     const [patientId, setPatientId] = useState('');
@@ -212,14 +287,992 @@ export default function MedicoOcupacionalPage() {
 
     // Mock/Saved Lists
     const [fichasData, setFichasData] = useState([
-        { id: 1, fecha: '2026-09-10', paciente: 'Juan Pérez', cedula: '1723456789', tipo: 'Ingreso', puesto: 'Analista de Sistemas', aptitud: 'Apto', estado: 'Completado' },
-        { id: 2, fecha: '2026-09-12', paciente: 'Maria Rodriguez', cedula: '1712345678', tipo: 'Periódico', puesto: 'Técnico de Laboratorio', aptitud: 'Apto con Restricción', estado: 'Completado' },
-        { id: 3, fecha: '2026-09-14', paciente: 'Carlos López', cedula: '1798765432', tipo: 'Retiro', puesto: 'Mantenimiento General', aptitud: 'Apto', estado: 'Completado' }
+        {
+            id: 'merchan-silvia',
+            fecha: '2026-03-09',
+            primerApellido: 'MERCHAN',
+            segundoApellido: 'ORTIZ',
+            primerNombre: 'SILVIA',
+            segundoNombre: 'TATIANA',
+            paciente: 'MERCHAN ORTIZ SILVIA TATIANA',
+            cedula: '010672364-6',
+            tipo: 'Ingreso',
+            puesto: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
+            cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
+            ciuo: 'C02',
+            actividades: 'DOCENCIA',
+            aptitud: 'Apto',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            ciiu: 'S/N',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '010672364-6',
+            numArchivo: 'S/N',
+            sexo: 'F',
+            edad: 31,
+            religion: 'Católica',
+            grupoSanguineo: 'ORH+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Femenino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2026-03-09',
+            telefono: '0982753658',
+            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL PARA EL INGRESO AL PUESTO DE TRABAJO',
+            antecedentesClinicos: 'QUERATOCONO BINOCULAR, RINITIS ALERGICA                    VACUNAS: 3 DOSIS PARA COVID-19, INFLUENZA',
+            antecedentesQuirurgicos: 'CIRUGIA DE QUERATOCONO HACE 12 AÑOS                    ALERGIA: AL FRÍO AL POLVO ENTRE OTROS',
+            ginecoObstetricos: {
+                menarquia: '11 AÑOS',
+                ciclos: 'REGULARES',
+                fum: '2026-02-13',
+                gestas: 0,
+                partos: 0,
+                cesareas: 0,
+                abortos: 0,
+                hijosVivos: 0,
+                hijosMuertos: 0,
+                vidaSexualActiva: false,
+                planificacionFamiliar: false,
+                tipoPlanificacion: '',
+                papanicolaou: { realizada: true, tiempo: '3 MESES', resultado: 'NORMAL' },
+                colposcopia: { realizada: false, resultado: 'NO APLICA' },
+                mamografia: { realizada: false, resultado: 'NO APLICA' },
+                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
+            },
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'GYM 2 HORAS', tiempo: 'LUNES A VIERNES' },
+                medicacionHabitual: { tiene: true, cual: 'LEVOCETERIZINA 5 MG', tiempo: 'PRN' }
+            },
+            empleosAnteriores: [
+                {
+                    empresa: 'UNIVERSIDAD CATÓLICA DE CUENCA',
+                    puesto: 'DOCENTE',
+                    actividades: 'DOCENCIA',
+                    tiempo: '14 MESES',
+                    riesgos: { fisico: true, mecanico: false, quimico: true, biologico: false, ergonomico: false, psicosocial: false },
+                    observaciones: 'NINGUNA'
+                }
+            ],
+            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' },
+            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' },
+            antecedentesFamiliares: {
+                cardiovascular: true,
+                descripcion: 'ABUELO MATERNO CON HIPERTENSION ARTERIAL'
+            },
+            factoresRiesgo: {
+                puesto: 'FACULTAD DE CIENCIAS  DE LA EDUCACIÓN',
+                actividades: 'DOCENCIA',
+                fisico: ['Temperaturas altas', 'Temperaturas bajas'],
+                mecanico: ['Caídas al mismo nivel', 'Caídas a diferente nivel'],
+                quimico: [],
+                biologico: ['Virus'],
+                ergonomico: ['Posiciones estáticas'],
+                psicosocial: ['Inestabilidad laboral'],
+                medidasPreventivas: '1.- TEMPERATURAS BAJAS y ALTAS  : Uso de rropa adecuada dependindo el clima  . 2.- Caídas al mismo y distinto nivel:Capacitación de forma correcta para subir o bajar escalones   4.- Virus: Capacitación en medidas de bioseguridad para evitar el contagio.  5.- Posiciones estáticas:  Realizar pausas activas o ejercicios de estiramiento para evitar permanecer en posición sentada por tirmpos prolongados. 6.- Inestabilidad Laboral : Reunion con el Patrono y talento humano  para buscar una estabiliadad laboral'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE FEMENINA   DE  31  AÑOS DE EDAD ACUDE PARA UNA VALORACION PREOCUPACIONAL, AL MOMENTO NO REFIERE NINGUNA MOLESTIA.',
+            organosSistemas: {
+                normal: true,
+                descripcion: 'Aparatos y sistemas aparentemente normales.'
+            },
+            constantes: {
+                pa: '120/70',
+                temp: '36',
+                fc: '76',
+                satO2: '96',
+                fr: '20',
+                peso: '63',
+                talla: '1.60',
+                imc: '24.61',
+                perimetroAbd: '-'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'NO SE EVIDENCIA SIGNOS PATOLOGICOS'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA/QUIMICA', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
+                { examen: 'RX STABDRA DE TORAX', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
+                { examen: 'COPRO / EMO', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'QUERATOCONO', cie: 'H186', pre: false, def: true },
+                { num: 2, desc: 'RINITIS ALERGICA', cie: 'J304', pre: true, def: false }
+            ],
+            aptitudDetalle: {
+                apto: true,
+                aptoObservacion: false,
+                aptoLimitaciones: false,
+                noApto: false,
+                observacion: 'Ninguna',
+                limitacion: 'Uso adecuado de los Euipos de Proteccion  Individual'
+            },
+            recomendaciones: [
+                'DIETA  HIPOCALORICA',
+                'INGESTA DE LIQUIDOS A  LIBRE DEMANDA',
+                'LAVADO CORRECTO DE MANOS',
+                'EN CASO DE PRESENTAR ALGUNA MOLESTIA ACUDIR AL MEDICO OCUPACIONAL DE LA UEB',
+                'PENDIENTE RESULTADOS DE EXÁMENES DE LABORATORIO Y DE IMEGEN'
+            ],
+            profesional: {
+                fecha: '2026-03-09',
+                hora: '11:38',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 1,
+            fecha: '2026-09-10',
+            primerApellido: 'PÉREZ',
+            segundoApellido: 'GÓMEZ',
+            primerNombre: 'JUAN',
+            segundoNombre: 'CARLOS',
+            paciente: 'Juan Carlos Pérez Gómez',
+            cedula: '1723456789',
+            tipo: 'Ingreso',
+            puesto: 'ANALISTA DE SISTEMAS E INFRAESTRUCTURA TIC',
+            cargo: 'ANALISTA DE SISTEMAS E INFRAESTRUCTURA TIC',
+            ciuo: 'C03',
+            actividades: 'ADMINISTRACIÓN DE SERVIDORES Y SOPORTE TÉCNICO A CAMPUS',
+            aptitud: 'Apto',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '1723456789',
+            numArchivo: 'TIC-042',
+            sexo: 'M',
+            edad: 29,
+            religion: 'Católica',
+            grupoSanguineo: 'O+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Masculino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2026-09-10',
+            telefono: '0991234567',
+            motivoConsulta: 'EVALUACIÓN MÉDICA PREOCUPACIONAL PARA INGRESO AL ÁREA DE TIC',
+            antecedentesClinicos: 'NINGUNO DE RELEVANCIA CLÍNICA. NO ALERGIAS MEDICAMENTOSAS. VACUNAS COMPLETAS.',
+            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS.',
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'CICLISMO DE MONTAÑA', tiempo: 'FINES DE SEMANA (3H)' },
+                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
+            },
+            antecedentesFamiliares: {
+                cardiovascular: false,
+                descripcion: 'PADRES VIVOS SIN ENFERMEDADES CRÓNICAS DEGNERATIVAS RELEVANTES.'
+            },
+            factoresRiesgo: {
+                puesto: 'DIRECCIÓN DE TECNOLOGÍAS DE INFORMACIÓN (TIC)',
+                actividades: 'MANTENIMIENTO DE SERVIDORES Y CABLEADO ESTRUCTURADO',
+                fisico: ['Ruido en centro de cómputo / datacenter'],
+                mecanico: ['Caídas al mismo nivel'],
+                quimico: [],
+                biologico: ['Virus'],
+                ergonomico: ['Sedestación prolongada', 'Movimientos repetitivos en digitación'],
+                psicosocial: ['Carga mental'],
+                medidasPreventivas: '1.- Uso de protección auditiva al ingresar a salas de servidores. 2.- Pausas activas visuales cada 50 minutos. 3.- Silla ergonómica regulable con apoyo lumbar.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE MASCULINO DE 29 AÑOS REFIERE SENTIRSE EN BUEN ESTADO DE SALUD. NIEGA SÍNTOMAS ACTUALES.',
+            organosSistemas: { normal: true, descripcion: 'Órganos de los sentidos y sistemas cardio-respiratorio sin alteraciones.' },
+            constantes: {
+                pa: '118/78',
+                temp: '36.4',
+                fc: '72',
+                satO2: '98',
+                fr: '18',
+                peso: '69',
+                talla: '1.71',
+                imc: '23.60',
+                perimetroAbd: '82'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'Paciente alerta y orientado. Cabeza y cuello normoconfigurados. Tórax simétrico, campos pulmonares limpios. Abdomen suave y depresible. Columna vertebral con arcos de movilidad conservados.'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA HEMÁTICA Y GLUCOSA', fecha: '2026-09-08', resultado: 'VALORES DENTRO DE LÍMITES NORMALES' },
+                { examen: 'RX DE TÓRAX POSTEROANTERIOR', fecha: '2026-09-08', resultado: 'SIN LESIONES PLEUROPULMONARES ACTIVAS' },
+                { examen: 'OPTOMETRÍA OCUPACIONAL', fecha: '2026-09-08', resultado: 'AGUDEZA VISUAL 20/20 AMBOS OJOS' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'EXAMEN MÉDICO GENERAL DE INGRESO LABORAL', cie: 'Z00.0', pre: false, def: true }
+            ],
+            aptitudDetalle: {
+                apto: true,
+                aptoObservacion: false,
+                aptoLimitaciones: false,
+                noApto: false,
+                observacion: 'Ninguna',
+                limitacion: 'Uso de Equipos de Protección Individual y seguimiento ergonómico'
+            },
+            recomendaciones: [
+                'PAUSAS ACTIVAS VISUALES REGLA 20-20-20 FRENTE AL MONITOR',
+                'MANTENER POSTURA ERGONÓMICA EN EL PUESTO DE TRABAJO',
+                'HIDRATACIÓN CONTINUA DURANTE LA JORNADA',
+                'CONTROL MÉDICO OCUPACIONAL ANUAL'
+            ],
+            profesional: {
+                fecha: '2026-09-10',
+                hora: '09:15',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 2,
+            fecha: '2026-09-12',
+            primerApellido: 'RODRIGUEZ',
+            segundoApellido: 'ALMEIDA',
+            primerNombre: 'MARIA',
+            segundoNombre: 'FERNANDA',
+            paciente: 'Maria Fernanda Rodriguez Almeida',
+            cedula: '1712345678',
+            tipo: 'Periódico',
+            puesto: 'TÉCNICO DE LABORATORIO DE BIOQUÍMICA',
+            cargo: 'TÉCNICO DE LABORATORIO DE BIOQUÍMICA',
+            ciuo: 'C05',
+            actividades: 'PREPARACIÓN DE REACTIVOS Y PROCESAMIENTO DE MUESTRAS',
+            aptitud: 'Apto con Restricción',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '1712345678',
+            numArchivo: 'LAB-108',
+            sexo: 'F',
+            edad: 42,
+            religion: 'Católica',
+            grupoSanguineo: 'A+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Femenino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2022-04-15',
+            telefono: '0984567890',
+            motivoConsulta: 'EVALUACIÓN MÉDICA PERIÓDICA ANUAL DE CONTROL OCUPACIONAL',
+            antecedentesClinicos: 'LUMBALGIA MECÁNICA CRÓNICA EN TRATAMIENTO CONSERVADOR. GASTRITIS LEVE.',
+            antecedentesQuirurgicos: 'CESÁREA HACE 8 AÑOS SIN COMPLICACIONES. ALERGIA: A LA PENICILINA.',
+            ginecoObstetricos: {
+                menarquia: '12 AÑOS',
+                ciclos: 'REGULARES',
+                fum: '2026-08-28',
+                gestas: 2,
+                partos: 1,
+                cesareas: 1,
+                abortos: 0,
+                hijosVivos: 2,
+                hijosMuertos: 0,
+                vidaSexualActiva: true,
+                planificacionFamiliar: true,
+                tipoPlanificacion: 'DIU',
+                papanicolaou: { realizada: true, tiempo: '6 MESES', resultado: 'NEGATIVO (NORMAL)' },
+                colposcopia: { realizada: false, resultado: 'NO APLICA' },
+                mamografia: { realizada: true, tiempo: '1 AÑO', resultado: 'BIRADS 1' },
+                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
+            },
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'NATACIÓN Y TERAPIA FÍSICA', tiempo: '2 VECES POR SEMANA' },
+                medicacionHabitual: { tiene: true, cual: 'MELOXICAM 15 MG (EN CRISIS)', tiempo: 'PRN' }
+            },
+            antecedentesFamiliares: {
+                cardiovascular: true,
+                descripcion: 'MADRE HIPERTENSA. PADRE CON DIABETES MELLITUS TIPO 2 EN TRATAMIENTO.'
+            },
+            factoresRiesgo: {
+                puesto: 'LABORATORIO DE CIENCIAS QUÍMICAS',
+                actividades: 'MANIPULACIÓN DE PIPETAS, REACTIVOS QUÍMICOS Y MICROSCOPÍA',
+                fisico: ['Iluminación focalizada'],
+                mecanico: ['Cortes por material de vidrio', 'Caídas al mismo nivel'],
+                quimico: ['Vapores de solventes orgánicos', 'Ácidos diluidos'],
+                biologico: ['Bacterias y cultivos microbianos'],
+                ergonomico: ['Bipedestación prolongada', 'Manipulación de cargas manuales > 8kg'],
+                psicosocial: ['Exigencia de precisión'],
+                medidasPreventivas: '1.- Uso continuo de bata de laboratorio, guantes de nitrilo y gafas de seguridad. 2.- No levantar reactivos que superen los 5 kg individualmente. 3.- Banco ergonómico de laboratorio regulable.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE REFIERE EPISODIOS INTERMITENTES DE DOLOR LUMBAR TRAS JORNADAS CON BIPEDESTACIÓN PROLONGADA EN LABORATORIO.',
+            organosSistemas: { normal: true, descripcion: 'Aparato locomotor con contractura paravertebral lumbar. Resto normal.' },
+            constantes: {
+                pa: '122/80',
+                temp: '36.5',
+                fc: '78',
+                satO2: '97',
+                fr: '19',
+                peso: '64',
+                talla: '1.63',
+                imc: '24.09',
+                perimetroAbd: '79'
+            },
+            examenFisico: {
+                normal: false,
+                descripcion: 'Columna lumbosacra con dolor a la palpación en masa paravertebral L4-L5 bilateral. Maniobra de Lasègue negativa bilateral. Fuerza y reflejos conservados en miembros inferiores.'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA Y QUÍMICA HEPÁTICA/RENAL', fecha: '2026-09-02', resultado: 'NORMAL' },
+                { examen: 'RX COLUMNA LUMBOSACRA AP Y LATERAL', fecha: '2026-09-02', resultado: 'LEVE DISMINUCIÓN ESPACIO L5-S1' },
+                { examen: 'EMO COMPLETO', fecha: '2026-09-02', resultado: 'NEGATIVO' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'LUMBALGIA MECÁNICA NO ESPECIFICADA', cie: 'M54.5', pre: false, def: true }
+            ],
+            aptitudDetalle: {
+                apto: false,
+                aptoObservacion: true,
+                aptoLimitaciones: true,
+                noApto: false,
+                observacion: 'Requiere adaptaciones ergonómicas en puesto de laboratorio',
+                limitacion: 'Restricción de levantamiento de cargas mayores a 5 kg. Alternar bipedestación con sedestación.'
+            },
+            recomendaciones: [
+                'NO LEVANTAR CARGAS SUPERIORES A 5 KG DE FORMA UNILATERAL',
+                'ALTERNAR POSICIONES DE PIE Y SENTADA MEDIANTE TABURETE ERGONÓMICO DE LABORATORIO',
+                'CONTINUAR TERAPIA DE FORTALECIMIENTO DE LA FAJA ABDOMINOLUMBAR',
+                'USO DE FAJA LUMBAR DURANTE ACTIVIDADES DE ALMACÉN DE REACTIVOS',
+                'CONTROL EN EL DEPARTAMENTO MÉDICO EN 6 MESES'
+            ],
+            profesional: {
+                fecha: '2026-09-12',
+                hora: '10:40',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 3,
+            fecha: '2026-09-14',
+            primerApellido: 'LÓPEZ',
+            segundoApellido: 'MENDOZA',
+            primerNombre: 'CARLOS',
+            segundoNombre: 'ALBERTO',
+            paciente: 'Carlos Alberto López Mendoza',
+            cedula: '1798765432',
+            tipo: 'Retiro',
+            puesto: 'TÉCNICO DE MANTENIMIENTO E INFRAESTRUCTURA',
+            cargo: 'TÉCNICO DE MANTENIMIENTO E INFRAESTRUCTURA',
+            ciuo: 'C07',
+            actividades: 'MANTENIMIENTO PREVENTIVO, ELÉCTRICO Y DE EDIFICACIONES EN CAMPUS',
+            aptitud: 'Satisfactorio',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            ciiu: 'S/N',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '1798765432',
+            numArchivo: 'RET-2026-003',
+            sexo: 'M',
+            edad: 46,
+            religion: 'Católica',
+            grupoSanguineo: 'O+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Masculino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2021-06-01',
+            fechaRetiro: '2026-09-14',
+            tiempoServicio: '5 AÑOS 3 MESES',
+            causaRetiro: 'FINALIZACIÓN DE CONTRATO LABORAL POR PLAZO FIJO',
+            telefono: '0998765432',
+            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO / CESE LABORAL POR CULMINACIÓN DE CONTRATO',
+            antecedentesClinicos: 'HIPERTENSIÓN ARTERIAL GRADO I CONTROLADA CON TRATAMIENTO. NO ALERGIAS MEDICAMENTOSAS.',
+            antecedentesQuirurgicos: 'HERNIORRAFIA INGUINAL DERECHA HACE 6 AÑOS SIN COMPLICACIONES NI SECUELAS.',
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'CAMINATA DIARIA', tiempo: '45 MINUTOS AL DÍA' },
+                medicacionHabitual: { tiene: true, cual: 'LOSARTÁN 50 MG', tiempo: 'CADA 24 HORAS' }
+            },
+            empleosAnteriores: [
+                {
+                    empresa: 'CONSTRUCTORA GUAYAQUIL S.A.',
+                    puesto: 'TÉCNICO DE INSTALACIONES',
+                    actividades: 'INSTALACIONES ELÉCTRICAS',
+                    tiempo: '4 AÑOS',
+                    riesgos: { fisico: true, mecanico: true, quimico: false, biologico: false, ergonomico: true, psicosocial: false },
+                    observaciones: 'NINGUNA'
+                }
+            ],
+            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA NOVEDAD DURANTE SU PERIODO EN LA UEB' },
+            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ENFERMEDADES OCUPACIONALES DIAGNOSTICADAS' },
+            antecedentesFamiliares: {
+                cardiovascular: true,
+                descripcion: 'PADRE CON ANTECEDENTE DE HIPERTENSIÓN ARTERIAL.'
+            },
+            factoresRiesgo: {
+                puesto: 'UNIDAD DE MANTENIMIENTO CAMPUS MATRIZ',
+                actividades: 'MANTENIMIENTO PREVENTIVO Y CORRECTIVO',
+                fisico: ['Ruido de herramientas', 'Vibraciones'],
+                mecanico: ['Caídas al mismo y distinto nivel', 'Golpes o cortes por herramientas manuales'],
+                quimico: ['Polvo ambiental y partículas en suspensión'],
+                biologico: ['Virus estacionales'],
+                ergonomico: ['Manipulación manual de cargas', 'Posturas forzadas'],
+                psicosocial: ['Exigencia de tiempo de respuesta'],
+                medidasPreventivas: '1.- Uso constante de calzado dieléctrico con punta reforzada, guantes de protección mecánica, protección auditiva y casco de seguridad. 2.- Capacitación en técnicas de levantamiento de cargas. 3.- Se verificó cumplimiento regular de pausas activas durante su permanencia.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE MASCULINO DE 46 AÑOS DE EDAD ACUDE PARA EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO. AL MOMENTO SE ENCUENTRA ASINTOMÁTICO, SIN REFERENCIA DE ACCIDENTES NI ENFERMEDADES OCUPACIONALES DURANTE SU TIEMPO LABORAL.',
+            organosSistemas: {
+                normal: true,
+                descripcion: 'Aparatos respiratorio, cardiovascular y osteoarticular sin alteraciones patológicas atribuibles a su puesto.'
+            },
+            constantes: {
+                pa: '122/78',
+                temp: '36.5',
+                fc: '74',
+                satO2: '97',
+                fr: '18',
+                peso: '74',
+                talla: '1.68',
+                imc: '26.22',
+                perimetroAbd: '86'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'Paciente consciente, orientado y en buen estado general. Cabeza y cuello normosómicos. Agudeza visual conservada con lentes correctores. Tórax simétrico, campos pulmonares limpios y murmullo vesicular presente. Corazón rítmico normofonético. Abdomen blando, depresible, no doloroso, cicatriz de herniorrafia inguinal derecha antigua sin eventración. Extremidades con tono, fuerza 5/5 y arcos de movilidad articular completos. Sin evidencia de secuelas laborales.'
+            },
+            examenesLab: [
+                { examen: 'AUDIOMETRÍA TONAL DE RETIRO', fecha: '2026-09-12', resultado: 'AUDICIÓN NORMAL BILATERAL SIN DESPLAZAMIENTO DEL UMBRAL AUDITIVO' },
+                { examen: 'RX TÓRAX POSTEROANTERIOR DE RETIRO', fecha: '2026-09-12', resultado: 'CAMPOS PULMONARES Y SENOS COSTOFRENICOS LIBRES. SILUETA NORMAL' },
+                { examen: 'BIOMETRIA HEMATICA Y QUIMICA', fecha: '2026-09-12', resultado: 'GLUCOSA: 94 MG/DL, COLESTEROL: 185 MG/DL, TRIGLICÉRIDOS: 140 MG/DL' },
+                { examen: 'EVALUACIÓN ESPINOMETRICA / OSTEOMUSCULAR', fecha: '2026-09-12', resultado: 'COLUMNA VERTEBRAL SIN ALTERACIONES FUNCIONALES NI LIMITACIÓN' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'EXAMEN MÉDICO DE RETIRO OCUPACIONAL', cie: 'Z02.7', pre: false, def: true },
+                { num: 2, desc: 'HIPERTENSIÓN ESENCIAL (PRIMARIA) CONTROLADA (PATOLOGÍA COMÚN)', cie: 'I10', pre: false, def: true }
+            ],
+            condSalida: {
+                satisfactorio: true,
+                conPatologiaComun: false,
+                conSecuelaLaboral: false,
+                observacion: 'El servidor concluye su relación laboral en condiciones físicas y de salud satisfactorias, sin enfermedades profesionales ni secuelas originadas por el trabajo.',
+                recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción laboral.'
+            },
+            recomendaciones: [
+                'CONTINUAR CON CONTROLES MÉDICOS PERIÓDICOS DE SU HIPERTENSIÓN ARTERIAL CON SU MÉDICO DE CABECERA',
+                'MANTENER DIETA HIPOSÓDICA Y HÁBITOS DE VIDA SALUDABLE CON ACTIVIDAD FÍSICA AERÓBICA REGULAR',
+                'SE ENTREGA CONSTANCIA OFICIAL DE EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO AL TRABAJADOR'
+            ],
+            profesional: {
+                fecha: '2026-09-14',
+                hora: '10:30',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 4,
+            fecha: '2026-09-15',
+            primerApellido: 'ALARCÓN',
+            segundoApellido: 'QUINATOA',
+            primerNombre: 'PEDRO',
+            segundoNombre: 'JAVIER',
+            paciente: 'Pedro Javier Alarcón Quinatoa',
+            cedula: '2015066720',
+            tipo: 'Ingreso',
+            puesto: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
+            cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
+            ciuo: 'C02',
+            actividades: 'DOCENCIA UNIVERSITARIA, CÁTEDRA E INVESTIGACIÓN FORMATIVA',
+            aptitud: 'Apto',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '2015066720',
+            numArchivo: 'DOC-2026-088',
+            sexo: 'M',
+            edad: 38,
+            religion: 'Católica',
+            grupoSanguineo: 'O+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Masculino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2026-09-15',
+            telefono: '0983112233',
+            motivoConsulta: 'EVALUACIÓN MÉDICA PREOCUPACIONAL PARA EL INGRESO A LA DOCENCIA UNIVERSITARIA',
+            antecedentesClinicos: 'NO REFIERE ENFERMEDADES CRÓNICAS DEGNERATIVAS. VACUNACIÓN COMPLETA COVID-19 E INFLUENZA.',
+            antecedentesQuirurgicos: 'APENDICECTOMÍA HACE 10 AÑOS SIN SECUELAS. NO ALERGIAS MEDICAMENTOSAS.',
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'FÚTBOL Y TROTE', tiempo: '2 VECES POR SEMANA (2H)' },
+                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
+            },
+            empleosAnteriores: [
+                {
+                    empresa: 'COLEGIO NACIONAL BOLÍVAR',
+                    puesto: 'DOCENTE DE MATEMÁTICAS',
+                    actividades: 'DOCENCIA Y EVALUACIÓN',
+                    tiempo: '5 AÑOS',
+                    riesgos: { fisico: true, mecanico: false, quimico: false, biologico: false, ergonomico: true, psicosocial: true },
+                    observaciones: 'NINGUNA'
+                }
+            ],
+            antecedentesFamiliares: {
+                cardiovascular: true,
+                descripcion: 'PADRE FALLECIDO POR INFARTO AGUDO DE MIOCARDIO. MADRE HIPERTENSA CONTROLADA.'
+            },
+            factoresRiesgo: {
+                puesto: 'FACULTAD DE CIENCIAS DE LA SALUD Y EDUCACIÓN',
+                actividades: 'DOCENCIA UNIVERSITARIA EN AULAS Y LABORATORIOS',
+                fisico: ['Ruido ambiental en aulas', 'Variaciones térmicas'],
+                mecanico: ['Caídas al mismo y distinto nivel por escaleras'],
+                quimico: [],
+                biologico: ['Virus respiratorios estacionales'],
+                ergonomico: ['Bipedestación prolongada durante clases', 'Uso continuo de la voz'],
+                psicosocial: ['Carga mental y atención a estudiantes'],
+                medidasPreventivas: '1.- Técnicas de impostación y descanso vocal. 2.- Pausas activas y cambio postural durante clases magistrales. 3.- Ropa adecuada a los cambios de clima en el campus.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE MASCULINO DE 38 AÑOS ACUDE PARA RECONOCIMIENTO PREOCUPACIONAL. SE ENCUENTRA ASINTOMÁTICO.',
+            organosSistemas: { normal: true, descripcion: 'Aparatos y sistemas evaluados dentro de límites normales.' },
+            constantes: {
+                pa: '124/82',
+                temp: '36.6',
+                fc: '74',
+                satO2: '97',
+                fr: '18',
+                peso: '74',
+                talla: '1.72',
+                imc: '25.01',
+                perimetroAbd: '86'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'Paciente consciente, orientado. Oídos y faringe normales, cuerdas vocales sin ronquera evidente. Corazón rítmico, ruidos bien timbrados. Pulmones ventilados. Abdomen blando no doloroso. Pulsos periféricos simétricos.'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA HEMÁTICA COMPLETA', fecha: '2026-09-11', resultado: 'NORMAL (LEUCOCITOS 6.800, HB 15.2)' },
+                { examen: 'GLUCOSA Y PERFIL LIPÍDICO', fecha: '2026-09-11', resultado: 'GLUCOSA 91 MG/DL, COLESTEROL 188 MG/DL' },
+                { examen: 'RX TÓRAX POSTEROANTERIOR', fecha: '2026-09-11', resultado: 'CAMPOS PULMONARES Y SILUETA CARDÍACA NORMALES' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'EVALUACIÓN MÉDICA GENERAL OCUPACIONAL (PREOCUPACIONAL)', cie: 'Z00.0', pre: false, def: true }
+            ],
+            aptitudDetalle: {
+                apto: true,
+                aptoObservacion: false,
+                aptoLimitaciones: false,
+                noApto: false,
+                observacion: 'Ninguna',
+                limitacion: 'Uso adecuado de los Equipos de Protección Individual y cuidado de la voz'
+            },
+            recomendaciones: [
+                'TÉCNICAS DE HIGIENE VOCAL E HIDRATACIÓN ABUNDANTE DURANTE DICTADO DE CLASES',
+                'PAUSAS ACTIVAS DE 5 MINUTOS TRAS CADA HORA DE CÁTEDRA',
+                'CONTROL CARDIOVASCULAR ANUAL POR ANTECEDENTE FAMILIAR',
+                'SEGUIMIENTO MÉDICO PERIÓDICO EN LA UNIDAD DE SALUD OCUPACIONAL'
+            ],
+            profesional: {
+                fecha: '2026-09-15',
+                hora: '11:20',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 5,
+            fecha: '2026-09-16',
+            primerApellido: 'RAMOS',
+            segundoApellido: 'GRIJALVA',
+            primerNombre: 'CYNTHIA',
+            segundoNombre: 'GABRIELA',
+            paciente: 'Cynthia Gabriela Ramos Grijalva',
+            cedula: '1803869492',
+            tipo: 'Periódico',
+            puesto: 'DOCENTE TITULAR A TIEMPO COMPLETO',
+            cargo: 'DOCENTE TITULAR A TIEMPO COMPLETO',
+            ciuo: 'C02',
+            actividades: 'DOCENCIA DE PREGRADO, INVESTIGACIÓN Y GESTIÓN ACADÉMICA',
+            aptitud: 'Apto',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '1803869492',
+            numArchivo: 'DOC-2026-014',
+            sexo: 'F',
+            edad: 34,
+            religion: 'Católica',
+            grupoSanguineo: 'A+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Femenino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2021-03-01',
+            telefono: '0995544332',
+            motivoConsulta: 'EVALUACIÓN MÉDICA PERIÓDICA ANUAL DE CONTROL OCUPACIONAL',
+            antecedentesClinicos: 'ASTIGMATISMO MIÓPICO BILATERAL CORREGIDO CON LENTES. CEFALEAS TENSIONALES OCASIONALES.',
+            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS. ALERGIA: AL POLVO Y ÁCAROS.',
+            ginecoObstetricos: {
+                menarquia: '12 AÑOS',
+                ciclos: 'REGULARES',
+                fum: '2026-08-25',
+                gestas: 1,
+                partos: 1,
+                cesareas: 0,
+                abortos: 0,
+                hijosVivos: 1,
+                hijosMuertos: 0,
+                vidaSexualActiva: true,
+                planificacionFamiliar: true,
+                tipoPlanificacion: 'PRESERVATIVO',
+                papanicolaou: { realizada: true, tiempo: '6 MESES', resultado: 'NORMAL' },
+                colposcopia: { realizada: false, resultado: 'NO APLICA' },
+                mamografia: { realizada: false, resultado: 'NO APLICA' },
+                ecoMamario: { realizada: true, tiempo: '1 AÑO', resultado: 'NORMAL' }
+            },
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'PILATES Y YOGA', tiempo: '3 VECES POR SEMANA' },
+                medicacionHabitual: { tiene: true, cual: 'PARACETAMOL 500 MG', tiempo: 'PRN (DOLOR CEFÁLICO)' }
+            },
+            antecedentesFamiliares: {
+                cardiovascular: false,
+                descripcion: 'ABUELA MATERNA CON DIABETES MELLITUS TIPO 2.'
+            },
+            factoresRiesgo: {
+                puesto: 'FACULTAD DE CIENCIAS AGROPECUARIAS',
+                actividades: 'DOCENCIA TEÓRICA Y FORMULACIÓN DE PROYECTOS EN COMPUTADOR',
+                fisico: ['Iluminación de pantallas de visualización de datos (PVD)'],
+                mecanico: ['Caídas al mismo nivel'],
+                quimico: [],
+                biologico: ['Virus estacionales'],
+                ergonomico: ['Sedestación prolongada en escritorio', 'Uso repetitivo de mouse y teclado'],
+                psicosocial: ['Exigencia académica y plazos de entrega'],
+                medidasPreventivas: '1.- Regla 20-20-20 para descanso de acomodación ocular. 2.- Soporte ergonómico de muñeca y pantalla a nivel de los ojos. 3.- Pausas activas con estiramientos cervicales.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'PACIENTE REFIERE LEVE FATIGA OCULAR AL FINALIZAR JORNADAS PROLONGADAS DE REVISIÓN DIGITAL DE TRABAJOS DE TITULACIÓN.',
+            organosSistemas: { normal: true, descripcion: 'Órganos de los sentidos: leve hiperemia conjuntival bilateral. Resto sin patología.' },
+            constantes: {
+                pa: '115/75',
+                temp: '36.4',
+                fc: '72',
+                satO2: '98',
+                fr: '17',
+                peso: '58',
+                talla: '1.62',
+                imc: '22.10',
+                perimetroAbd: '74'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'Consciente y orientada. Ojos simétricos con uso de lentes correctores. Cuello móvil con leve tensión paravertebral trapecial bilateral. Ruidos cardíacos y respiratorios limpios. Abdomen blando no doloroso. Extremidades íntegras.'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA HEMÁTICA', fecha: '2026-09-05', resultado: 'NORMAL' },
+                { examen: 'QUÍMICA SANGUÍNEA (GLUCOSA, UREA, CREATININA)', fecha: '2026-09-05', resultado: 'VALORES NORMALES' },
+                { examen: 'EVALUACIÓN OFTALMOLÓGICA', fecha: '2026-09-05', resultado: 'AGUDEZA CORREGIDA 20/20' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'ASTENOPIA / FATIGA VISUAL OCUPACIONAL', cie: 'H53.1', pre: false, def: true },
+                { num: 2, desc: 'CERVICALGIA TENSIONAL LEVE', cie: 'M54.2', pre: true, def: false }
+            ],
+            aptitudDetalle: {
+                apto: true,
+                aptoObservacion: false,
+                aptoLimitaciones: false,
+                noApto: false,
+                observacion: 'Ninguna',
+                limitacion: 'Uso de lentes de descanso con filtro de luz azul y pausas activas'
+            },
+            recomendaciones: [
+                'APLICAR REGLA 20-20-20: CADA 20 MINUTOS MIRAR A 20 PIES (6 METROS) DURANTE 20 SEGUNDOS',
+                'USO DE LÁGRIMAS ARTIFICIALES LUBRICANTES SEGÚN REQUERIMIENTO',
+                'EJERCICIOS DE ESTIRAMIENTO DE CUELLO Y HOMBROS 3 VECES AL DÍA',
+                'CONTROL OCUPACIONAL ANUAL DE AGUDEZA VISUAL'
+            ],
+            profesional: {
+                fecha: '2026-09-16',
+                hora: '12:00',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        {
+            id: 6,
+            fecha: '2026-09-18',
+            primerApellido: 'VALDIVIESO',
+            segundoApellido: 'CÁRDENAS',
+            primerNombre: 'MARIANA',
+            segundoNombre: 'DE JESÚS',
+            paciente: 'Mariana de Jesús Valdivieso Cárdenas',
+            cedula: '0201948571',
+            tipo: 'Retiro',
+            puesto: 'ASISTENTE ADMINISTRATIVA DE VICERRECTORADO',
+            cargo: 'ASISTENTE ADMINISTRATIVA DE VICERRECTORADO',
+            ciuo: 'C04',
+            actividades: 'GESTIÓN DOCUMENTAL, ARCHIVO DIGITAL Y ATENCIÓN A USUARIOS',
+            aptitud: 'Satisfactorio',
+            estado: 'Completado',
+            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
+            ruc: '0260000920001',
+            ciiu: 'S/N',
+            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
+            numHistoriaClinica: '0201948571',
+            numArchivo: 'RET-2026-006',
+            sexo: 'F',
+            edad: 34,
+            religion: 'Católica',
+            grupoSanguineo: 'A+',
+            lateralidad: 'DIESTRO',
+            orientacionSexual: 'Heterosexual',
+            identidadGenero: 'Femenino',
+            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
+            fechaIngreso: '2022-01-10',
+            fechaRetiro: '2026-09-18',
+            tiempoServicio: '4 AÑOS 8 MESES',
+            causaRetiro: 'RENUNCIA VOLUNTARIA POR MOTIVOS PERSONALES',
+            telefono: '0981948571',
+            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO / CESE LABORAL POR RENUNCIA VOLUNTARIA',
+            antecedentesClinicos: 'GASTRITIS CRÓNICA SUPERFICIAL. ASTIGMATISMO MIOPE CORREGIDO CON LENTES. NO ALERGIAS MEDICAMENTOSAS.',
+            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS.',
+            ginecoObstetricos: {
+                menarquia: '12 AÑOS',
+                ciclos: 'REGULARES',
+                fum: '2026-09-02',
+                gestas: 1,
+                partos: 1,
+                cesareas: 0,
+                abortos: 0,
+                hijosVivos: 1,
+                hijosMuertos: 0,
+                vidaSexualActiva: true,
+                planificacionFamiliar: true,
+                tipoPlanificacion: 'PRESERVATIVO',
+                papanicolaou: { realizada: true, tiempo: '5 MESES', resultado: 'NEGATIVO (NORMAL)' },
+                colposcopia: { realizada: false, resultado: 'NO APLICA' },
+                mamografia: { realizada: false, resultado: 'NO APLICA' },
+                ecoMamario: { realizada: true, tiempo: '1 AÑO', resultado: 'NORMAL SIN HALLAZGOS' }
+            },
+            habitosToxicos: {
+                tabaco: false,
+                alcohol: false,
+                drogas: false,
+                actividadFisica: { tiene: true, cual: 'PILATES Y CAMINATA', tiempo: '3 VECES POR SEMANA' },
+                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
+            },
+            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ANTECEDENTES DE ACCIDENTES LABORALES EN LA UEB' },
+            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ENFERMEDADES OCUPACIONALES REGISTRADAS' },
+            antecedentesFamiliares: {
+                cardiovascular: false,
+                descripcion: 'MADRE VIVA SANA. PADRE CON HIPERTENSIÓN ARTERIAL.'
+            },
+            factoresRiesgo: {
+                puesto: 'VICERRECTORADO ACADÉMICO',
+                actividades: 'GESTIÓN DOCUMENTAL Y REDACCIÓN EN COMPUTADOR',
+                fisico: ['Iluminación de pantallas de visualización de datos (PVD)'],
+                mecanico: ['Caídas al mismo nivel'],
+                quimico: [],
+                biologico: ['Virus estacionales'],
+                ergonomico: ['Sedestación prolongada', 'Movimientos repetitivos de digitación'],
+                psicosocial: ['Atención al público'],
+                medidasPreventivas: '1.- Uso de descansapies y soporte ergonómico para teclado y mouse. 2.- Pausas activas visuales y musculares. 3.- Higiene postural.'
+            },
+            actividadesExtraLaborales: 'NO',
+            enfermedadActual: 'FUNCIONARIA EN PROCESO DE CESE POR RENUNCIA VOLUNTARIA ACUDE A EVALUACIÓN MÉDICA OCUPACIONAL. ASINTOMÁTICA AL MOMENTO DE LA CONSULTA.',
+            organosSistemas: {
+                normal: true,
+                descripcion: 'Aparatos y sistemas evaluados sin sintomatología aguda ni secuelas laborales.'
+            },
+            constantes: {
+                pa: '116/74',
+                temp: '36.4',
+                fc: '70',
+                satO2: '98',
+                fr: '17',
+                peso: '59',
+                talla: '1.61',
+                imc: '22.76',
+                perimetroAbd: '75'
+            },
+            examenFisico: {
+                normal: true,
+                descripcion: 'Paciente lúcida, orientada temporo-espacialmente. Mucosas húmedas y normocoloreadas. Cuello sin adenopatías ni bocio, movimientos de flexo-extensión y rotación conservados. Cardiopulmonar normal sin ruidos sobreagregados. Abdomen suave, depresible, no doloroso a la palpación profunda. Miembros superiores e inferiores íntegros, reflejos osteotendinosos presentes y simétricos, fuerza muscular 5/5. Sin signos de síndrome de túnel carpiano (Phalen y Tinel negativos bilateral).'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA HEMÁTICA DE RETIRO', fecha: '2026-09-15', resultado: 'VALORES HEMATOLÓGICOS DENTRO DE LÍMITES NORMALES' },
+                { examen: 'QUÍMICA SANGUÍNEA Y EMO', fecha: '2026-09-15', resultado: 'GLUCOSA: 88 MG/DL, FUNCIÓN RENAL NORMAL, EMO SIN ALTERACIONES' },
+                { examen: 'AUDIOMETRÍA OCUPACIONAL DE SALIDA', fecha: '2026-09-15', resultado: 'CAPACIDAD AUDITIVA BILATERAL CONSERVADA (NORMOUDIENTE)' },
+                { examen: 'EVALUACIÓN DE MIEMBROS SUPERIORES', fecha: '2026-09-15', resultado: 'MANIOBRAS DE PHALEN Y TINEL NEGATIVAS BILATERAL' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'EXAMEN MÉDICO DE RETIRO OCUPACIONAL', cie: 'Z02.7', pre: false, def: true },
+                { num: 2, desc: 'ASTIGMATISMO MIOPE (PATOLOGÍA COMÚN CORREGIDA)', cie: 'H52.2', pre: false, def: true }
+            ],
+            condSalida: {
+                satisfactorio: true,
+                conPatologiaComun: false,
+                conSecuelaLaboral: false,
+                observacion: 'La servidora concluye sus funciones en la institución en óptimas condiciones de salud, sin secuelas ni afecciones vinculadas a sus labores.',
+                recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción o cese.'
+            },
+            recomendaciones: [
+                'CONTINUAR CON ESTILO DE VIDA SALUDABLE Y CHEQUEOS MÉDICOS PREVENTIVOS ANUALES',
+                'SEGUIMIENTO OFTALMOLÓGICO ANUAL PARA CONTROL DE LENTES CORRECTORES',
+                'SE EMITE Y ENTREGA CERTIFICADO MÉDICO DE RETIRO A LA INTERESADA'
+            ],
+            profesional: {
+                fecha: '2026-09-18',
+                hora: '11:15',
+                nombre: 'DR. JORGE MORALES',
+                codigo: '1804486288'
+            }
+        },
+        { id: 7, fecha: '2026-09-19', paciente: 'Patricia Guamán Paredes', cedula: '0201889923', tipo: 'Gestante', puesto: 'Docente Ocasional', aptitud: 'Apto con Restricción', estado: 'Completado' },
+        { id: 8, fecha: '2026-09-20', paciente: 'Sofía Paredes Montero', cedula: '0202114455', tipo: 'Lactante', puesto: 'Analista Financiera', aptitud: 'Apto', estado: 'Completado' },
+        { id: 9, fecha: '2026-09-21', paciente: 'Roberto Silva Saltos', cedula: '0201654321', tipo: 'Discapacidad', puesto: 'Especialista en TIC', aptitud: 'Apto con Adaptación', estado: 'Completado' },
+        { id: 10, fecha: '2026-09-22', paciente: 'Daniela Ortiz Ramos', cedula: '0201778899', tipo: 'Discapacidad', puesto: 'Bibliotecaria Universitaria', aptitud: 'Apto', estado: 'Completado' },
+        { id: 11, fecha: '2026-09-23', paciente: 'Carlos Manuel Domínguez', cedula: '0201393659', tipo: 'Discapacidad', puesto: 'Docente de Agronomía', aptitud: 'Apto con Restricción', estado: 'Completado' }
     ]);
 
     const [reintegrosData, setReintegrosData] = useState([
-        { id: 1, fecha: '2026-09-08', paciente: 'Ana Gómez', cedula: '1755443322', tipo: 'Total', dias: 15, diagnostico: 'SDR de Túnel Carpiano', puesto: 'Secretaria General', aptitud: 'Apto con Adaptación', estado: 'Aprobado' },
-        { id: 2, fecha: '2026-09-11', paciente: 'Luis Torres', cedula: '1744332211', tipo: 'Progresivo', dias: 30, diagnostico: 'Hernia Discal L4-L5', puesto: 'Operario de Bodega', aptitud: 'En Evaluación', estado: 'Pendiente' }
+        {
+            id: 1,
+            fecha: '2026-01-19',
+            primerApellido: 'AGUALONGO',
+            segundoApellido: 'AREVALO',
+            primerNombre: 'MYRIAN',
+            segundoNombre: 'DEL ROCIO',
+            paciente: 'AGUALONGO AREVALO MYRIAN DEL ROCIO',
+            cedula: '0201575900',
+            sexo: 'F',
+            edad: 41,
+            puesto: 'C06',
+            fechaUltimoDia: '2025-10-13',
+            fechaReintegro: '2026-01-19',
+            dias: 95,
+            causaSalida: 'LICENCIA POR MATERNIDAD',
+            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO EN EL PUESTO DE TRABAJO',
+            enfermedadActual: 'Paciente acude para la valoracion medica de reintegro, al momento en buenas condiciones generales niega molestias.',
+            constantes: {
+                pa: '118/77',
+                temp: '34,8',
+                fc: '100',
+                satO2: '92',
+                fr: '20',
+                peso: '52',
+                talla: '1,46',
+                imc: '30,00',
+                novedades: ''
+            },
+            examenFisico: {
+                extremidades: 'DOLOR DE TOBILLO'
+            },
+            examenesLab: [
+                { examen: 'BIOMETRIA', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
+                { examen: 'QUIMICA', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
+                { examen: 'COPROPARASITARIO', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
+                { examen: 'EMO', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
+                { examen: 'RX DE AP Y LATERAL DE TOBILLO', fecha: '', resultado: 'NO APLICA' }
+            ],
+            diagnosticos: [
+                { num: 1, desc: 'SEGUIMIENTO POSTPARTO DE RUTINA', cie: 'Z392', pre: false, def: true },
+                { num: 2, desc: 'ATENCION Y EXAMEN DE MADRE EN PERIODO DE LACTANCIA', cie: 'Z391', pre: false, def: true }
+            ],
+            diagnostico: 'SEGUIMIENTO POSTPARTO DE RUTINA / ATENCION MADRE EN PERIODO LACTANCIA',
+            tipo: 'Total',
+            aptitud: 'Apto',
+            aptitudDetalle: {
+                apto: true,
+                observacion: 'NINGUNA',
+                limitacion: 'NINGUNA',
+                reubicacion: 'NINGUNA'
+            },
+            recomendaciones: [
+                '1.- MEDIDAS GENERALES',
+                '2.- ALIMENTACION SALUDABLE',
+                '3.- EVITAR REALIZAR ESFUERZO FISICO',
+                '4.- CONSUMO DE LIQUIDOS',
+                '5.- EN CASO DE PRESENTAR ALGUNA MOLESTIA ACUDIR AL MEDICO OCUPACIONAL DE LA U.E.B'
+            ],
+            profesional: {
+                fecha: '2026-01-19',
+                hora: '11:29',
+                nombre: 'JORGE MORALES',
+                codigo: '20191823'
+            },
+            estado: 'Aprobado'
+        },
+        {
+            id: 2,
+            fecha: '2026-09-08',
+            primerApellido: 'GÓMEZ',
+            segundoApellido: 'CHÁVEZ',
+            primerNombre: 'ANA',
+            segundoNombre: 'MARÍA',
+            paciente: 'GÓMEZ CHÁVEZ ANA MARÍA',
+            cedula: '1755443322',
+            sexo: 'F',
+            edad: 36,
+            puesto: 'Secretaria General',
+            fechaUltimoDia: '2026-08-20',
+            fechaReintegro: '2026-09-08',
+            dias: 15,
+            causaSalida: 'INCAPACIDAD TEMPORAL',
+            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO POR PATOLOGÍA OSTEOMUSCULAR',
+            enfermedadActual: 'Paciente con evolución favorable post reposo médico por dolor articular.',
+            constantes: { pa: '120/80', temp: '36,5', fc: '76', satO2: '98', fr: '18', peso: '60', talla: '1,60', imc: '23,44', novedades: '' },
+            examenFisico: { extremidades: 'Movilidad articular conservada, maniobra de Phalen negativa.' },
+            examenesLab: [{ examen: 'ELECTROMIOGRAFIA', fecha: '2026-09-01', resultado: 'NORMAL' }],
+            diagnosticos: [{ num: 1, desc: 'SDR DE TÚNEL CARPIANO', cie: 'G560', pre: false, def: true }],
+            diagnostico: 'SDR de Túnel Carpiano',
+            tipo: 'Total',
+            aptitud: 'Apto con Adaptación',
+            aptitudDetalle: { apto: false, limitacion: 'Evitar digitación continua > 2 horas sin pausa', observacion: 'Pausas activas', reubicacion: 'NINGUNA' },
+            recomendaciones: ['1.- Pausas activas cada 2 horas', '2.- Uso de mousepad ergonómico', '3.- Control médico en 6 meses'],
+            profesional: { fecha: '2026-09-08', hora: '09:15', nombre: 'JORGE MORALES', codigo: '20191823' },
+            estado: 'Aprobado'
+        },
+        {
+            id: 3,
+            fecha: '2026-09-11',
+            primerApellido: 'TORRES',
+            segundoApellido: 'MENDOZA',
+            primerNombre: 'LUIS',
+            segundoNombre: 'ALBERTO',
+            paciente: 'TORRES MENDOZA LUIS ALBERTO',
+            cedula: '1744332211',
+            sexo: 'M',
+            edad: 45,
+            puesto: 'Operario de Bodega',
+            fechaUltimoDia: '2026-08-10',
+            fechaReintegro: '2026-09-11',
+            dias: 30,
+            causaSalida: 'CIRUGIA / REPOSO MEDICO',
+            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO PROGRESIVO',
+            enfermedadActual: 'Paciente acude tras reposo por lumbalgia mecánica severa.',
+            constantes: { pa: '125/82', temp: '36,6', fc: '80', satO2: '97', fr: '19', peso: '78', talla: '1,70', imc: '26,99', novedades: '' },
+            examenFisico: { extremidades: 'Fuerza muscular 4/5 en miembros inferiores.' },
+            examenesLab: [{ examen: 'RMN COLUMNA LUMBAR', fecha: '2026-08-15', resultado: 'HERNIA DISCAL L4-L5' }],
+            diagnosticos: [{ num: 1, desc: 'HERNIA DISCAL L4-L5', cie: 'M512', pre: false, def: true }],
+            diagnostico: 'Hernia Discal L4-L5',
+            tipo: 'Progresivo',
+            aptitud: 'En Evaluación',
+            aptitudDetalle: { apto: false, limitacion: 'No levantar cargas superiores a 10 kg', observacion: 'Reubicación temporal', reubicacion: 'Actividades de supervisión' },
+            recomendaciones: ['1.- Evitar levantamiento de cargas pesadas', '2.- Fisioterapia de mantenimiento', '3.- Reevaluación en 30 días'],
+            profesional: { fecha: '2026-09-11', hora: '10:30', nombre: 'JORGE MORALES', codigo: '20191823' },
+            estado: 'Pendiente'
+        }
     ]);
 
     const [examenesData, setExamenesData] = useState([
@@ -418,11 +1471,871 @@ export default function MedicoOcupacionalPage() {
     });
     const todayStr = new Date().toISOString().slice(0, 10);
     const [activeReportSubTab, setActiveReportSubTab] = useState('diario');
+    const isMatricesCat = ['catastroficas', 'accidentes', 'covid', 'ausentismo', 'embarazadas', 'psicosocial', 'enfermedades_nuevas', 'examenes_periodicos', 'discapacidad', 'vulnerables_patologias', 'personal_nuevo'].includes(activeReportSubTab);
+
+    // State for Exámenes & Laboratorio Ocupacional
+    const [activeLabCatTab, setActiveLabCatTab] = useState('todos');
+    const [labItemSearchModal, setLabItemSearchModal] = useState('');
+    const [examReportDate, setExamReportDate] = useState(new Date().toISOString().split('T')[0]);
+    const [useExamDateFilter, setUseExamDateFilter] = useState(true);
+    const [selectedExams, setSelectedExams] = useState(['Hemograma Completo', 'Audiometría Tonal Ocupacional', 'Colesterol', 'Triglicéridos']);
+    const [customExamNotes, setCustomExamNotes] = useState('');
+
+    const [examOrdersData, setExamOrdersData] = useState([
+        {
+            id: 1,
+            fecha: new Date().toISOString().split('T')[0],
+            paciente: 'Carlos Eduardo Ramírez',
+            cedula: '0201234567',
+            edad: '38 años',
+            medicoSolicitante: 'Dr. Jorge Morales Torres',
+            selectedExams: ['Hemograma Completo', 'Audiometría Tonal Ocupacional', 'Colesterol', 'Triglicéridos'],
+            otrosExamenes: '',
+            examen: 'Hemograma Completo, Colesterol, Triglicéridos...',
+            motivo: 'Examen Periódico Ocupacional / Control Anual',
+            laboratorio: 'Laboratorio Central Universitario UEB',
+            prioridad: 'Normal',
+            estado: 'Completado'
+        },
+        {
+            id: 2,
+            fecha: new Date().toISOString().split('T')[0],
+            paciente: 'Ana Lucía Benavides',
+            cedula: '0209876543',
+            edad: '29 años',
+            medicoSolicitante: 'Dr. Jorge Morales Torres',
+            selectedExams: ['Espirometría Simple Ocupacional', 'Hemograma Completo', 'Glucosa'],
+            otrosExamenes: '',
+            examen: 'Espirometría Simple, Hemograma, Glucosa',
+            motivo: 'Evaluación Espirométrica por Exposición a Polvos',
+            laboratorio: 'Laboratorio Central Universitario UEB',
+            prioridad: 'Alta',
+            estado: 'Pendiente'
+        },
+        {
+            id: 3,
+            fecha: '2026-09-14',
+            paciente: 'Roberto Carlos Mendoza',
+            cedula: '0987654321',
+            edad: '44 años',
+            medicoSolicitante: 'Dr. Jorge Morales Torres',
+            selectedExams: ['Hemograma Completo', 'Glucosa', 'Urea', 'Creatinina', 'Colesterol', 'HDL Colesterol', 'Triglicéridos', 'Físico, Químico y Sedimento'],
+            otrosExamenes: '',
+            examen: '8 Exámenes (Perfil Periódico Ocupacional Base)',
+            motivo: 'Control Clínico Anual de Salud Ocupacional',
+            laboratorio: 'Laboratorio Central Universitario UEB',
+            prioridad: 'Normal',
+            estado: 'Completado'
+        }
+    ]);
+
+    // State for Matriz de Enfermedades Catastróficas o Huérfanas (UEB 2026)
+    const [catastrophicSearchTerm, setCatastrophicSearchTerm] = useState('');
+    const [catastrophicTabFilter, setCatastrophicTabFilter] = useState('todos');
+    const [isCatastrophicModalOpen, setIsCatastrophicModalOpen] = useState(false);
+    const [catastrophicForm, setCatastrophicForm] = useState({
+        paciente: '',
+        cedula: '',
+        tipoEnfermedad: 'CÁNCER DE TIROIDES',
+        clasificacion: 'Catastrófica',
+        fechaDiagnostico: new Date().toISOString().split('T')[0],
+        cargo: 'DOCENTE TITULAR',
+        recibioTratamiento: 'SI',
+        novedades: 'CONTROL Y SEGUIMIENTO'
+    });
+
+    const [catastroficasData, setCatastroficasData] = useState([
+        {
+            id: 1,
+            numero: 1,
+            paciente: 'AYALA GAVILANES DIANA CATALINA',
+            cedula: '0201234567',
+            tipoEnfermedad: 'CÁNCER DE TIROIDES / TUMOR HIPOFISIARIO',
+            clasificacion: 'Catastrófica',
+            fechaDiagnostico: '26/12/2014 - 20/03/2020',
+            cargo: 'DOCENTE TITULAR',
+            recibioTratamiento: 'SI',
+            novedades: 'PENDIENTE CONTROLES CON ENDOCRINOLOGÍA'
+        },
+        {
+            id: 2,
+            numero: 2,
+            paciente: 'MÁS CAMACHO MARÍA ROSA',
+            cedula: '0202345678',
+            tipoEnfermedad: 'CÁNCER DE MAMA',
+            clasificacion: 'Catastrófica',
+            fechaDiagnostico: 'mar-18',
+            cargo: 'DOCENTE OCASIONAL',
+            recibioTratamiento: 'SI',
+            novedades: 'CONTROL Y SEGUIMIENTO'
+        },
+        {
+            id: 3,
+            numero: 3,
+            paciente: 'BONILLA ROLDÁN MARÍA DE LOS ÁNGELES',
+            cedula: '0203456789',
+            tipoEnfermedad: 'CÁNCER DE TIROIDES',
+            clasificacion: 'Catastrófica',
+            fechaDiagnostico: 'nov-18',
+            cargo: 'DOCENTE OCASIONAL',
+            recibioTratamiento: 'SI',
+            novedades: 'CONTROL Y SEGUIMIENTO'
+        },
+        {
+            id: 4,
+            numero: 4,
+            paciente: 'AGUALONGO ARÉVALO MYRIAN DEL ROCÍO',
+            cedula: '0204567890',
+            tipoEnfermedad: 'CÁNCER DE TIROIDES',
+            clasificacion: 'Catastrófica',
+            fechaDiagnostico: 'nov-18',
+            cargo: 'ANALISTA DE GESTIÓN ADMINISTRATIVA',
+            recibioTratamiento: 'SI',
+            novedades: 'CONTROL Y SEGUIMIENTO'
+        }
+    ]);
+
+    // State for Matriz de Accidentes Laborales y Enfermedades Profesionales (UEB 2026)
+    const [accidenteSearchTerm, setAccidenteSearchTerm] = useState('');
+    const [accidenteTabFilter, setAccidenteTabFilter] = useState('todos');
+    const [isAccidenteModalOpen, setIsAccidenteModalOpen] = useState(false);
+    const [accidenteForm, setAccidenteForm] = useState({
+        paciente: '',
+        cedula: '',
+        cargo: 'ANALISTA DE MANTENIMIENTO',
+        fechaAccidente: new Date().toISOString().split('T')[0],
+        lugar: 'TALLER DE MANTENIMIENTO',
+        tipoAccidente: 'CORTE CON HERRAMIENTA EN MANO DERECHA',
+        diagnostico: 'HERIDA CORTANTE EN PALMA DERECHA - REQUIRIÓ SUTURA',
+        diasIncapacidad: '3 DÍAS',
+        gravedad: 'LEVE',
+        novedades: 'REPOSO MÉDICO FINALIZADO Y REINCORPORACIÓN COMPLETA'
+    });
+
+    const [accidentesLaboralesData, setAccidentesLaboralesData] = useState([
+        {
+            id: 1,
+            numero: 1,
+            paciente: 'RAMOS ZURITA EDISON MARCELO',
+            cedula: '0201458963',
+            cargo: 'ANALISTA DE MANTENIMIENTO',
+            fechaAccidente: '15/02/2026 10:30',
+            lugar: 'TALLER DE MANTENIMIENTO Y SERVICIOS GENERALES',
+            tipoAccidente: 'CORTE EN MANO DERECHA CON HERRAMIENTA',
+            diagnostico: 'HERIDA CORTANTE EN PALMA DERECHA - REQUIRIÓ SUTURA',
+            diasIncapacidad: '3 DÍAS',
+            gravedad: 'LEVE',
+            novedades: 'REPOSO MÉDICO FINALIZADO Y REINCORPORACIÓN COMPLETA'
+        },
+        {
+            id: 2,
+            numero: 2,
+            paciente: 'QUISHPE LARA JORGE ENRIQUE',
+            cedula: '0201784512',
+            cargo: 'DOCENTE INVESTIGADOR / LABORATORIOS',
+            fechaAccidente: '04/04/2026 14:15',
+            lugar: 'LABORATORIO DE QUÍMICA APLICADA',
+            tipoAccidente: 'SALPICADURA DE REACTIVO LÍQUIDO',
+            diagnostico: 'IRRITACIÓN OCULAR LEVE EN OJO IZQUIERDO',
+            diasIncapacidad: '1 DÍA',
+            gravedad: 'LEVE',
+            novedades: 'ATENCIÓN INMEDIATA CON LAVADO Y SEGUIMIENTO OK'
+        },
+        {
+            id: 3,
+            numero: 3,
+            paciente: 'SANTILLÁN MORA BEATRIZ ELIZABETH',
+            cedula: '0200987456',
+            cargo: 'ANALISTA DE GESTIÓN ADMINISTRATIVA',
+            fechaAccidente: '10/05/2026 09:45',
+            lugar: 'ESCALERAS PRINCIPALES DEL EDIFICIO ADMINISTRATIVO',
+            tipoAccidente: 'CAÍDA A MISMO NIVEL POR TROPIEZO',
+            diagnostico: 'ESGUINCE DE TOBILLO DERECHO GRADO I',
+            diasIncapacidad: '5 DÍAS',
+            gravedad: 'GRAVE CON INCAPACIDAD',
+            novedades: 'INFORME ENVIADO AL IESS SALUD OCUPACIONAL'
+        }
+    ]);
+
+    // State for Matriz de Funcionarios con Discapacidad - Grupo Vulnerable UEB 2026
+    const [discapacidadSearchTerm, setDiscapacidadSearchTerm] = useState('');
+    const [discapacidadTabFilter, setDiscapacidadTabFilter] = useState('todos');
+    const [isDiscapacidadModalOpen, setIsDiscapacidadModalOpen] = useState(false);
+    const [discapacidadForm, setDiscapacidadForm] = useState({
+        paciente: '',
+        cedula: '',
+        tipoDiscapacidad: 'FÍSICA',
+        porcentaje: '40%',
+        cargo: 'DOCENTE TITULAR',
+        dependencia: 'FACULTAD DE CIENCIAS ADMINISTRATIVAS',
+        condicionLaboral: 'NOMBRAMIENTO'
+    });
+
+    const [discapacidadData, setDiscapacidadData] = useState([
+        { id: 1, numero: 1, paciente: 'ACEBEDO DEL VALLE GINA MARISOL', cedula: '0201234567', tipoDiscapacidad: 'FÍSICA', porcentaje: '40%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS ADMINISTRATIVAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 2, numero: 2, paciente: 'ARREGUIN SÁMANO MOISES', cedula: '0202345678', tipoDiscapacidad: 'VISUAL', porcentaje: '75%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA SALUD Y DEL SER HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 3, numero: 3, paciente: 'ALVAREZ MORA CHRISTIAN FERNADO', cedula: '0203456789', tipoDiscapacidad: 'FÍSICA', porcentaje: '49%', cargo: 'ADMINISTRATIVO', dependencia: 'SERVICIOS INSTITUCIONALES', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 4, numero: 4, paciente: 'BALLESTEROS JIMÉNEZ ROCÍO DE LAS MERCEDES', cedula: '0204567890', tipoDiscapacidad: 'VISUAL', porcentaje: '46%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE JURISPRUDENCIA', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 5, numero: 5, paciente: 'BARRAGAN NARANJO ROLANDO GEOVANNY', cedula: '0205678901', tipoDiscapacidad: 'FÍSICA', porcentaje: '33%', cargo: 'OPERATIVO', dependencia: 'SERVICIOS INSTITUCIONALES', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 6, numero: 6, paciente: 'BONILLA ALARCON LUIS ALFONOSO', cedula: '0206789012', tipoDiscapacidad: 'VISUAL', porcentaje: '62%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE JURISPRUDENCIA', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 7, numero: 7, paciente: 'BONILLA SUAREZ JESUS REMIGIO', cedula: '0207890123', tipoDiscapacidad: 'FÍSICA', porcentaje: '53%', cargo: 'FINANCIERO', dependencia: 'FACULTAD DE CIENCIAS ADMINISTRATIVAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 8, numero: 8, paciente: 'CHAVEZ CHACAN PILAR JANETH', cedula: '0208901234', tipoDiscapacidad: 'FÍSICA', porcentaje: '51%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS ADMINISTRATIVAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 9, numero: 9, paciente: 'ESPINOZA MORA KLEBER ESTUARDO', cedula: '0209012345', tipoDiscapacidad: 'FÍSICA', porcentaje: '30%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS AGROPECUARIAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 10, numero: 10, paciente: 'FLORES BALLESTEROS FABIAN RAFAEL', cedula: '0200123456', tipoDiscapacidad: 'VISUAL', porcentaje: '40%', cargo: 'TÉCNICO DOCENTE', dependencia: 'FACULTAD DE JURISPRUDENCIA', condicionLaboral: 'CONTRATO OCASIONAL' },
+        { id: 11, numero: 11, paciente: 'GAIBOR GONZALEZ MARIELA ISABEL', cedula: '0201122334', tipoDiscapacidad: 'VISUAL', porcentaje: '75%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA SALUD Y DEL SER HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 12, numero: 12, paciente: 'MURILLO BARRIONUEVO BEATRIZ DEL CARMEN', cedula: '0202233445', tipoDiscapacidad: 'VISUAL', porcentaje: '52%', cargo: 'ADMINISTRATIVO', dependencia: 'BIBLIOTECA', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 13, numero: 13, paciente: 'NARANJO ESTRADA ANGEL TEODORO', cedula: '0203344556', tipoDiscapacidad: 'FÍSICA', porcentaje: '40%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE JURISPRUDENCIA', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 14, numero: 14, paciente: 'NUÑEZ JIMENEZ VICTOR HUGO', cedula: '0204455667', tipoDiscapacidad: 'FÍSICA', porcentaje: '42%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN, SOCIALES, FILOSÓFICAS Y HUMANÍSTICAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 15, numero: 15, paciente: 'RAMOS VISCARRA LORENZO NAPOLEON', cedula: '0205566778', tipoDiscapacidad: 'AUDITIVA', porcentaje: '41%', cargo: 'ADMINISTRATIVO', dependencia: 'TALENTO HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 16, numero: 16, paciente: 'REA GUAMAN MERY ROCIO', cedula: '0206677889', tipoDiscapacidad: 'VISUAL', porcentaje: '37%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA SALUD Y DEL SER HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 17, numero: 17, paciente: 'SANCHEZ FRANCO PAUL OSWALDO', cedula: '0207788990', tipoDiscapacidad: 'FÍSICA', porcentaje: '44%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA SALUD Y DEL SER HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 18, numero: 18, paciente: 'SIMALIZA LLUMIGUANO HOLGER JAVIER', cedula: '0208899001', tipoDiscapacidad: 'VISUAL', porcentaje: '49%', cargo: 'OPERATIVO', dependencia: 'SERVICIOS INSTITUCIONALES', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 19, numero: 19, paciente: 'SUAREZ ALDAZ VIVIANA ELIZABETH', cedula: '0209900112', tipoDiscapacidad: 'FÍSICA', porcentaje: '40%', cargo: 'DOCENTE TITULAR', dependencia: 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN, SOCIALES, FILOSÓFICAS Y HUMANÍSTICAS', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 20, numero: 20, paciente: 'YUNDA DAVILA MATILDE ESPARTA', cedula: '0200011223', tipoDiscapacidad: 'VISUAL', porcentaje: '59%', cargo: 'ADMINISTRATIVO', dependencia: 'TALENTO HUMANO', condicionLaboral: 'NOMBRAMIENTO' },
+        { id: 21, numero: 21, paciente: 'ZAVALA CARDENAS ERNESTO PAUL', cedula: '0201122335', tipoDiscapacidad: 'AUDITIVA', porcentaje: '39%', cargo: 'DOCENTE TITULAR', dependencia: 'EXTENSIÓN DE SAN MIGUEL', condicionLaboral: 'NOMBRAMIENTO' }
+    ]);
+
+    // State for Matriz de Exámenes Médicos y Fichas Periódicas por Mes (UEB)
+    const [periodicosSearchTerm, setPeriodicosSearchTerm] = useState('');
+    const [periodicosSelectedYear, setPeriodicosSelectedYear] = useState('2022');
+    const [isPeriodicosModalOpen, setIsPeriodicosModalOpen] = useState(false);
+    const [periodicosForm, setPeriodicosForm] = useState({
+        mes: 'AGOSTO',
+        anio: '2022',
+        cantidad: '50'
+    });
+
+    const [periodicosData, setPeriodicosData] = useState([
+        { id: 1, mes: 'AGOSTO', anio: 2022, cantidad: 5 },
+        { id: 2, mes: 'SEPTIEMBRE', anio: 2022, cantidad: 68 },
+        { id: 3, mes: 'OCTUBRE', anio: 2022, cantidad: 74 },
+        { id: 4, mes: 'NOVIEMBRE', anio: 2022, cantidad: 55 },
+        { id: 5, mes: 'DICIEMBRE', anio: 2022, cantidad: 37 }
+    ]);
+
+    // State for Matriz de Enfermedades Nuevas - Incidencia (UEB)
+    const [nuevasSearchTerm, setNuevasSearchTerm] = useState('');
+    const [nuevasSelectedYear, setNuevasSelectedYear] = useState('2022');
+    const [isNuevasModalOpen, setIsNuevasModalOpen] = useState(false);
+    const [nuevasForm, setNuevasForm] = useState({
+        paciente: '',
+        cedula: '',
+        patologiaNueva: '',
+        fechaAparecimiento: new Date().toISOString().split('T')[0]
+    });
+
+    const [nuevasData, setNuevasData] = useState([
+        { id: 1, numero: 1, paciente: 'CHELA YAZUMA TEODORO', cedula: '0201234567', patologiaNueva: 'BRONQUITIS', fechaAparecimiento: '8/12/2022', anio: 2022 },
+        { id: 2, numero: 2, paciente: 'GAROFALO PAREDES PIEDAD DEL CARMEN', cedula: '0202345678', patologiaNueva: 'POLIARTROSIS', fechaAparecimiento: '9/6/2021', anio: 2021 },
+        { id: 3, numero: 3, paciente: 'GARCIA VELOZ RUTH ALICIA', cedula: '0203456789', patologiaNueva: 'ARTRITIS REUMATOIDE', fechaAparecimiento: '9/21/2022', anio: 2022 },
+        { id: 4, numero: 4, paciente: 'PAZOS MONTERO HECTOR DAVID', cedula: '0204567890', patologiaNueva: 'TRASTORNO DEL DISCO LUMBAR', fechaAparecimiento: '11/9/2022', anio: 2022 },
+        { id: 5, numero: 5, paciente: 'ARROYO MUÑOZ LICETH ALEXANDRA', cedula: '0205678901', patologiaNueva: 'HIPERPLASIA ENDOMETRIAL', fechaAparecimiento: '11/11/2022', anio: 2022 },
+        { id: 6, numero: 6, paciente: 'GAIBOR CARDENAS GLADYS VANESSA', cedula: '0206789012', patologiaNueva: 'MIOMAS UTERINOS', fechaAparecimiento: '12/15/2022', anio: 2022 }
+    ]);
+
+    // State for Matriz de Riesgo Psicosocial (Ansiedad y Depresión UEB 2026)
+    const [psicosocialSearchTerm, setPsicosocialSearchTerm] = useState('');
+    const [psicosocialFilterTipo, setPsicosocialFilterTipo] = useState('todos');
+    const [psicosocialSheetTab, setPsicosocialSheetTab] = useState('hoja1');
+    const [isPsicosocialModalOpen, setIsPsicosocialModalOpen] = useState(false);
+    const [psicosocialForm, setPsicosocialForm] = useState({
+        paciente: '',
+        cedula: '',
+        tiposervidor: 'DOCENTE TITULAR',
+        diagnostico: 'DEPRESION Y ANSIEDAD',
+        observaciones: 'SEGUIMIENTO POR SALUD OCUPACIONAL Y PSICOLOGÍA'
+    });
+
+    const [psicosocialData, setPsicosocialData] = useState([
+        { id: 1, numero: 1, paciente: 'ZAVALA CARDENAS LORENA DEL ROCIO', cedula: '0201234567', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 2, numero: 2, paciente: 'ZABALA CARDENAS HERNESTO PAUL', cedula: '0202345678', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 3, numero: 3, paciente: 'BONILLA SUAREZ ANGEL PATRICIO', cedula: '0203456789', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'EPISODIO DEPRESIVO MODERADO' },
+        { id: 4, numero: 4, paciente: 'ROMERO QUIROGA KLEVER RENATO', cedula: '0204567890', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 5, numero: 5, paciente: 'FLORES MENDOZA KARINA PAOLA', cedula: '0205678901', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 6, numero: 6, paciente: 'NARANJO ANDRADE ELIANA ELIZABETH', cedula: '0206789012', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 7, numero: 7, paciente: 'GARCIA LEON ANDREA CECILIA', cedula: '0207890123', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 8, numero: 8, paciente: 'GAIBOR GONZALEZ MARIELA ISABEL', cedula: '0208901234', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 9, numero: 9, paciente: 'VELOZ CAMINOS WILIAN JAVIER', cedula: '0209012345', tiposervidor: 'CODIGO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 10, numero: 10, paciente: 'GUEVARA NUÑEZ EDELMIRA LILA', cedula: '0200123456', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 11, numero: 11, paciente: 'AGUAGUIÑA MOYON GEOVANNY GONZALO', cedula: '0201122334', tiposervidor: 'CODIGO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 12, numero: 12, paciente: 'BALLESTEROS MEDINA MARIA LORENA', cedula: '0202233445', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 13, numero: 13, paciente: 'CHAVEZ CHACON PILAR JANETH', cedula: '0203344556', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 14, numero: 14, paciente: 'GABILANEZ CARDENAS CLARITA VANESSA', cedula: '0204455667', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 15, numero: 15, paciente: 'VELARDE GUILCA DELIA RAQUEL', cedula: '0205566778', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 16, numero: 16, paciente: 'JOSE BLADIMIR GUARNIZO DELGADO', cedula: '0206677889', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 17, numero: 17, paciente: 'ARROYO MUÑOZ LICETH ALEXANDRA', cedula: '0207788990', tiposervidor: 'ADMINISTRATIVO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 18, numero: 18, paciente: 'CABEZAS RAMOS JORGE RENATO', cedula: '0208899001', tiposervidor: 'DOCENTE OCASIONAL', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 19, numero: 19, paciente: 'GAROFALO PAREDES PIEDAD DEL CARMEN', cedula: '0209900112', tiposervidor: 'CODIGO', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 20, numero: 20, paciente: 'DEL SALTO DOLY SILVANA', cedula: '0200011223', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 21, numero: 21, paciente: 'IZA IZA SANDRA PATRICIA', cedula: '0201122335', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 22, numero: 22, paciente: 'GAIBOR BECERRA ANGÉLICA MARIA', cedula: '0202233446', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' },
+        { id: 23, numero: 23, paciente: 'GAVILANEZ CERDENAS CLARITA VANESSA', cedula: '0203344557', tiposervidor: 'DOCENTE TITULAR', diagnostico: 'DEPRESION Y ANSIEDAD' }
+    ]);
+
+    // State for Matriz de Enfermedades Nuevas (Incidencia UEB)
+    const [enfermedadesNuevasSearchTerm, setEnfermedadesNuevasSearchTerm] = useState('');
+    const [enfermedadesNuevasFilterYear, setEnfermedadesNuevasFilterYear] = useState('TODOS');
+    const [enfermedadesNuevasSheetTab, setEnfermedadesNuevasSheetTab] = useState('hoja1');
+    const [isEnfermedadesNuevasModalOpen, setIsEnfermedadesNuevasModalOpen] = useState(false);
+    const [enfermedadesNuevasForm, setEnfermedadesNuevasForm] = useState({
+        paciente: '',
+        cedula: '',
+        patologiaNueva: '',
+        fechaAparecimiento: new Date().toISOString().split('T')[0],
+        observaciones: 'REGISTRO DE INCIDENCIA DE PATOLOGÍA NUEVA'
+    });
+
+    const [enfermedadesNuevasData, setEnfermedadesNuevasData] = useState([
+        {
+            id: 1,
+            paciente: 'CHELA YAZUMA TEODORO',
+            cedula: '0201122334',
+            patologiaNueva: 'BRONQUITIS',
+            fechaAparecimiento: '8/12/2022',
+            year: '2022'
+        },
+        {
+            id: 2,
+            paciente: 'GAROFALO PAREDES PIEDAD DEL CARMEN',
+            cedula: '0209900112',
+            patologiaNueva: 'POLIARTROSIS',
+            fechaAparecimiento: '9/6/2021',
+            year: '2021'
+        },
+        {
+            id: 3,
+            paciente: 'GARCIA VELOZ RUTH ALICIA',
+            cedula: '0207890123',
+            patologiaNueva: 'ARTRITIS REUMATOIDE',
+            fechaAparecimiento: '9/21/2022',
+            year: '2022'
+        },
+        {
+            id: 4,
+            paciente: 'PAZOS MONTERO HECTOR DAVID',
+            cedula: '0204567890',
+            patologiaNueva: 'TRASTORNO DEL DISCO LUMBAR',
+            fechaAparecimiento: '11/9/2022',
+            year: '2022'
+        },
+        {
+            id: 5,
+            paciente: 'ARROYO MUÑOZ LICETH ALEXANDRA',
+            cedula: '0207788990',
+            patologiaNueva: 'HIPERPLASIA ENDOMETRIAL',
+            fechaAparecimiento: '11/11/2022',
+            year: '2022'
+        },
+        {
+            id: 6,
+            paciente: 'MITE CARDENAS GLADYS VANESSA',
+            cedula: '0205566778',
+            patologiaNueva: 'MIOMAS UTERINOS',
+            fechaAparecimiento: '12/15/2022',
+            year: '2022'
+        }
+    ]);
+
+    // State for Matriz de Exámenes Médicos y Fichas Periódicas por Mes (UEB)
+    const [examenesPeriodicosSelectedYear, setExamenesPeriodicosSelectedYear] = useState('2022');
+    const [examenesPeriodicosSheetTab, setExamenesPeriodicosSheetTab] = useState('hoja1');
+    const [examenesPeriodicosShowAllMonths, setExamenesPeriodicosShowAllMonths] = useState(false);
+    const [isExamenesPeriodicosModalOpen, setIsExamenesPeriodicosModalOpen] = useState(false);
+    const [examenesPeriodicosForm, setExamenesPeriodicosForm] = useState({
+        mes: 'ENERO',
+        examenes: 0
+    });
+
+    const [examenesPeriodicosData, setExamenesPeriodicosData] = useState({
+        '2022': [
+            { id: 1, mes: 'ENERO', examenes: 0, total: 0 },
+            { id: 2, mes: 'FEBRERO', examenes: 0, total: 0 },
+            { id: 3, mes: 'MARZO', examenes: 0, total: 0 },
+            { id: 4, mes: 'ABRIL', examenes: 0, total: 0 },
+            { id: 5, mes: 'MAYO', examenes: 0, total: 0 },
+            { id: 6, mes: 'JUNIO', examenes: 0, total: 0 },
+            { id: 7, mes: 'JULIO', examenes: 0, total: 0 },
+            { id: 8, mes: 'AGOSTO', examenes: 5, total: 5 },
+            { id: 9, mes: 'SEPTIEMBRE', examenes: 68, total: 68 },
+            { id: 10, mes: 'OCTUBRE', examenes: 74, total: 74 },
+            { id: 11, mes: 'NOVIEMBRE', examenes: 55, total: 55 },
+            { id: 12, mes: 'DICIEMBRE', examenes: 37, total: 37 }
+        ],
+        '2023': [
+            { id: 1, mes: 'ENERO', examenes: 22, total: 22 },
+            { id: 2, mes: 'FEBRERO', examenes: 35, total: 35 },
+            { id: 3, mes: 'MARZO', examenes: 48, total: 48 },
+            { id: 4, mes: 'ABRIL', examenes: 41, total: 41 },
+            { id: 5, mes: 'MAYO', examenes: 60, total: 60 },
+            { id: 6, mes: 'JUNIO', examenes: 52, total: 52 },
+            { id: 7, mes: 'JULIO', examenes: 38, total: 38 },
+            { id: 8, mes: 'AGOSTO', examenes: 18, total: 18 },
+            { id: 9, mes: 'SEPTIEMBRE', examenes: 75, total: 75 },
+            { id: 10, mes: 'OCTUBRE', examenes: 80, total: 80 },
+            { id: 11, mes: 'NOVIEMBRE', examenes: 62, total: 62 },
+            { id: 12, mes: 'DICIEMBRE', examenes: 40, total: 40 }
+        ],
+        '2024': [
+            { id: 1, mes: 'ENERO', examenes: 28, total: 28 },
+            { id: 2, mes: 'FEBRERO', examenes: 42, total: 42 },
+            { id: 3, mes: 'MARZO', examenes: 55, total: 55 },
+            { id: 4, mes: 'ABRIL', examenes: 47, total: 47 },
+            { id: 5, mes: 'MAYO', examenes: 64, total: 64 },
+            { id: 6, mes: 'JUNIO', examenes: 58, total: 58 },
+            { id: 7, mes: 'JULIO', examenes: 43, total: 43 },
+            { id: 8, mes: 'AGOSTO', examenes: 25, total: 25 },
+            { id: 9, mes: 'SEPTIEMBRE', examenes: 82, total: 82 },
+            { id: 10, mes: 'OCTUBRE', examenes: 88, total: 88 },
+            { id: 11, mes: 'NOVIEMBRE', examenes: 70, total: 70 },
+            { id: 12, mes: 'DICIEMBRE', examenes: 45, total: 45 }
+        ],
+        '2025': [
+            { id: 1, mes: 'ENERO', examenes: 32, total: 32 },
+            { id: 2, mes: 'FEBRERO', examenes: 46, total: 46 },
+            { id: 3, mes: 'MARZO', examenes: 60, total: 60 },
+            { id: 4, mes: 'ABRIL', examenes: 50, total: 50 },
+            { id: 5, mes: 'MAYO', examenes: 68, total: 68 },
+            { id: 6, mes: 'JUNIO', examenes: 62, total: 62 },
+            { id: 7, mes: 'JULIO', examenes: 45, total: 45 },
+            { id: 8, mes: 'AGOSTO', examenes: 30, total: 30 },
+            { id: 9, mes: 'SEPTIEMBRE', examenes: 88, total: 88 },
+            { id: 10, mes: 'OCTUBRE', examenes: 94, total: 94 },
+            { id: 11, mes: 'NOVIEMBRE', examenes: 76, total: 76 },
+            { id: 12, mes: 'DICIEMBRE', examenes: 48, total: 48 }
+        ],
+        '2026': [
+            { id: 1, mes: 'ENERO', examenes: 38, total: 38 },
+            { id: 2, mes: 'FEBRERO', examenes: 54, total: 54 },
+            { id: 3, mes: 'MARZO', examenes: 65, total: 65 },
+            { id: 4, mes: 'ABRIL', examenes: 58, total: 58 },
+            { id: 5, mes: 'MAYO', examenes: 72, total: 72 },
+            { id: 6, mes: 'JUNIO', examenes: 68, total: 68 },
+            { id: 7, mes: 'JULIO', examenes: 42, total: 42 },
+            { id: 8, mes: 'AGOSTO', examenes: 12, total: 12 },
+            { id: 9, mes: 'SEPTIEMBRE', examenes: 70, total: 70 },
+            { id: 10, mes: 'OCTUBRE', examenes: 80, total: 80 },
+            { id: 11, mes: 'NOVIEMBRE', examenes: 60, total: 60 },
+            { id: 12, mes: 'DICIEMBRE', examenes: 44, total: 44 }
+        ]
+    });
+
+    // State for Matriz Censo de Embarazadas UEB 2026
+    const [embarazadasSearchTerm, setEmbarazadasSearchTerm] = useState('');
+    const [embarazadasSheetTab, setEmbarazadasSheetTab] = useState('hoja1'); // 'hoja1' | 'hoja2'
+    const [isEmbarazadasModalOpen, setIsEmbarazadasModalOpen] = useState(false);
+    const [embarazadasForm, setEmbarazadasForm] = useState({
+        paciente: '',
+        cedula: '',
+        edad: '28',
+        fum: new Date().toISOString().split('T')[0],
+        semanasGestacion: '12 SEMANAS',
+        fechaProbableParto: 'may-26',
+        controles: '3',
+        telefono: '0987654321'
+    });
+
+    const [embarazadasData, setEmbarazadasData] = useState([
+        {
+            id: 1,
+            numero: 1,
+            paciente: 'LEON MONAR PATRICIA DE LOURDES',
+            cedula: '0201234567',
+            edad: 36,
+            semanasGestacion: '21 SEMANAS (14/01/2026)',
+            fum: '25/08/2025',
+            fechaProbableParto: 'may-26',
+            controles: 7,
+            telefono: '986268194'
+        },
+        {
+            id: 2,
+            numero: 2,
+            paciente: 'CADMEN VARGAS MARÍA ANGÉLICA',
+            cedula: '0202345678',
+            edad: 37,
+            semanasGestacion: '5 SEMANAS (16/01/2026)',
+            fum: '28/11/2025',
+            fechaProbableParto: 'sept-26',
+            controles: 1,
+            telefono: '986681504'
+        },
+        {
+            id: 3,
+            numero: 3,
+            paciente: 'CHILLO MENDOZA GLORIA JANETH',
+            cedula: '0203456789',
+            edad: 34,
+            semanasGestacion: '22 SEMANAS (19/03/2026)',
+            fum: '14/10/2025',
+            fechaProbableParto: 'jul-26',
+            controles: 3,
+            telefono: '993493525'
+        }
+    ]);
+
+    // State for Matriz de Ausentismo Laboral (UEB 2026)
+    const [ausentismoSearchTerm, setAusentismoSearchTerm] = useState('');
+    const [ausentismoSelectedYear, setAusentismoSelectedYear] = useState('2026');
+    const [ausentismoSelectedMonth, setAusentismoSelectedMonth] = useState('1'); // Enero
+    const [ausentismoTabFilter, setAusentismoTabFilter] = useState('todos');
+    const [isAusentismoModalOpen, setIsAusentismoModalOpen] = useState(false);
+    const [ausentismoForm, setAusentismoForm] = useState({
+        paciente: '',
+        cedula: '',
+        cargo: 'SERVIDOR/DOCENTE',
+        motivoTipo: 'enfermedad_comun', // 'enfermedad_comun', 'enfermedad_laboral', 'accidente_laboral', 'otros'
+        diagnostico: '',
+        diasPerdidos: '1',
+        horasAusentismo: '8',
+        horasTrabajadas: '32'
+    });
+
+    const [ausentismoData, setAusentismoData] = useState([
+        {
+            id: 1,
+            numeroCaso: 1,
+            paciente: 'MONTEROS MONTERO RODRIGO AMARO',
+            cedula: '0201458963',
+            cargo: 'DOCENTE TITULAR',
+            enfermedadComun: 'FARINGITIS AGUDA',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 2,
+            numeroCaso: 2,
+            paciente: 'MONA CANTUÑA EVELYN CAROLINA',
+            cedula: '0201784512',
+            cargo: 'ANALISTA DE INFORMACIÓN',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: 'CONSULTA MÉD',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 3,
+            numeroCaso: 3,
+            paciente: 'TORRES TORRES DEYSI ALEXANDRA',
+            cedula: '0200987456',
+            cargo: 'DOCENTE OCASIONAL',
+            enfermedadComun: 'BRONQUITS',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 4,
+            numeroCaso: 4,
+            paciente: 'PACAILLANDARICARDO GUSTAVO',
+            cedula: '0203547891',
+            cargo: 'AUXILIAR DE SERVICIOS',
+            enfermedadComun: 'TRASTORNO INTERNO DE LA ROD',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 5,
+            numeroCaso: 5,
+            paciente: 'GAVILANES CARDENAS CLARITA VANESSA',
+            cedula: '0204781236',
+            cargo: 'ANALISTA DE TESORERÍA',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: 'CONSULTA MÉD',
+            diasPerdidos: 2,
+            totalHorasAusentismo: 16,
+            totalHorasTrabajadas: 24,
+            indiceAusentismo: '0,666666667',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 6,
+            numeroCaso: 6,
+            paciente: 'ROMERO ACOSTA YESSEÑA',
+            cedula: '0201597534',
+            cargo: 'DOCENTE TITULAR',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: 'CONSULTA MÉD',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 7,
+            numeroCaso: 7,
+            paciente: 'ORDOÑEZ SANCHEZ WASHINGTON MARCELO',
+            cedula: '0203698521',
+            cargo: 'ANALISTA DE MANTENIMIENTO',
+            enfermedadComun: 'RINOFARINGITIS AGUDA',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 8,
+            numeroCaso: 8,
+            paciente: 'NAVAS MONTES YONAIKER DEL MAR',
+            cedula: '0207418529',
+            cargo: 'DOCENTE INVESTIGADOR',
+            enfermedadComun: 'DOLOR ABDOMINAL',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 9,
+            numeroCaso: 9,
+            paciente: 'JACOME MARTINEZ GLORIA CONSUELO',
+            cedula: '0208529637',
+            cargo: 'SECRETARIA EJECUTIVA',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: 'CONSULTA MÉD',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        {
+            id: 10,
+            numeroCaso: 10,
+            paciente: 'ZAVALA CARDENAS LORENA DEL ROCIO',
+            cedula: '0209638521',
+            cargo: 'DOCENTE TITULAR',
+            enfermedadComun: 'TRASTORNO BIPOLAR MIXTO',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 1
+        },
+        // Mes 2 (02-2026)
+        {
+            id: 11,
+            numeroCaso: 1,
+            paciente: 'MORALES CASTRO FERNANDO PATRICIO',
+            cedula: '0203333333',
+            cargo: 'DOCENTE TITULAR',
+            enfermedadComun: 'LUMBAGO CON CIÁTICA',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: '',
+            diasPerdidos: 3,
+            totalHorasAusentismo: 24,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,75',
+            anio: 2026,
+            mes: 2
+        },
+        {
+            id: 12,
+            numeroCaso: 2,
+            paciente: 'SALAZAR PAREDES GABRIELA FERNANDA',
+            cedula: '0204444444',
+            cargo: 'ANALISTA DE TALENTO HUMANO',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: '',
+            otrosMotivos: 'CONSULTA MÉD',
+            diasPerdidos: 1,
+            totalHorasAusentismo: 8,
+            totalHorasTrabajadas: 32,
+            indiceAusentismo: '0,25',
+            anio: 2026,
+            mes: 2
+        },
+        // Mes 3 (03-2026)
+        {
+            id: 13,
+            numeroCaso: 1,
+            paciente: 'ORTIZ GUAYANLEMA MANUEL MESÍAS',
+            cedula: '0205555555',
+            cargo: 'TÉCNICO DE MANTENIMIENTO',
+            enfermedadComun: '',
+            enfermedadLaboral: '',
+            accidenteLaboral: 'CONTUSIÓN DE MANO POR CAÍDA',
+            otrosMotivos: '',
+            diasPerdidos: 2,
+            totalHorasAusentismo: 16,
+            totalHorasTrabajadas: 24,
+            indiceAusentismo: '0,67',
+            anio: 2026,
+            mes: 3
+        }
+    ]);
+
+    // State for Matriz de Casos Sospechosos y Confirmados para COVID-19 (UEB)
+    const [covidSearchTerm, setCovidSearchTerm] = useState('');
+    const [covidTabFilter, setCovidTabFilter] = useState('todos');
+    const [covidSelectedYear, setCovidSelectedYear] = useState('TODOS');
+    const [covidSelectedMonth, setCovidSelectedMonth] = useState('TODOS');
+    const [isCovidModalOpen, setIsCovidModalOpen] = useState(false);
+    const [covidForm, setCovidForm] = useState({
+        paciente: '',
+        tipoTrabajador: 'DOCENTE CONTRATADA',
+        lugarTrabajo: 'FACULTAD DE CIENCIAS DE LA SALUD',
+        fechaEntregaResultados: new Date().toISOString().split('T')[0],
+        pacienteConfirmado: '',
+        pcr: true,
+        pruebaRapida: false,
+        altaMedica: true,
+        diasAislamiento: '8',
+        esDescartado: false
+    });
+
+    const [covidCasesData, setCovidCasesData] = useState([
+        {
+            id: 1,
+            pacienteSospechoso: 'VEGA CRUZ AGNELIO ENRIQUE',
+            tipoTrabajador: 'AUXILIAR DE SERVICIOS',
+            lugarTrabajo: 'SERVICIOS INSTITUCIONALES',
+            entregaResultados: '8/8/2022',
+            pacienteConfirmado: 'VEGA CRUZ AGNELIO ENRIQUE',
+            pcr: true,
+            pruebaRapida: false,
+            altaMedica: true,
+            diasAislamiento: 5,
+            anio: 2022,
+            mes: 8
+        },
+        {
+            id: 2,
+            pacienteSospechoso: 'BELTRÁN AVILÉS NARCISA',
+            tipoTrabajador: 'DOCENTE CONTRATADA',
+            lugarTrabajo: 'FACULTAD DE CIENCIAS DE LA SALUD',
+            entregaResultados: '12/1/2022',
+            pacienteConfirmado: 'BELTRÁN AVILÉS NARCISA',
+            pcr: true,
+            pruebaRapida: false,
+            altaMedica: true,
+            diasAislamiento: 8,
+            anio: 2022,
+            mes: 12
+        },
+        {
+            id: 3,
+            pacienteSospechoso: 'SILVA ROBALINO MARÍA INÉS',
+            tipoTrabajador: 'DOCENTE CONTRATADA',
+            lugarTrabajo: 'FACULTAD DE CIENCIAS DE LA SALUD',
+            entregaResultados: '12/8/2022',
+            pacienteConfirmado: 'SILVA ROBALINO MARÍA INÉS',
+            pcr: true,
+            pruebaRapida: false,
+            altaMedica: true,
+            diasAislamiento: 4,
+            anio: 2022,
+            mes: 12
+        },
+        {
+            id: 4,
+            pacienteSospechoso: 'MARTÍNEZ BRITO KLÉVER BISMARK',
+            tipoTrabajador: 'CONDUCTOR',
+            lugarTrabajo: 'SERVICIOS INSTITUCIONALES',
+            entregaResultados: 'DESCARTADO',
+            pacienteConfirmado: '',
+            pcr: false,
+            pruebaRapida: false,
+            altaMedica: false,
+            diasAislamiento: 2,
+            anio: 2022,
+            mes: 12
+        },
+        {
+            id: 5,
+            pacienteSospechoso: 'JÁCOME BELTRÁN YANDRY FERNANDO',
+            tipoTrabajador: 'ANALISTA DE INFORMACIÓN',
+            lugarTrabajo: 'RECTORADO',
+            entregaResultados: 'DESCARTADO',
+            pacienteConfirmado: '',
+            pcr: false,
+            pruebaRapida: false,
+            altaMedica: false,
+            diasAislamiento: 0,
+            anio: 2022,
+            mes: 12
+        }
+    ]);
     const [parteDiarioDate, setParteDiarioDate] = useState(todayStr);
     const [parteDiarioList, setParteDiarioList] = useState([]);
     const [parteDiarioLoading, setParteDiarioLoading] = useState(false);
     const [reportCitasFecha, setReportCitasFecha] = useState(todayStr);
     const [reportCitasEstado, setReportCitasEstado] = useState('all');
+    const [citasLoading, setCitasLoading] = useState(false);
+    const diarioIframeRef = useRef(null);
+    const citasIframeRef = useRef(null);
+    const mensualIframeRef = useRef(null);
+    const fichasIframeRef = useRef(null);
+    const recetaIframeRef = useRef(null);
+    const matrixIframeRef = useRef(null);
+    const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
+    const [matrixDateFilter, setMatrixDateFilter] = useState('');
+    const [selectedFichaWorkerId, setSelectedFichaWorkerId] = useState('merchan-silvia');
+    const [selectedRecetaId, setSelectedRecetaId] = useState(1001);
+    const [genReportMonth, setGenReportMonth] = useState(new Date().getMonth() + 1);
+    const [genReportYear, setGenReportYear] = useState(new Date().getFullYear());
+    const [reportMensualFecha, setReportMensualFecha] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [genReportLoading, setGenReportLoading] = useState(false);
+    const [genReportData, setGenReportData] = useState(null);
+    const [toast, setToast] = useState({ show: false, message: '' });
+    const showSystemToast = (message) => {
+        setToast({ show: true, message });
+        setTimeout(() => setToast({ show: false, message: '' }), 3400);
+    };
     const initialRecetas = [
         {
             id: 1001,
@@ -653,8 +2566,183 @@ export default function MedicoOcupacionalPage() {
         });
     };
 
-    const handleUpdateCitaStatus = (id, newStatus) => {
+    const handleUpdateCitaStatus = async (id, newStatus) => {
         setCitasList(prev => prev.map(c => c.id === id ? { ...c, estado: newStatus } : c));
+        try {
+            if (newStatus === 'cancelada') {
+                await api.patch(`/citas-medicas/${id}/cancelar`).catch(() => {});
+            } else if (newStatus === 'confirmada') {
+                await api.patch(`/citas-medicas/${id}/confirmar`).catch(() => {});
+            } else if (newStatus === 'completada') {
+                await api.patch(`/citas-medicas/${id}/completar`).catch(() => {});
+            }
+        } catch (err) {
+            console.log("Cita status updated locally");
+        }
+    };
+
+    const fetchCitas = async () => {
+        try {
+            const res = await api.get('/citas-medicas/doctor/citas', { params: { fecha: citasDate } });
+            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+                const mapped = res.data.data.map(c => {
+                    const p = c.paciente || {};
+                    const d = p.datos_identificacion || p.datosIdentificacion || {};
+                    const nombre = d.primer_nombre
+                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
+                        : (p.name || 'Paciente');
+                    return {
+                        id: c.id,
+                        pacienteNombre: nombre,
+                        cedula: d.numero_identificacion || p.cedula || 'N/D',
+                        fecha: c.fecha,
+                        horaInicio: c.hora_inicio ? c.hora_inicio.slice(0, 5) : '08:00',
+                        horaFin: c.hora_fin ? c.hora_fin.slice(0, 5) : '08:30',
+                        motivo: c.motivo || 'Evaluación Médica Ocupacional',
+                        tipoEvaluacion: c.tipo_atencion || 'Periódica',
+                        prioridad: 'Normal',
+                        estado: c.estado || 'programada',
+                        paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: d.primer_apellido, cedula: d.numero_identificacion }
+                    };
+                });
+                setCitasList(mapped);
+            }
+        } catch (err) {
+            console.log("Citas backend offline or empty, using state fallback");
+        }
+    };
+
+    const fetchExamOrders = async () => {
+        try {
+            const res = await api.get('/medicina-ocupacional/orden-examen');
+            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+                const mapped = res.data.data.map(o => {
+                    const p = o.paciente || {};
+                    const d = p.datos_identificacion || p.datosIdentificacion || {};
+                    const nombre = d.primer_nombre
+                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
+                        : (p.name || 'Servidor');
+                    const examenesNombres = (o.tipos_examen || o.tiposExamen || []).map(t => t.tipo_examen?.detalle_tipo || t.tipoExamen?.detalle_tipo || 'Examen').concat((o.otros || []).map(ot => ot.detalle_otro_examen));
+                    return {
+                        id: o.id,
+                        fecha: o.fecha,
+                        paciente: nombre,
+                        cedula: d.numero_identificacion || p.cedula || 'N/D',
+                        examen: examenesNombres.length > 0 ? examenesNombres.join(', ') : 'Exámenes Ocupacionales',
+                        motivo: o.observaciones || 'Vigilancia Epidemiológica de Salud Ocupacional',
+                        laboratorio: 'Laboratorio Ocupacional Institucional',
+                        prioridad: 'Normal',
+                        estado: o.estado || 'Pendiente',
+                        selectedExams: examenesNombres,
+                        otrosExamenes: (o.otros || []).map(ot => ot.detalle_otro_examen).join(', ')
+                    };
+                });
+                setExamenesData(prev => {
+                    const ids = new Set(mapped.map(m => m.id));
+                    return [...mapped, ...prev.filter(pr => !ids.has(pr.id))];
+                });
+            }
+        } catch (err) {
+            console.log("Exam orders backend offline or empty");
+        }
+    };
+
+    const fetchReintegros = async () => {
+        try {
+            const res = await api.get('/medicina-ocupacional/reintegro-ueb');
+            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+                const mapped = res.data.data.map(r => {
+                    const p = r.paciente || {};
+                    const d = p.datos_identificacion || p.datosIdentificacion || {};
+                    const nombre = d.primer_nombre
+                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
+                        : (p.name || 'Servidor');
+                    const diasCalc = r.fecha_salida && r.fecha_reintegro
+                        ? Math.ceil(Math.abs(new Date(r.fecha_reintegro) - new Date(r.fecha_salida)) / (1000 * 60 * 60 * 24))
+                        : 30;
+                    return {
+                        id: r.id,
+                        fecha: r.fecha_reintegro || r.created_at?.slice(0, 10),
+                        fechaReintegro: r.fecha_reintegro,
+                        fechaUltimoDia: r.fecha_salida,
+                        paciente: nombre,
+                        cedula: d.numero_identificacion || p.cedula || '0201575900',
+                        puesto: p.cargo || 'Servidor Universitario',
+                        dias: diasCalc,
+                        causaSalida: r.detalle_motivo_salida,
+                        diagnostico: r.detalle_motivo_salida,
+                        tipo: 'Total',
+                        aptitud: 'Apto',
+                        estado: 'Aprobado',
+                        patientSelected: { ...p, ...d, nombres: d.primer_nombre, apellidos: d.primer_apellido, cedula: d.numero_identificacion }
+                    };
+                });
+                setReintegrosData(prev => {
+                    const ids = new Set(mapped.map(m => m.id));
+                    return [...mapped, ...prev.filter(pr => !ids.has(pr.id))];
+                });
+            }
+        } catch (err) {
+            console.log("Reintegros backend offline or empty");
+        }
+    };
+
+    const fetchFichasBackend = async () => {
+        try {
+            const [ingresosRes, cesesRes] = await Promise.all([
+                api.get('/medicina-ocupacional/personal-nuevo').catch(() => ({ data: { data: [] } })),
+                api.get('/medicina-ocupacional/cese-funciones').catch(() => ({ data: { data: [] } }))
+            ]);
+
+            const newItems = [];
+            if (Array.isArray(ingresosRes.data?.data)) {
+                ingresosRes.data.data.forEach(item => {
+                    const p = item.paciente || {};
+                    const d = p.datos_identificacion || p.datosIdentificacion || {};
+                    const nombre = d.primer_nombre ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim() : (p.name || 'Servidor');
+                    newItems.push({
+                        id: 'ing_' + item.id,
+                        fecha: item.fecha_ingreso,
+                        fechaIngreso: item.fecha_ingreso,
+                        paciente: nombre,
+                        cedula: d.numero_identificacion || p.cedula || 'N/D',
+                        tipo: 'Ingreso',
+                        puesto: p.cargo || 'Servidor UEB',
+                        aptitud: 'Apto',
+                        estado: 'Completado',
+                        patientSelected: { ...p, ...d }
+                    });
+                });
+            }
+            if (Array.isArray(cesesRes.data?.data)) {
+                cesesRes.data.data.forEach(item => {
+                    const p = item.paciente || {};
+                    const d = p.datos_identificacion || p.datosIdentificacion || {};
+                    const nombre = d.primer_nombre ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim() : (p.name || 'Servidor');
+                    newItems.push({
+                        id: 'ces_' + item.id,
+                        fecha: item.fecha_salida,
+                        fechaRetiro: item.fecha_salida,
+                        paciente: nombre,
+                        cedula: d.numero_identificacion || p.cedula || 'N/D',
+                        tipo: 'Retiro',
+                        puesto: p.cargo || 'Servidor UEB',
+                        causaRetiro: item.detalle_motivo_salida,
+                        aptitud: 'Satisfactorio',
+                        estado: 'Completado',
+                        patientSelected: { ...p, ...d }
+                    });
+                });
+            }
+            if (newItems.length > 0) {
+                setFichasData(prev => {
+                    const ids = new Set(newItems.map(m => m.id));
+                    return [...newItems, ...prev.filter(pr => !ids.has(pr.id))];
+                });
+            }
+        } catch (err) {
+            console.log("Fichas backend offline or empty");
+        }
     };
 
     const fetchParteDiario = async () => {
@@ -680,7 +2768,20 @@ export default function MedicoOcupacionalPage() {
         if (activeTab === 'diario' || (activeTab === 'reportes' && activeReportSubTab === 'diario')) {
             fetchParteDiario();
         }
-    }, [activeTab, activeReportSubTab, parteDiarioDate]);
+        if (activeTab === 'citas' || (activeTab === 'reportes' && activeReportSubTab === 'citas')) {
+            fetchCitas();
+        }
+        if (activeTab === 'examenes' || (activeTab === 'reportes' && activeReportSubTab === 'examenes')) {
+            fetchExamOrders();
+        }
+        if (activeTab === 'reportes' && activeReportSubTab === 'mensual') {
+            fetchAndCompileGeneralReport(genReportMonth, genReportYear);
+        }
+        if (activeTab === 'reportes') {
+            if (fichaSubTab === 'reintegro') fetchReintegros();
+            if (fichaSubTab === 'ingreso' || fichaSubTab === 'cese') fetchFichasBackend();
+        }
+    }, [activeTab, activeReportSubTab, parteDiarioDate, citasDate, fichaSubTab, genReportMonth, genReportYear, reportCitasFecha, reportCitasEstado]);
 
     const getParteKPIs = () => {
         const total = parteDiarioList.length;
@@ -690,14 +2791,2603 @@ export default function MedicoOcupacionalPage() {
         return { total, primarias, secundarias, certificados };
     };
 
-    const handlePrintParteDiario = () => {
-        try {
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                showSystemToast("El bloqueador de popups impidió abrir el reporte. Permita los popups.");
-                return;
-            }
+    // Handlers for Exámenes & Laboratorio
+    const filteredExamOrders = examOrdersData.filter(item => {
+        const matchesDate = !useExamDateFilter || item.fecha === examReportDate;
+        const matchesSearch = (item.paciente || '').toLowerCase().includes(examSearchTerm.toLowerCase()) ||
+            (item.cedula || '').includes(examSearchTerm) ||
+            (item.examen || '').toLowerCase().includes(examSearchTerm.toLowerCase());
+        const matchesStatus = examFilterStatus === 'todos' || item.estado.toLowerCase() === examFilterStatus.toLowerCase();
+        return matchesDate && matchesSearch && matchesStatus;
+    });
 
+    const handlePrintExamOrderDocument = (item) => {
+        const printWindow = window.open('', '_blank', 'width=1000,height=900');
+        if (!printWindow) {
+            alert('Por favor permita las ventanas emergentes para imprimir la orden de examen.');
+            return;
+        }
+
+        const patientName = (item.paciente || '').toUpperCase();
+        const cedula = item.cedula || 'N/D';
+        const edad = item.edad || 'N/D';
+        const fechaStr = item.fecha || new Date().toISOString().split('T')[0];
+        const activeExams = item.selectedExams || ['Hemograma Completo', 'Audiometría Tonal Ocupacional'];
+        const notes = item.otrosExamenes || customExamNotes || 'Ninguna observación adicional.';
+
+        let categoriesHtml = '';
+        Object.entries(LAB_EXAM_CATEGORIES).forEach(([catKey, category]) => {
+            let itemsGridHtml = '';
+            category.items.forEach(examItem => {
+                const isChecked = activeExams.includes(examItem);
+                itemsGridHtml += `
+                    <div style="display: flex; align-items: center; gap: 4px; font-size: 8.5px; padding: 1px 0;">
+                        <span style="font-weight: bold; font-family: monospace; font-size: 10px;">${isChecked ? '( X )' : '(   )'}</span>
+                        <span style="${isChecked ? 'font-weight: bold; color: #0b3c5d;' : 'color: #334155;'}">${examItem}</span>
+                    </div>
+                `;
+            });
+
+            categoriesHtml += `
+                <div style="border: 1px solid #000; margin-bottom: 6px; page-break-inside: avoid;">
+                    <div style="background-color: #000; color: #fff; font-weight: bold; font-size: 9px; padding: 2px 6px; text-transform: uppercase;">
+                        ${category.title}
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; padding: 4px 6px; background: #fff;">
+                        ${itemsGridHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>ORDEN DE EXAMEN DE LABORATORIO - UEB</title>
+                <style>
+                    @page { size: A4 portrait; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 0; }
+                    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; }
+                    .header-table td { padding: 4px 8px; vertical-align: middle; border: 1px solid #000; }
+                    .logo-title { font-size: 14px; font-weight: 900; color: #0b3c5d; margin: 0; }
+                    .logo-sub { font-size: 8px; font-weight: 800; color: #0284c7; }
+                    .order-title { font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; background: #f1f5f9; padding: 6px; }
+                    .patient-card { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; font-size: 9.5px; }
+                    .patient-card td { padding: 4px 6px; border: 1px solid #000; }
+                    .patient-label { font-weight: bold; background: #f8fafc; text-transform: uppercase; width: 15%; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div style="padding: 2px;">
+                    <table class="header-table">
+                        <tr>
+                            <td style="width: 140px; text-align: center; vertical-align: middle;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                            </td>
+                            <td class="order-title">
+                                UNIVERSIDAD ESTATAL DE BOLÍVAR<br/>
+                                <span style="font-size: 10px; font-weight: bold;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</span><br/>
+                                <span style="font-size: 11px; color: #0b3c5d;">ORDEN DE EXAMEN DE LABORATORIO CLÍNICO</span>
+                            </td>
+                            <td style="width: 140px; text-align: center; vertical-align: middle;">
+                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="patient-card">
+                        <tr>
+                            <td class="patient-label">PACIENTE:</td>
+                            <td style="font-weight: bold; width: 45%;">${patientName}</td>
+                            <td class="patient-label">CÉDULA:</td>
+                            <td style="font-weight: bold;">${cedula}</td>
+                        </tr>
+                        <tr>
+                            <td class="patient-label">FECHA:</td>
+                            <td>${fechaStr}</td>
+                            <td class="patient-label">EDAD / SEXO:</td>
+                            <td>${edad} / M-F</td>
+                        </tr>
+                        <tr>
+                            <td class="patient-label">MÉDICO:</td>
+                            <td>Dr. Jorge Morales Torres (Salud Ocupacional)</td>
+                            <td class="patient-label">LABORATORIO:</td>
+                            <td>${item.laboratorio || 'Laboratorio Central Universitario UEB'}</td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-bottom: 6px; font-weight: bold; font-size: 9.5px; text-transform: uppercase; color: #0b3c5d; border-bottom: 1px solid #000; padding-bottom: 2px;">
+                        Exámenes Clínicos Solicitados
+                    </div>
+
+                    ${categoriesHtml}
+
+                    <div style="margin-top: 6px; border: 1px solid #000; padding: 4px 6px; font-size: 8.5px; background: #fafafa;">
+                        <strong>OBSERVACIONES / OTROS EXÁMENES:</strong> ${notes}
+                    </div>
+
+                    <div style="margin-top: 25px; display: flex; justify-content: space-around; text-align: center;">
+                        <div style="width: 220px; border-top: 1px solid #000; padding-top: 4px; font-size: 8.5px;">
+                            <strong>Dr. Jorge Morales Torres</strong><br/>
+                            MÉDICO SALUD OCUPACIONAL<br/>
+                            <span style="color: #64748b;">MSP / MDT / UEB</span>
+                        </div>
+                        <div style="width: 220px; border-top: 1px solid #000; padding-top: 4px; font-size: 8.5px;">
+                            <strong>Firma del Paciente / Funcionario</strong><br/>
+                            C.I.: ${cedula}
+                        </div>
+                    </div>
+                </div>
+
+                <script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handlePrintDailyExamsReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Por favor permita las ventanas emergentes para imprimir.');
+            return;
+        }
+
+        const rows = filteredExamOrders.map((ord, idx) => `
+            <tr>
+                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
+                <td style="padding: 6px; border: 1px solid #000; font-weight: bold;">${ord.paciente}<br/><small>C.I: ${ord.cedula}</small></td>
+                <td style="padding: 6px; border: 1px solid #000;">${ord.examen}</td>
+                <td style="padding: 6px; border: 1px solid #000;">${ord.motivo}</td>
+                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${ord.estado}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Reporte Diario de Exámenes UEB</title>
+                <style>
+                    body { font-family: Arial; font-size: 11px; padding: 15px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { background: #0b3c5d; color: #fff; border: 1px solid #000; padding: 6px; }
+                </style>
+            </head>
+            <body>
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0b3c5d; padding-bottom: 8px; margin-bottom: 12px;">
+                    <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                    <div style="text-align: center;">
+                        <h2 style="margin: 0; font-size: 13px; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h2>
+                        <h3 style="margin: 2px 0; font-size: 11px; color: #0b3c5d;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: bold; color: #0284c7;">REPORTE DE ÓRDENES DE EXÁMENES DE LABORATORIO</p>
+                    </div>
+                    <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                </div>
+                <p><strong>Fecha de Reporte:</strong> ${useExamDateFilter ? examReportDate : 'Todas las Fechas (Histórico)'} | <strong>Total Registros:</strong> ${filteredExamOrders.length}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Paciente</th>
+                            <th>Exámenes Solicitados</th>
+                            <th>Motivo Ocupacional</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows ? rows : '<tr><td colspan="5" style="text-align:center;">No hay órdenes para la fecha seleccionada.</td></tr>'}</tbody>
+                </table>
+                <script>window.onload = function() { window.print(); };</script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handleSaveExamOrderRecord = (e) => {
+        e.preventDefault();
+        const pacienteName = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim()
+            : 'Paciente Seleccionado';
+
+        const newOrder = {
+            id: Date.now(),
+            fecha: new Date().toISOString().split('T')[0],
+            paciente: pacienteName,
+            cedula: patientSelected?.cedula || '0201234567',
+            edad: patientSelected?.edad ? `${patientSelected.edad} años` : '35 años',
+            medicoSolicitante: 'Dr. Jorge Morales Torres',
+            selectedExams: [...selectedExams],
+            otrosExamenes: customExamNotes,
+            examen: selectedExams.length > 0 ? selectedExams.slice(0, 3).join(', ') + (selectedExams.length > 3 ? '...' : '') : 'Exámenes Generales',
+            motivo: 'Evaluación Ocupacional Periódica',
+            laboratorio: 'Laboratorio Central Universitario UEB',
+            prioridad: 'Normal',
+            estado: 'Pendiente'
+        };
+
+        setExamOrdersData([newOrder, ...examOrdersData]);
+        setIsExamModalOpen(false);
+        setCustomExamNotes('');
+    };
+
+    const matchesDateFilter = (recordDateStr, filterVal) => {
+        if (!filterVal || !recordDateStr) return true;
+        const cleanDate = String(recordDateStr).trim();
+        if (cleanDate.includes(filterVal)) return true;
+        const parts = filterVal.split('-');
+        if (parts.length === 3) {
+            const [y, m, d] = parts;
+            const dmy = `${d}/${m}/${y}`;
+            const my = `${m}/${y}`;
+            const ym = `${y}-${m}`;
+            if (cleanDate.includes(dmy) || cleanDate.includes(my) || cleanDate.includes(ym) || cleanDate.includes(y)) return true;
+        }
+        return false;
+    };
+
+    const handleMatrixSearch = (val) => {
+        setMatrixSearchTerm(val);
+        setCatastrophicSearchTerm(val);
+        setAccidenteSearchTerm(val);
+        setCovidSearchTerm(val);
+        setAusentismoSearchTerm(val);
+        setEmbarazadasSearchTerm(val);
+        setPsicosocialSearchTerm(val);
+        setEnfermedadesNuevasSearchTerm(val);
+        setPeriodicosSearchTerm(val);
+        setPersonalNuevoSearchTerm(val);
+        setVulnerablesPatologiasSearchTerm(val);
+        setDiscapacidadSearchTerm(val);
+    };
+
+    // Handlers for Catastróficas
+    const filteredCatastroficas = catastroficasData.filter(item => {
+        const term = (matrixSearchTerm || catastrophicSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.tipoEnfermedad || '').toLowerCase().includes(term) ||
+            (item.cargo || '').toLowerCase().includes(term) ||
+            (item.novedades || '').toLowerCase().includes(term);
+
+        if (!matchesSearch) return false;
+        if (matrixDateFilter && !matchesDateFilter(item.fechaDiagnostico, matrixDateFilter)) return false;
+
+        if (catastrophicTabFilter === 'catastroficas') {
+            return (item.clasificacion || 'Catastrófica') === 'Catastrófica';
+        }
+        if (catastrophicTabFilter === 'huerfanas') {
+            return item.clasificacion === 'Huérfana o Rara';
+        }
+        return true;
+    });
+
+    const compileCatastroficasMatrixHtml = (itemsList = filteredCatastroficas, currentTabLabel = 'ENFERMEDADES CATASTRÓFICAS O HUÉRFANAS', forPrint = false) => {
+        const list = itemsList || filteredCatastroficas;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color: #64748b; font-weight: normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 700; font-size: 9.5px; color: #0f172a;">${(item.tipoEnfermedad || '').toUpperCase()}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${item.fechaDiagnostico || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: ${item.recibioTratamiento === 'SI' ? '#0284c7' : '#64748b'};">${item.recibioTratamiento || 'SI'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${(item.novedades || '').toUpperCase()}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ SOBRE ENFERMEDADES CATALOGADAS COMO CATASTRÓFICAS - UEB 2026</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #0f172a; background: #fff; margin: 0; padding: 12px; }
+                    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+                    .logo-text { font-size: 16px; font-weight: 900; color: #0b3c5d; }
+                    .logo-subtext { font-size: 8.5px; font-weight: 800; color: #0284c7; }
+                    .matrix-title { font-size: 11px; font-weight: 900; color: #0b3c5d; text-align: center; text-transform: uppercase; line-height: 1.25; padding: 0 10px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 9.5px; }
+                    table.matrix-table th { background: #00a2e8; color: #ffffff; padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9px; text-align: center; border: 1px solid #0088cc; letter-spacing: 0.3px; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <table class="header-table">
+                    <tr>
+                        <td style="width: 140px; vertical-align: middle; text-align: left;">
+                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                        </td>
+                        <td class="matrix-title">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #0284c7; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
+                            <div style="font-size: 10px; font-weight: 900; color: #0b3c5d; margin-top: 2px;">
+                                MATRIZ SOBRE ENFERMEDADES CATALOGADAS COMO CATASTRÓFICAS, CONFORME A LO ESTIPULADO POR EL MINISTERIO DE SALUD PÚBLICA DEL ECUADOR UEB 2026<br/>
+                                <span style="font-size: 9px; font-weight: 700; color: #0284c7;">(${currentTabLabel})</span>
+                            </div>
+                        </td>
+                        <td style="width: 140px; vertical-align: middle; text-align: right;">
+                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">NÚMERO</th>
+                            <th>NOMBRE DEL PACIENTE</th>
+                            <th>TIPO DE ENFERMEDAD</th>
+                            <th style="width: 120px;">FECHA DE DIAGNÓSTICO</th>
+                            <th>CARGO / OCUPACIÓN</th>
+                            <th style="width: 130px;">RECIBIÓ QUIMIOTERAPIA / RADIOTERAPIA</th>
+                            <th>NOVEDADES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="7" style="text-align: center; padding: 25px; color: #64748b;">No se encontraron registros con los filtros aplicados.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 30px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Seguridad y Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintCatastroficasMatrix = (itemsList = filteredCatastroficas, currentTabLabel = 'ENFERMEDADES CATASTRÓFICAS O HUÉRFANAS') => {
+        printIframeDocument(matrixIframeRef, () => compileCatastroficasMatrixHtml(itemsList, currentTabLabel, false));
+        showSystemToast('Enviando matriz de enfermedades catastróficas a impresión...');
+    };
+
+    const handleSaveCatastrophicRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (catastrophicForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: catastroficasData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || catastrophicForm.cedula || 'N/D',
+            tipoEnfermedad: (catastrophicForm.tipoEnfermedad || '').toUpperCase(),
+            clasificacion: catastrophicForm.clasificacion || 'Catastrófica',
+            fechaDiagnostico: catastrophicForm.fechaDiagnostico || 'N/D',
+            cargo: (patientSelected?.puestoTrabajo || catastrophicForm.cargo || 'DOCENTE TITULAR').toUpperCase(),
+            recibioTratamiento: catastrophicForm.recibioTratamiento || 'SI',
+            novedades: (catastrophicForm.novedades || 'CONTROL Y SEGUIMIENTO').toUpperCase()
+        };
+
+        setCatastroficasData([...catastroficasData, newRecord]);
+        setIsCatastrophicModalOpen(false);
+        setCatastrophicForm({
+            paciente: '',
+            cedula: '',
+            tipoEnfermedad: 'CÁNCER DE TIROIDES',
+            clasificacion: 'Catastrófica',
+            fechaDiagnostico: new Date().toISOString().split('T')[0],
+            cargo: 'DOCENTE TITULAR',
+            recibioTratamiento: 'SI',
+            novedades: 'CONTROL Y SEGUIMIENTO'
+        });
+    };
+
+    // Handlers for Accidentes
+    const filteredAccidentes = accidentesLaboralesData.filter(item => {
+        const term = (matrixSearchTerm || accidenteSearchTerm || '').toLowerCase();
+        const matchSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').toLowerCase().includes(term) ||
+            (item.cargo || '').toLowerCase().includes(term) ||
+            (item.lugar || '').toLowerCase().includes(term) ||
+            (item.tipoAccidente || '').toLowerCase().includes(term) ||
+            (item.diagnostico || '').toLowerCase().includes(term) ||
+            (item.novedades || '').toLowerCase().includes(term);
+
+        if (!matchSearch) return false;
+        if (matrixDateFilter && !matchesDateFilter(item.fechaAccidente, matrixDateFilter)) return false;
+
+        if (accidenteTabFilter === 'leves') {
+            return (item.gravedad || '').toUpperCase().includes('LEVE');
+        }
+        if (accidenteTabFilter === 'graves') {
+            return (item.gravedad || '').toUpperCase().includes('GRAVE') || (item.gravedad || '').toUpperCase().includes('INCAPACIDAD');
+        }
+        if (accidenteTabFilter === 'enfermedades_profesionales') {
+            return (item.gravedad || '').toUpperCase().includes('ENFERMEDAD') || (item.gravedad || '').toUpperCase().includes('PROFESIONAL');
+        }
+        return true;
+    });
+
+    const compileAccidentesMatrixHtml = (dataToPrint = filteredAccidentes, filterLabel = 'TODOS LOS REGISTROS', forPrint = false) => {
+        const list = dataToPrint || filteredAccidentes;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">
+                    ${(item.paciente || '').toUpperCase()}<br/>
+                    <small style="color: #64748b; font-weight: normal;">C.I: ${item.cedula || 'N/D'}</small>
+                </td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${item.fechaAccidente || 'N/D'}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.lugar || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #b45309;">${(item.tipoAccidente || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #0f172a;">${(item.diagnostico || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #d97706;">${item.diasIncapacidad || 'N/D'}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${(item.gravedad || '').includes('LEVE') ? '#0284c7' : '#dc2626'};">${item.gravedad || 'LEVE'}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${(item.novedades || '').toUpperCase()}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE REGISTRO DE ACCIDENTES DE TRABAJO - UEB 2026</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #0f172a; background: #fff; margin: 0; padding: 12px; }
+                    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+                    .logo-text { font-size: 16px; font-weight: 900; color: #0b3c5d; }
+                    .logo-subtext { font-size: 8.5px; font-weight: 800; color: #d97706; }
+                    .matrix-title { font-size: 11px; font-weight: 900; color: #0b3c5d; text-align: center; text-transform: uppercase; line-height: 1.25; padding: 0 10px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 9.5px; }
+                    table.matrix-table th { background: #d97706; color: #ffffff; padding: 8px 5px; font-weight: 900; text-transform: uppercase; font-size: 8.5px; text-align: center; border: 1px solid #b45309; letter-spacing: 0.2px; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <table class="header-table">
+                    <tr>
+                        <td style="width: 140px; vertical-align: middle; text-align: left;">
+                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                        </td>
+                        <td class="matrix-title">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #b45309; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
+                            <div style="font-size: 10px; font-weight: 900; color: #0b3c5d; margin-top: 2px;">
+                                MATRIZ DE REGISTRO DE ACCIDENTES DE TRABAJO Y ENFERMEDADES PROFESIONALES - UEB 2026<br/>
+                                <span style="font-size: 9px; font-weight: 700; color: #d97706;">(${String(filterLabel).toUpperCase()})</span>
+                            </div>
+                        </td>
+                        <td style="width: 140px; vertical-align: middle; text-align: right;">
+                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">N°</th>
+                            <th>NOMBRE DEL PACIENTE / CÉDULA</th>
+                            <th>CARGO / OCUPACIÓN</th>
+                            <th style="width: 100px;">FECHA Y HORA</th>
+                            <th>LUGAR / ÁREA</th>
+                            <th>TIPO DE ACCIDENTE / CAUSA</th>
+                            <th>DIAGNÓSTICO / LESIÓN</th>
+                            <th style="width: 70px;">INCAPACIDAD</th>
+                            <th style="width: 85px;">GRAVEDAD</th>
+                            <th>NOVEDADES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="10" style="text-align: center; padding: 25px; color: #64748b;">No se registraron accidentes en esta matriz.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 25px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintAccidentesMatrix = (dataToPrint = filteredAccidentes, filterLabel = 'TODOS LOS REGISTROS') => {
+        printIframeDocument(matrixIframeRef, () => compileAccidentesMatrixHtml(dataToPrint, filterLabel, false));
+        showSystemToast('Enviando matriz de accidentes a impresión...');
+    };
+
+    const handleSaveAccidenteRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (accidenteForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: accidentesLaboralesData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || accidenteForm.cedula || 'N/D',
+            cargo: (patientSelected?.puestoTrabajo || accidenteForm.cargo || 'ANALISTA DE MANTENIMIENTO').toUpperCase(),
+            fechaAccidente: accidenteForm.fechaAccidente,
+            lugar: (accidenteForm.lugar || 'INSTALACIONES UEB').toUpperCase(),
+            tipoAccidente: (accidenteForm.tipoAccidente || 'ACCIDENTE LABORAL').toUpperCase(),
+            diagnostico: (accidenteForm.diagnostico || 'EVALUACIÓN MÉDICA').toUpperCase(),
+            diasIncapacidad: accidenteForm.diasIncapacidad || '0 DÍAS',
+            gravedad: accidenteForm.gravedad || 'LEVE',
+            novedades: (accidenteForm.novedades || 'REINCORPORADO').toUpperCase()
+        };
+
+        setAccidentesLaboralesData([...accidentesLaboralesData, newRecord]);
+        setIsAccidenteModalOpen(false);
+        setAccidenteForm({
+            paciente: '',
+            cedula: '',
+            cargo: 'ANALISTA DE MANTENIMIENTO',
+            fechaAccidente: new Date().toISOString().split('T')[0],
+            lugar: 'TALLER DE MANTENIMIENTO',
+            tipoAccidente: 'CORTE CON HERRAMIENTA EN MANO DERECHA',
+            diagnostico: 'HERIDA CORTANTE EN PALMA DERECHA - REQUIRIÓ SUTURA',
+            diasIncapacidad: '3 DÍAS',
+            gravedad: 'LEVE',
+            novedades: 'REPOSO MÉDICO FINALIZADO Y REINCORPORACIÓN COMPLETA'
+        });
+    };
+
+    // Handlers for Grupo Vulnerable & Discapacidad
+    const filteredDiscapacidad = discapacidadData.filter(item => {
+        const term = (matrixSearchTerm || discapacidadSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.cargo || '').toLowerCase().includes(term) ||
+            (item.dependencia || '').toLowerCase().includes(term) ||
+            (item.condicionLaboral || '').toLowerCase().includes(term);
+
+        if (!matchesSearch) return false;
+
+        if (discapacidadTabFilter !== 'todos' && item.tipoDiscapacidad.toUpperCase() !== discapacidadTabFilter.toUpperCase()) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const compileDiscapacidadMatrixHtml = (dataToPrint = filteredDiscapacidad, forPrint = false) => {
+        const list = dataToPrint || filteredDiscapacidad;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d; text-align: center;">${(item.tipoDiscapacidad || '').toUpperCase()}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${item.porcentaje || 'N/D'}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #1e293b;">${(item.dependencia || '').toUpperCase()}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #a16207;">${(item.condicionLaboral || '').toUpperCase()}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>GRUPO VULNERABLE UNIVERSIDAD ESTATAL DE BOLÍVAR - 2026</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 12px; }
+                    .blue-banner { background-color: #0070c0; color: #ffffff; border: 1px solid #000; padding: 6px 12px; font-size: 14px; font-weight: 900; text-transform: uppercase; text-align: center; }
+                    .orange-banner { background-color: #f97316; color: #ffffff; border: 1px solid #000; padding: 8px 12px; margin-bottom: 8px; font-size: 14px; font-weight: 900; text-transform: uppercase; text-align: center; border-top: none; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9.5px; }
+                    table.matrix-table th { padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.3px; }
+                    .th-verde { background: #00b050; color: #ffffff; }
+                    .th-azul { background: #0284c7; color: #ffffff; }
+                    .th-amarillo { background: #eab308; color: #000000; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                    <tr>
+                        <td style="width: 140px; vertical-align: middle; text-align: left;">
+                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;">
+                            <div class="blue-banner" style="margin: 0; padding: 5px 10px; font-size: 11.5px;">UNIVERSIDAD ESTATAL DE BOLÍVAR · BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <div class="orange-banner" style="margin: 0; padding: 6px 10px; font-size: 13px;">GRUPO VULNERABLE UNIVERSIDAD ESTATAL DE BOLÍVAR - 2026</div>
+                        </td>
+                        <td style="width: 140px; vertical-align: middle; text-align: right;">
+                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="th-verde">NOMBRES Y APELLIDOS</th>
+                            <th class="th-verde" style="width: 140px;">TIPO DE DISCAPACIDAD</th>
+                            <th class="th-azul" style="width: 90px;">PORCENTAJE</th>
+                            <th class="th-azul" style="width: 160px;">CARGO</th>
+                            <th class="th-azul">DEPENDENCIA</th>
+                            <th class="th-amarillo" style="width: 150px;">CONDICION LABORAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b;">No se registraron funcionarios con discapacidad.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintDiscapacidadMatrix = (dataToPrint = filteredDiscapacidad) => {
+        printIframeDocument(matrixIframeRef, () => compileDiscapacidadMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando matriz de discapacidad a impresión...');
+    };
+
+    
+    // --- STATE FOR MATRIZ DE GRUPOS VULNERABLES (PATOLOGÍAS / CONDICIÓN) ---
+    const [vulnerablePatologiasSearchTerm, setVulnerablePatologiasSearchTerm] = useState('');
+    const [vulnerablePatologiasTabFilter, setVulnerablePatologiasTabFilter] = useState('todos'); // 'todos' | 'diabeticos' | 'hipertensos' | 'adultoMayor' | 'otras'
+    const [vulnerablePatologiasSheetTab, setVulnerablePatologiasSheetTab] = useState('hoja1');
+    const [isVulnerablePatologiasModalOpen, setIsVulnerablePatologiasModalOpen] = useState(false);
+    const [vulnerablePatologiasForm, setVulnerablePatologiasForm] = useState({
+        paciente: '',
+        cedula: '',
+        grupo: 'diabeticos',
+        edad: '',
+        patologia: ''
+    });
+
+    const [vulnerablePatologiasData, setVulnerablePatologiasData] = useState({
+        diabeticos: [
+            { id: 1, nombre: 'ALBAN GARCIA DORINDA FABIOLA' },
+            { id: 2, nombre: 'ALVARADO PACHECO EDDY STALIN' },
+            { id: 3, nombre: 'BALLESTEROS MEDINA HIPATIA FERNANDA' },
+            { id: 4, nombre: 'BARRAGAN AUCATOMA GUSTAVO DANIEL' },
+            { id: 5, nombre: 'BUCHELI ESPINOZA CARLOS IVANOFF' },
+            { id: 6, nombre: 'CARGUA SUAREZ SALOMON RODRIGO' }
+        ],
+        hipertensos: [
+            { id: 1, nombre: 'AGUAY VARGAS MIRIAN JACKELINE' },
+            { id: 2, nombre: 'ARROBA GARCIA JOSE VICENTE' },
+            { id: 3, nombre: 'BALLESTEROS MEDINA HIPATIA FERNANDA' },
+            { id: 4, nombre: 'BARRIONUEVO VELARDE TELMO FERNANDO' },
+            { id: 5, nombre: 'BONILLA ALARCON LUIS ALFONSO' },
+            { id: 6, nombre: 'BONILLA ALRCON LUIS ALFONSO' }
+        ],
+        adultoMayor: [
+            { id: 1, nombre: 'CARGUA SUAREZ SALOMON RODRIGO', edad: '64 AÑOS' },
+            { id: 2, nombre: 'CASTRO BERIO FIDEL ALBERTO', edad: '61 AÑOS' },
+            { id: 3, nombre: 'DOMINGUEZ SANCHEZ CARLOS MANUEL', edad: '61 AÑOS' },
+            { id: 4, nombre: 'HIDALGO ESCOBAR NILDA MARINA', edad: '65 AÑOS' },
+            { id: 5, nombre: 'LOPEZ QUINCHA MARTHA', edad: '62 AÑOS' },
+            { id: 6, nombre: 'PAZOS MONTERO HECTOR DAVID', edad: '63 AÑOS' }
+        ],
+        otras: [
+            { id: 1, nombre: 'GUERRA NARANJO MARICELA ELENA', patologia: 'SARCOIDOSIS (AFECTACION DE LOS GANGLIOS LINFATICOS)' },
+            { id: 2, nombre: 'BONILLA ROLDAN MARIA DE LOS ANGELES', patologia: 'CANCER DE TIROIDES' },
+            { id: 3, nombre: 'AYALA GAVILANES DIANA CATALINA', patologia: 'CANCER DE TIROIDES' }
+        ]
+    });
+
+    const getFilteredVulnerablesPatologias = () => {
+        const term = (matrixSearchTerm || vulnerablePatologiasSearchTerm || '').toLowerCase();
+        if (!term) return vulnerablePatologiasData;
+        return {
+            diabeticos: (vulnerablePatologiasData.diabeticos || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
+            hipertensos: (vulnerablePatologiasData.hipertensos || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
+            adultoMayor: (vulnerablePatologiasData.adultoMayor || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
+            otras: (vulnerablePatologiasData.otras || []).filter(i => (i.nombre || '').toLowerCase().includes(term) || (i.patologia || '').toLowerCase().includes(term))
+        };
+    };
+
+    const compileVulnerablesPatologiasMatrixHtml = (forPrint = false) => {
+        const filtered = getFilteredVulnerablesPatologias();
+        const diabeticosHtml = (filtered.diabeticos || []).map((item, idx) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre}</td>
+            </tr>
+        `).join('');
+
+        const hipertensosHtml = (filtered.hipertensos || []).map((item, idx) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre}</td>
+            </tr>
+        `).join('');
+
+        const adultoMayorHtml = (filtered.adultoMayor || []).map((item, idx) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre} ${item.edad ? '<b>(' + item.edad + ')</b>' : ''}</td>
+            </tr>
+        `).join('');
+
+        const otrasHtml = (filtered.otras || []).map((item, idx) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="font-size: 10px; padding: 5px; border: 1px solid #cbd5e1;">
+                    <div><b>${item.nombre}</b></div>
+                    <div style="color: #c0392b; font-weight: 600;">${item.patologia}</div>
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Matriz Grupo Vulnerable UEB</title>
+                <style>
+                    @page { size: landscape; margin: 10mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 12px; color: #1e293b; background: #fff; }
+                    .header-container { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+                    .header-top { background-color: #0070c0; color: white; text-align: center; font-weight: bold; font-size: 16px; padding: 8px; letter-spacing: 1px; }
+                    .header-sub { background-color: #ea580c; color: white; text-align: center; font-weight: bold; font-size: 14px; padding: 6px; letter-spacing: 0.5px; }
+                    .grid-table { width: 100%; border-collapse: collapse; vertical-align: top; }
+                    .col-cell { vertical-align: top; padding: 0 4px; width: 25%; }
+                    .group-table { width: 100%; border-collapse: collapse; border: 1.5px solid #cbd5e1; }
+                    .group-table th { padding: 8px 4px; font-size: 11.5px; font-weight: bold; text-align: center; color: white; border: 1px solid #94a3b8; text-transform: uppercase; }
+                    .th-diab { background-color: #70ad47; color: #ffffff !important; }
+                    .th-hiper { background-color: #8ea9db; color: #1e293b !important; }
+                    .th-adulto { background-color: #d9e1f2; color: #1e293b !important; }
+                    .th-otras { background-color: #00b050; color: #ffffff !important; }
+                    .footer-sig { margin-top: 30px; display: flex; justify-content: space-around; text-align: center; font-size: 11px; }
+                    .sig-line { border-top: 1px solid #000; width: 200px; margin: 0 auto; padding-top: 4px; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                    <div style="text-align: center;">
+                        <div style="font-size: 12px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                        <div style="font-size: 10px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                        <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-top: 2px;">GRUPO VULNERABLE UNIVERSIDAD ESTATAL DE BOLIVAR</div>
+                    </div>
+                    <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB Logo" />
+                </div>
+
+                <table class="grid-table">
+                    <tr>
+                        <td class="col-cell">
+                            <table class="group-table">
+                                <thead><tr><th class="th-diab" colspan="2">DIABÉTICOS</th></tr></thead>
+                                <tbody>${diabeticosHtml || '<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">Sin registros</td></tr>'}</tbody>
+                            </table>
+                        </td>
+                        <td class="col-cell">
+                            <table class="group-table">
+                                <thead><tr><th class="th-hiper" colspan="2">HIPERTENSOS</th></tr></thead>
+                                <tbody>${hipertensosHtml || '<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">Sin registros</td></tr>'}</tbody>
+                            </table>
+                        </td>
+                        <td class="col-cell">
+                            <table class="group-table">
+                                <thead><tr><th class="th-adulto" colspan="2">ADULTO MAYOR</th></tr></thead>
+                                <tbody>${adultoMayorHtml || '<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">Sin registros</td></tr>'}</tbody>
+                            </table>
+                        </td>
+                        <td class="col-cell">
+                            <table class="group-table">
+                                <thead><tr><th class="th-otras" colspan="2">OTRAS ENFERMEDADES</th></tr></thead>
+                                <tbody>${otrasHtml || '<tr><td colspan="2" style="text-align:center;padding:12px;color:#94a3b8;">Sin registros</td></tr>'}</tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="footer-sig">
+                    <div><div class="sig-line">MÉDICO OCUPACIONAL</div>UEB Salud Ocupacional</div>
+                    <div><div class="sig-line">RESPONSABLE TALENTO HUMANO</div>Universidad Estatal de Bolívar</div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintVulnerablesPatologiasMatrix = () => {
+        printIframeDocument(matrixIframeRef, () => compileVulnerablesPatologiasMatrixHtml(false));
+        showSystemToast('Enviando matriz de patologías a impresión...');
+    };
+
+    const handleExportVulnerablesPatologiasCSV = () => {
+        const headers = [
+            "N° DIAB", "GRUPO DE DIABÉTICOS",
+            "N° HIPER", "GRUPO DE HIPERTENSOS",
+            "N° ADULTO", "GRUPO DE ADULTO MAYOR",
+            "N° OTRAS", "OTRAS ENFERMEDADES", "DIAGNÓSTICO"
+        ];
+        const maxLen = Math.max(
+            (vulnerablePatologiasData.diabeticos || []).length,
+            (vulnerablePatologiasData.hipertensos || []).length,
+            (vulnerablePatologiasData.adultoMayor || []).length,
+            (vulnerablePatologiasData.otras || []).length
+        );
+        const rows = [];
+        for (let i = 0; i < maxLen; i++) {
+            const diab = (vulnerablePatologiasData.diabeticos || [])[i];
+            const hip = (vulnerablePatologiasData.hipertensos || [])[i];
+            const adm = (vulnerablePatologiasData.adultoMayor || [])[i];
+            const otr = (vulnerablePatologiasData.otras || [])[i];
+            rows.push([
+                diab ? i + 1 : "",
+                diab ? `"${diab.nombre.replace(/"/g, '""')}"` : "",
+                hip ? i + 1 : "",
+                hip ? `"${hip.nombre.replace(/"/g, '""')}"` : "",
+                adm ? i + 1 : "",
+                adm ? `"${(adm.nombre + (adm.edad ? ' ' + adm.edad : '')).replace(/"/g, '""')}"` : "",
+                otr ? i + 1 : "",
+                otr ? `"${otr.nombre.replace(/"/g, '""')}"` : "",
+                otr ? `"${(otr.patologia || '').replace(/"/g, '""')}"` : ""
+            ]);
+        }
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_DE_GRUPO_VULNERABLE_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleSaveVulnerablePatologiaRecord = (e) => {
+        e.preventDefault();
+        const nameUpper = patientSelected 
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.toUpperCase()
+            : (vulnerablePatologiasForm.paciente || '').toUpperCase();
+
+        if (!nameUpper) return;
+
+        const grupoTarget = vulnerablePatologiasForm.grupo || 'diabeticos';
+        const currentList = vulnerablePatologiasData[grupoTarget] || [];
+        const newItem = {
+            id: currentList.length + 1,
+            nombre: nameUpper,
+            edad: vulnerablePatologiasForm.edad ? `${vulnerablePatologiasForm.edad} AÑOS` : '',
+            patologia: (vulnerablePatologiasForm.patologia || '').toUpperCase()
+        };
+
+        setVulnerablePatologiasData({
+            ...vulnerablePatologiasData,
+            [grupoTarget]: [...currentList, newItem]
+        });
+
+        setIsVulnerablePatologiasModalOpen(false);
+        setVulnerablePatologiasForm({ paciente: '', cedula: '', grupo: 'diabeticos', edad: '', patologia: '' });
+        setPatientSelected(null);
+        setPatientSearchTerm('');
+    };
+
+
+    
+
+
+
+    
+    // --- STATE FOR MATRIZ DE PERSONAL NUEVO QUE INGRESÓ (UEB) ---
+    const [personalNuevoSearchTerm, setPersonalNuevoSearchTerm] = useState('');
+    const [personalNuevoSelectedYear, setPersonalNuevoSelectedYear] = useState('2026');
+    const [personalNuevoSheetTab, setPersonalNuevoSheetTab] = useState('hoja1');
+    const [isPersonalNuevoModalOpen, setIsPersonalNuevoModalOpen] = useState(false);
+    const [personalNuevoForm, setPersonalNuevoForm] = useState({
+        paciente: '',
+        cedula: '',
+        fechaIngreso: new Date().toISOString().split('T')[0],
+        cargo: ''
+    });
+
+    const [personalNuevoData, setPersonalNuevoData] = useState([
+        { id: 1, paciente: 'JORGE MARCELO TAPIA PALLO', cedula: '1719390609', fechaIngreso: '10/15/2025', anio: '2026', cargo: 'ESPECIALISTA EN SERVICIOS INSTITUCIONALES' },
+        { id: 2, paciente: 'ALFREDO DAVID APUNTE GARCIA', cedula: '201747821', fechaIngreso: '2/25/2026', anio: '2026', cargo: 'AUXILIAR DE MANTENIMIENTO' },
+        { id: 3, paciente: 'JIMMY DALTON CULQUI SISA', cedula: '250189891', fechaIngreso: '2/26/2026', anio: '2026', cargo: 'TRABAJADOR AGRICOLA' },
+        { id: 4, paciente: 'SEGUNDO JUAN GUALPA GUASHPA', cedula: '201618741', fechaIngreso: '2/27/2026', anio: '2026', cargo: 'AUXILIAR DE MANTENIMIENTO' },
+        { id: 5, paciente: 'ALARCON QUINATOA GINA JAQUELINE', cedula: '201506672', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 6, paciente: 'RAMOS GRIJALVA CYNTHIA GABRIELA', cedula: '180386949-2', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 7, paciente: 'DOMINGUEZ CAIZA JOSE NUIS', cedula: '20139365-9', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 8, paciente: 'SANCHEZ SMITH ANTONIO', cedula: '175688168-4', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL MEDIO TIEMPO' },
+        { id: 9, paciente: 'REINOSO HARO ALEXIS GABRIEL', cedula: '060378952-0', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 10, paciente: 'LOMBEIDA AGUILAR MIGUEL ANGEL', cedula: '020202660-5', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL MEDIO TIEMPO' },
+        { id: 11, paciente: 'ARGUELLO PAZMIÑO VERONICA JANETH', cedula: '020197654-5', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 12, paciente: 'MONTEROS PAZMIÑO JHONATAN ADRIAN', cedula: '020189139-7', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 13, paciente: 'CASTRO VASCONEZ NAHOMI PHENNELOPE', cedula: '020205156-1', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO PARCIAL' },
+        { id: 14, paciente: 'BAYAS QUINCHA DARWIN ANDRES', cedula: '060495624-3', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL MEDIO TIEMPO' },
+        { id: 15, paciente: 'COLLAY YANCHALIQUIN MARCELO HERNAN', cedula: '020233670-7', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL MEDIO TIEMPO' },
+        { id: 16, paciente: 'BORJA BOEJA DAISY CORINA', cedula: '020231239-3', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 17, paciente: 'COBA TORRES ROMMEL SEBASTIAN', cedula: '172300335-4', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 18, paciente: 'GAIBOR GUAMAN BRAYAN DARIO', cedula: '020250237-3', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL MEDIO TIEMPO' },
+        { id: 19, paciente: 'ALBAN TRUJILLO PAOLA ESTEFANIA', cedula: '020158119-6', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 20, paciente: 'PAZMIÑO ROMAN ALVARO ANDRES', cedula: '092598285-2', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 21, paciente: 'TORO MONAR KATHERYN DAYANA', cedula: '020215221-1', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO PARCIAL' },
+        { id: 22, paciente: 'BASANTEZ SANCHEZ JENNY ESTHEFANIA', cedula: '020192758-9', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' },
+        { id: 23, paciente: 'GARCIA GARCIA VERONICA TATIANA', cedula: '020193218-3', fechaIngreso: '3/9/2026', anio: '2026', cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO' }
+    ]);
+
+    const filteredPersonalNuevo = personalNuevoData.filter(item => {
+        const term = (matrixSearchTerm || personalNuevoSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.cargo || '').toLowerCase().includes(term);
+        if (!matchesSearch) return false;
+        if (matrixDateFilter && !matchesDateFilter(item.fechaIngreso, matrixDateFilter)) return false;
+        if (personalNuevoSelectedYear !== 'TODOS' && String(item.anio) !== String(personalNuevoSelectedYear)) return false;
+        return true;
+    });
+
+    const compilePersonalNuevoMatrixHtml = (dataToPrint = filteredPersonalNuevo, forPrint = false) => {
+        const list = dataToPrint || filteredPersonalNuevo;
+        const anioStr = personalNuevoSelectedYear !== 'TODOS' ? personalNuevoSelectedYear : 'HISTÓRICO';
+        const rowsHtml = list.map((item, idx) => `
+            <tr>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 7px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="font-weight: bold; color: #1e293b; padding: 7px; border: 1px solid #cbd5e1;">${item.paciente}</td>
+                <td style="text-align: center; font-family: monospace; font-size: 11px; padding: 7px; border: 1px solid #cbd5e1;">${item.cedula}</td>
+                <td style="text-align: center; font-weight: bold; color: #15803d; padding: 7px; border: 1px solid #cbd5e1;">${item.fechaIngreso}</td>
+                <td style="font-weight: bold; color: #334155; padding: 7px; border: 1px solid #cbd5e1;">${item.cargo}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Matriz de Personal Nuevo UEB ${anioStr}</title>
+                <style>
+                    @page { size: landscape; margin: 10mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 12px; color: #1e293b; background: #fff; }
+                    .header-banner { background-color: #ea580c; color: white; text-align: center; font-weight: bold; font-size: 16px; padding: 10px; border-radius: 4px; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+                    table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10.5px; }
+                    table.data-table th { background-color: #70ad47; color: #ffffff; padding: 8px; text-align: center; font-weight: bold; font-size: 10.5px; border: 1px solid #94a3b8; text-transform: uppercase; }
+                    table.data-table td { padding: 7px 8px; border: 1px solid #cbd5e1; }
+                    .footer-sig { margin-top: 35px; display: flex; justify-content: space-around; text-align: center; font-size: 11px; }
+                    .sig-line { border-top: 1px solid #000; width: 220px; margin: 0 auto; padding-top: 4px; }
+                    @media print { .no-print { display: none !important; } }
+                </style>
+            </head>
+            <body>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                    <div style="text-align: center;">
+                        <div style="font-size: 12px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                        <div style="font-size: 10px; font-weight: 800; color: #70ad47;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                    </div>
+                    <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB Logo" />
+                </div>
+                <div class="header-banner">
+                    Personal Nuevo que Ingresó en el Año ${anioStr}
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="background-color: #0f172a; width: 40px;">N°</th>
+                            <th>NOMBRE Y APELLIDO</th>
+                            <th style="width: 130px;">CÉDULA</th>
+                            <th style="width: 130px;">FECHA DE INGRESO</th>
+                            <th>CARGO</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="5" style="text-align:center;padding:25px;color:#94a3b8;">No se encontraron registros de personal nuevo.</td></tr>'}</tbody>
+                </table>
+                <div class="footer-sig">
+                    <div><div class="sig-line">MÉDICO OCUPACIONAL</div>UEB Salud Ocupacional</div>
+                    <div><div class="sig-line">DIRECTOR TALENTO HUMANO</div>Universidad Estatal de Bolívar</div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintPersonalNuevoMatrix = (dataToPrint = filteredPersonalNuevo) => {
+        printIframeDocument(matrixIframeRef, () => compilePersonalNuevoMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando matriz de personal nuevo a impresión...');
+    };
+
+    const handleExportPersonalNuevoCSV = () => {
+        const headers = ["NOMBRE Y APELLIDO", "CEDULA", "FECHA DE INGRESO", "CARGO"];
+        const rows = filteredPersonalNuevo.map(item => [
+            `"${(item.paciente || '').replace(/"/g, '""')}"`,
+            `"${(item.cedula || '').replace(/"/g, '""')}"`,
+            `"${(item.fechaIngreso || '').replace(/"/g, '""')}"`,
+            `"${(item.cargo || '').replace(/"/g, '""')}"`
+        ]);
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_DE_PERSONAL_NUEVO_UEB_${personalNuevoSelectedYear}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleSavePersonalNuevoRecord = (e) => {
+        e.preventDefault();
+        const nameUpper = patientSelected 
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.toUpperCase()
+            : (personalNuevoForm.paciente || '').toUpperCase();
+
+        if (!nameUpper) return;
+
+        const dateVal = personalNuevoForm.fechaIngreso || new Date().toISOString().split('T')[0];
+        const yearVal = dateVal.split('-')[0] || '2026';
+
+        const newRecord = {
+            id: personalNuevoData.length + 1,
+            paciente: nameUpper,
+            cedula: patientSelected?.cedula || personalNuevoForm.cedula || '0201234567',
+            fechaIngreso: dateVal,
+            anio: yearVal,
+            cargo: (personalNuevoForm.cargo || 'SERVIDIOR INSTITUCIONAL').toUpperCase()
+        };
+
+        setPersonalNuevoData([...personalNuevoData, newRecord]);
+        setIsPersonalNuevoModalOpen(false);
+        setPersonalNuevoForm({ paciente: '', cedula: '', fechaIngreso: new Date().toISOString().split('T')[0], cargo: '' });
+        setPatientSelected(null);
+        setPatientSearchTerm('');
+    };
+
+
+    const handleSaveDiscapacidadRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (discapacidadForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: discapacidadData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || discapacidadForm.cedula || '0201234567',
+            tipoDiscapacidad: (discapacidadForm.tipoDiscapacidad || 'FÍSICA').toUpperCase(),
+            porcentaje: discapacidadForm.porcentaje.includes('%') ? discapacidadForm.porcentaje : `${discapacidadForm.porcentaje}%`,
+            cargo: (discapacidadForm.cargo || 'DOCENTE TITULAR').toUpperCase(),
+            dependencia: (discapacidadForm.dependencia || 'UNIVERSIDAD ESTATAL DE BOLÍVAR').toUpperCase(),
+            condicionLaboral: (discapacidadForm.condicionLaboral || 'NOMBRAMIENTO').toUpperCase()
+        };
+
+        setDiscapacidadData([...discapacidadData, newRecord]);
+        setIsDiscapacidadModalOpen(false);
+        setDiscapacidadForm({
+            paciente: '',
+            cedula: '',
+            tipoDiscapacidad: 'FÍSICA',
+            porcentaje: '40%',
+            cargo: 'DOCENTE TITULAR',
+            dependencia: 'FACULTAD DE CIENCIAS ADMINISTRATIVAS',
+            condicionLaboral: 'NOMBRAMIENTO'
+        });
+    };
+
+    // Handlers for Exámenes Periódicos por Mes
+    const filteredPeriodicos = periodicosData.filter(item => {
+        const matchesSearch = (item.mes || '').toLowerCase().includes(periodicosSearchTerm.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (periodicosSelectedYear !== 'TODOS' && String(item.anio) !== String(periodicosSelectedYear)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const totalPeriodicosAcumulado = filteredPeriodicos.reduce((sum, item) => sum + (parseInt(item.cantidad) || 0), 0);
+
+    const handlePrintPeriodicosMatrix = (dataToPrint = filteredPeriodicos) => {
+        const printWindow = window.open('', '_blank', 'width=1150,height=850');
+        if (!printWindow) {
+            alert('Por favor permita ventanas emergentes para imprimir la matriz.');
+            return;
+        }
+
+        const anioStr = periodicosSelectedYear !== 'TODOS' ? periodicosSelectedYear : 'HISTÓRICO';
+        const totalSum = dataToPrint.reduce((sum, item) => sum + (parseInt(item.cantidad) || 0), 0);
+
+        const rowsHtml = dataToPrint.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 12px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.mes || '').toUpperCase()}</td>
+                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #334155;">${item.cantidad || 0}</td>
+                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0284c7;">${item.cantidad || 0}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE EXÁMENES MÉDICOS Y FICHAS PERIÓDICAS - UEB ${anioStr}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 0; }
+                    .orange-banner { background-color: #ea580c; color: #ffffff; border: 1px solid #000; padding: 10px 14px; margin-bottom: 8px; }
+                    .banner-title { font-size: 15px; font-weight: 900; color: #ffffff; text-transform: uppercase; margin: 0; text-align: center; letter-spacing: 0.5px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9.5px; }
+                    table.matrix-table th { background: #0284c7; color: #ffffff; padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.3px; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="padding: 10px; background: #ffedd5; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Exámenes Periódicos por Mes (${anioStr})</span>
+                    <button onclick="window.print()" style="background: #ea580c; color: #ffffff; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                        Imprimir Matriz Oficial (A4 Landscape)
+                    </button>
+                </div>
+
+                <div style="padding: 4px;">
+                    <div class="orange-banner">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <strong style="font-size: 18px; color: #ffffff;">UEB</strong>
+                            <h1 class="banner-title">Matriz de EXAMENES Medicos y Fichas Periodicos ${anioStr}</h1>
+                            <span style="font-size: 9px; font-weight: bold; background: #ffffff; color: #ea580c; padding: 2px 8px; borderRadius: 4px;">SALUD OCUPACIONAL</span>
+                        </div>
+                    </div>
+
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 250px;">MES</th>
+                                <th>CANTIDAD DE EXÁMENES Y FICHAS PERIÓDICAS REALIZADAS</th>
+                                <th style="width: 150px;">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="text-align: center; padding: 20px;">No se registraron exámenes para este período.</td></tr>'}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #e0f2fe; font-weight: 900; border-top: 2px solid #000000;">
+                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: right; text-transform: uppercase;">TOTAL ACUMULADO:</td>
+                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 11px; color: #0b3c5d;">${totalSum} EVALUACIONES</td>
+                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 12px; color: #0b3c5d;">${totalSum}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                        <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                            <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                            <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handleSavePeriodicosRecord = (e) => {
+        e.preventDefault();
+        const cnt = parseInt(periodicosForm.cantidad) || 0;
+        const mStr = (periodicosForm.mes || 'ENERO').toUpperCase();
+        const aNum = parseInt(periodicosForm.anio) || 2022;
+
+        const existingIdx = periodicosData.findIndex(x => x.mes.toUpperCase() === mStr && String(x.anio) === String(aNum));
+
+        if (existingIdx >= 0) {
+            const updated = [...periodicosData];
+            updated[existingIdx].cantidad = cnt;
+            setPeriodicosData(updated);
+        } else {
+            const newRecord = {
+                id: Date.now(),
+                mes: mStr,
+                anio: aNum,
+                cantidad: cnt
+            };
+            setPeriodicosData([...periodicosData, newRecord]);
+        }
+
+        setIsPeriodicosModalOpen(false);
+    };
+
+    // Handlers for Enfermedades Nuevas (Incidencia)
+    const filteredNuevas = nuevasData.filter(item => {
+        const matchesSearch =
+            (item.paciente || '').toLowerCase().includes(nuevasSearchTerm.toLowerCase()) ||
+            (item.cedula || '').includes(nuevasSearchTerm) ||
+            (item.patologiaNueva || '').toLowerCase().includes(nuevasSearchTerm.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        if (nuevasSelectedYear !== 'TODOS' && String(item.anio) !== String(nuevasSelectedYear)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const handlePrintNuevasMatrix = (dataToPrint = filteredNuevas) => {
+        const printWindow = window.open('', '_blank', 'width=1150,height=850');
+        if (!printWindow) {
+            alert('Por favor permita ventanas emergentes para imprimir la matriz.');
+            return;
+        }
+
+        const anioStr = nuevasSelectedYear !== 'TODOS' ? nuevasSelectedYear : 'HISTÓRICO';
+
+        const rowsHtml = dataToPrint.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${(item.patologiaNueva || '').toUpperCase()}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ca8a04;">${item.fechaAparecimiento || 'N/D'}</td>
+            </tr>
+        `).join('');
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE ENFERMEDADES NUEVAS - UEB ${anioStr}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 0; }
+                    .orange-banner { background-color: #ea580c; color: #ffffff; border: 1px solid #000; padding: 10px 14px; margin-bottom: 8px; }
+                    .banner-title { font-size: 16px; font-weight: 900; color: #ffffff; text-transform: uppercase; margin: 0; text-align: center; letter-spacing: 0.5px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9.5px; }
+                    table.matrix-table th { padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.3px; }
+                    .th-azul { background: #0070c0; color: #ffffff; }
+                    .th-verde { background: #00b050; color: #ffffff; }
+                    .th-amarillo { background: #eab308; color: #000000; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="padding: 10px; background: #ffedd5; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Enfermedades Nuevas (Incidencia ${anioStr})</span>
+                    <button onclick="window.print()" style="background: #ea580c; color: #ffffff; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                        Imprimir Matriz Oficial (A4 Landscape)
+                    </button>
+                </div>
+
+                <div style="padding: 4px;">
+                    <div class="orange-banner">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <strong style="font-size: 18px; color: #ffffff;">UEB</strong>
+                            <h1 class="banner-title">EMFERMEDAES NUEVAS ${anioStr} (INCINDECIA)</h1>
+                            <span style="font-size: 9px; font-weight: bold; background: #ffffff; color: #ea580c; padding: 2px 8px; borderRadius: 4px;">SALUD OCUPACIONAL</span>
+                        </div>
+                    </div>
+
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th class="th-azul">Nombres y Apellidos</th>
+                                <th class="th-verde">Patología Nueva</th>
+                                <th class="th-amarillo" style="width: 180px;">Fecha de Aparecimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="text-align: center; padding: 20px;">No se registraron enfermedades nuevas en este período.</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                        <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                            <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                            <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    const handleSaveNuevasRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (nuevasForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        let anioVal = 2022;
+        if (nuevasForm.fechaAparecimiento) {
+            const parts = nuevasForm.fechaAparecimiento.split(/[-/]/);
+            if (parts.length === 3) {
+                if (parts[0].length === 4) anioVal = parseInt(parts[0]);
+                else if (parts[2].length === 4) anioVal = parseInt(parts[2]);
+            }
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: nuevasData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || nuevasForm.cedula || '0201234567',
+            patologiaNueva: (nuevasForm.patologiaNueva || 'DIAGNÓSTICO INCIDENTE').toUpperCase(),
+            fechaAparecimiento: nuevasForm.fechaAparecimiento || new Date().toLocaleDateString('es-EC'),
+            anio: anioVal
+        };
+
+        setNuevasData([...nuevasData, newRecord]);
+        setIsNuevasModalOpen(false);
+        setNuevasForm({
+            paciente: '',
+            cedula: '',
+            patologiaNueva: '',
+            fechaAparecimiento: new Date().toISOString().split('T')[0]
+        });
+    };
+
+    // Handlers for Riesgo Psicosocial
+    const filteredPsicosocial = psicosocialData.filter(item => {
+        const term = (matrixSearchTerm || psicosocialSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.tiposervidor || '').toLowerCase().includes(term) ||
+            (item.diagnostico || '').toLowerCase().includes(term);
+
+        if (!matchesSearch) return false;
+
+        if (psicosocialFilterTipo !== 'todos' && item.tiposervidor.toUpperCase() !== psicosocialFilterTipo.toUpperCase()) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const compilePsicosocialMatrixHtml = (dataToPrint = filteredPsicosocial, forPrint = false) => {
+        const list = dataToPrint || filteredPsicosocial;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${(item.tiposervidor || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #b91c1c;">${(item.diagnostico || '').toUpperCase()}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE FUNCIONARIOS CON RIESGO PSICOSOCIAL - UEB</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 12px; }
+                    .blue-banner { background-color: #0070c0; color: #ffffff; border: 1px solid #000; padding: 10px 14px; margin-bottom: 8px; }
+                    .banner-title { font-size: 15px; font-weight: 900; color: #ffffff; text-transform: uppercase; margin: 0; text-align: center; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9.5px; }
+                    table.matrix-table th { background: #ea580c; color: #ffffff; padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.3px; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="blue-banner" style="background: #ffffff; border: 1.5px solid #002040; color: #0f172a; padding: 6px 12px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <div style="text-align: center; flex: 1; padding: 0 10px;">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #ea580c;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 12px; color: #0b3c5d;">FUNCIONARIOS CON ANSIEDAD Y DEPRESIÓN - UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
+                        </div>
+                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                    </div>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">NÚMERO</th>
+                            <th>NOMBRES Y APELLIDOS</th>
+                            <th style="width: 220px;">TIPO DE SERVIDOR</th>
+                            <th>DIAGNÓSTICO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="4" style="text-align: center; padding: 25px; color: #64748b;">No se registraron casos de riesgo psicosocial.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional y Psicología</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintPsicosocialMatrix = (dataToPrint = filteredPsicosocial) => {
+        printIframeDocument(matrixIframeRef, () => compilePsicosocialMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando matriz de riesgo psicosocial a impresión...');
+    };
+
+    const handleSavePsicosocialRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (psicosocialForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: psicosocialData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || psicosocialForm.cedula || '0201234567',
+            tiposervidor: (psicosocialForm.tiposervidor || 'DOCENTE TITULAR').toUpperCase(),
+            diagnostico: (psicosocialForm.diagnostico || 'DEPRESION Y ANSIEDAD').toUpperCase()
+        };
+
+        setPsicosocialData([...psicosocialData, newRecord]);
+        setIsPsicosocialModalOpen(false);
+        setPsicosocialForm({
+            paciente: '',
+            cedula: '',
+            tiposervidor: 'DOCENTE TITULAR',
+            diagnostico: 'DEPRESION Y ANSIEDAD',
+            observaciones: 'SEGUIMIENTO POR SALUD OCUPACIONAL Y PSICOLOGÍA'
+        });
+    };
+
+    const handleDeletePsicosocialRecord = (id) => {
+        if (window.confirm('¿Está seguro de eliminar este registro de la matriz de riesgo psicosocial?')) {
+            setPsicosocialData(prev => prev.filter(item => item.id !== id));
+        }
+    };
+
+    const handleExportPsicosocialCSV = () => {
+        const headers = ["NUMERO", "NOMBRES Y APELLIDOS", "TIPO DE SERVIDOR", "DIGNOSTICO"];
+        const rows = filteredPsicosocial.map((item, idx) => [
+            idx + 1,
+            `"${(item.paciente || '').replace(/"/g, '""')}"`,
+            `"${(item.tiposervidor || '').replace(/"/g, '""')}"`,
+            `"${(item.diagnostico || '').replace(/"/g, '""')}"`
+        ]);
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_FUNCIONARIOS_CON_RIESGO_PSICOSOCIAL_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Handlers for Enfermedades Nuevas (Incidencia UEB)
+    const filteredEnfermedadesNuevas = enfermedadesNuevasData.filter(item => {
+        const term = (matrixSearchTerm || enfermedadesNuevasSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.patologiaNueva || '').toLowerCase().includes(term) ||
+            (item.fechaAparecimiento || '').toLowerCase().includes(term);
+
+        const matchesYear = enfermedadesNuevasFilterYear === 'TODOS' ||
+            (item.year && item.year === enfermedadesNuevasFilterYear) ||
+            (item.fechaAparecimiento && item.fechaAparecimiento.includes(enfermedadesNuevasFilterYear));
+
+        if (!matchesSearch || !matchesYear) return false;
+        if (matrixDateFilter && !matchesDateFilter(item.fechaAparecimiento, matrixDateFilter)) return false;
+
+        return true;
+    });
+
+    const compileEnfermedadesNuevasMatrixHtml = (dataToPrint = filteredEnfermedadesNuevas, forPrint = false) => {
+        const list = dataToPrint || filteredEnfermedadesNuevas;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${(item.patologiaNueva || '').toUpperCase()}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${item.fechaAparecimiento || ''}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE ENFERMEDADES NUEVAS (INCIDENCIA) - UEB</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 12px; }
+                    .banner { background-color: #ed7d31; color: #000; border: 1px solid #000; padding: 10px 14px; margin-bottom: 8px; }
+                    .banner-title { font-size: 15px; font-weight: 900; color: #000; text-transform: uppercase; margin: 0; text-align: center; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9.5px; }
+                    table.matrix-table th { padding: 8px 6px; font-weight: 900; text-transform: uppercase; font-size: 9.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.3px; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="banner" style="background: #ffffff; border: 1.5px solid #c2410c; padding: 6px 12px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <div style="text-align: center; flex: 1; padding: 0 10px;">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #c2410c;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #000;">ENFERMEDADES NUEVAS (INCIDENCIA)</h1>
+                        </div>
+                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                    </div>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="background: #4472c4; color: #ffffff; width: 45%;">NOMBRES Y APELLIDOS</th>
+                            <th style="background: #00b050; color: #ffffff; width: 35%;">PATOLOGÍA NUEVA</th>
+                            <th style="background: #ffc000; color: #000000; width: 20%;">FECHA DE APARECIMIENTO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="text-align: center; padding: 25px; color: #64748b;">No se registraron enfermedades nuevas en el período.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Médico Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintEnfermedadesNuevasMatrix = (dataToPrint = filteredEnfermedadesNuevas) => {
+        printIframeDocument(matrixIframeRef, () => compileEnfermedadesNuevasMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando matriz de enfermedades nuevas a impresión...');
+    };
+
+    const handleSaveEnfermedadesNuevasRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (enfermedadesNuevasForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const dateVal = enfermedadesNuevasForm.fechaAparecimiento || new Date().toISOString().split('T')[0];
+        // Format to M/D/YYYY or Keep user input
+        const parts = dateVal.split('-');
+        const formattedDate = parts.length === 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}/${parts[0]}` : dateVal;
+        const yearVal = parts.length === 3 ? parts[0] : '2026';
+
+        const newRecord = {
+            id: Date.now(),
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || enfermedadesNuevasForm.cedula || '0201234567',
+            patologiaNueva: (enfermedadesNuevasForm.patologiaNueva || 'PATOLOGÍA NO ESPECIFICADA').toUpperCase(),
+            fechaAparecimiento: formattedDate,
+            year: yearVal
+        };
+
+        setEnfermedadesNuevasData([...enfermedadesNuevasData, newRecord]);
+        setIsEnfermedadesNuevasModalOpen(false);
+        setEnfermedadesNuevasForm({
+            paciente: '',
+            cedula: '',
+            patologiaNueva: '',
+            fechaAparecimiento: new Date().toISOString().split('T')[0],
+            observaciones: 'REGISTRO DE INCIDENCIA DE PATOLOGÍA NUEVA'
+        });
+        setPatientSelected(null);
+        setPatientSearchTerm('');
+    };
+
+    const handleDeleteEnfermedadesNuevasRecord = (id) => {
+        if (window.confirm('¿Está seguro de eliminar este registro de la matriz de enfermedades nuevas?')) {
+            setEnfermedadesNuevasData(prev => prev.filter(item => item.id !== id));
+        }
+    };
+
+    const handleExportEnfermedadesNuevasCSV = () => {
+        const headers = ["NOMBRES Y APELLIDOS", "PATOLOGIA NUEVA", "FECHA DE APARECIMIENTO"];
+        const rows = filteredEnfermedadesNuevas.map((item) => [
+            `"${(item.paciente || '').replace(/"/g, '""')}"`,
+            `"${(item.patologiaNueva || '').replace(/"/g, '""')}"`,
+            `"${(item.fechaAparecimiento || '').replace(/"/g, '""')}"`
+        ]);
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_DE_ENFERMEDADES_NUEVAS_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Handlers for Matriz de Exámenes Médicos y Fichas Periódicas por Mes
+    const currentYearExamenesList = (examenesPeriodicosData[examenesPeriodicosSelectedYear] || [
+        { id: 1, mes: 'ENERO', examenes: 0, total: 0 },
+        { id: 2, mes: 'FEBRERO', examenes: 0, total: 0 },
+        { id: 3, mes: 'MARZO', examenes: 0, total: 0 },
+        { id: 4, mes: 'ABRIL', examenes: 0, total: 0 },
+        { id: 5, mes: 'MAYO', examenes: 0, total: 0 },
+        { id: 6, mes: 'JUNIO', examenes: 0, total: 0 },
+        { id: 7, mes: 'JULIO', examenes: 0, total: 0 },
+        { id: 8, mes: 'AGOSTO', examenes: 0, total: 0 },
+        { id: 9, mes: 'SEPTIEMBRE', examenes: 0, total: 0 },
+        { id: 10, mes: 'OCTUBRE', examenes: 0, total: 0 },
+        { id: 11, mes: 'NOVIEMBRE', examenes: 0, total: 0 },
+        { id: 12, mes: 'DICIEMBRE', examenes: 0, total: 0 }
+    ]);
+
+    const totalExamenesPeriodicosYear = currentYearExamenesList.reduce((sum, item) => sum + (parseInt(item.total, 10) || 0), 0);
+
+    const handleSaveExamenesPeriodicosRecord = (e) => {
+        e.preventDefault();
+        const mesTarget = examenesPeriodicosForm.mes;
+        const countVal = parseInt(examenesPeriodicosForm.examenes, 10) || 0;
+
+        setExamenesPeriodicosData(prev => {
+            const yearList = prev[examenesPeriodicosSelectedYear] ? [...prev[examenesPeriodicosSelectedYear]] : [];
+            const idx = yearList.findIndex(item => item.mes.toUpperCase() === mesTarget.toUpperCase());
+            if (idx >= 0) {
+                yearList[idx] = {
+                    ...yearList[idx],
+                    examenes: countVal,
+                    total: countVal
+                };
+            } else {
+                yearList.push({
+                    id: Date.now(),
+                    mes: mesTarget.toUpperCase(),
+                    examenes: countVal,
+                    total: countVal
+                });
+            }
+            return {
+                ...prev,
+                [examenesPeriodicosSelectedYear]: yearList
+            };
+        });
+
+        setIsExamenesPeriodicosModalOpen(false);
+        setExamenesPeriodicosForm({
+            mes: 'ENERO',
+            examenes: 0
+        });
+    };
+
+    const handleExportExamenesPeriodicosCSV = () => {
+        const headers = ["MES", "EXAMENES MEDICOS Y FICHAS", "TOTAL"];
+        const rows = currentYearExamenesList.map(item => [
+            `"${item.mes}"`,
+            item.examenes || 0,
+            item.total || 0
+        ]);
+        rows.push([`"TOTAL GENERAL"`, totalExamenesPeriodicosYear, totalExamenesPeriodicosYear]);
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_DE_EXAMENES_PERIODICOS_POR_MES_${examenesPeriodicosSelectedYear}_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const compileExamenesPeriodicosMatrixHtml = (forPrint = false) => {
+        const displayedList = examenesPeriodicosShowAllMonths
+            ? currentYearExamenesList
+            : (currentYearExamenesList.some(i => i.total > 0)
+                ? currentYearExamenesList.filter(i => i.total > 0)
+                : currentYearExamenesList);
+
+        const rowsHtml = displayedList.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; color: #0b3c5d; text-align: left;">${item.mes}</td>
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; text-align: center;">${item.examenes || 0}</td>
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 900; font-size: 11px; color: #000000; text-align: right;">${item.total || 0}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE EXAMENES MEDICOS Y FICHAS PERIODICOS ${examenesPeriodicosSelectedYear} - UEB</title>
+                <style>
+                    @page { size: A4 landscape; margin: 10mm 12mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 14px; }
+                    .banner { background-color: #ed7d31; color: #000; border: 1px solid #000; padding: 14px 20px; margin-bottom: 12px; }
+                    .banner-title { font-size: 17px; font-weight: 900; color: #000; text-transform: uppercase; margin: 4px 0 0 0; text-align: center; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+                    table.matrix-table th { background: #bdd7ee; color: #000000; padding: 10px 14px; font-weight: 900; text-transform: uppercase; font-size: 11px; text-align: center; border: 1px solid #000; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="banner" style="background: #ffffff; border: 1.5px solid #002040; padding: 8px 14px; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <div style="text-align: center; flex: 1; padding: 0 10px;">
+                            <div style="font-size: 12px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 10px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <h1 class="banner-title" style="margin: 3px 0 0 0; font-size: 13.5px; color: #000;">Matriz de Examenes Medicos y Fichas Periodicos ${examenesPeriodicosSelectedYear}</h1>
+                        </div>
+                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                    </div>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%; text-align: left; padding-left: 16px;">MES</th>
+                            <th style="width: 50%; text-align: center;">EXAMENES MEDICOS Y FICHAS PERIODICAS</th>
+                            <th style="width: 25%; text-align: right; padding-right: 16px;">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                        <tr style="background: #bdd7ee; font-weight: 900; font-size: 12px;">
+                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: left; text-transform: uppercase;">TOTAL GENERAL</td>
+                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: center;">${totalExamenesPeriodicosYear}</td>
+                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: right; font-size: 13px; color: #000;">${totalExamenesPeriodicosYear}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 45px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 260px; border-top: 1.5px solid #0f172a; padding-top: 6px;">
+                        <strong style="font-size: 10px; color: #0b3c5d;">Responsable de Medicina Ocupacional</strong><br/>
+                        <span style="font-size: 9px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintExamenesPeriodicosMatrix = () => {
+        printIframeDocument(matrixIframeRef, () => compileExamenesPeriodicosMatrixHtml(false));
+        showSystemToast('Enviando matriz de exámenes periódicos a impresión...');
+    };
+
+    // Handlers for Censo de Embarazadas
+    const filteredEmbarazadas = embarazadasData.filter(item => {
+        const term = (matrixSearchTerm || embarazadasSearchTerm || '').toLowerCase();
+        const matchesSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').includes(term) ||
+            (item.telefono || '').includes(term) ||
+            (item.semanasGestacion || '').toLowerCase().includes(term);
+
+        if (!matchesSearch) return false;
+        if (matrixDateFilter && !matchesDateFilter(item.fum, matrixDateFilter) && !matchesDateFilter(item.fechaProbableParto, matrixDateFilter)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const compileEmbarazadasMatrixHtml = (dataToPrint = filteredEmbarazadas, forPrint = false) => {
+        const list = dataToPrint || filteredEmbarazadas;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #854d0e;">${item.edad || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #ea580c; text-align: center;">${item.semanasGestacion || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #0284c7;">${item.fum || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: 800; font-size: 10px; color: #15803d;">${item.fechaProbableParto || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #a16207;">${item.controles || 0}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #c2410c;">${item.telefono || 'N/D'}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>CENSO DE EMBARAZADAS UEB - 2026</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 12px; }
+                    .cyan-banner { background-color: #00a2e8; color: #ffffff; border: 1px solid #000; padding: 10px 14px; margin-bottom: 10px; text-align: center; }
+                    .banner-title { font-size: 16px; font-weight: 900; color: #ffffff; text-transform: uppercase; margin: 0; letter-spacing: 0.5px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9px; }
+                    table.matrix-table th { padding: 8px 5px; font-weight: 900; text-transform: uppercase; font-size: 9px; text-align: center; border: 1px solid #000; letter-spacing: 0.2px; }
+                    .th-verde { background: #22c55e; color: #ffffff; }
+                    .th-amarillo { background: #eab308; color: #000000; }
+                    .th-naranja { background: #f97316; color: #ffffff; }
+                    .th-azul { background: #38bdf8; color: #000000; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="cyan-banner" style="background: #ffffff; border: 1.5px solid #00a2e8; padding: 6px 12px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <div style="text-align: center; flex: 1; padding: 0 10px;">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #00a2e8;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #0b3c5d;">CENSO DE EMBARAZADAS UEB</h1>
+                        </div>
+                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                    </div>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="background: #f1f5f9; color: #000; width: 50px;">NÚMERO</th>
+                            <th class="th-verde">NOMBRE DEL PACIENTE</th>
+                            <th class="th-amarillo" style="width: 55px;">EDAD</th>
+                            <th class="th-naranja" style="width: 170px;">SEMANAS DE GESTACIÓN</th>
+                            <th class="th-azul" style="width: 95px;">FUM</th>
+                            <th class="th-verde" style="width: 150px;">FECHA PROBABLE DE PARTO</th>
+                            <th class="th-amarillo" style="width: 80px;">CONTROLES</th>
+                            <th class="th-naranja" style="width: 100px;">TELÉFONO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="8" style="text-align: center; padding: 25px; color: #64748b;">No se registraron embarazadas en el censo.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 35px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintEmbarazadasMatrix = (dataToPrint = filteredEmbarazadas) => {
+        printIframeDocument(matrixIframeRef, () => compileEmbarazadasMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando censo de embarazadas a impresión...');
+    };
+
+    const handleSaveEmbarazadasRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (embarazadasForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        // Auto-calcular Fecha Probable de Parto (FPP) con Regla de Naegele si hay FUM
+        let fppCalc = embarazadasForm.fechaProbableParto || 'may-26';
+        let semCalc = embarazadasForm.semanasGestacion || '12 SEMANAS';
+
+        if (embarazadasForm.fum) {
+            try {
+                const fumDate = new Date(embarazadasForm.fum);
+                if (!isNaN(fumDate.getTime())) {
+                    // Naegele: FUM + 280 days
+                    const fppDate = new Date(fumDate.getTime() + 280 * 24 * 60 * 60 * 1000);
+                    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+                    const yearShort = String(fppDate.getFullYear()).slice(-2);
+                    fppCalc = `${monthNames[fppDate.getMonth()]}-${yearShort}`;
+
+                    // Semanas de gestación transcurridas a la fecha actual
+                    const diffMs = new Date().getTime() - fumDate.getTime();
+                    const diffWeeks = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)));
+                    const todayFormatted = new Date().toLocaleDateString('es-EC');
+                    semCalc = `${diffWeeks} SEMANAS (${todayFormatted})`;
+                }
+            } catch (err) {}
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            numero: embarazadasData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || embarazadasForm.cedula || '0201234567',
+            edad: parseInt(patientSelected?.edad || embarazadasForm.edad) || 30,
+            semanasGestacion: semCalc,
+            fum: embarazadasForm.fum,
+            fechaProbableParto: fppCalc,
+            controles: parseInt(embarazadasForm.controles) || 1,
+            telefono: embarazadasForm.telefono || '0987654321'
+        };
+
+        setEmbarazadasData([...embarazadasData, newRecord]);
+        setIsEmbarazadasModalOpen(false);
+        setEmbarazadasForm({
+            paciente: '',
+            cedula: '',
+            edad: '28',
+            fum: new Date().toISOString().split('T')[0],
+            semanasGestacion: '12 SEMANAS',
+            fechaProbableParto: 'may-26',
+            controles: '3',
+            telefono: '0987654321'
+        });
+    };
+
+    const handleDeleteEmbarazadaRecord = (id) => {
+        if (window.confirm('¿Está seguro de eliminar este registro del censo de embarazadas?')) {
+            setEmbarazadasData(prev => prev.filter(item => item.id !== id));
+        }
+    };
+
+    const handleExportEmbarazadasCSV = () => {
+        const headers = ["NUMERO", "NOMBRE DEL PACIENTE", "EDAD", "SEMANAS DE GESTACION", "FUM", "FECHA PROBABLE DE PARTO", "CONTROLES", "TELEFONO"];
+        const rows = filteredEmbarazadas.map((item, idx) => [
+            idx + 1,
+            `"${(item.paciente || '').replace(/"/g, '""')}"`,
+            item.edad || '',
+            `"${(item.semanasGestacion || '').replace(/"/g, '""')}"`,
+            `"${(item.fum || '').replace(/"/g, '""')}"`,
+            `"${(item.fechaProbableParto || '').replace(/"/g, '""')}"`,
+            item.controles || 0,
+            `"${(item.telefono || '').replace(/"/g, '""')}"`
+        ]);
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_CENSO_DE_EMBARAZADAS_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Handlers for Ausentismo Laboral
+    const filteredAusentismo = ausentismoData.filter(item => {
+        const term = (matrixSearchTerm || ausentismoSearchTerm || '').toLowerCase();
+        const matchSearch = !term ||
+            (item.paciente || '').toLowerCase().includes(term) ||
+            (item.cedula || '').toLowerCase().includes(term) ||
+            (item.enfermedadComun || '').toLowerCase().includes(term) ||
+            (item.enfermedadLaboral || '').toLowerCase().includes(term) ||
+            (item.accidenteLaboral || '').toLowerCase().includes(term) ||
+            (item.otrosMotivos || '').toLowerCase().includes(term);
+
+        if (!matchSearch) return false;
+
+        if (ausentismoSelectedYear !== 'TODOS' && String(item.anio) !== String(ausentismoSelectedYear)) {
+            return false;
+        }
+
+        if (ausentismoSelectedMonth !== 'TODOS' && String(item.mes) !== String(ausentismoSelectedMonth)) {
+            return false;
+        }
+
+        if (ausentismoTabFilter === 'enfermedad_comun') return Boolean(item.enfermedadComun);
+        if (ausentismoTabFilter === 'enfermedad_laboral') return Boolean(item.enfermedadLaboral);
+        if (ausentismoTabFilter === 'accidente_laboral') return Boolean(item.accidenteLaboral);
+        if (ausentismoTabFilter === 'otros') return Boolean(item.otrosMotivos);
+
+        return true;
+    });
+
+    const getMonthName = (monthNumber) => {
+        const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        return months[parseInt(monthNumber) - 1] || 'Enero';
+    };
+
+    const compileAusentismoMatrixHtml = (dataToPrint = filteredAusentismo, forPrint = false) => {
+        const list = dataToPrint || filteredAusentismo;
+        const mesNombre = ausentismoSelectedMonth !== 'TODOS' ? getMonthName(ausentismoSelectedMonth) : 'Todos los Meses';
+        const anioNombre = ausentismoSelectedYear !== 'TODOS' ? ausentismoSelectedYear : 'Todos los Años';
+
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #15803d; font-weight: 600;">${(item.enfermedadComun || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #b91c1c; font-weight: 600;">${(item.enfermedadLaboral || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #c2410c; font-weight: 600;">${(item.accidenteLaboral || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #a16207; font-weight: 600;">${(item.otrosMotivos || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ea580c;">${item.diasPerdidos || 0}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${item.totalHorasAusentismo || 0}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0369a1;">${item.totalHorasTrabajadas || 0}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0b3c5d;">${item.indiceAusentismo || 0}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE AUSENTISMO LABORAL - UEB ${anioNombre}</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; margin: 0; padding: 12px; }
+                    .yellow-banner { background-color: #ffff00; border: 1px solid #000; padding: 8px 12px; margin-bottom: 10px; text-align: center; }
+                    .banner-title { font-size: 14px; font-weight: 900; color: #000; text-transform: uppercase; margin: 0; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9px; }
+                    table.matrix-table th { padding: 6px 4px; font-weight: 900; text-transform: uppercase; font-size: 8.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.2px; }
+                    .th-verde { background: #22c55e; color: #ffffff; }
+                    .th-rosado { background: #f43f5e; color: #ffffff; }
+                    .th-naranja { background: #f97316; color: #ffffff; }
+                    .th-amarillo { background: #eab308; color: #000000; }
+                    .th-naranjaclaro { background: #fdba74; color: #000000; }
+                    .th-azul { background: #0284c7; color: #ffffff; }
+                    .th-azuloscuro { background: #0b3c5d; color: #ffffff; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="yellow-banner" style="background: #ffffff; border: 1.5px solid #b45309; padding: 6px 12px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <div style="text-align: center; flex: 1; padding: 0 10px;">
+                            <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #b45309;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #0b3c5d;">Registro de Ausentismo Laboral Mes de ${mesNombre} ${anioNombre}</h1>
+                        </div>
+                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                    </div>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th style="background: #f1f5f9; color: #000; width: 45px;">NÚMERO DE CASO</th>
+                            <th style="background: #f1f5f9; color: #000;">NOMBRE Y APELLIDO</th>
+                            <th class="th-verde">POR ENFERMEDAD COMÚN<br/><small>(PREVALENCIA DE CASOS)</small></th>
+                            <th class="th-rosado">POR ENFERMEDAD LABORAL</th>
+                            <th class="th-naranja">ACCIDENTE LABORAL</th>
+                            <th class="th-amarillo">OTROS MOTIVOS</th>
+                            <th class="th-naranjaclaro" style="width: 55px;">DÍAS PERDIDOS</th>
+                            <th class="th-azul" style="width: 80px;"># TOTAL DE HORAS DE AUSENTISMO</th>
+                            <th class="th-azul" style="width: 80px;"># TOTAL DE HORAS TRABAJADAS</th>
+                            <th class="th-azuloscuro" style="width: 85px;">ÍNDICE DE AUSENTISMO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="10" style="text-align: center; padding: 25px; color: #64748b;">No se registraron casos de ausentismo para este período.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 30px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintAusentismoMatrix = (dataToPrint = filteredAusentismo) => {
+        printIframeDocument(matrixIframeRef, () => compileAusentismoMatrixHtml(dataToPrint, false));
+        showSystemToast('Enviando matriz de ausentismo laboral a impresión...');
+    };
+
+    const handleSaveAusentismoRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (ausentismoForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const dias = parseInt(ausentismoForm.diasPerdidos) || 1;
+        const hAusentismo = parseInt(ausentismoForm.horasAusentismo) || (dias * 8);
+        const hTrabajadas = parseInt(ausentismoForm.horasTrabajadas) || 32;
+        const ind = parseFloat((hAusentismo / (hTrabajadas || 1)).toFixed(2));
+
+        const newRecord = {
+            id: Date.now(),
+            numeroCaso: ausentismoData.length + 1,
+            paciente: pacienteNombreFinal,
+            cedula: patientSelected?.cedula || ausentismoForm.cedula || '0201458963',
+            cargo: (patientSelected?.puestoTrabajo || ausentismoForm.cargo || 'SERVIDOR/DOCENTE').toUpperCase(),
+            enfermedadComun: ausentismoForm.motivoTipo === 'enfermedad_comun' ? (ausentismoForm.diagnostico || 'ENFERMEDAD COMÚN').toUpperCase() : '',
+            enfermedadLaboral: ausentismoForm.motivoTipo === 'enfermedad_laboral' ? (ausentismoForm.diagnostico || 'ENFERMEDAD LABORAL').toUpperCase() : '',
+            accidenteLaboral: ausentismoForm.motivoTipo === 'accidente_laboral' ? (ausentismoForm.diagnostico || 'ACCIDENTE LABORAL').toUpperCase() : '',
+            otrosMotivos: ausentismoForm.motivoTipo === 'otros' ? (ausentismoForm.diagnostico || 'CONSULTA MÉDICA').toUpperCase() : '',
+            diasPerdidos: dias,
+            totalHorasAusentismo: hAusentismo,
+            totalHorasTrabajadas: hTrabajadas,
+            indiceAusentismo: ind,
+            anio: parseInt(ausentismoSelectedYear) || 2026,
+            mes: parseInt(ausentismoSelectedMonth) || 1
+        };
+
+        setAusentismoData([...ausentismoData, newRecord]);
+        setIsAusentismoModalOpen(false);
+        setAusentismoForm({
+            paciente: '',
+            cedula: '',
+            cargo: 'SERVIDOR/DOCENTE',
+            motivoTipo: 'enfermedad_comun',
+            diagnostico: '',
+            diasPerdidos: '1',
+            horasAusentismo: '8',
+            horasTrabajadas: '32'
+        });
+    };
+
+    const handleDeleteAusentismoRecord = (id) => {
+        if (window.confirm('¿Está seguro de eliminar este registro de ausentismo?')) {
+            setAusentismoData(prev => prev.filter(item => item.id !== id));
+        }
+    };
+
+    const handleExportAusentismoCSV = () => {
+        const mesNombre = ausentismoSelectedMonth !== 'TODOS' ? getMonthName(ausentismoSelectedMonth) : 'Todos_los_Meses';
+        const anioNombre = ausentismoSelectedYear !== 'TODOS' ? ausentismoSelectedYear : 'Todos_los_Anios';
+        const headers = ["NUMERO DE CASO", "NOMBRE Y APELLIDO", "POR ENFERMEDAD COMUN (PREVALENCIA DE CASOS)", "POR ENFERMEDAD LABORAL", "ACCIDENTE LABORAL", "OTROS MOTIVOS", "DIAS PERDIDOS", "# TOTAL DE HORAS DE AUSENTISMO", "# TOTAL DE HORAS TRABAJADAS", "INDICE DE AUSENTISMO"];
+        
+        const rows = filteredAusentismo.map((item, idx) => [
+            idx + 1,
+            `"${(item.paciente || '').replace(/"/g, '""')}"`,
+            `"${(item.enfermedadComun || '').replace(/"/g, '""')}"`,
+            `"${(item.enfermedadLaboral || '').replace(/"/g, '""')}"`,
+            `"${(item.accidenteLaboral || '').replace(/"/g, '""')}"`,
+            `"${(item.otrosMotivos || '').replace(/"/g, '""')}"`,
+            item.diasPerdidos || 0,
+            item.totalHorasAusentismo || 0,
+            item.totalHorasTrabajadas || 0,
+            typeof item.indiceAusentismo === 'number' ? item.indiceAusentismo.toString().replace('.', ',') : (item.indiceAusentismo || '0,00')
+        ]);
+
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `MATRIZ_AUSENTISMO_LABORAL_${mesNombre}_${anioNombre}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Handlers for COVID-19
+    const filteredCovidCases = covidCasesData.filter(item => {
+        const term = (matrixSearchTerm || covidSearchTerm || '').toLowerCase();
+        const matchSearch = !term ||
+            (item.pacienteSospechoso || '').toLowerCase().includes(term) ||
+            (item.pacienteConfirmado || '').toLowerCase().includes(term) ||
+            (item.tipoTrabajador || '').toLowerCase().includes(term) ||
+            (item.lugarTrabajo || '').toLowerCase().includes(term) ||
+            (item.entregaResultados || '').toLowerCase().includes(term);
+
+        if (!matchSearch) return false;
+
+        if (covidSelectedYear !== 'TODOS' && String(item.anio) !== String(covidSelectedYear)) {
+            return false;
+        }
+
+        if (covidSelectedMonth !== 'TODOS' && String(item.mes) !== String(covidSelectedMonth)) {
+            return false;
+        }
+
+        if (covidTabFilter === 'sospechosos') {
+            return !item.pacienteConfirmado && (item.entregaResultados || '').toUpperCase() !== 'DESCARTADO';
+        }
+        if (covidTabFilter === 'confirmados') {
+            return Boolean(item.pacienteConfirmado);
+        }
+        if (covidTabFilter === 'descartados') {
+            return (item.entregaResultados || '').toUpperCase() === 'DESCARTADO';
+        }
+        if (covidTabFilter === 'alta_medica') {
+            return item.altaMedica;
+        }
+        return true;
+    });
+
+    const compileCovidMatrixHtml = (dataToPrint = filteredCovidCases, periodLabel = 'TODOS LOS PERÍODOS', forPrint = false) => {
+        const list = dataToPrint || filteredCovidCases;
+        const rowsHtml = list.map((item, idx) => `
+            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #0b3c5d;">${(item.pacienteSospechoso || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${(item.tipoTrabajador || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${(item.lugarTrabajo || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${item.entregaResultados === 'DESCARTADO' ? '#dc2626' : '#d97706'};">${item.entregaResultados || 'N/D'}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #dc2626;">${(item.pacienteConfirmado || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.pcr ? 'X' : ''}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.pruebaRapida ? 'X' : ''}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.altaMedica ? 'X' : ''}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #7030a0;">${item.diasAislamiento || 0}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8"/>
+                <title>MATRIZ DE PACIENTES SOSPECHOSOS Y CONFIRMADOS PARA COVID-19 - UEB</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #0f172a; background: #fff; margin: 0; padding: 12px; }
+                    .header-yellow-banner { background-color: #ffff00; padding: 10px; border: 1px solid #d97706; margin-bottom: 12px; }
+                    .header-table { width: 100%; border-collapse: collapse; }
+                    .logo-text { font-size: 16px; font-weight: 900; color: #0b3c5d; }
+                    .logo-subtext { font-size: 8.5px; font-weight: 800; color: #0284c7; }
+                    .matrix-title { font-size: 11.5px; font-weight: 900; color: #000000; text-align: center; text-transform: uppercase; line-height: 1.25; padding: 0 10px; }
+                    table.matrix-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 9px; }
+                    table.matrix-table th { padding: 8px 4px; font-weight: 900; text-transform: uppercase; font-size: 8.5px; text-align: center; border: 1px solid #000; letter-spacing: 0.2px; }
+                    .th-azul { background: #0070c0; color: #ffffff; }
+                    .th-verde { background: #00b050; color: #ffffff; }
+                    .th-amarillo { background: #ffc000; color: #000000; }
+                    .th-rojo { background: #ff0000; color: #ffffff; }
+                    .th-morado { background: #7030a0; color: #ffffff; }
+                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                </style>
+            </head>
+            <body>
+                <div class="header-yellow-banner" style="background: #ffffff; border: 1.5px solid #002040; padding: 8px 12px; margin-bottom: 10px;">
+                    <table class="header-table">
+                        <tr>
+                            <td style="width: 140px; vertical-align: middle; text-align: left;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                            </td>
+                            <td class="matrix-title">
+                                <div style="font-size: 11px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                                <div style="font-size: 9.5px; font-weight: 800; color: #c2410c; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
+                                <div style="font-size: 11px; font-weight: 900; color: #0b3c5d; margin-top: 3px;">
+                                    REGISTRO DE PACIENTES SOSPECHOSOS Y CONFIRMADOS PARA COVID-19<br/>
+                                    <span style="font-size: 9.5px; font-weight: normal; color: #64748b;">PERÍODO: ${periodLabel}</span>
+                                </div>
+                            </td>
+                            <td style="width: 140px; vertical-align: middle; text-align: right;">
+                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 38px; width: auto; object-fit: contain;" />
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th class="th-azul">LISTADO DE PACIENTES SOSPECHOSOS</th>
+                            <th class="th-azul">TIPO DE TRABAJADOR</th>
+                            <th class="th-verde">LUGAR DE TRABAJO</th>
+                            <th class="th-amarillo" style="width: 110px;">ENTREGA DE RESULTADOS</th>
+                            <th class="th-rojo">LISTADO DE PACIENTES CONFIRMADOS</th>
+                            <th class="th-verde" style="width: 50px;">PCR</th>
+                            <th class="th-amarillo" style="width: 90px;">PRUEBA RÁPIDA CUANTITATIVA</th>
+                            <th class="th-morado" style="width: 70px;">ALTA MÉDICA</th>
+                            <th class="th-morado" style="width: 75px;">DÍAS DE AISLAMIENTO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="9" style="text-align: center; padding: 25px; color: #64748b;">No se registraron casos de COVID-19 en este período.</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 25px; display: flex; justify-content: space-around;">
+                    <div style="text-align: center; width: 250px; border-top: 1px solid #0f172a; padding-top: 4px;">
+                        <strong style="font-size: 9.5px; color: #0b3c5d;">Responsable de Salud Ocupacional</strong><br/>
+                        <span style="font-size: 8.5px; color: #64748b;">Universidad Estatal de Bolívar</span>
+                    </div>
+                </div>
+                ${forPrint ? '<script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>' : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintCovidMatrix = (dataToPrint = filteredCovidCases, periodLabel = 'TODOS LOS PERÍODOS') => {
+        printIframeDocument(matrixIframeRef, () => compileCovidMatrixHtml(dataToPrint, periodLabel, false));
+        showSystemToast('Enviando matriz de COVID-19 a impresión...');
+    };
+
+    const handleSaveCovidRecord = (e) => {
+        e.preventDefault();
+        const pacienteNombreFinal = patientSelected
+            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim().toUpperCase()
+            : (covidForm.paciente || '').toUpperCase();
+
+        if (!pacienteNombreFinal) {
+            alert('Por favor seleccione un paciente o ingrese el nombre.');
+            return;
+        }
+
+        const dateParts = (covidForm.fechaEntregaResultados || '').split(/[-/]/);
+        let anio = new Date().getFullYear();
+        let mes = new Date().getMonth() + 1;
+        if (dateParts.length === 3) {
+            if (dateParts[0].length === 4) {
+                anio = parseInt(dateParts[0]);
+                mes = parseInt(dateParts[1]);
+            } else if (dateParts[2].length === 4) {
+                anio = parseInt(dateParts[2]);
+                mes = parseInt(dateParts[1]);
+            }
+        }
+
+        const newRecord = {
+            id: Date.now(),
+            pacienteSospechoso: pacienteNombreFinal,
+            tipoTrabajador: (patientSelected?.puestoTrabajo || covidForm.tipoTrabajador || 'DOCENTE CONTRATADA').toUpperCase(),
+            lugarTrabajo: (covidForm.lugarTrabajo || 'UNIVERSIDAD ESTATAL DE BOLÍVAR').toUpperCase(),
+            entregaResultados: covidForm.esDescartado ? 'DESCARTADO' : (covidForm.fechaEntregaResultados || new Date().toLocaleDateString()),
+            pacienteConfirmado: (!covidForm.esDescartado && (covidForm.pcr || covidForm.pruebaRapida)) ? pacienteNombreFinal : '',
+            pcr: !covidForm.esDescartado && Boolean(covidForm.pcr),
+            pruebaRapida: !covidForm.esDescartado && Boolean(covidForm.pruebaRapida),
+            altaMedica: !covidForm.esDescartado && Boolean(covidForm.altaMedica),
+            diasAislamiento: parseInt(covidForm.diasAislamiento) || 0,
+            anio,
+            mes
+        };
+
+        setCovidCasesData([...covidCasesData, newRecord]);
+        setIsCovidModalOpen(false);
+        setCovidForm({
+            paciente: '',
+            tipoTrabajador: 'DOCENTE CONTRATADA',
+            lugarTrabajo: 'FACULTAD DE CIENCIAS DE LA SALUD',
+            fechaEntregaResultados: new Date().toISOString().split('T')[0],
+            pacienteConfirmado: '',
+            pcr: true,
+            pruebaRapida: false,
+            altaMedica: true,
+            diasAislamiento: '8',
+            esDescartado: false
+        });
+    };
+
+    const compileActiveMatrixHtml = (forPrint = false) => {
+        switch (activeReportSubTab) {
+            case 'catastroficas':
+                return compileCatastroficasMatrixHtml(filteredCatastroficas, 'ENFERMEDADES CATASTRÓFICAS O HUÉRFANAS', forPrint);
+            case 'accidentes':
+                return compileAccidentesMatrixHtml(filteredAccidentes, 'TODOS LOS REGISTROS', forPrint);
+            case 'covid':
+                return compileCovidMatrixHtml(filteredCovidCases, 'TODOS LOS PERÍODOS', forPrint);
+            case 'ausentismo':
+                return compileAusentismoMatrixHtml(filteredAusentismo, forPrint);
+            case 'embarazadas':
+                return compileEmbarazadasMatrixHtml(filteredEmbarazadas, forPrint);
+            case 'psicosocial':
+                return compilePsicosocialMatrixHtml(filteredPsicosocial, forPrint);
+            case 'enfermedades_nuevas':
+                return compileEnfermedadesNuevasMatrixHtml(filteredEnfermedadesNuevas, forPrint);
+            case 'examenes_periodicos':
+                return compileExamenesPeriodicosMatrixHtml(forPrint);
+            case 'personal_nuevo':
+                return compilePersonalNuevoMatrixHtml(filteredPersonalNuevo, forPrint);
+            case 'vulnerables_patologias':
+                return compileVulnerablesPatologiasMatrixHtml(forPrint);
+            case 'discapacidad':
+                return compileDiscapacidadMatrixHtml(filteredDiscapacidad, forPrint);
+            default:
+                return compileCatastroficasMatrixHtml(filteredCatastroficas, 'ENFERMEDADES CATASTRÓFICAS O HUÉRFANAS', forPrint);
+        }
+    };
+
+    const handlePrintActiveMatrix = () => {
+        printIframeDocument(matrixIframeRef, () => compileActiveMatrixHtml(false));
+        showSystemToast('Enviando matriz oficial a impresión...');
+    };
+
+    const getActiveMatrixMeta = () => {
+        switch (activeReportSubTab) {
+            case 'catastroficas':
+                return {
+                    title: 'Matriz de Enfermedades Catastróficas o Huérfanas',
+                    subtitle: 'Registro oficial de servidores y docentes con enfermedades catastróficas, tratamiento oncológico/especializado y seguimiento institucional.',
+                    filename: 'Matriz_Oficial_Catastroficas_UEB_2026.pdf',
+                    count: filteredCatastroficas.length,
+                    hasDateFilter: false,
+                    subtabs: [
+                        { id: 'todos', label: 'Todos los Registros' },
+                        { id: 'catastroficas', label: 'Enfermedades Catastróficas' },
+                        { id: 'huerfanas', label: 'Enfermedades Huérfanas / Raras' }
+                    ],
+                    activeSubtab: catastrophicTabFilter,
+                    onSubtabChange: setCatastrophicTabFilter
+                };
+            case 'accidentes':
+                return {
+                    title: 'Matriz de Accidentes Laborales y Enfermedades Profesionales',
+                    subtitle: 'Registro oficial de accidentes de trabajo, investigación de incidentes laborales y descansos médicos emitidos.',
+                    filename: 'Matriz_Oficial_Accidentes_Laborales_UEB_2026.pdf',
+                    count: filteredAccidentes.length,
+                    hasDateFilter: true,
+                    subtabs: [
+                        { id: 'todos', label: 'Todos los Registros' },
+                        { id: 'leves', label: 'Accidentes Leves' },
+                        { id: 'graves', label: 'Accidentes Graves' },
+                        { id: 'enfermedades_profesionales', label: 'Enfermedades Profesionales' }
+                    ],
+                    activeSubtab: accidenteTabFilter,
+                    onSubtabChange: setAccidenteTabFilter
+                };
+            case 'covid':
+                return {
+                    title: 'Matriz de Casos Sospechosos y Confirmados COVID-19',
+                    subtitle: 'Registro y seguimiento epidemiológico, toma de pruebas diagnósticas, períodos de aislamiento preventivo y altas médicas.',
+                    filename: 'Matriz_Oficial_COVID19_UEB_2026.pdf',
+                    count: filteredCovidCases.length,
+                    hasDateFilter: false,
+                    subtabs: [
+                        { id: 'todos', label: 'Todos' },
+                        { id: 'sospechosos', label: 'Sospechosos' },
+                        { id: 'confirmados', label: 'Confirmados' },
+                        { id: 'descartados', label: 'Descartados' },
+                        { id: 'alta_medica', label: 'Alta Médica' }
+                    ],
+                    activeSubtab: covidTabFilter,
+                    onSubtabChange: setCovidTabFilter
+                };
+            case 'ausentismo':
+                return {
+                    title: 'Matriz de Ausentismo Laboral',
+                    subtitle: 'Control mensual y cálculo oficial de índices de ausentismo por enfermedad común, profesional y accidentes de trabajo.',
+                    filename: 'Matriz_Oficial_Ausentismo_Laboral_UEB_2026.pdf',
+                    count: filteredAusentismo.length,
+                    hasDateFilter: false,
+                    subtabs: [
+                        { id: 'todos', label: 'Todos los Motivos' },
+                        { id: 'enfermedad_comun', label: 'Enfermedad Común' },
+                        { id: 'enfermedad_laboral', label: 'Enfermedad Laboral' },
+                        { id: 'accidente_laboral', label: 'Accidente Laboral' },
+                        { id: 'otros', label: 'Otros Motivos' }
+                    ],
+                    activeSubtab: ausentismoTabFilter,
+                    onSubtabChange: setAusentismoTabFilter
+                };
+            case 'embarazadas':
+                return {
+                    title: 'Censo de Embarazadas UEB',
+                    subtitle: 'Seguimiento prenatal y obstétrico, FUM, semanas de gestación, fecha probable de parto y número de controles médicos.',
+                    filename: 'Censo_Oficial_Embarazadas_UEB_2026.pdf',
+                    count: filteredEmbarazadas.length,
+                    hasDateFilter: true
+                };
+            case 'psicosocial':
+                return {
+                    title: 'Matriz de Funcionarios con Riesgo Psicosocial',
+                    subtitle: 'Seguimiento clínico a funcionarios y servidores con diagnóstico de ansiedad, depresión y patologías asociadas.',
+                    filename: 'Matriz_Oficial_Riesgo_Psicosocial_UEB_2026.pdf',
+                    count: filteredPsicosocial.length,
+                    hasDateFilter: false,
+                    subtabs: [
+                        { id: 'todos', label: 'Todos los Servidores' },
+                        { id: 'DOCENTE', label: 'Docentes' },
+                        { id: 'ADMINISTRATIVO', label: 'Administrativos' },
+                        { id: 'TRABAJADOR', label: 'Trabajadores' }
+                    ],
+                    activeSubtab: psicosocialFilterTipo,
+                    onSubtabChange: setPsicosocialFilterTipo
+                };
+            case 'enfermedades_nuevas':
+                return {
+                    title: 'Matriz de Enfermedades Nuevas (Incidencia UEB)',
+                    subtitle: 'Registro de incidencia de patologías diagnosticadas durante el año lectivo en el personal universitario.',
+                    filename: 'Matriz_Oficial_Enfermedades_Nuevas_UEB_2026.pdf',
+                    count: filteredEnfermedadesNuevas.length,
+                    hasDateFilter: true
+                };
+            case 'examenes_periodicos':
+                return {
+                    title: `Matriz de Exámenes Médicos y Fichas Periódicas (${examenesPeriodicosSelectedYear})`,
+                    subtitle: 'Consolidado mensual de exámenes médicos ocupacionales y fichas periódicas realizadas a servidores universitarios.',
+                    filename: `Matriz_Oficial_Examenes_Periodicos_${examenesPeriodicosSelectedYear}_UEB.pdf`,
+                    count: totalExamenesPeriodicosYear,
+                    hasDateFilter: false
+                };
+            case 'personal_nuevo':
+                return {
+                    title: 'Matriz de Personal Nuevo que Ingresó en el Año',
+                    subtitle: 'Registro y seguimiento de servidores ingresantes, inducción de salud ocupacional y exámenes preocupacionales.',
+                    filename: 'Matriz_Oficial_Personal_Nuevo_UEB_2026.pdf',
+                    count: filteredPersonalNuevo.length,
+                    hasDateFilter: true
+                };
+            case 'vulnerables_patologias':
+                return {
+                    title: 'Matriz de Grupos Vulnerables (Patologías y Condiciones)',
+                    subtitle: 'Servidores universitarios con condiciones prioritarias: diabéticos, hipertensos, adultos mayores y otras patologías.',
+                    filename: 'Matriz_Oficial_Grupos_Vulnerables_UEB_2026.pdf',
+                    count: (vulnerablePatologiasData.diabeticos?.length || 0) + (vulnerablePatologiasData.hipertensos?.length || 0) + (vulnerablePatologiasData.adultoMayor?.length || 0) + (vulnerablePatologiasData.otras?.length || 0),
+                    hasDateFilter: false
+                };
+            case 'discapacidad':
+                return {
+                    title: 'Matriz de Funcionarios con Discapacidad',
+                    subtitle: 'Registro oficial de servidores y trabajadores con carnet de discapacidad CONADIS/MSP y condiciones de adaptabilidad laboral.',
+                    filename: 'Matriz_Oficial_Discapacidad_UEB_2026.pdf',
+                    count: filteredDiscapacidad.length,
+                    hasDateFilter: false
+                };
+            default:
+                return {
+                    title: 'Matriz Estadística Ocupacional',
+                    subtitle: 'Matriz oficial de medicina y salud ocupacional de la Universidad Estatal de Bolívar.',
+                    filename: 'Matriz_Oficial_UEB_2026.pdf',
+                    count: 0,
+                    hasDateFilter: false
+                };
+        }
+    };
+
+    const compileParteDiarioHtmlString = (forPrint = false) => {
+        try {
             const calculateAge = (birthDateStr) => {
                 if (!birthDateStr) return '';
                 const birth = new Date(birthDateStr);
@@ -827,7 +5517,7 @@ export default function MedicoOcupacionalPage() {
                 }
             }
 
-            printWindow.document.write(`
+            const htmlContent = `
                 <!DOCTYPE html>
                 <html lang="es">
                 <head>
@@ -973,18 +5663,17 @@ export default function MedicoOcupacionalPage() {
                 <body>
                     <div class="page-sheet">
                     <div>
-                    <div class="header-container">
-                        <div class="header-logo-left">
-                            UEB <span>Universidad Estatal de Bolívar</span>
+                    <div class="header-container" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #002040; padding-bottom: 8px; margin-bottom: 12px;">
+                        <div style="width: 140px; text-align: left;">
+                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
                         </div>
-                        <div class="header-center">
-                            <h1>UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
-                            <h2>DEPARTAMENTO DE BIENESTAR UNIVERSITARIO</h2>
-                            <h3>PARTE DIARIO - MEDICINA OCUPACIONAL</h3>
+                        <div class="header-center" style="text-align: center; flex: 1;">
+                            <h1 style="margin: 0; font-size: 14px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
+                            <h2 style="margin: 2px 0; font-size: 11px; font-weight: 800; color: #475569;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</h2>
+                            <h3 style="margin: 2px 0 0 0; font-size: 10.5px; font-weight: 900; color: #0284c7;">PARTE DIARIO - MEDICINA OCUPACIONAL</h3>
                         </div>
-                        <div class="header-logo-right">
-                            BIENESTAR UNIVERSITARIO<br/>
-                            <span style="font-size: 8px; font-weight: normal; color: #555;">SALUD OCUPACIONAL</span>
+                        <div style="width: 140px; text-align: right;">
+                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
                         </div>
                     </div>
 
@@ -1047,412 +5736,863 @@ export default function MedicoOcupacionalPage() {
                         </div>
                     </div>
 
+                    ${forPrint ? `
                     <script>
                         window.onload = function() { window.print(); };
                     </script>
+                    ` : ''}
                     </div>
                 </body>
                 </html>
-            `);
-            printWindow.document.close();
+            `;
+            return htmlContent;
         } catch (error) {
             console.error('Error al generar reporte:', error);
-            showSystemToast("Error al generar el reporte del parte diario.");
+            return '<p>Error al generar el reporte del parte diario.</p>';
         }
+    };
+
+    const handlePrintParteDiario = () => {
+        printIframeDocument(diarioIframeRef, () => compileParteDiarioHtmlString(false));
+    };
+
+    const compileRecetaFormHtmlString = (receta, forPrint = false) => {
+        if (!receta) return '<!DOCTYPE html><html><body><p style="padding:40px; text-align:center; color:#64748b; font-family:sans-serif;">Seleccione un paciente / expediente para visualizar su receta médica.</p></body></html>';
+
+        const patientName = receta.paciente || 'Paciente';
+        const cedula = receta.cedula || 'N/D';
+        const fechaStr = receta.fecha ? receta.fecha.split('-').reverse().join(' / ') : 'dd / mm / aaaa';
+        const numReceta = receta.numero_receta || `REC-${receta.id || '001'}`;
+
+        const lineasHtmlPart1 = (receta.lineas || []).map((l, idx) => `
+            <tr>
+                <td><strong>${idx + 1}. ${l.detalle_medicamento}</strong></td>
+                <td style="text-align:center;">${l.dosis || '-'}</td>
+                <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
+                <td style="text-align:center;">${l.duracion || '3'} días</td>
+                <td style="text-align:center;">${l.via || 'Oral'}</td>
+                <td style="text-align:center;">${l.cantidad_texto || '1 caja'}</td>
+            </tr>
+        `).join('');
+
+        const emptyRowsCountPart1 = Math.max(0, 4 - (receta.lineas || []).length);
+        let emptyRowsPart1 = '';
+        for (let i = 0; i < emptyRowsCountPart1; i++) {
+            emptyRowsPart1 += `
+                <tr style="height:22px;">
+                    <td></td><td></td><td></td><td></td><td></td><td></td>
+                </tr>
+            `;
+        }
+
+        const lineasHtmlPart2 = (receta.lineas || []).map((l, idx) => `
+            <tr>
+                <td><strong>${l.detalle_medicamento}</strong></td>
+                <td style="text-align:center;">${l.dosis || '-'}</td>
+                <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
+                <td style="text-align:center;">${l.duracion || '3'} días</td>
+                <td style="text-align:center;">${l.via || 'Oral'}</td>
+                <td style="text-align:center;">${l.manana ? '✓' : ''}</td>
+                <td style="text-align:center;">${l.mediodia ? '✓' : ''}</td>
+                <td style="text-align:center;">${l.tarde ? '✓' : ''}</td>
+                <td style="text-align:center;">${l.noche ? '✓' : ''}</td>
+            </tr>
+        `).join('');
+
+        const emptyRowsCountPart2 = Math.max(0, 3 - (receta.lineas || []).length);
+        let emptyRowsPart2 = '';
+        for (let i = 0; i < emptyRowsCountPart2; i++) {
+            emptyRowsPart2 += `
+                <tr style="height:20px;">
+                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                </tr>
+            `;
+        }
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <title>Recetario Médico Ocupacional - ${numReceta}</title>
+                <meta charset="utf-8" />
+                <style>
+                    @page { size: A4 portrait; margin: 8mm; }
+                    body {
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 9px;
+                        color: #1e293b;
+                        margin: 0;
+                        padding: 10px;
+                        background: #f8fafc;
+                        display: flex;
+                        justify-content: center;
+                    }
+                    .receta-sheet {
+                        background: #ffffff;
+                        width: 190mm;
+                        min-height: 270mm;
+                        padding: 10mm;
+                        box-sizing: border-box;
+                        border: 1px solid #cbd5e1;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                    }
+                    .header-top {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        border-bottom: 2px solid #0f172a;
+                        padding-bottom: 6px;
+                        margin-bottom: 8px;
+                    }
+                    .header-title {
+                        text-align: center;
+                    }
+                    .header-title h2 {
+                        margin: 0;
+                        font-size: 16px;
+                        color: #0f172a;
+                        font-weight: 800;
+                    }
+                    .header-title h3 {
+                        margin: 2px 0 0 0;
+                        font-size: 12px;
+                        color: #0284c7;
+                    }
+                    .section-title {
+                        background: #f1f5f9;
+                        padding: 4px 8px;
+                        font-weight: bold;
+                        font-size: 9.5px;
+                        border: 1px solid #94a3b8;
+                        margin-top: 6px;
+                        text-transform: uppercase;
+                    }
+                    table.grid-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 4px;
+                    }
+                    table.grid-table th, table.grid-table td {
+                        border: 1px solid #64748b;
+                        padding: 4px 6px;
+                        font-size: 8.5px;
+                    }
+                    table.grid-table th {
+                        background: #f8fafc;
+                        font-weight: bold;
+                        text-align: center;
+                    }
+                    .vigencia-banner {
+                        border: 1px solid #0f172a;
+                        text-align: center;
+                        font-weight: bold;
+                        padding: 4px;
+                        margin: 6px 0;
+                        font-size: 9px;
+                        background: #f8fafc;
+                    }
+                    .dotted-separator {
+                        border-bottom: 2px dashed #94a3b8;
+                        margin: 12px 0;
+                        position: relative;
+                        text-align: center;
+                    }
+                    .dotted-separator span {
+                        background: #fff;
+                        padding: 0 8px;
+                        font-size: 8px;
+                        color: #64748b;
+                        position: relative;
+                        top: -7px;
+                    }
+                    @media print {
+                        body { background: white; padding: 0; }
+                        .receta-sheet { border: none; box-shadow: none; width: 100%; padding: 0; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="receta-sheet">
+                    <div>
+                        <!-- HEADER PARTE 1 -->
+                        <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px;">
+                            <div style="width: 130px; text-align: left;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 42px; width: auto; object-fit: contain;" />
+                            </div>
+                            <div class="header-title" style="text-align: center; flex: 1;">
+                                <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                                <h2 style="margin: 0; font-size: 13px; color: #0f172a; font-weight: 900;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</h2>
+                                <h3 style="margin: 1px 0 0 0; font-size: 10.5px; color: #0284c7; font-weight: 800;">Puesto de Salud · Medicina Ocupacional</h3>
+                            </div>
+                            <div style="text-align: right; width: 130px;">
+                                <strong>RECETA N°:</strong> <span style="color:#dc2626; font-size:11px;">${numReceta}</span><br/>
+                                <span style="font-size:8.5px;">FECHA: ${fechaStr}</span>
+                            </div>
+                        </div>
+
+                        <!-- DATOS GENERALES DEL PACIENTE -->
+                        <div class="section-title">DATOS GENERALES DEL PACIENTE</div>
+                        <table class="grid-table">
+                            <tr>
+                                <td colspan="3"><strong>Apellidos y Nombres:</strong> ${patientName}</td>
+                                <td colspan="2"><strong>Documento identidad/ HCL:</strong> ${cedula}</td>
+                                <td><strong>Sexo:</strong> F [${receta.sexo === 'F' ? 'X' : ' '}] M [${receta.sexo === 'M' ? 'X' : ' '}]</td>
+                            </tr>
+                            <tr>
+                                <td colspan="6"><strong>Estado de Enfermedad:</strong> Agudo [${receta.estado_enfermedad === 'Agudo' ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; Crónico [${receta.estado_enfermedad === 'Crónico' ? 'X' : ' '}]</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fecha nac:</strong> ${receta.fecha_nacimiento || 'N/D'}</td>
+                                <td><strong>Edad:</strong> ${receta.edad_anios || '0'} años ${receta.edad_meses || '0'} m</td>
+                                <td colspan="4"><strong>CIE:</strong> ${receta.cie || 'Z00.0'}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3"><strong>Peso (kg):</strong> ${receta.peso || '-'}</td>
+                                <td colspan="3"><strong>Talla (cm):</strong> ${receta.talla || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="6"><strong>Alergias:</strong> SI [${receta.alergias_si ? 'X' : ' '}] NO [${!receta.alergias_si ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; <strong>ESPECIFICAR:</strong> ${receta.alergias_detalle || 'Ninguna'}</td>
+                            </tr>
+                        </table>
+
+                        <!-- DATOS DEL MEDICAMENTO -->
+                        <div class="section-title">DATOS DEL MEDICAMENTO</div>
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40%;">Medicamento (DCI, forma farmacéutica y concentración)</th>
+                                    <th style="width:12%;">Dosis</th>
+                                    <th style="width:12%;">Frecuencia</th>
+                                    <th style="width:10%;">Duración</th>
+                                    <th style="width:12%;">Vía</th>
+                                    <th style="width:14%;">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lineasHtmlPart1}
+                                ${emptyRowsPart1}
+                            </tbody>
+                        </table>
+
+                        <!-- DATOS DEL PRESCRIPTOR PARTE 1 -->
+                        <table class="grid-table" style="margin-top:8px;">
+                            <tr>
+                                <td style="width:50%; vertical-align:top;">
+                                    <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
+                                    <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Fernando Vaca'}<br/>
+                                    <strong>Nro. Reg. Prof ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
+                                    <strong>Firma:</strong> ___________________________________
+                                </td>
+                                <td style="width:50%; vertical-align:top;">
+                                    <strong>VÁLIDO __________ VERIFICADO __________</strong><br/>
+                                    <strong>Apellido y Nombre:</strong> ${receta.valido_verificado || 'Farmacia Bienestar'}<br/><br/><br/>
+                                    <strong>Firma:</strong> ___________________________________
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div class="vigencia-banner">VIGENCIA MÁXIMA : (03) días</div>
+
+                        <!-- SEPARADOR -->
+                        <div class="dotted-separator">
+                            <span>INDICACIONES PARA EL USUARIO / PACIENTE</span>
+                        </div>
+
+                        <!-- PARTE 2: INDICACIONES -->
+                        <table class="grid-table">
+                            <tr>
+                                <td style="width:60%;"><strong>Apellidos y Nombres del usuario/paciente:</strong> ${patientName}</td>
+                                <td style="width:20%;"><strong>Nro. Receta:</strong> ${numReceta}</td>
+                                <td style="width:20%;"><strong>Fecha prescripción:</strong> ${fechaStr}</td>
+                            </tr>
+                        </table>
+
+                        <div class="section-title">INDICACIONES Y HORARIOS</div>
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:35%;">Medicamento (DCI, concentración)</th>
+                                    <th style="width:10%;">Dosis</th>
+                                    <th style="width:12%;">Frecuencia</th>
+                                    <th style="width:10%;">Duración</th>
+                                    <th style="width:11%;">Vía</th>
+                                    <th style="width:5.5%;">Mañana</th>
+                                    <th style="width:5.5%;">Mediodía</th>
+                                    <th style="width:5.5%;">Tarde</th>
+                                    <th style="width:5.5%;">Noche</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lineasHtmlPart2}
+                                ${emptyRowsPart2}
+                            </tbody>
+                        </table>
+
+                        <!-- DATOS PRESCRIPTOR & RECOMENDACIONES PARTE 2 -->
+                        <table class="grid-table" style="margin-top:8px;">
+                            <tr>
+                                <td style="width:40%; vertical-align:top;">
+                                    <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
+                                    <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Fernando Vaca'}<br/>
+                                    <strong>Nro. Reg. Profesional ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
+                                    <strong>Firma:</strong> ____________________________
+                                </td>
+                                <td style="width:60%; vertical-align:top;">
+                                    <strong>SIGNOS DE ALARMA:</strong> ${receta.signos_alarma || 'Fiebre persistente, intolerancia oral o reacción alérgica.'}<br/><br/>
+                                    <strong>RECOMENDACIONES NO FARMACOLÓGICAS:</strong> ${receta.recomendaciones_no_farmacologicas || 'Reposo relativo e hidratación continua.'}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                ${forPrint ? `
+                <script>
+                    window.onload = function() { window.print(); };
+                </script>
+                ` : ''}
+            </body>
+            </html>
+        `;
     };
 
     const handlePrintRecetaForm = (receta) => {
         try {
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                showSystemToast("El bloqueador de popups impidió abrir la receta. Permita los popups.");
-                return;
-            }
-
-            const patientName = receta.paciente || 'Paciente';
-            const cedula = receta.cedula || 'N/D';
-            const fechaStr = receta.fecha ? receta.fecha.split('-').reverse().join(' / ') : 'dd / mm / aaaa';
-            const numReceta = receta.numero_receta || `REC-${receta.id || '001'}`;
-
-            const lineasHtmlPart1 = (receta.lineas || []).map((l, idx) => `
-                <tr>
-                    <td><strong>${idx + 1}. ${l.detalle_medicamento}</strong></td>
-                    <td style="text-align:center;">${l.dosis || '-'}</td>
-                    <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
-                    <td style="text-align:center;">${l.duracion || '3'} días</td>
-                    <td style="text-align:center;">${l.via || 'Oral'}</td>
-                    <td style="text-align:center;">${l.cantidad_texto || '1 caja'}</td>
-                </tr>
-            `).join('');
-
-            const emptyRowsCountPart1 = Math.max(0, 4 - (receta.lineas || []).length);
-            let emptyRowsPart1 = '';
-            for (let i = 0; i < emptyRowsCountPart1; i++) {
-                emptyRowsPart1 += `
-                    <tr style="height:22px;">
-                        <td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                `;
-            }
-
-            const lineasHtmlPart2 = (receta.lineas || []).map((l, idx) => `
-                <tr>
-                    <td><strong>${l.detalle_medicamento}</strong></td>
-                    <td style="text-align:center;">${l.dosis || '-'}</td>
-                    <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
-                    <td style="text-align:center;">${l.duracion || '3'} días</td>
-                    <td style="text-align:center;">${l.via || 'Oral'}</td>
-                    <td style="text-align:center;">${l.manana ? '✓' : ''}</td>
-                    <td style="text-align:center;">${l.mediodia ? '✓' : ''}</td>
-                    <td style="text-align:center;">${l.tarde ? '✓' : ''}</td>
-                    <td style="text-align:center;">${l.noche ? '✓' : ''}</td>
-                </tr>
-            `).join('');
-
-            const emptyRowsCountPart2 = Math.max(0, 3 - (receta.lineas || []).length);
-            let emptyRowsPart2 = '';
-            for (let i = 0; i < emptyRowsCountPart2; i++) {
-                emptyRowsPart2 += `
-                    <tr style="height:20px;">
-                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                `;
-            }
-
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <title>Recetario Médico Ocupacional - ${numReceta}</title>
-                    <meta charset="utf-8" />
-                    <style>
-                        @page { size: A4 portrait; margin: 8mm; }
-                        body {
-                            font-family: Arial, Helvetica, sans-serif;
-                            font-size: 9px;
-                            color: #1e293b;
-                            margin: 0;
-                            padding: 10px;
-                            background: #f8fafc;
-                            display: flex;
-                            justify-content: center;
-                        }
-                        .receta-sheet {
-                            background: #ffffff;
-                            width: 190mm;
-                            min-height: 270mm;
-                            padding: 10mm;
-                            box-sizing: border-box;
-                            border: 1px solid #cbd5e1;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: space-between;
-                        }
-                        .header-top {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            border-bottom: 2px solid #0f172a;
-                            padding-bottom: 6px;
-                            margin-bottom: 8px;
-                        }
-                        .header-title {
-                            text-align: center;
-                        }
-                        .header-title h2 {
-                            margin: 0;
-                            font-size: 16px;
-                            color: #0f172a;
-                            font-weight: 800;
-                        }
-                        .header-title h3 {
-                            margin: 2px 0 0 0;
-                            font-size: 12px;
-                            color: #0284c7;
-                        }
-                        .section-title {
-                            background: #f1f5f9;
-                            padding: 4px 8px;
-                            font-weight: bold;
-                            font-size: 9.5px;
-                            border: 1px solid #94a3b8;
-                            margin-top: 6px;
-                            text-transform: uppercase;
-                        }
-                        table.grid-table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-top: 4px;
-                        }
-                        table.grid-table th, table.grid-table td {
-                            border: 1px solid #64748b;
-                            padding: 4px 6px;
-                            font-size: 8.5px;
-                        }
-                        table.grid-table th {
-                            background: #f8fafc;
-                            font-weight: bold;
-                            text-align: center;
-                        }
-                        .vigencia-banner {
-                            border: 1px solid #0f172a;
-                            text-align: center;
-                            font-weight: bold;
-                            padding: 4px;
-                            margin: 6px 0;
-                            font-size: 9px;
-                            background: #f8fafc;
-                        }
-                        .dotted-separator {
-                            border-bottom: 2px dashed #94a3b8;
-                            margin: 12px 0;
-                            position: relative;
-                            text-align: center;
-                        }
-                        .dotted-separator span {
-                            background: #fff;
-                            padding: 0 8px;
-                            font-size: 8px;
-                            color: #64748b;
-                            position: relative;
-                            top: -7px;
-                        }
-                        @media print {
-                            body { background: white; padding: 0; }
-                            .receta-sheet { border: none; box-shadow: none; width: 100%; padding: 0; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="receta-sheet">
-                        <div>
-                            <!-- HEADER PARTE 1 -->
-                            <div class="header-top">
-                                <div>
-                                    <strong style="font-size:14px; color:#1e3a8a;">UEB</strong><br/>
-                                    <span style="font-size:7.5px; color:#475569;">UNIVERSIDAD ESTATAL DE BOLÍVAR</span>
-                                </div>
-                                <div class="header-title">
-                                    <h2>BIENESTAR UNIVERSITARIO</h2>
-                                    <h3>Puesto de Salud</h3>
-                                </div>
-                                <div style="text-align:right;">
-                                    <strong>RECETA N°:</strong> <span style="color:#dc2626; font-size:11px;">${numReceta}</span><br/>
-                                    <span style="font-size:8.5px;">FECHA: ${fechaStr}</span>
-                                </div>
-                            </div>
-
-                            <!-- DATOS GENERALES DEL PACIENTE -->
-                            <div class="section-title">DATOS GENERALES DEL PACIENTE</div>
-                            <table class="grid-table">
-                                <tr>
-                                    <td colspan="3"><strong>Apellidos y Nombres:</strong> ${patientName}</td>
-                                    <td colspan="2"><strong>Documento identidad/ HCL:</strong> ${cedula}</td>
-                                    <td><strong>Sexo:</strong> F [${receta.sexo === 'F' ? 'X' : ' '}] M [${receta.sexo === 'M' ? 'X' : ' '}]</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="6"><strong>Estado de Enfermedad:</strong> Agudo [${receta.estado_enfermedad === 'Agudo' ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; Crónico [${receta.estado_enfermedad === 'Crónico' ? 'X' : ' '}]</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Fecha nac:</strong> ${receta.fecha_nacimiento || 'N/D'}</td>
-                                    <td><strong>Edad:</strong> ${receta.edad_anios || '0'} años ${receta.edad_meses || '0'} m</td>
-                                    <td colspan="4"><strong>CIE:</strong> ${receta.cie || 'Z00.0'}</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="3"><strong>Peso (kg):</strong> ${receta.peso || '-'}</td>
-                                    <td colspan="3"><strong>Talla (cm):</strong> ${receta.talla || '-'}</td>
-                                </tr>
-                                <tr>
-                                    <td colspan="6"><strong>Alergias:</strong> SI [${receta.alergias_si ? 'X' : ' '}] NO [${!receta.alergias_si ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; <strong>ESPECIFICAR:</strong> ${receta.alergias_detalle || 'Ninguna'}</td>
-                                </tr>
-                            </table>
-
-                            <!-- DATOS DEL MEDICAMENTO -->
-                            <div class="section-title">DATOS DEL MEDICAMENTO</div>
-                            <table class="grid-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width:40%;">Medicamento (DCI, forma farmacéutica y concentración)</th>
-                                        <th style="width:12%;">Dosis</th>
-                                        <th style="width:12%;">Frecuencia</th>
-                                        <th style="width:10%;">Duración</th>
-                                        <th style="width:12%;">Vía</th>
-                                        <th style="width:14%;">Cantidad</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${lineasHtmlPart1}
-                                    ${emptyRowsPart1}
-                                </tbody>
-                            </table>
-
-                            <!-- DATOS DEL PRESCRIPTOR PARTE 1 -->
-                            <table class="grid-table" style="margin-top:8px;">
-                                <tr>
-                                    <td style="width:50%; vertical-align:top;">
-                                        <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                        <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Médico Ocupacional'}<br/>
-                                        <strong>Nro. Reg. Prof ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
-                                        <strong>Firma:</strong> ___________________________________
-                                    </td>
-                                    <td style="width:50%; vertical-align:top;">
-                                        <strong>VÁLIDO __________ VERIFICADO __________</strong><br/>
-                                        <strong>Apellido y Nombre:</strong> ${receta.valido_verificado || 'Farmacia Bienestar'}<br/><br/><br/>
-                                        <strong>Firma:</strong> ___________________________________
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <div class="vigencia-banner">VIGENCIA MÁXIMA : (03) días</div>
-
-                            <!-- SEPARADOR -->
-                            <div class="dotted-separator">
-                                <span>INDICACIONES PARA EL USUARIO / PACIENTE</span>
-                            </div>
-
-                            <!-- PARTE 2: INDICACIONES -->
-                            <table class="grid-table">
-                                <tr>
-                                    <td style="width:60%;"><strong>Apellidos y Nombres del usuario/paciente:</strong> ${patientName}</td>
-                                    <td style="width:20%;"><strong>Nro. Receta:</strong> ${numReceta}</td>
-                                    <td style="width:20%;"><strong>Fecha prescripción:</strong> ${fechaStr}</td>
-                                </tr>
-                            </table>
-
-                            <div class="section-title">INDICACIONES Y HORARIOS</div>
-                            <table class="grid-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width:35%;">Medicamento (DCI, concentración)</th>
-                                        <th style="width:10%;">Dosis</th>
-                                        <th style="width:12%;">Frecuencia</th>
-                                        <th style="width:10%;">Duración</th>
-                                        <th style="width:11%;">Vía</th>
-                                        <th style="width:5.5%;">Mañana 🌅</th>
-                                        <th style="width:5.5%;">Mediodía ☀️</th>
-                                        <th style="width:5.5%;">Tarde 🌤️</th>
-                                        <th style="width:5.5%;">Noche 🌙</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${lineasHtmlPart2}
-                                    ${emptyRowsPart2}
-                                </tbody>
-                            </table>
-
-                            <!-- DATOS PRESCRIPTOR & RECOMENDACIONES PARTE 2 -->
-                            <table class="grid-table" style="margin-top:8px;">
-                                <tr>
-                                    <td style="width:40%; vertical-align:top;">
-                                        <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                        <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Médico Ocupacional'}<br/>
-                                        <strong>Nro. Reg. Profesional ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
-                                        <strong>Firma:</strong> ____________________________
-                                    </td>
-                                    <td style="width:60%; vertical-align:top;">
-                                        <strong>SIGNOS DE ALARMA:</strong> ${receta.signos_alarma || 'Fiebre persistente, intolerancia oral o reacción alérgica.'}<br/><br/>
-                                        <strong>RECOMENDACIONES NO FARMACOLÓGICAS:</strong> ${receta.recomendaciones_no_farmacologicas || 'Reposo relativo e hidratación continua.'}
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <script>
-                        window.onload = function() { window.print(); };
-                    </script>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
+            printHtmlDocument(compileRecetaFormHtmlString(receta, false), `Receta Médica - ${receta?.numero_receta || '001'}`);
         } catch (e) {
             console.error(e);
             showSystemToast("Error al imprimir el recetario.");
         }
     };
 
-    const handlePrintReporteCitas = () => {
+    const compileCitasReportHtmlString = (forPrint = false) => {
         try {
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                alert("El bloqueador de popups impidió abrir el reporte. Permita los popups.");
-                return;
-            }
-
             const doctorNameText = user?.name || 'Médico Ocupacional';
-            const formattedDate = citasDate ? citasDate : 'Todas las fechas';
+            const formattedDate = reportCitasFecha ? reportCitasFecha : 'Todas las fechas';
 
-            const rowsHtml = filteredCitas.map((cita, index) => {
+            const filteredReportCitas = citasList.filter(cita => {
+                const matchesFecha = !reportCitasFecha || cita.fecha === reportCitasFecha;
+                const matchesEstado = reportCitasEstado === 'all' || (cita.estado || '').toLowerCase() === reportCitasEstado.toLowerCase();
+                return matchesFecha && matchesEstado;
+            });
+
+            const total = filteredReportCitas.length;
+            const completadas = filteredReportCitas.filter(c => c.estado === 'completada').length;
+            const confirmadas = filteredReportCitas.filter(c => c.estado === 'confirmada').length;
+            const programadas = filteredReportCitas.filter(c => c.estado === 'programada').length;
+            const canceladas = filteredReportCitas.filter(c => c.estado === 'cancelada').length;
+
+            const tableRowsHtml = filteredReportCitas.length === 0 ? `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 24px; color: #64748b; font-style: italic;">
+                        No se registraron citas para los criterios seleccionados (${formattedDate}).
+                    </td>
+                </tr>
+            ` : filteredReportCitas.map((cita, index) => {
                 const patientName = cita.paciente?.name || cita.pacienteNombre || 'Paciente';
                 const cedula = cita.paciente?.cedula || cita.cedula || 'N/D';
                 const puesto = cita.paciente?.puesto || cita.puesto || 'Servidor';
                 const estado = (cita.estado || 'programada').toUpperCase();
-                const horario = `${cita.hora_inicio || ''} - ${cita.hora_fin || ''}`;
+                const horario = `${cita.horaInicio || cita.hora_inicio || '08:00'} - ${cita.horaFin || cita.hora_fin || '08:30'}`;
                 const motivo = cita.motivo || 'Consulta Ocupacional';
-                const tipoEval = cita.tipo_evaluacion || 'General';
+                const tipoEval = cita.tipoEvaluacion || cita.tipo_evaluacion || 'General';
 
                 let estadoBadgeColor = '#1e40af';
-                if (cita.estado === 'confirmada') estadoBadgeColor = '#065f46';
-                if (cita.estado === 'completada') estadoBadgeColor = '#374151';
-                if (cita.estado === 'cancelada') estadoBadgeColor = '#991b1b';
+                let estadoBadgeBg = '#dbeafe';
+                if (cita.estado === 'confirmada') { estadoBadgeColor = '#065f46'; estadoBadgeBg = '#d1fae5'; }
+                if (cita.estado === 'completada') { estadoBadgeColor = '#15803d'; estadoBadgeBg = '#dcfce7'; }
+                if (cita.estado === 'cancelada') { estadoBadgeColor = '#991b1b'; estadoBadgeBg = '#fee2e2'; }
 
                 return `
                     <tr>
-                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${cita.fecha}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${horario}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${patientName}<br/><small style="color: #666; font-weight: normal;">${puesto}</small></td>
-                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${cedula}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd;"><strong>${tipoEval}:</strong> ${motivo}</td>
-                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: ${estadoBadgeColor};">${estado}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${index + 1}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;">
+                            <strong>${patientName}</strong><br/>
+                            <span style="font-size: 7.5px; color: #64748b;">${puesto}</span>
+                        </td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${cedula}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${cita.fecha || formattedDate}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px; font-weight: 600;">${horario}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;"><strong>${tipoEval}:</strong> ${motivo}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8px;">
+                            <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${estadoBadgeBg}; color: ${estadoBadgeColor};">${estado}</span>
+                        </td>
                     </tr>
                 `;
             }).join('');
 
-            printWindow.document.write(`
+            return `
                 <!DOCTYPE html>
-                <html>
+                <html lang="es">
                 <head>
+                    <meta charset="UTF-8">
                     <title>Reporte de Citas Ocupacionales - ${formattedDate}</title>
                     <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-                        h2 { margin-bottom: 4px; color: #002040; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-                        th { background-color: #f1f5f9; padding: 10px; border: 1px solid #ddd; }
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 15px; background: #fff; }
+                        .report-container { max-width: 800px; margin: 0 auto; }
+                        .header-title { text-align: center; border-bottom: 2px solid #002040; padding-bottom: 8px; margin-bottom: 12px; }
+                        .header-title h1 { margin: 0; font-size: 14px; font-weight: bold; color: #002040; text-transform: uppercase; }
+                        .header-title h2 { margin: 2px 0; font-size: 11px; font-weight: bold; color: #475569; }
+                        .header-title h3 { margin: 2px 0; font-size: 10px; font-weight: bold; color: #b71a34; text-transform: uppercase; }
+                        .meta-bar { display: flex; justify-content: space-between; font-size: 8.5px; margin-bottom: 12px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+                        .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+                        .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; text-align: center; }
+                        .summary-box span { display: block; font-size: 8px; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 2px; }
+                        .summary-box strong { font-size: 14px; color: #002040; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                        th { background: #002040; color: #ffffff; padding: 6px 8px; font-size: 8.5px; border: 1px solid #002040; text-align: center; }
+                        .signature-section { margin-top: 40px; display: flex; justify-content: center; }
+                        .signature-box { width: 220px; text-align: center; border-top: 1px solid #000; padding-top: 5px; font-size: 8.5px; }
                     </style>
                 </head>
                 <body>
-                    <h2>UNIVERSIDAD TÉCNICA DE COTOPAXI</h2>
-                    <h3>DIRECCIÓN DE BIENESTAR UNIVERSITARIO - SALUD OCUPACIONAL</h3>
-                    <hr/>
-                    <p><strong>Fecha de Emisión:</strong> ${new Date().toLocaleDateString('es-EC')} | <strong>Filtrado por Fecha:</strong> ${formattedDate}</p>
-                    <p><strong>Médico Ocupacional:</strong> ${doctorNameText}</p>
-                    
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Fecha</th>
-                                <th>Horario</th>
-                                <th>Paciente / Puesto</th>
-                                <th>Cédula</th>
-                                <th>Evaluación / Motivo</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml}
-                        </tbody>
-                    </table>
-                    <script>window.onload = function() { window.print(); }</script>
+                    <div class="report-container">
+                        <div class="header-title" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #002040; padding-bottom: 8px; margin-bottom: 12px;">
+                            <div style="width: 140px; text-align: left;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                            </div>
+                            <div style="text-align: center; flex: 1;">
+                                <h1 style="margin: 0; font-size: 14px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
+                                <h2 style="margin: 2px 0; font-size: 11px; font-weight: 800; color: #475569;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</h2>
+                                <h3 style="margin: 2px 0; font-size: 10px; font-weight: 900; color: #b71a34; text-transform: uppercase;">REPORTE DE AGENDAMIENTO Y CONTROL DE CITAS - SALUD OCUPACIONAL</h3>
+                            </div>
+                            <div style="width: 140px; text-align: right;">
+                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                            </div>
+                        </div>
+
+                        <div class="meta-bar">
+                            <div><strong>FECHA REPORTE:</strong> ${formattedDate}</div>
+                            <div><strong>ESTADO FILTRADO:</strong> ${reportCitasEstado.toUpperCase()}</div>
+                            <div><strong>MÉDICO RESPONSABLE:</strong> ${doctorNameText}</div>
+                        </div>
+
+                        <div class="summary-grid">
+                            <div class="summary-box">
+                                <span>Total Citas</span>
+                                <strong>${total}</strong>
+                            </div>
+                            <div class="summary-box">
+                                <span>Completadas</span>
+                                <strong style="color: #15803d;">${completadas}</strong>
+                            </div>
+                            <div class="summary-box">
+                                <span>Confirmadas</span>
+                                <strong style="color: #065f46;">${confirmadas}</strong>
+                            </div>
+                            <div class="summary-box">
+                                <span>Programadas</span>
+                                <strong style="color: #1e40af;">${programadas}</strong>
+                            </div>
+                            <div class="summary-box">
+                                <span>Canceladas</span>
+                                <strong style="color: #991b1b;">${canceladas}</strong>
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 25px;">#</th>
+                                    <th>Paciente / Cargo</th>
+                                    <th style="width: 75px;">Cédula</th>
+                                    <th style="width: 70px;">Fecha</th>
+                                    <th style="width: 85px;">Horario</th>
+                                    <th>Evaluación / Motivo</th>
+                                    <th style="width: 80px;">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRowsHtml}
+                            </tbody>
+                        </table>
+
+                        <div class="signature-section">
+                            <div class="signature-box">
+                                <strong>${doctorNameText}</strong><br/>
+                                <span>Médico/a Ocupacional Responsable</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${forPrint ? `<script>window.onload = function() { window.print(); };</script>` : ''}
                 </body>
                 </html>
-            `);
-            printWindow.document.close();
-        } catch (err) {
-            console.error(err);
+            `;
+        } catch (e) {
+            console.error('Error al compilar reporte de citas:', e);
+            return '<p>Error al generar reporte de citas</p>';
         }
+    };
+
+    const handlePrintReporteCitas = () => {
+        printIframeDocument(citasIframeRef, () => compileCitasReportHtmlString(false));
+    };
+
+    const defaultUEBCareers = {
+        'CIENCIAS DE LA SALUD': ['ENFERMERÍA', 'TERAPIA FÍSICA'],
+        'JURISPRUDENCIA': ['DERECHO', 'CRIMINALÍSTICA'],
+        'CIENCIAS ADMINISTRATIVAS': ['ADMINISTRACIÓN DE EMPRESAS', 'CONTABILIDAD Y AUDITORÍA', 'TURISMO', 'GESTIÓN DEL TALENTO HUMANO'],
+        'CIENCIAS AGROPECUARIAS': ['AGRONOMÍA', 'VETERINARIA', 'AGROINDUSTRIA'],
+        'CIENCIAS DE LA EDUCACIÓN': ['EDUCACIÓN BÁSICA', 'EDUCACIÓN INICIAL', 'PEDAGOGÍA DE LA ACTIVIDAD FÍSICA']
+    };
+
+    const fetchAndCompileGeneralReport = async (monthVal = genReportMonth, yearVal = genReportYear) => {
+        setGenReportLoading(true);
+        try {
+            const res = await api.get('/medicina-ocupacional/parte-diario')
+                .catch(() => api.get('/medicina-general/parte-diario'))
+                .catch(() => ({ data: { data: [] } }));
+            const list = res.data?.data || [];
+
+            const catRes = await api.get('/user-profile/catalogos').catch(() => ({ data: { facultades: [], carreras: [] } }));
+            const dbFacultades = catRes.data?.facultades || [];
+            const dbCarreras = catRes.data?.carreras || [];
+
+            const targetMonthStr = `${yearVal}-${String(monthVal).padStart(2, '0')}`;
+            const filteredPartes = list.filter(item => {
+                const rawDate = item.fecha || item.created_at;
+                if (!rawDate) return false;
+                return String(rawDate).trim().slice(0, 7) === targetMonthStr;
+            });
+
+            const uniquePatientIds = [...new Set(filteredPartes.map(item => item.id_usuario_paciente || item.paciente?.id))].filter(Boolean);
+
+            const patientProfiles = await Promise.all(
+                uniquePatientIds.map(async (pid) => {
+                    try {
+                        const resProfile = await api.get(`/medicina-general/pacientes/${pid}/perfil`);
+                        return { pid, profile: resProfile.data?.data };
+                    } catch (e) {
+                        return { pid, profile: null };
+                    }
+                })
+            );
+
+            const profileMap = {};
+            patientProfiles.forEach(item => {
+                if (item.pid) profileMap[item.pid] = item.profile;
+            });
+
+            const reportingFaculties = [
+                'CIENCIAS DE LA SALUD',
+                'JURISPRUDENCIA',
+                'CIENCIAS ADMINISTRATIVAS',
+                'CIENCIAS AGROPECUARIAS',
+                'CIENCIAS DE LA EDUCACIÓN'
+            ];
+
+            const getReportingFacultyName = (facName, carName) => {
+                const fn = (facName || '').toUpperCase();
+                const cn = (carName || '').toUpperCase();
+                if (cn.includes('CRIMIN')) return 'JURISPRUDENCIA';
+                if (cn.includes('TALENTO')) return 'CIENCIAS ADMINISTRATIVAS';
+                if (fn.includes('SALUD') || fn.includes('SER HUMANO')) return 'CIENCIAS DE LA SALUD';
+                if (fn.includes('JURIS') || fn.includes('POLÍT') || fn.includes('SOCIALES')) return 'JURISPRUDENCIA';
+                if (fn.includes('ADMINISTRATIVA') || fn.includes('EMPRESARIAL') || fn.includes('INFORMÁTICA')) return 'CIENCIAS ADMINISTRATIVAS';
+                if (fn.includes('AGRO') || fn.includes('AMBIENTE')) return 'CIENCIAS AGROPECUARIAS';
+                if (fn.includes('EDUCACIÓN') || fn.includes('FILOSÓFICA')) return 'CIENCIAS DE LA EDUCACIÓN';
+                return fn || 'OTRAS';
+            };
+
+            const statsByFacultyAndCareer = {};
+            reportingFaculties.forEach(f => {
+                statsByFacultyAndCareer[f] = {};
+            });
+
+            if (dbCarreras.length > 0) {
+                dbCarreras.forEach(c => {
+                    const parentFac = dbFacultades.find(f => f.id === c.id_facultad);
+                    const repFacName = getReportingFacultyName(parentFac?.nombre, c.nombre);
+                    if (statsByFacultyAndCareer[repFacName]) {
+                        statsByFacultyAndCareer[repFacName][c.nombre] = {
+                            hombres: 0, mujeres: 0, lgbti: 0, total: 0
+                        };
+                    }
+                });
+            } else {
+                Object.entries(defaultUEBCareers).forEach(([f, careers]) => {
+                    careers.forEach(cName => {
+                        statsByFacultyAndCareer[f][cName] = { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
+                    });
+                });
+            }
+
+            let totalEstudiantes = 0;
+            let totalAdministrativos = 0;
+            let totalDocentes = 0;
+
+            let genderCounts = {
+                estudiantes: { hombres: 0, mujeres: 0, lgbti: 0 },
+                administrativos: { hombres: 0, mujeres: 0, lgbti: 0 },
+                docentes: { hombres: 0, mujeres: 0, lgbti: 0 }
+            };
+
+            filteredPartes.forEach(item => {
+                const profile = profileMap[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
+
+                const genderVal = (profile?.autopercepcion?.genero?.nombre || '').toLowerCase();
+                let genderKey = 'mujeres';
+                if (genderVal.includes('masc') || genderVal.includes('homb')) {
+                    genderKey = 'hombres';
+                } else if (genderVal.includes('fem') || genderVal.includes('muj')) {
+                    genderKey = 'mujeres';
+                } else if (genderVal.includes('lgbti') || genderVal.includes('diver') || genderVal !== '') {
+                    genderKey = 'lgbti';
+                }
+
+                const typeId = profile?.estudioCarrera?.id_tipo_usuario || profile?.estudio_carrera?.id_tipo_usuario || profile?.id_tipo_usuario;
+                let userType = 'administrativos';
+                if (typeId === 2) {
+                    userType = 'estudiantes';
+                    totalEstudiantes++;
+                } else if (typeId === 3) {
+                    userType = 'docentes';
+                    totalDocentes++;
+                } else if (typeId === 4 || typeId === 5) {
+                    userType = 'administrativos';
+                    totalAdministrativos++;
+                } else {
+                    const roleName = (profile?.role || '').toLowerCase();
+                    if (roleName.includes('estud')) {
+                        userType = 'estudiantes';
+                        totalEstudiantes++;
+                    } else if (roleName.includes('docen') || roleName.includes('prof')) {
+                        userType = 'docentes';
+                        totalDocentes++;
+                    } else {
+                        userType = 'administrativos';
+                        totalAdministrativos++;
+                    }
+                }
+
+                genderCounts[userType][genderKey]++;
+
+                let canonCareerName = null;
+                let repFacName = null;
+                const patientCareerName = profile?.estudioCarrera?.carrera?.nombre || profile?.estudio_carrera?.carrera?.nombre;
+
+                if (userType === 'estudiantes' && patientCareerName) {
+                    const dbCar = dbCarreras.find(c => c.nombre.toLowerCase().trim() === patientCareerName.toLowerCase().trim());
+                    if (dbCar) {
+                        canonCareerName = dbCar.nombre;
+                        const parentFac = dbFacultades.find(f => f.id === dbCar.id_facultad);
+                        repFacName = getReportingFacultyName(parentFac?.nombre, dbCar.nombre);
+                    }
+                }
+
+                if (userType === 'estudiantes' && canonCareerName && repFacName && statsByFacultyAndCareer[repFacName]?.[canonCareerName]) {
+                    statsByFacultyAndCareer[repFacName][canonCareerName][genderKey]++;
+                    statsByFacultyAndCareer[repFacName][canonCareerName].total++;
+                }
+            });
+
+            setGenReportData({
+                totalEstudiantes,
+                totalAdministrativos,
+                totalDocentes,
+                totalPacientes: filteredPartes.length,
+                genderCounts,
+                statsByFacultyAndCareer,
+                reportingFaculties
+            });
+        } catch (err) {
+            console.error('Error al compilar reporte general:', err);
+        } finally {
+            setGenReportLoading(false);
+        }
+    };
+
+    const compileGeneralReportHtmlString = (data, forPrint = false) => {
+        const monthsText = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const selectedMonthText = monthsText[genReportMonth - 1] || 'Enero';
+        const doctorNameText = user?.name ? user.name.toUpperCase() : 'DR(A). MÉDICO OCUPACIONAL';
+
+        if (!data) {
+            return `
+                <!DOCTYPE html><html><body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; color: #64748b;">
+                    <p>Cargando información del informe estadístico mensual...</p>
+                </body></html>
+            `;
+        }
+
+        let totalEstCareersCount = 0;
+        (data.reportingFaculties || []).forEach(f => {
+            totalEstCareersCount += Object.keys(data.statsByFacultyAndCareer?.[f] || {}).length;
+        });
+
+        const renderTable1Rows = () => {
+            let html = '';
+            let isFirstRow = true;
+
+            (data.reportingFaculties || []).forEach(f => {
+                const careers = data.statsByFacultyAndCareer?.[f] || {};
+                const careerNames = Object.keys(careers);
+                const facCareersCount = careerNames.length;
+                if (facCareersCount === 0) return;
+
+                let isFirstCareerInFac = true;
+
+                careerNames.forEach(cName => {
+                    const stats = careers[cName] || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
+                    html += `<tr>`;
+
+                    if (isFirstRow) {
+                        html += `
+                            <td rowspan="${totalEstCareersCount || 1}" style="writing-mode: vertical-lr; transform: rotate(180deg); font-weight: bold; text-align: center; vertical-align: middle; background-color: #f1f5f9; width: 25px; border: 1px solid #000; font-size: 9px;">
+                                ESTUDIANTES
+                            </td>
+                        `;
+                        isFirstRow = false;
+                    }
+
+                    if (isFirstCareerInFac) {
+                        html += `
+                            <td rowspan="${facCareersCount}" style="background-color: #f8fafc; border: 1px solid #000; vertical-align: middle; font-size: 8px; width: 140px; font-weight: bold; text-align: left;">
+                                ${f}
+                            </td>
+                        `;
+                        isFirstCareerInFac = false;
+                    }
+
+                    html += `
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: left;">${cName}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.hombres}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.mujeres}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.lgbti}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${stats.total}</td>
+                    </tr>
+                    `;
+                });
+            });
+
+            const gc = data.genderCounts || {
+                estudiantes: { hombres: 0, mujeres: 0, lgbti: 0 },
+                administrativos: { hombres: 0, mujeres: 0, lgbti: 0 },
+                docentes: { hombres: 0, mujeres: 0, lgbti: 0 }
+            };
+
+            html += `
+                <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
+                    <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ESTUDIANTES</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.hombres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.mujeres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.lgbti}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalEstudiantes || 0}</td>
+                </tr>
+            `;
+
+            html += `
+                <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
+                    <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ADMINISTRATIVOS</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.hombres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.mujeres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.lgbti}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalAdministrativos || 0}</td>
+                </tr>
+            `;
+
+            html += `
+                <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
+                    <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">DOCENTES</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.hombres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.mujeres}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.lgbti}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalDocentes || 0}</td>
+                </tr>
+            `;
+
+            const totalH = gc.estudiantes.hombres + gc.administrativos.hombres + gc.docentes.hombres;
+            const totalM = gc.estudiantes.mujeres + gc.administrativos.mujeres + gc.docentes.mujeres;
+            const totalL = gc.estudiantes.lgbti + gc.administrativos.lgbti + gc.docentes.lgbti;
+            const grandTotal = data.totalPacientes || 0;
+
+            html += `
+                <tr style="font-size: 9px; background-color: #0f172a !important; color: #fff; font-weight: bold;">
+                    <td colspan="3" style="padding: 5px; border: 1px solid #000; text-align: left; color: #fff;">TOTAL ATENCIONES</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalH}</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalM}</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalL}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; color: #fff;">${grandTotal}</td>
+                </tr>
+            `;
+
+            return html;
+        };
+
+        return `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>Informe Estadístico Mensual - Salud Ocupacional</title>
+                <style>
+                    @page { size: A4 landscape; margin: 8mm; }
+                    body { font-family: Arial, sans-serif; font-size: 9px; color: #000; margin: 0; padding: 15px; background: #fff; }
+                    .header-title { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+                    .header-title h1 { margin: 0; font-size: 15px; font-weight: bold; text-transform: uppercase; }
+                    .header-title h2 { margin: 2px 0; font-size: 12px; font-weight: bold; color: #334155; }
+                    .header-title h3 { margin: 2px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b71a34; }
+                    .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 1.5px solid #000; }
+                    .report-table th, .report-table td { border: 1px solid #000; padding: 4px 6px; font-size: 8.5px; }
+                    .report-table th { background: #f1f5f9; text-align: center; font-weight: bold; }
+                    .meta-grid { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 9.5px; }
+                </style>
+            </head>
+            <body>
+                <div class="header-title" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 8px;">
+                    <div style="width: 140px; text-align: left;">
+                        <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                    </div>
+                    <div style="text-align: center; flex: 1;">
+                        <h1 style="margin: 0; font-size: 15px; font-weight: bold; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
+                        <h2 style="margin: 2px 0; font-size: 12px; font-weight: bold; color: #334155;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</h2>
+                        <h3 style="margin: 2px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b71a34;">INFORME ESTADÍSTICO MENSUAL DE SALUD OCUPACIONAL</h3>
+                    </div>
+                    <div style="width: 140px; text-align: right;">
+                        <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                    </div>
+                </div>
+
+                <div class="meta-grid">
+                    <div><strong>UNIDAD OPERATIVA:</strong> SALUD OCUPACIONAL</div>
+                    <div><strong>RESPONSABLE:</strong> ${doctorNameText}</div>
+                    <div><strong>PERIODO:</strong> ${selectedMonthText.toUpperCase()} ${genReportYear}</div>
+                </div>
+
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th colspan="3">FACULTAD Y CARRERA / USUARIOS</th>
+                            <th style="width: 60px;">HOMBRES</th>
+                            <th style="width: 60px;">MUJERES</th>
+                            <th style="width: 60px;">LGBTI</th>
+                            <th style="width: 70px;">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${renderTable1Rows()}
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 40px; display: flex; justify-content: space-around; font-size: 9px;">
+                    <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
+                        <strong>Médico/a Ocupacional Responsable</strong><br/>
+                        <span>${doctorNameText}</span>
+                    </div>
+                </div>
+
+                ${forPrint ? `<script>window.onload = function() { window.print(); };</script>` : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    const handlePrintGeneralReport = () => {
+        printIframeDocument(mensualIframeRef, () => compileGeneralReportHtmlString(genReportData, false));
     };
 
     const [fichaSearchTerm, setFichaSearchTerm] = useState('');
@@ -1485,6 +6625,345 @@ export default function MedicoOcupacionalPage() {
         (item.puesto || '').toLowerCase().includes(fichaSearchTerm.toLowerCase()) ||
         (item.diagnostico || '').toLowerCase().includes(fichaSearchTerm.toLowerCase())
     );
+
+    const getActiveFichaList = () => {
+        if (fichaSubTab === 'reintegro') {
+            return filteredReintegros.length > 0 ? filteredReintegros : reintegrosData;
+        }
+        if (fichaSubTab === 'cese') {
+            const retiro = filteredFichas.filter(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
+            return retiro.length > 0 ? retiro : fichasData.filter(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
+        }
+        const ingreso = filteredFichas.filter(f => f.tipo === 'Ingreso' || f.tipo === 'Periódico' || f.tipo === 'Preocupacional');
+        return ingreso.length > 0 ? ingreso : fichasData;
+    };
+
+    const activeFichas = getActiveFichaList();
+    const selectedFichaRecord = (fichaSearchTerm.trim() && activeFichas.length > 0)
+        ? activeFichas[0]
+        : (activeFichas.find(f => String(f.id) === String(selectedFichaWorkerId)) || activeFichas[0] || fichasData[0]);
+
+    const compileCurrentFicha077Html = (record = selectedFichaRecord, forPrint = false) => {
+        const target = record || selectedFichaRecord;
+        if (!target) return '<!DOCTYPE html><html><body><p>Seleccione un trabajador</p></body></html>';
+        if (fichaSubTab === 'reintegro') {
+            return compileOfficialReintegroFormHtml(target, uebBannerLogo, forPrint);
+        }
+        if (fichaSubTab === 'cese') {
+            return compileOfficialRetiroFormHtml(target, uebBannerLogo, forPrint);
+        }
+        return compileOfficialIngresoFormHtml(target, uebBannerLogo, forPrint);
+    };
+
+    const handlePrintSelectedFicha = () => {
+        printIframeDocument(fichasIframeRef, () => compileCurrentFicha077Html(selectedFichaRecord, false));
+        showSystemToast('Enviando Formulario Oficial 077 a impresión...');
+    };
+
+    const handlePrintFichasMatrix = () => {
+        const subTabNames = {
+            ingreso: 'Fichas Médicas Ocupacionales de Ingreso / Periódicas',
+            cese: 'Fichas Médicas de Retiro / Cese Laboral',
+            reintegro: 'Registro de Reintegro Laboral y Adaptación Ocupacional',
+            embarazadas: 'Vigilancia Médica de Gestantes y Lactantes',
+            discapacidad: 'Fichas Ocupacionales de Funcionarios con Discapacidad',
+            vulnerables_patologias: 'Fichas de Grupos Vulnerables (Patologías)',
+            personal_nuevo: 'Fichas de Personal Nuevo que Ingresó'
+        };
+
+        const title = subTabNames[fichaSubTab] || 'Reporte de Fichas Médicas Ocupacionales';
+        const isReintegro = fichaSubTab === 'reintegro';
+        const dataToPrint = isReintegro ? filteredReintegros : filteredFichas;
+
+        let tableHeadersHtml = '';
+        let tableRowsHtml = '';
+
+        if (isReintegro) {
+            tableHeadersHtml = `
+                <tr>
+                    <th style="width: 35px;">N°</th>
+                    <th>FECHA REINTEGRO</th>
+                    <th>TRABAJADOR</th>
+                    <th>CÉDULA</th>
+                    <th>PUESTO</th>
+                    <th>DÍAS INCAPACIDAD</th>
+                    <th>DIAGNÓSTICO ORIGEN</th>
+                    <th>MODALIDAD</th>
+                    <th>ESTADO</th>
+                </tr>
+            `;
+            tableRowsHtml = dataToPrint.map((item, idx) => `
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${item.fecha}</td>
+                    <td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td>
+                    <td style="text-align: center; font-family: monospace;">${item.cedula}</td>
+                    <td style="text-transform: uppercase;">${item.puesto}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0369a1;">${item.dias} días</td>
+                    <td>${item.diagnostico}</td>
+                    <td style="text-align: center;">${item.tipo}</td>
+                    <td style="text-align: center; font-weight: bold; color: ${item.estado === 'Aprobado' ? '#166534' : '#b45309'};">${item.estado}</td>
+                </tr>
+            `).join('');
+        } else {
+            tableHeadersHtml = `
+                <tr>
+                    <th style="width: 35px;">N°</th>
+                    <th>FECHA EVALUACIÓN</th>
+                    <th>TRABAJADOR / PACIENTE</th>
+                    <th>CÉDULA</th>
+                    <th>TIPO DE EVALUACIÓN</th>
+                    <th>PUESTO DE TRABAJO</th>
+                    <th>DICTAMEN DE APTITUD</th>
+                    <th>ESTADO</th>
+                </tr>
+            `;
+            tableRowsHtml = dataToPrint.map((item, idx) => `
+                <tr>
+                    <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${item.fecha}</td>
+                    <td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td>
+                    <td style="text-align: center; font-family: monospace;">${item.cedula}</td>
+                    <td style="text-align: center; font-weight: bold; color: #334155;">${item.tipo}</td>
+                    <td style="text-transform: uppercase;">${item.puesto}</td>
+                    <td style="text-align: center; font-weight: bold; color: ${item.aptitud.includes('Restricción') || item.aptitud.includes('Adaptación') ? '#b45309' : item.aptitud.includes('No') ? '#dc2626' : '#15803d'};">${item.aptitud}</td>
+                    <td style="text-align: center; font-weight: bold; color: #166534;">${item.estado || 'Completado'}</td>
+                </tr>
+            `).join('');
+        }
+
+        const html = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8" />
+                <title>${title} - UEB Salud Ocupacional</title>
+                <style>
+                    @page { size: landscape; margin: 8mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 12px; color: #0f172a; background: #fff; }
+                    .header-top { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #002060; padding-bottom: 8px; margin-bottom: 12px; }
+                    .banner { background-color: #002060; color: white; padding: 12px 16px; border-radius: 6px; text-align: center; font-size: 15px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 14px; }
+                    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+                    th { background-color: #0284c7; color: #ffffff; padding: 8px 6px; font-weight: bold; border: 1px solid #0369a1; text-align: center; text-transform: uppercase; }
+                    td { padding: 6px 8px; border: 1px solid #cbd5e1; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                    .footer-sig { margin-top: 35px; display: flex; justify-content: space-around; text-align: center; font-size: 11px; }
+                    .sig-line { border-top: 1px solid #000; width: 240px; margin: 0 auto 4px auto; padding-top: 4px; font-weight: bold; }
+                    @media print {
+                        .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="position: sticky; top: 0; background: #002060; color: #ffffff; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 14px; border-radius: 6px; z-index: 9999;">
+                    <div style="font-weight: 800; font-size: 13px; letter-spacing: 0.3px;">
+                        UNIVERSIDAD ESTATAL DE BOLÍVAR · ${title}
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="window.print()" style="background: #0284c7; color: #ffffff; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px;">
+                            Imprimir / Guardar PDF
+                        </button>
+                        <button onclick="window.close()" style="background: #475569; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="header-top" style="display: flex; align-items: center; justify-content: space-between;">
+                    <img src="${logoBienestar}" style="height: 52px; object-fit: contain;" alt="Bienestar Universitario UEB" />
+                    <div style="text-align: center; flex: 1;">
+                        <div><strong style="font-size: 13px; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</strong></div>
+                        <div style="font-size: 11px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                        <div style="font-size: 10px; color: #64748b;">Fecha de Emisión: ${new Date().toLocaleDateString('es-EC')}</div>
+                    </div>
+                    <img src="${logoUebTexto}" style="height: 40px; object-fit: contain;" alt="Logo UEB" />
+                </div>
+                <div class="banner">
+                    ${title}
+                </div>
+                <table>
+                    <thead>
+                        ${tableHeadersHtml}
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml || '<tr><td colspan="9" style="text-align:center; padding: 20px;">No hay registros disponibles.</td></tr>'}
+                    </tbody>
+                </table>
+                <div class="footer-sig">
+                    <div>
+                        <div class="sig-line">MÉDICO OCUPACIONAL</div>
+                        Unidad de Salud Ocupacional - UEB
+                    </div>
+                    <div>
+                        <div class="sig-line">RESPONSABLE SEGURIDAD Y SALUD</div>
+                        Dirección de Talento Humano - UEB
+                    </div>
+                </div>
+                <script>
+                    if (document.readyState === 'complete') {
+                        setTimeout(function() { window.print(); }, 350);
+                    } else {
+                        window.addEventListener('load', function() {
+                            setTimeout(function() { window.print(); }, 350);
+                        });
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        safePrintHtml(html, title);
+    };
+
+    const handleExportFichasCSV = () => {
+        const isReintegro = fichaSubTab === 'reintegro';
+        let headers = [];
+        let rows = [];
+
+        if (isReintegro) {
+            headers = ["FECHA REINTEGRO", "TRABAJADOR", "CEDULA", "PUESTO", "DIAS INCAPACIDAD", "DIAGNOSTICO ORIGEN", "MODALIDAD", "ESTADO"];
+            rows = filteredReintegros.map(item => [
+                `"${(item.fecha || '').replace(/"/g, '""')}"`,
+                `"${(item.paciente || '').replace(/"/g, '""')}"`,
+                `"${(item.cedula || '').replace(/"/g, '""')}"`,
+                `"${(item.puesto || '').replace(/"/g, '""')}"`,
+                `"${item.dias || 0}"`,
+                `"${(item.diagnostico || '').replace(/"/g, '""')}"`,
+                `"${(item.tipo || '').replace(/"/g, '""')}"`,
+                `"${(item.estado || '').replace(/"/g, '""')}"`
+            ]);
+        } else {
+            headers = ["FECHA EVALUACION", "PACIENTE", "CEDULA", "TIPO EVALUACION", "PUESTO DE TRABAJO", "DICTAMEN APTITUD", "ESTADO"];
+            rows = filteredFichas.map(item => [
+                `"${(item.fecha || '').replace(/"/g, '""')}"`,
+                `"${(item.paciente || '').replace(/"/g, '""')}"`,
+                `"${(item.cedula || '').replace(/"/g, '""')}"`,
+                `"${(item.tipo || '').replace(/"/g, '""')}"`,
+                `"${(item.puesto || '').replace(/"/g, '""')}"`,
+                `"${(item.aptitud || '').replace(/"/g, '""')}"`,
+                `"${(item.estado || 'Completado').replace(/"/g, '""')}"`
+            ]);
+        }
+
+        const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `FICHAS_OCUPACIONALES_${fichaSubTab.toUpperCase()}_UEB.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handlePrintIndividualFicha = (item) => {
+        if (item.tipo === 'Ingreso' || item.tipo === 'Periódico') {
+            printOfficialIngresoForm(item, uebBannerLogo);
+            return;
+        }
+        if (item.tipo === 'Retiro' || item.tipo === 'Cese') {
+            printOfficialRetiroForm(item, uebBannerLogo);
+            return;
+        }
+        if (item.tipo === 'Reintegro') {
+            printOfficialReintegroForm(item, uebBannerLogo);
+            return;
+        }
+        const html = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8" />
+                <title>Ficha Médica Ocupacional - ${item.paciente}</title>
+                <style>
+                    @page { size: portrait; margin: 12mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 10px; color: #1e293b; background: #fff; font-size: 12px; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #002060; padding-bottom: 8px; margin-bottom: 14px; }
+                    .banner { background: #002060; color: #fff; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; border-radius: 4px; margin-bottom: 16px; }
+                    .section-title { background: #f1f5f9; padding: 6px 10px; font-weight: bold; color: #0f172a; text-transform: uppercase; font-size: 11px; margin-top: 14px; margin-bottom: 8px; border-left: 4px solid #0284c7; }
+                    table.grid { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+                    table.grid td, table.grid th { border: 1px solid #cbd5e1; padding: 7px 10px; }
+                    table.grid th { background: #f8fafc; text-align: left; font-size: 11px; color: #475569; width: 30%; }
+                    .aptitud-box { margin-top: 14px; padding: 12px; border: 2px solid #0284c7; border-radius: 6px; text-align: center; background: #f0f9ff; font-weight: bold; font-size: 14px; color: #0369a1; text-transform: uppercase; }
+                    .footer-sig { margin-top: 50px; display: flex; justify-content: space-between; text-align: center; }
+                    .sig-line { border-top: 1px solid #000; width: 220px; padding-top: 4px; font-weight: bold; font-size: 11px; }
+                    @media print {
+                        .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="position: sticky; top: 0; background: #002060; color: #ffffff; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 14px; border-radius: 6px; z-index: 9999;">
+                    <div style="font-weight: 800; font-size: 13px; letter-spacing: 0.3px;">
+                        UNIVERSIDAD ESTATAL DE BOLÍVAR · FICHA MÉDICA OCUPACIONAL
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="window.print()" style="background: #0284c7; color: #ffffff; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px;">
+                            Imprimir / Guardar PDF
+                        </button>
+                        <button onclick="window.close()" style="background: #475569; color: #ffffff; border: none; padding: 7px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="header">
+                    <img src="${uebBannerLogo}" style="height: 50px; object-fit: contain;" alt="UEB Logo" />
+                    <div style="text-align: right; font-size: 11px; color: #475569;">
+                        <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>
+                        Unidad de Seguridad y Salud en el Trabajo<br/>
+                        Fecha de Emisión: ${new Date().toLocaleDateString('es-EC')}
+                    </div>
+                </div>
+
+                <div class="banner">CERTIFICADO DE APTITUD MÉDICA OCUPACIONAL</div>
+
+                <div class="section-title">1. DATOS DE IDENTIFICACIÓN DEL TRABAJADOR</div>
+                <table class="grid">
+                    <tr><th>Nombres y Apellidos</th><td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td></tr>
+                    <tr><th>Cédula de Identidad</th><td style="font-family: monospace; font-weight: bold;">${item.cedula}</td></tr>
+                    <tr><th>Puesto / Cargo Asignado</th><td style="text-transform: uppercase;">${item.puesto}</td></tr>
+                    <tr><th>Tipo de Evaluación</th><td style="font-weight: bold; color: #0284c7;">${item.tipo}</td></tr>
+                    <tr><th>Fecha de Evaluación</th><td>${item.fecha}</td></tr>
+                </table>
+
+                <div class="section-title">2. DICTAMEN DE APTITUD LABORAL</div>
+                <div class="aptitud-box">
+                    RESULTADO: ${item.aptitud}
+                </div>
+
+                <div class="section-title">3. CONCLUSIONES Y RECOMENDACIONES OCUPACIONALES</div>
+                <div style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; line-height: 1.5; font-size: 11.5px; background: #fafafa;">
+                    El servidor ha sido evaluado bajo los protocolos oficiales de medicina del trabajo de la Universidad Estatal de Bolívar. 
+                    Cumple con los requisitos psicofisiológicos exigidos para el desempeño del puesto de trabajo según las normativas del Ministerio del Trabajo e IESS (Resolución CD 513).
+                    Se recomienda dar cumplimiento a pausas activas, ergonomía del puesto y controles médicos periódicos anuales.
+                </div>
+
+                <div class="footer-sig">
+                    <div>
+                        <div class="sig-line">FIRMA DEL TRABAJADOR EVALUADO</div>
+                        C.I.: ${item.cedula}
+                    </div>
+                    <div>
+                        <div class="sig-line">MÉDICO OCUPACIONAL</div>
+                        Registro Profesional MSP / Senescyt
+                    </div>
+                </div>
+                <script>
+                    if (document.readyState === 'complete') {
+                        setTimeout(function() { window.print(); }, 350);
+                    } else {
+                        window.addEventListener('load', function() {
+                            setTimeout(function() { window.print(); }, 350);
+                        });
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        safePrintHtml(html, `Ficha Ocupacional - ${item.paciente}`);
+    };
 
     const filteredExamenes = examenesData.filter(item => {
         const matchesSearch = (item.paciente || '').toLowerCase().includes(examSearchTerm.toLowerCase()) ||
@@ -1542,6 +7021,16 @@ export default function MedicoOcupacionalPage() {
         };
         setExamenesData([newOrder, ...examenesData]);
         setIsExamModalOpen(false);
+
+        if (patientSelected?.id) {
+            api.post('/medicina-ocupacional/orden-examen', {
+                id_usuario_paciente: patientSelected.id,
+                fecha: new Date().toISOString().split('T')[0],
+                observaciones: examForm.motivo || 'Orden de examen ocupacional',
+                otros_examenes: [examForm.examenTipo]
+            }).catch(err => console.log('Exam order saved locally'));
+        }
+
         setExamForm({
             pacienteCedula: '',
             pacienteNombre: '',
@@ -1655,42 +7144,32 @@ export default function MedicoOcupacionalPage() {
         }
     }, [vitalSigns.peso, vitalSigns.talla]);
 
-    // Search Patients Mock / API
+    // Search Patients real API (Institutional Staff: Docentes, Administrativos, Código de Trabajo)
     const handleSearchPatient = async (term = '') => {
         setSearchTerm(term);
-        const defaultMock = [
-            { id: '1', nombres: 'Carlos', apellidos: 'Mendoza Ruiz', cedula: '1723456789', puestoTrabajo: 'Docente Tiempo Completo', areaTrabajo: 'Facultad de Ingeniería' },
-            { id: '2', nombres: 'Laura', apellidos: 'Castillo Vega', cedula: '1718902341', puestoTrabajo: 'Asistente Administrativa', areaTrabajo: 'Talento Humano' },
-            { id: '3', nombres: 'Juan', apellidos: 'Pérez Gómez', cedula: '1798765432', puestoTrabajo: 'Analista de Sistemas', areaTrabajo: 'Tecnologías de Información' }
-        ];
-
-        if (!term || !term.trim()) {
-            try {
-                const res = await api.get('/patients/search?query=');
-                if (res.data && res.data.data && res.data.data.length > 0) {
-                    setSearchResults(res.data.data);
-                    return;
-                }
-            } catch (err) { }
-            setSearchResults(defaultMock);
-            return;
-        }
-
+        setPatientSearchTerm(term);
+        setIsSearchingPatients(true);
         try {
-            const res = await api.get(`/patients/search?query=${encodeURIComponent(term)}`);
-            if (res.data && res.data.data && res.data.data.length > 0) {
+            const trimmed = (term || '').trim();
+            const res = await api.get('/users/search-by-cedula', {
+                params: {
+                    query: trimmed,
+                    ambito: 'ocupacional'
+                }
+            });
+            if (res.data && Array.isArray(res.data.data)) {
                 setSearchResults(res.data.data);
-                return;
+            } else {
+                setSearchResults([]);
             }
-        } catch (err) { }
-
-        const filtered = defaultMock.filter(p =>
-            p.nombres.toLowerCase().includes(term.toLowerCase()) ||
-            p.apellidos.toLowerCase().includes(term.toLowerCase()) ||
-            p.cedula.includes(term)
-        );
-        setSearchResults(filtered);
+        } catch (err) {
+            console.error("Error searching occupational patients:", err);
+            setSearchResults([]);
+        } finally {
+            setIsSearchingPatients(false);
+        }
     };
+    const handleSearchPatients = handleSearchPatient;
 
     const openPatientSearch = (target = 'consulta') => {
         setPatientSearchTarget(target);
@@ -1698,10 +7177,39 @@ export default function MedicoOcupacionalPage() {
         setIsPatientSearchOpen(true);
     };
 
-    const selectPatient = (p) => {
+    const selectPatient = async (p) => {
         setPatientSelected(p);
         setPatientId(p.id || p.cedula);
         setIsPatientSearchOpen(false);
+
+        if (p.id) {
+            try {
+                const [signosRes, bloodRes] = await Promise.all([
+                    api.get('/medicina-general/signos-vitales', { params: { id_usuario_paciente: p.id } }).catch(() => ({ data: { data: [] } })),
+                    api.get(`/medicina-ocupacional/patient/${p.id}/blood-type`).catch(() => api.get(`/medicina-general/patient/${p.id}/blood-type`)).catch(() => ({ data: { data: null } }))
+                ]);
+                const latestSigns = Array.isArray(signosRes.data?.data) && signosRes.data.data.length > 0 ? signosRes.data.data[0] : null;
+                if (latestSigns) {
+                    setVitalSigns(prev => ({
+                        ...prev,
+                        paSystolic: latestSigns.presion_arterial_sistolica ? String(latestSigns.presion_arterial_sistolica) : prev.paSystolic,
+                        paDiastolic: latestSigns.presion_arterial_diastolica ? String(latestSigns.presion_arterial_diastolica) : prev.paDiastolic,
+                        fc: latestSigns.frecuencia_cardiaca ? String(latestSigns.frecuencia_cardiaca) : prev.fc,
+                        fr: latestSigns.frecuencia_respiratoria ? String(latestSigns.frecuencia_respiratoria) : prev.fr,
+                        temp: latestSigns.temperatura ? String(latestSigns.temperatura) : prev.temp,
+                        peso: latestSigns.peso ? String(latestSigns.peso) : prev.peso,
+                        talla: latestSigns.talla ? String(latestSigns.talla) : prev.talla
+                    }));
+                }
+                const blood = bloodRes.data?.data?.tipo_sangre || bloodRes.data?.data?.blood_type;
+                if (blood) {
+                    setVitalSigns(prev => ({ ...prev, tipoSangre: blood }));
+                }
+            } catch (err) {
+                console.log("Patient background clinical data offline");
+            }
+        }
+
         if (patientSearchTarget === 'exam') {
             setExamForm(prev => ({
                 ...prev,
@@ -1807,22 +7315,63 @@ export default function MedicoOcupacionalPage() {
         }
     };
 
+    
+    const handlePrintOfficialReintegroForm = (record) => {
+        printOfficialReintegroForm(record, uebBannerLogo);
+    };
+
+
     const handleSaveReintegro = (e) => {
         e.preventDefault();
         const newRecord = {
             id: Date.now(),
             fecha: reintegroForm.fechaReintegro,
+            fechaReintegro: reintegroForm.fechaReintegro,
             paciente: reintegroForm.pacienteNombre,
             cedula: reintegroForm.pacienteCedula,
+            puesto: reintegroForm.puesto,
+            cargo: reintegroForm.puesto,
             tipo: reintegroForm.tipoReintegro === 'total' ? 'Total' : 'Progresivo',
             dias: reintegroForm.diasIncapacidad || 0,
+            causaSalida: reintegroForm.diagnosticoOrigen || 'REPOSO MÉDICO AUTORIZADO',
             diagnostico: reintegroForm.diagnosticoOrigen,
-            puesto: reintegroForm.puesto,
-            aptitud: 'Aprobado',
+            motivo: `EVALUACIÓN MÉDICA OCUPACIONAL DE REINTEGRO EN EL PUESTO DE TRABAJO TRAS ${reintegroForm.diasIncapacidad || 0} DÍAS DE AUSENCIA.`,
+            aptitud: reintegroForm.tipoReintegro === 'total' ? 'Apto' : 'Apto con Adaptación',
+            aptitudDetalle: {
+                apto: reintegroForm.tipoReintegro === 'total',
+                observacion: reintegroForm.recomendaciones || 'Reincorporación a funciones habituales.',
+                limitacion: reintegroForm.restricciones || 'Pausas activas y control ergonómico.',
+                reubicacion: 'NINGUNA'
+            },
+            recomendaciones: reintegroForm.recomendaciones ? [
+                reintegroForm.recomendaciones,
+                'PAUSAS ACTIVAS CADA 2 HORAS EN LA JORNADA',
+                'CONTROL MÉDICO PERIÓDICO'
+            ] : [
+                '1.- MEDIDAS GENERALES DE SALUD E HIGIENE OCUPACIONAL',
+                '2.- ALIMENTACIÓN SALUDABLE Y PAUSAS ACTIVAS',
+                '3.- CONTROL OCUPACIONAL REGULAR'
+            ],
+            profesional: {
+                fecha: reintegroForm.fechaReintegro,
+                hora: new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }),
+                nombre: user?.nombre || 'DR. JORGE MORALES',
+                codigo: user?.cedula || '1804486288'
+            },
             estado: 'Aprobado'
         };
         setReintegrosData([newRecord, ...reintegrosData]);
         setIsReintegroModalOpen(false);
+
+        if (patientSelected?.id) {
+            api.post('/medicina-ocupacional/reintegro-ueb', {
+                id_usuario_paciente: patientSelected.id,
+                detalle_motivo_salida: reintegroForm.diagnosticoOrigen || 'Reposo médico ocupacional',
+                fecha_salida: new Date(Date.now() - (reintegroForm.diasIncapacidad || 15) * 86400000).toISOString().split('T')[0],
+                fecha_reintegro: reintegroForm.fechaReintegro
+            }).catch(err => console.log('Reintegro saved locally'));
+        }
+
         setReintegroForm({
             pacienteCedula: '',
             pacienteNombre: '',
@@ -2595,54 +8144,133 @@ export default function MedicoOcupacionalPage() {
                                 <div className="page-hero__icon"><FileText size={34} /></div>
                             </section>
 
-                            <div className="liquid-nav" style={{ marginBottom: '20px' }}>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'diario' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('diario')}
-                                >
-                                    <ClipboardList size={16} />
-                                    <span>Partes Diarios</span>
-                                </button>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'fichas' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('fichas')}
-                                >
-                                    <FileText size={16} />
-                                    <span>Fichas Ocupacionales</span>
-                                </button>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'citas' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('citas')}
-                                >
-                                    <CalendarCheck size={16} />
-                                    <span>Agendamiento de Citas</span>
-                                </button>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'examenes' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('examenes')}
-                                >
-                                    <Stethoscope size={16} />
-                                    <span>Exámenes & Laboratorio</span>
-                                </button>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'recetas' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('recetas')}
-                                >
-                                    <Pill size={16} />
-                                    <span>Recetario</span>
-                                </button>
-                                <button
-                                    className={`liquid-nav__item ${activeReportSubTab === 'mensual' ? 'active' : ''}`}
-                                    onClick={() => setActiveReportSubTab('mensual')}
-                                >
-                                    <FileText size={16} />
-                                    <span>Informe Estadístico Mensual</span>
-                                </button>
-                            </div>
+                            {/* NAVEGACIÓN ORGANIZADA: 2 CATEGORÍAS GRANDES + SELECT DESPLEGABLE */}
+                            {(() => {
+                                const isMatricesCat = ['catastroficas', 'accidentes', 'covid', 'ausentismo', 'embarazadas', 'psicosocial', 'enfermedades_nuevas', 'examenes_periodicos', 'discapacidad', 'vulnerables_patologias', 'personal_nuevo'].includes(activeReportSubTab);
+                                return (
+                                    <article className="nurse-card" style={{ padding: '14px 20px', marginBottom: '22px', borderRadius: '16px', background: '#ffffff', border: '1px solid var(--border, #e0e6ed)', boxShadow: '0 4px 18px rgba(0, 32, 64, 0.05)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                                            
+                                            {/* Pestañas de Categoría Principal */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--primary-soft, #eaf0f5)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(0,32,64,0.06)' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isMatricesCat) setActiveReportSubTab('diario');
+                                                    }}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        padding: '9px 18px',
+                                                        borderRadius: '9px',
+                                                        fontSize: '12.5px',
+                                                        fontWeight: '700',
+                                                        letterSpacing: '0.3px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        border: 'none',
+                                                        backgroundColor: !isMatricesCat ? 'var(--primary, #002040)' : 'transparent',
+                                                        color: !isMatricesCat ? '#ffffff' : 'var(--text-secondary, #5a6e7f)',
+                                                        boxShadow: !isMatricesCat ? '0 4px 12px rgba(0, 32, 64, 0.2)' : 'none'
+                                                    }}
+                                                >
+                                                    <FileText size={16} />
+                                                    <span>REPORTES DE GESTIÓN</span>
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isMatricesCat) setActiveReportSubTab('catastroficas');
+                                                    }}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        padding: '9px 18px',
+                                                        borderRadius: '9px',
+                                                        fontSize: '12.5px',
+                                                        fontWeight: '700',
+                                                        letterSpacing: '0.3px',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        border: 'none',
+                                                        backgroundColor: isMatricesCat ? 'var(--primary, #002040)' : 'transparent',
+                                                        color: isMatricesCat ? '#ffffff' : 'var(--text-secondary, #5a6e7f)',
+                                                        boxShadow: isMatricesCat ? '0 4px 12px rgba(0, 32, 64, 0.2)' : 'none'
+                                                    }}
+                                                >
+                                                    <FileSpreadsheet size={16} />
+                                                    <span>MATRICES ESTADÍSTICAS</span>
+                                                </button>
+                                            </div>
+
+                                            {/* Desplegable de Selección Específica */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1', maxWidth: '540px', minWidth: '280px' }}>
+                                                <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-muted, #8c9ba5)', textTransform: 'uppercase', letterSpacing: '0.6px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                    <Filter size={13} style={{ color: 'var(--primary, #002040)' }} />
+                                                    {isMatricesCat ? 'Matriz:' : 'Reporte:'}
+                                                </span>
+                                                <div style={{ position: 'relative', width: '100%' }}>
+                                                    <select
+                                                        value={activeReportSubTab}
+                                                        onChange={(e) => setActiveReportSubTab(e.target.value)}
+                                                        style={{
+                                                            width: '100%',
+                                                            height: '42px',
+                                                            padding: '0 36px 0 14px',
+                                                            borderRadius: '10px',
+                                                            border: '1.5px solid var(--border, #e0e6ed)',
+                                                            backgroundColor: '#ffffff',
+                                                            fontSize: '13px',
+                                                            fontWeight: '700',
+                                                            color: 'var(--primary, #002040)',
+                                                            outline: 'none',
+                                                            cursor: 'pointer',
+                                                            boxShadow: '0 2px 8px rgba(0, 32, 64, 0.04)',
+                                                            appearance: 'none',
+                                                            WebkitAppearance: 'none',
+                                                            transition: 'border-color 0.2s, box-shadow 0.2s'
+                                                        }}
+                                                    >
+                                                        {!isMatricesCat ? (
+                                                            <>
+                                                                <option value="diario">Parte Diario de Atenciones del Día</option>
+                                                                <option value="fichas">Fichas Médicas Ocupacionales (Ingreso / Cese / Reintegro)</option>
+                                                                <option value="citas">Agendamiento y Control de Citas Médicas</option>
+                                                                <option value="examenes">Órdenes de Exámenes & Laboratorio Clínico</option>
+                                                                <option value="recetas">Prescripción Médica & Recetario Ocupacional</option>
+                                                                <option value="mensual">Informe Estadístico Mensual Consolidado</option>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <option value="catastroficas">Matriz de Enfermedades Catastróficas o Huérfanas</option>
+                                                                <option value="accidentes">Matriz de Accidentes Laborales y Enfermedades Profesionales</option>
+                                                                <option value="covid">Matriz de Casos Sospechosos y Confirmados COVID-19</option>
+                                                                <option value="ausentismo">Matriz de Ausentismo Laboral (Índice Horas Trabajadas/Ausentes)</option>
+                                                                <option value="embarazadas">Matriz Censo de Embarazadas UEB (FPP / Semanas Gestación)</option>
+                                                                <option value="psicosocial">Matriz de Riesgo Psicosocial (Ansiedad y Depresión)</option>
+                                                                <option value="enfermedades_nuevas">Matriz de Enfermedades Nuevas (Incidencia UEB)</option>
+                                                                <option value="examenes_periodicos">Matriz de Exámenes Médicos y Fichas Periódicas por Mes</option>
+                                                                <option value="discapacidad">Matriz de Funcionarios con Discapacidad / Grupo Vulnerable</option>
+                                                                <option value="vulnerables_patologias">Matriz de Grupos Vulnerables (Diabéticos, Hipertensos, Adulto Mayor, Otras)</option>
+                                                                <option value="personal_nuevo">Matriz de Personal Nuevo que Ingresó en el Año</option>
+                                                            </>
+                                                        )}
+                                                    </select>
+                                                    <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary, #5a6e7f)' }} />
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </article>
+                                );
+                            })()}
 
                             {/* SUBTAB: DIARIO */}
                             {activeReportSubTab === 'diario' && (
-                                <div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <article className="nurse-card span-12 daily-header-card" style={{ borderRadius: '14px', padding: '20px' }}>
                                         <div className="daily-date-control" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '16px' }}>
                                             <div>
@@ -2650,7 +8278,7 @@ export default function MedicoOcupacionalPage() {
                                                 <h3>Atenciones del día</h3>
                                                 <p>Selecciona una fecha para consultar y exportar el reporte correspondiente.</p>
                                             </div>
-                                            <div className="date-navigation" style={{ display: 'flex', gap: '8px' }}>
+                                            <div className="date-navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
@@ -2660,253 +8288,236 @@ export default function MedicoOcupacionalPage() {
                                                         style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', outline: 0 }}
                                                     />
                                                 </label>
-                                                <button
-                                                    onClick={() => handlePrintParteDiario()}
-                                                    className="action-button action-button--accent"
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                >
-                                                    <Printer size={14} /> Imprimir Reporte
-                                                </button>
                                             </div>
                                         </div>
-
-                                        <section className="psycho-kpis" style={{ marginTop: '20px' }}>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><UserCheck size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Atendidos Hoy</span>
-                                                    <strong>0</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><HeartHandshake size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Evaluación Periódica</span>
-                                                    <strong>0</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><TrendingUp size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Reintegros</span>
-                                                    <strong>0</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Fichas Médicas</span>
-                                                    <strong>0</strong>
-                                                </div>
-                                            </div>
-                                        </section>
                                     </article>
 
-                                    <article className="nurse-card span-12" style={{ marginTop: '20px', borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                                            No hay atenciones registradas en el diario para la fecha seleccionada.
+                                    {/* Visor PDF del Parte Diario */}
+                                    <div className="document-viewer" style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
+                                        background: '#0f172a',
+                                        boxShadow: 'var(--shadow-lg)'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 20px',
+                                            borderBottom: '1px solid rgba(255,255,255,0.08)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{
+                                                    background: '#ef4444',
+                                                    color: '#fff',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '11px'
+                                                }}>PDF</div>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Parte_Diario_Ocupacional_{parteDiarioDate}.pdf</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                className="action-button action-button--accent"
+                                                onClick={handlePrintParteDiario}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
+                                            >
+                                                <Printer size={14} /> Imprimir / Descargar
+                                            </button>
                                         </div>
-                                    </article>
+                                        <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                            {parteDiarioLoading ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '500px', color: '#fff', gap: '12px' }}>
+                                                    <div className="spinner" style={{ border: '4px solid rgba(255,255,255,0.1)', borderTop: '4px solid #fff', borderRadius: '50%', width: '32px', height: '32px', animation: 'spin 1s linear infinite' }}></div>
+                                                    <span>Compilando parte diario oficial...</span>
+                                                </div>
+                                            ) : (
+                                                <iframe
+                                                    ref={diarioIframeRef}
+                                                    title="Parte Diario Ocupacional"
+                                                    srcDoc={compileParteDiarioHtmlString(false)}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: '1050px',
+                                                        height: '620px',
+                                                        border: 'none',
+                                                        background: '#fff',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
-                            {/* SUBTAB: FICHAS OCUPACIONALES */}
+                            {/* SUBTAB: FICHAS OCUPACIONALES - FORMATO OFICIAL MSP/MDT 077 */}
                             {activeReportSubTab === 'fichas' && (
-                                <div>
-                                    <div className="card" style={{ borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-                                        {/* BARRA SUPERIOR: SUBPESTAÑAS DE TIPO DE FICHA + ACCIONES */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
-                                            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${fichaSubTab === 'ingreso' ? 'active' : ''}`}
-                                                    onClick={() => setFichaSubTab('ingreso')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <FileCheck size={16} /> Ingreso / Periódico
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${fichaSubTab === 'cese' ? 'active' : ''}`}
-                                                    onClick={() => setFichaSubTab('cese')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <UserX size={16} /> Retiro / Cese
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${fichaSubTab === 'reintegro' ? 'active' : ''}`}
-                                                    onClick={() => setFichaSubTab('reintegro')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <RefreshCw size={16} /> Reintegro Laboral
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${fichaSubTab === 'embarazadas' ? 'active' : ''}`}
-                                                    onClick={() => setFichaSubTab('embarazadas')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <Heart size={16} /> Gestantes / Lactantes
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${fichaSubTab === 'discapacidad' ? 'active' : ''}`}
-                                                    onClick={() => setFichaSubTab('discapacidad')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <ShieldAlert size={16} /> Discapacidad
-                                                </button>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    {/* TARJETA DE CONTROL: SUBPESTAÑAS Y BUSCADOR DE PACIENTE */}
+                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
+                                            <div>
+                                                <span className="eyebrow">MINISTERIO DE SALUD PÚBLICA / MDT</span>
+                                                <h3 style={{ margin: '4px 0 6px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                                                    Fichas Médicas Ocupacionales · Formulario Oficial 077
+                                                </h3>
+                                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                                                    Formato oficial normado de evaluación médica ocupacional (MSP / MDT Formulario 077).
+                                                </p>
+                                                
+                                                {/* SUBPESTAÑAS DE TIPO DE FICHA 077 */}
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        className={`history-tab ${fichaSubTab === 'ingreso' ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            setFichaSubTab('ingreso');
+                                                            setFichaSearchTerm('');
+                                                            const firstIngreso = fichasData.find(f => f.tipo === 'Ingreso' || f.tipo === 'Periódico');
+                                                            if (firstIngreso) setSelectedFichaWorkerId(firstIngreso.id);
+                                                        }}
+                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                    >
+                                                        <FileCheck size={14} /> Ingreso / Periódico (077)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`history-tab ${fichaSubTab === 'cese' ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            setFichaSubTab('cese');
+                                                            setFichaSearchTerm('');
+                                                            const firstRetiro = fichasData.find(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
+                                                            if (firstRetiro) setSelectedFichaWorkerId(firstRetiro.id);
+                                                        }}
+                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                    >
+                                                        <UserX size={14} /> Retiro / Cese (077)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`history-tab ${fichaSubTab === 'reintegro' ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            setFichaSubTab('reintegro');
+                                                            setFichaSearchTerm('');
+                                                            if (reintegrosData.length > 0) setSelectedFichaWorkerId(reintegrosData[0].id);
+                                                        }}
+                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                    >
+                                                        <RefreshCw size={14} /> Reintegro Laboral (077)
+                                                    </button>
+                                                </div>
                                             </div>
 
-                                            {fichaSubTab === 'reintegro' ? (
-                                                <button
-                                                    type="button"
-                                                    className="action-button action-button--primary"
-                                                    onClick={() => setIsReintegroModalOpen(true)}
-                                                    style={{ padding: '10px 18px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: '12px' }}
-                                                >
-                                                    <Plus size={16} /> Registrar Reintegro
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    className="action-button action-button--primary"
-                                                    onClick={openPatientSearch}
-                                                    style={{ padding: '10px 18px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px', borderRadius: '12px' }}
-                                                >
-                                                    <Plus size={16} /> Nueva Ficha Ocupacional
-                                                </button>
-                                            )}
+                                            {/* BUSCADOR DE PACIENTE FUERA DEL VISOR */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Buscar trabajador por nombre o cédula..."
+                                                        value={fichaSearchTerm}
+                                                        onChange={(e) => setFichaSearchTerm(e.target.value)}
+                                                        style={{
+                                                            border: '1px solid var(--border)',
+                                                            borderRadius: '8px',
+                                                            padding: '8px 12px 8px 32px',
+                                                            fontSize: '12px',
+                                                            minWidth: '280px',
+                                                            outline: 'none',
+                                                            background: '#ffffff'
+                                                        }}
+                                                    />
+                                                    {fichaSearchTerm && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFichaSearchTerm('')}
+                                                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
+                                    </article>
 
-                                        {/* FILTRO Y BUSCADOR */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', gap: '12px', flexWrap: 'wrap' }}>
-                                            <div className="patient-search-input" style={{ width: '100%', maxWidth: '400px' }}>
-                                                <Search size={16} />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Buscar por paciente, cédula o puesto de trabajo..."
-                                                    value={fichaSearchTerm}
-                                                    onChange={e => setFichaSearchTerm(e.target.value)}
-                                                />
+                                    {/* VISOR DE DOCUMENTO OFICIAL FORMATO 077 */}
+                                    <div className="document-viewer" style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
+                                        background: '#0f172a',
+                                        boxShadow: 'var(--shadow-lg)'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 20px',
+                                            borderBottom: '1px solid rgba(255,255,255,0.08)',
+                                            flexWrap: 'wrap',
+                                            gap: '12px'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{
+                                                    background: '#ef4444',
+                                                    color: '#fff',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '11px'
+                                                }}>PDF</div>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>
+                                                        {`Formulario_077_${fichaSubTab.toUpperCase()}_${selectedFichaRecord?.paciente ? selectedFichaRecord.paciente.trim().replace(/\s+/g, '_') : 'EXPEDIENTE'}.pdf`}
+                                                    </span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '10.5px' }}>
+                                                        Formato Oficial MSP/MDT 077 · {selectedFichaRecord?.paciente || 'Trabajador'} (C.I.: {selectedFichaRecord?.cedula || ''}) · {selectedFichaRecord?.puesto || ''}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-                                                {fichaSubTab === 'reintegro' ? 'Reintegros filtrados:' : 'Expedientes filtrados:'} <strong>{fichaSubTab === 'reintegro' ? filteredReintegros.length : filteredFichas.length}</strong>
-                                            </div>
+                                            <button
+                                                className="action-button action-button--accent"
+                                                onClick={handlePrintSelectedFicha}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
+                                            >
+                                                <Printer size={14} /> Imprimir / Descargar Formulario 077
+                                            </button>
                                         </div>
-
-                                        {/* TABLA ESTILIZADA */}
-                                        {fichaSubTab === 'reintegro' ? (
-                                            <div className="table-responsive">
-                                                <table className="table" style={{ width: '100%' }}>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Fecha Reintegro</th>
-                                                            <th>Trabajador</th>
-                                                            <th>Cédula</th>
-                                                            <th>Puesto</th>
-                                                            <th>Días Incapacidad</th>
-                                                            <th>Diagnóstico Origen</th>
-                                                            <th>Modalidad</th>
-                                                            <th style={{ textAlign: 'right' }}>Estado</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {filteredReintegros.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13.5px' }}>
-                                                                    No hay registros de reintegro laboral en este apartado.
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            filteredReintegros.map(item => (
-                                                                <tr key={item.id}>
-                                                                    <td>{item.fecha}</td>
-                                                                    <td><strong>{item.paciente}</strong></td>
-                                                                    <td>{item.cedula}</td>
-                                                                    <td>{item.puesto}</td>
-                                                                    <td><strong style={{ color: '#0369a1' }}>{item.dias} días</strong></td>
-                                                                    <td>{item.diagnostico}</td>
-                                                                    <td><span className="badge-role" style={{ background: '#f1f5f9', color: '#334155' }}>{item.tipo}</span></td>
-                                                                    <td style={{ textAlign: 'right' }}>
-                                                                        <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '700', background: item.estado === 'Aprobado' ? '#f0fdf4' : '#fffbeb', color: item.estado === 'Aprobado' ? '#166534' : '#b45309' }}>
-                                                                            {item.estado}
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <div className="table-responsive">
-                                                <table className="table" style={{ width: '100%' }}>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Fecha</th>
-                                                            <th>Paciente</th>
-                                                            <th>Cédula</th>
-                                                            <th>Tipo Ficha</th>
-                                                            <th>Puesto de Trabajo</th>
-                                                            <th>Dictamen Aptitud</th>
-                                                            <th style={{ textAlign: 'right' }}>Acciones</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {filteredFichas.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan="7" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13.5px' }}>
-                                                                    No hay fichas ocupacionales registradas en este apartado.
-                                                                </td>
-                                                            </tr>
-                                                        ) : (
-                                                            filteredFichas.map(item => (
-                                                                <tr key={item.id}>
-                                                                    <td>{item.fecha}</td>
-                                                                    <td><strong>{item.paciente}</strong></td>
-                                                                    <td>{item.cedula}</td>
-                                                                    <td>
-                                                                        <span className="badge-role" style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '600' }}>
-                                                                            {item.tipo}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>{item.puesto}</td>
-                                                                    <td>
-                                                                        <span style={{
-                                                                            padding: '5px 12px',
-                                                                            borderRadius: '20px',
-                                                                            fontSize: '11.5px',
-                                                                            fontWeight: '700',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '6px',
-                                                                            background: item.aptitud.includes('Restricción') ? '#fffbeb' : item.aptitud.includes('No') ? '#fef2f2' : '#f0fdf4',
-                                                                            color: item.aptitud.includes('Restricción') ? '#b45309' : item.aptitud.includes('No') ? '#dc2626' : '#15803d',
-                                                                            border: item.aptitud.includes('Restricción') ? '1px solid #fef3c7' : item.aptitud.includes('No') ? '1px solid #fecdd3' : '1px solid #dcfce7'
-                                                                        }}>
-                                                                            {item.aptitud.includes('Restricción') ? <AlertTriangle size={12} /> : item.aptitud.includes('No') ? <AlertOctagon size={12} /> : <CheckCircle size={12} />}
-                                                                            {item.aptitud}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td style={{ textAlign: 'right' }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="action-button action-button--light"
-                                                                            style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px' }}
-                                                                            onClick={() => alert(`Generando PDF de la Ficha Ocupacional de ${item.paciente}`)}
-                                                                        >
-                                                                            <Printer size={14} /> Imprimir PDF
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
+                                        <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                            <iframe
+                                                ref={fichasIframeRef}
+                                                title="Formulario Oficial MSP 077"
+                                                srcDoc={compileCurrentFicha077Html(selectedFichaRecord, false)}
+                                                style={{
+                                                    width: '100%',
+                                                    maxWidth: '1050px',
+                                                    height: '780px',
+                                                    border: 'none',
+                                                    background: '#fff',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -2944,68 +8555,77 @@ export default function MedicoOcupacionalPage() {
                                                     <option value="completada">Completadas</option>
                                                     <option value="cancelada">Canceladas</option>
                                                 </select>
-                                                <button className="action-button action-button--accent" onClick={handlePrintReporteCitas} style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '34px' }}>
-                                                    <Printer size={14} /> Imprimir Reporte
-                                                </button>
                                             </div>
                                         </div>
                                     </article>
 
-                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        {citasList.length === 0 ? (
-                                            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                                                No hay citas registradas en la fecha y filtros seleccionados.
+                                    {/* Visor PDF de Reporte de Citas */}
+                                    <div className="document-viewer" style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '14px',
+                                        overflow: 'hidden',
+                                        background: '#0f172a',
+                                        boxShadow: 'var(--shadow-lg)'
+                                    }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '12px 20px',
+                                            borderBottom: '1px solid rgba(255,255,255,0.08)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{
+                                                    background: '#ef4444',
+                                                    color: '#fff',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '6px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '11px'
+                                                }}>PDF</div>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Ocupacional_{reportCitasFecha}.pdf</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <div style={{ overflowX: 'auto' }}>
-                                                <table className="daily-table" style={{ width: '100%' }}>
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Hora</th>
-                                                            <th>Paciente</th>
-                                                            <th>Cédula</th>
-                                                            <th>Evaluación / Motivo</th>
-                                                            <th style={{ textAlign: 'center' }}>Estado</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {citasList.map((cita) => {
-                                                            const patientName = cita.paciente?.name || cita.pacienteNombre || '—';
-                                                            const cedula = cita.paciente?.cedula || cita.cedula || '—';
-                                                            const isCancel = cita.estado === 'cancelada';
-                                                            const isDone = cita.estado === 'completada';
-
-                                                            return (
-                                                                <tr key={cita.id}>
-                                                                    <td style={{ fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
-                                                                        {cita.hora_inicio} - {cita.hora_fin}
-                                                                    </td>
-                                                                    <td>
-                                                                        <strong>{patientName}</strong>
-                                                                    </td>
-                                                                    <td>{cedula}</td>
-                                                                    <td>{cita.tipo_evaluacion || cita.motivo || 'Consulta General'}</td>
-                                                                    <td style={{ textAlign: 'center' }}>
-                                                                        <span style={{
-                                                                            fontSize: '9.5px',
-                                                                            fontWeight: '750',
-                                                                            textTransform: 'uppercase',
-                                                                            padding: '3px 8px',
-                                                                            borderRadius: '12px',
-                                                                            background: isCancel ? 'rgba(183, 26, 52, 0.1)' : isDone ? 'rgba(22, 131, 93, 0.1)' : 'rgba(0, 32, 64, 0.08)',
-                                                                            color: isCancel ? 'var(--accent)' : isDone ? 'var(--success)' : 'var(--primary)'
-                                                                        }}>
-                                                                            {cita.estado}
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </article>
+                                            <button
+                                                className="action-button action-button--accent"
+                                                onClick={handlePrintReporteCitas}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
+                                            >
+                                                <Printer size={14} /> Imprimir / Descargar
+                                            </button>
+                                        </div>
+                                        <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                            {citasLoading ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '500px', color: '#fff', gap: '12px' }}>
+                                                    <div className="spinner" style={{ border: '4px solid rgba(255,255,255,0.1)', borderTop: '4px solid #fff', borderRadius: '50%', width: '32px', height: '32px', animation: 'spin 1s linear infinite' }}></div>
+                                                    <span>Generando vista previa...</span>
+                                                </div>
+                                            ) : (
+                                                <iframe
+                                                    ref={citasIframeRef}
+                                                    title="Reporte Citas Ocupacional"
+                                                    srcDoc={compileCitasReportHtmlString(false)}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: '1050px',
+                                                        height: '620px',
+                                                        border: 'none',
+                                                        background: '#fff',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -3166,112 +8786,173 @@ export default function MedicoOcupacionalPage() {
                                 </div>
                             )}
 
-                            {/* SUBTAB: RECETARIO OCUPACIONAL */}
-                            {activeReportSubTab === 'recetas' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%', marginBottom: '16px' }}>
-                                            <div>
-                                                <span className="eyebrow">REGISTRO DE FARMACIA Y PRESCRIPCIÓN</span>
-                                                <h3>Buscador de Recetarios Médicos Ocupacionales</h3>
-                                                <p>Consulte, descargue e imprima los recetarios oficiales emitidos en el puesto de salud ocupacional.</p>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                <div style={{ position: 'relative' }}>
-                                                    <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Buscar por paciente o cédula..."
-                                                        value={recetasSearchNombre}
-                                                        onChange={(e) => setRecetasSearchNombre(e.target.value)}
-                                                        style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 12px 7px 32px', fontSize: '11.5px', minWidth: '220px', outline: 0 }}
-                                                    />
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <CalendarDays size={16} color="var(--accent)" />
-                                                    <input
-                                                        type="date"
-                                                        value={recetasSearchFecha}
-                                                        onChange={(e) => setRecetasSearchFecha(e.target.value)}
-                                                        style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11.5px', outline: 0 }}
-                                                    />
-                                                    {recetasSearchFecha && (
-                                                        <button className="action-button action-button--light" style={{ padding: '4px 8px', fontSize: '10px' }} onClick={() => setRecetasSearchFecha('')}>
-                                                            Limpiar fecha
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                            {/* SUBTAB: RECETARIO Y PRESCRIPCIÓN MÉDICA OCUPACIONAL */}
+                            {activeReportSubTab === 'recetas' && (() => {
+                                const term = (recetasSearchNombre || '').trim().toLowerCase();
+                                const filteredRecetas = recetasData.filter(r => {
+                                    const matchNombre = !term ||
+                                        (r.paciente || '').toLowerCase().includes(term) ||
+                                        (r.cedula || '').includes(term) ||
+                                        (r.numero_receta || '').toLowerCase().includes(term) ||
+                                        (r.cie || '').toLowerCase().includes(term);
+                                    const matchFecha = !recetasSearchFecha || r.fecha === recetasSearchFecha;
+                                    return matchNombre && matchFecha;
+                                });
 
-                                        <div style={{ overflowX: 'auto', width: '100%' }}>
-                                            <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                                <thead>
-                                                    <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>N° Receta</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>Fecha</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>Paciente</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>Cédula</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>CIE / Diagnóstico</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)' }}>Estado</th>
-                                                        <th style={{ padding: '12px 14px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>Acción</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {recetasData.filter(r => {
-                                                        const matchNombre = !recetasSearchNombre.trim() ||
-                                                            r.paciente.toLowerCase().includes(recetasSearchNombre.trim().toLowerCase()) ||
-                                                            r.cedula.includes(recetasSearchNombre.trim());
-                                                        const matchFecha = !recetasSearchFecha || r.fecha === recetasSearchFecha;
-                                                        return matchNombre && matchFecha;
-                                                    }).length === 0 ? (
-                                                        <tr>
-                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                                                                No se encontraron recetarios que coincidan con la búsqueda.
-                                                            </td>
-                                                        </tr>
-                                                    ) : (
-                                                        recetasData.filter(r => {
-                                                            const matchNombre = !recetasSearchNombre.trim() ||
-                                                                r.paciente.toLowerCase().includes(recetasSearchNombre.trim().toLowerCase()) ||
-                                                                r.cedula.includes(recetasSearchNombre.trim());
-                                                            const matchFecha = !recetasSearchFecha || r.fecha === recetasSearchFecha;
-                                                            return matchNombre && matchFecha;
-                                                        }).map((receta, idx) => (
-                                                            <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                                <td style={{ padding: '12px 14px', fontWeight: '700', color: 'var(--primary)' }}>
-                                                                    {receta.numero_receta || `REC-${receta.id}`}
-                                                                </td>
-                                                                <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{receta.fecha}</td>
-                                                                <td style={{ padding: '12px 14px', fontWeight: '600' }}>{receta.paciente}</td>
-                                                                <td style={{ padding: '12px 14px' }}>{receta.cedula}</td>
-                                                                <td style={{ padding: '12px 14px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                    {receta.cie || 'Evaluación Médica'}
-                                                                </td>
-                                                                <td style={{ padding: '12px 14px' }}>
-                                                                    <span style={{ fontSize: '10.5px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                                                                        {receta.estado || 'Emitido'}
-                                                                    </span>
-                                                                </td>
-                                                                <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="action-button action-button--accent"
-                                                                        style={{ padding: '5px 12px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                                                                        onClick={() => setSelectedRecetaPreview(receta)}
-                                                                    >
-                                                                        <Pill size={14} /> Ver Receta
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                const currentSelectedReceta = (term && filteredRecetas.length > 0)
+                                    ? filteredRecetas[0]
+                                    : (filteredRecetas.find(r => String(r.id) === String(selectedRecetaId)) ||
+                                       filteredRecetas[0] ||
+                                       recetasData.find(r => String(r.id) === String(selectedRecetaId)) ||
+                                       recetasData[0]);
+
+                                const handlePrintCurrentReceta = () => {
+                                    if (!currentSelectedReceta) {
+                                        showSystemToast('No hay una receta seleccionada para imprimir.');
+                                        return;
+                                    }
+                                    printIframeDocument(recetaIframeRef, () => compileRecetaFormHtmlString(currentSelectedReceta, false));
+                                    showSystemToast('Enviando receta médica oficial a impresión...');
+                                };
+
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* TARJETA DE CONTROL: BUSCADOR DE EXPEDIENTE / PACIENTE FUERA DEL VISOR */}
+                                        <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
+                                                <div>
+                                                    <span className="eyebrow">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</span>
+                                                    <h3 style={{ margin: '4px 0 6px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                                                        Prescripción Médica Ocupacional · Recetario Oficial
+                                                    </h3>
+                                                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                                                        Formato oficial normado de indicaciones farmacológicas, horarios y recomendaciones médicas para el paciente.
+                                                    </p>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                                    {/* Buscador de paciente por nombre o cédula */}
+                                                    <div style={{ position: 'relative' }}>
+                                                        <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Buscar paciente por nombre o cédula..."
+                                                            value={recetasSearchNombre}
+                                                            onChange={(e) => setRecetasSearchNombre(e.target.value)}
+                                                            style={{
+                                                                border: '1px solid var(--border)',
+                                                                borderRadius: '8px',
+                                                                padding: '8px 12px 8px 32px',
+                                                                fontSize: '12px',
+                                                                minWidth: '280px',
+                                                                outline: 'none',
+                                                                background: '#ffffff'
+                                                            }}
+                                                        />
+                                                        {recetasSearchNombre && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setRecetasSearchNombre('')}
+                                                                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Filtro por fecha */}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <CalendarDays size={16} color="var(--accent)" />
+                                                        <input
+                                                            type="date"
+                                                            value={recetasSearchFecha}
+                                                            onChange={(e) => setRecetasSearchFecha(e.target.value)}
+                                                            style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 10px', fontSize: '11.5px', outline: 0, background: '#fff' }}
+                                                        />
+                                                        {recetasSearchFecha && (
+                                                            <button
+                                                                className="action-button action-button--light"
+                                                                style={{ padding: '6px 10px', fontSize: '11px' }}
+                                                                onClick={() => setRecetasSearchFecha('')}
+                                                                title="Quitar filtro de fecha"
+                                                            >
+                                                                Limpiar
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </article>
+
+                                        {/* VISOR DE PDF OFICIAL DE PREESCRIPCIÓN MÉDICA */}
+                                        <div className="document-viewer" style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            border: '1px solid var(--border)',
+                                            borderRadius: '14px',
+                                            overflow: 'hidden',
+                                            background: '#0f172a',
+                                            boxShadow: 'var(--shadow-lg)'
+                                        }}>
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '12px 20px',
+                                                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                                                flexWrap: 'wrap',
+                                                gap: '12px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <div style={{
+                                                        background: '#ef4444',
+                                                        color: '#fff',
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '6px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontWeight: 'bold',
+                                                        fontSize: '11px'
+                                                    }}>PDF</div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>
+                                                            {`Receta_Medica_${currentSelectedReceta?.numero_receta || '001'}_${currentSelectedReceta?.paciente ? currentSelectedReceta.paciente.trim().replace(/\s+/g, '_') : 'EXPEDIENTE'}.pdf`}
+                                                        </span>
+                                                        <span style={{ color: '#94a3b8', fontSize: '10.5px' }}>
+                                                            Formato Oficial de Recetario (Puesto de Salud UEB) · {currentSelectedReceta?.paciente || 'Paciente'} (C.I.: {currentSelectedReceta?.cedula || ''}) · Emisión: {currentSelectedReceta?.fecha || ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    className="action-button action-button--accent"
+                                                    onClick={handlePrintCurrentReceta}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
+                                                >
+                                                    <Printer size={14} /> Imprimir / Descargar Receta
+                                                </button>
+                                            </div>
+                                            <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                                <iframe
+                                                    ref={recetaIframeRef}
+                                                    title="Recetario Médico Ocupacional Oficial"
+                                                    srcDoc={compileRecetaFormHtmlString(currentSelectedReceta, false)}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: '950px',
+                                                        height: '780px',
+                                                        border: 'none',
+                                                        background: '#fff',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                    </article>
-                                </div>
-                            )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* SUBTAB: INFORME ESTADÍSTICO MENSUAL */}
                             {activeReportSubTab === 'mensual' && (
@@ -3284,18 +8965,63 @@ export default function MedicoOcupacionalPage() {
                                                 <p>Genere y visualice la tabulación de atenciones acumulativas distribuidas por carrera y género del mes seleccionado.</p>
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    border: '1px solid var(--border)',
+                                                    borderRadius: '8px',
+                                                    padding: '4px 10px',
+                                                    background: '#ffffff',
+                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                                                }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
-                                                    <input
-                                                        type="month"
-                                                        value={reportMensualFecha}
-                                                        onChange={(e) => setReportMensualFecha(e.target.value)}
-                                                        style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', outline: 0 }}
-                                                    />
-                                                </label>
-                                                <button className="action-button action-button--accent" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '34px' }}>
-                                                    <Printer size={14} /> Imprimir Reporte
-                                                </button>
+                                                    <select
+                                                        value={genReportMonth}
+                                                        onChange={(e) => {
+                                                            const m = parseInt(e.target.value);
+                                                            setGenReportMonth(m);
+                                                            setReportMensualFecha(`${genReportYear}-${String(m).padStart(2, '0')}`);
+                                                        }}
+                                                        style={{
+                                                            border: 'none',
+                                                            outline: 'none',
+                                                            fontSize: '11.5px',
+                                                            fontWeight: 600,
+                                                            color: 'var(--text-main, #1e293b)',
+                                                            background: 'transparent',
+                                                            cursor: 'pointer',
+                                                            padding: '2px 4px'
+                                                        }}
+                                                    >
+                                                        {["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"].map((mes, idx) => (
+                                                            <option key={idx + 1} value={idx + 1}>{mes}</option>
+                                                        ))}
+                                                    </select>
+                                                    <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '11.5px', fontWeight: 500 }}>de</span>
+                                                    <select
+                                                        value={genReportYear}
+                                                        onChange={(e) => {
+                                                            const y = parseInt(e.target.value);
+                                                            setGenReportYear(y);
+                                                            setReportMensualFecha(`${y}-${String(genReportMonth).padStart(2, '0')}`);
+                                                        }}
+                                                        style={{
+                                                            border: 'none',
+                                                            outline: 'none',
+                                                            fontSize: '11.5px',
+                                                            fontWeight: 600,
+                                                            color: 'var(--text-main, #1e293b)',
+                                                            background: 'transparent',
+                                                            cursor: 'pointer',
+                                                            padding: '2px 4px'
+                                                        }}
+                                                    >
+                                                        {[2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                                                            <option key={y} value={y}>{y}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
                                     </article>
@@ -3331,28 +9057,1554 @@ export default function MedicoOcupacionalPage() {
                                                     fontSize: '11px'
                                                 }}>PDF</div>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Informe_Estadistico_Mensual_Ocupacional.pdf</span>
+                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Informe_Estadistico_Mensual_Ocupacional_{["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][genReportMonth - 1]}_{genReportYear}.pdf</span>
                                                     <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
                                                 </div>
                                             </div>
                                             <button
                                                 className="action-button action-button--accent"
-                                                onClick={() => window.print()}
+                                                onClick={handlePrintGeneralReport}
                                                 style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
                                             >
                                                 <Printer size={14} /> Imprimir / Descargar
                                             </button>
                                         </div>
-                                        <div style={{ background: '#334155', padding: '40px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8', minHeight: '350px' }}>
-                                            <span>Informe acumulado listo para auditorías institucionales y Ministerio del Trabajo.</span>
+                                        <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                            {genReportLoading ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '500px', color: '#fff', gap: '12px' }}>
+                                                    <div className="spinner" style={{ border: '4px solid rgba(255,255,255,0.1)', borderTop: '4px solid #fff', borderRadius: '50%', width: '32px', height: '32px', animation: 'spin 1s linear infinite' }}></div>
+                                                    <span>Compilando informe mensual oficial...</span>
+                                                </div>
+                                            ) : (
+                                                <iframe
+                                                    ref={mensualIframeRef}
+                                                    title="Informe Mensual Ocupacional"
+                                                    srcDoc={compileGeneralReportHtmlString(genReportData, false)}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: '1050px',
+                                                        height: '620px',
+                                                        border: 'none',
+                                                        background: '#fff',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             )}
+
+                            {/* SUBTAB: EXÁMENES & LABORATORIO OCUPACIONAL */}
+                            {activeReportSubTab === 'examenes' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span className="eyebrow" style={{ color: '#0284c7' }}>LABORATORIO CLÍNICO & VIGILANCIA</span>
+                                                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>FORMATO UEB</span>
+                                                </div>
+                                                <h3 style={{ margin: '4px 0', fontSize: '18px', color: '#0b3c5d' }}>Órdenes de Exámenes de Laboratorio Clínico</h3>
+                                                <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>
+                                                    Emita la orden médica con la cuadrícula oficial de 11 categorías o revise las órdenes generadas por fecha de emisión.
+                                                </p>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <button
+                                                    className="action-button action-button--accent"
+                                                    onClick={() => setIsExamModalOpen(true)}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0b3c5d', color: '#ffffff', fontWeight: 'bold' }}
+                                                >
+                                                    <FileText size={15} /> Emitir Nueva Orden de Examen
+                                                </button>
+                                                <button
+                                                    className="action-button action-button--light"
+                                                    onClick={handlePrintDailyExamsReport}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                >
+                                                    <Printer size={15} /> Imprimir Reporte de Órdenes
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+
+                                    {/* FILTROS Y BÚSQUEDA DE ÓRDENES */}
+                                    <div className="nurse-card span-12" style={{ borderRadius: '14px', padding: '16px 20px', background: '#ffffff' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+                                                <div className="search-bar" style={{ maxWidth: '320px', margin: 0 }}>
+                                                    <Search size={16} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Buscar por paciente, cédula o examen..."
+                                                        value={examSearchTerm}
+                                                        onChange={(e) => setExamSearchTerm(e.target.value)}
+                                                    />
+                                                    {examSearchTerm && (
+                                                        <button onClick={() => setExamSearchTerm('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* SELECTOR DE FECHA CON OPCIÓN HISTÓRICO */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                    <CalendarDays size={16} color="#0284c7" />
+                                                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>Fecha Emisión:</span>
+                                                    <input
+                                                        type="date"
+                                                        disabled={!useExamDateFilter}
+                                                        value={examReportDate}
+                                                        onChange={(e) => setExamReportDate(e.target.value)}
+                                                        style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', opacity: useExamDateFilter ? 1 : 0.5 }}
+                                                    />
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b', cursor: 'pointer', marginLeft: '4px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!useExamDateFilter}
+                                                            onChange={(e) => setUseExamDateFilter(!e.target.checked)}
+                                                        />
+                                                        Ver Histórico
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ fontSize: '12px', color: '#64748b' }}>Estado:</span>
+                                                <select
+                                                    value={examFilterStatus}
+                                                    onChange={(e) => setExamFilterStatus(e.target.value)}
+                                                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 0 }}
+                                                >
+                                                    <option value="todos">Todos los Estados</option>
+                                                    <option value="pendiente">Pendientes</option>
+                                                    <option value="completado">Completados</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* TABLA DE ÓRDENES DE EXÁMENES GENERADAS */}
+                                    <div className="nurse-card span-12" style={{ borderRadius: '14px', overflow: 'hidden', padding: 0 }}>
+                                        <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <h4 style={{ margin: 0, fontSize: '14px', color: '#0b3c5d', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Stethoscope size={16} /> Órdenes Registradas ({filteredExamOrders.length})
+                                            </h4>
+                                            {useExamDateFilter && (
+                                                <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>
+                                                    Filtrado por Fecha: {examReportDate}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                                                <thead>
+                                                    <tr style={{ background: '#0b3c5d', color: '#ffffff' }}>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>N°</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Fecha</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Paciente / Cédula</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Exámenes Solicitados</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Motivo Ocupacional</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Estado</th>
+                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold', textAlign: 'right' }}>Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {filteredExamOrders.length > 0 ? (
+                                                        filteredExamOrders.map((ord, idx) => (
+                                                            <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                                <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#64748b' }}>{idx + 1}</td>
+                                                                <td style={{ padding: '10px 14px', color: '#334155' }}>{ord.fecha}</td>
+                                                                <td style={{ padding: '10px 14px' }}>
+                                                                    <div style={{ fontWeight: 'bold', color: '#0b3c5d' }}>{ord.paciente}</div>
+                                                                    <div style={{ fontSize: '10px', color: '#64748b' }}>C.I: {ord.cedula}</div>
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', color: '#1e293b', maxWidth: '280px' }}>
+                                                                    <div style={{ fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                        {ord.examen}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', color: '#475569' }}>{ord.motivo}</td>
+                                                                <td style={{ padding: '10px 14px' }}>
+                                                                    <span style={{
+                                                                        padding: '3px 8px',
+                                                                        borderRadius: '12px',
+                                                                        fontSize: '10px',
+                                                                        fontWeight: 'bold',
+                                                                        background: ord.estado === 'Completado' ? '#dcfce7' : '#fef3c7',
+                                                                        color: ord.estado === 'Completado' ? '#15803d' : '#b45309'
+                                                                    }}>
+                                                                        {ord.estado}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                                                                    <button
+                                                                        className="action-button action-button--accent"
+                                                                        onClick={() => handlePrintExamOrderDocument(ord)}
+                                                                        style={{ padding: '4px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                                    >
+                                                                        <Printer size={12} /> Orden PDF
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                                                No se encontraron órdenes de examen registradas para esta fecha o criterio de búsqueda.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* VISTA UNIFICADA DE MATRICES ESTADÍSTICAS OFICIALES CON VISOR PDF */}
+                            {isMatricesCat && (() => {
+                                const meta = getActiveMatrixMeta();
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        {/* PANEL DE CONTROL SUPERIOR */}
+                                        <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '18px 20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                                                {/* BÚSQUEDA DE PACIENTE O CÉDULA */}
+                                                <div style={{ position: 'relative', flex: '1', minWidth: '260px', maxWidth: '420px' }}>
+                                                    <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Buscar paciente por nombre o cédula..."
+                                                        value={matrixSearchTerm}
+                                                        onChange={(e) => handleMatrixSearch(e.target.value)}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '9px 12px 9px 36px',
+                                                            borderRadius: '8px',
+                                                            border: '1px solid #cbd5e1',
+                                                            fontSize: '12px',
+                                                            outline: 'none',
+                                                            transition: 'all 0.2s',
+                                                            background: '#f8fafc'
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {/* FILTRO DE FECHA */}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                                        <input
+                                                            type="date"
+                                                            value={matrixDateFilter}
+                                                            onChange={(e) => setMatrixDateFilter(e.target.value)}
+                                                            title="Filtrar por fecha"
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid #cbd5e1',
+                                                                fontSize: '12px',
+                                                                background: '#f8fafc',
+                                                                color: '#334155',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    {matrixDateFilter && (
+                                                        <button
+                                                            onClick={() => setMatrixDateFilter('')}
+                                                            title="Limpiar filtro de fecha"
+                                                            style={{
+                                                                border: '1px solid #e2e8f0',
+                                                                background: '#ffffff',
+                                                                color: '#64748b',
+                                                                borderRadius: '8px',
+                                                                padding: '8px 12px',
+                                                                fontSize: '11px',
+                                                                cursor: 'pointer',
+                                                                fontWeight: '600'
+                                                            }}
+                                                        >
+                                                            Limpiar fecha
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* SUBTABS DE CATEGORÍA SI TIENE */}
+                                            {meta.subtabs && meta.subtabs.length > 0 && (
+                                                <div style={{ display: 'flex', gap: '6px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f1f5f9', overflowX: 'auto' }}>
+                                                    {meta.subtabs.map(tab => (
+                                                        <button
+                                                            key={tab.id}
+                                                            onClick={() => meta.onSubtabChange(tab.id)}
+                                                            style={{
+                                                                padding: '6px 14px',
+                                                                borderRadius: '6px',
+                                                                border: 'none',
+                                                                fontSize: '11.5px',
+                                                                fontWeight: meta.activeSubtab === tab.id ? '700' : '500',
+                                                                background: meta.activeSubtab === tab.id ? '#0f172a' : '#f1f5f9',
+                                                                color: meta.activeSubtab === tab.id ? '#ffffff' : '#64748b',
+                                                                cursor: 'pointer',
+                                                                whiteSpace: 'nowrap',
+                                                                transition: 'all 0.15s'
+                                                            }}
+                                                        >
+                                                            {tab.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </article>
+
+                                        {/* VISOR OFICIAL DE MATRIZ EN FORMATO PDF */}
+                                        <div className="document-viewer" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
+                                            <div style={{ background: '#0f172a', color: '#ffffff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <span style={{ background: '#e11d48', color: '#ffffff', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.5px' }}>PDF</span>
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#f8fafc', letterSpacing: '0.2px' }}>{meta.filename}</h4>
+                                                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                                            {meta.title} · {meta.count} {meta.count === 1 ? 'registro' : 'registros'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={handlePrintActiveMatrix}
+                                                    className="action-button action-button--accent"
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '32px', fontSize: '11.5px', borderRadius: '8px', padding: '0 14px' }}
+                                                >
+                                                    <Printer size={14} /> Imprimir / Descargar Matriz
+                                                </button>
+                                            </div>
+                                            <div style={{ background: '#334155', padding: '20px', display: 'flex', justifyContent: 'center', overflow: 'auto' }}>
+                                                <iframe
+                                                    ref={matrixIframeRef}
+                                                    title={meta.title}
+                                                    srcDoc={compileActiveMatrixHtml(false)}
+                                                    style={{
+                                                        width: '100%',
+                                                        maxWidth: '1100px',
+                                                        height: '820px',
+                                                        border: 'none',
+                                                        background: '#fff',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                                        borderRadius: '4px'
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                         </div>
                     )}
                 </div>
             </main>
+
+
+            {/* MODAL REGISTRO FUNCIONARIO DISCAPACIDAD */}
+            
+            {/* --- MODAL REGISTRO GRUPOS VULNERABLES (PATOLOGÍAS) --- */}
+            
+            {/* --- MODAL REGISTRO DE AUSENTISMO LABORAL --- */}
+            {isAusentismoModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#facc15] text-slate-900 p-4 flex justify-between items-center border-b border-yellow-400">
+                            <div className="flex items-center gap-2">
+                                <FileSpreadsheet size={20} className="text-slate-900" />
+                                <h3 className="font-bold text-base uppercase">Registrar Caso en Matriz de Ausentismo</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsAusentismoModalOpen(false)}
+                                className="text-slate-700 hover:text-slate-900 p-1 rounded-lg hover:bg-yellow-300"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveAusentismoRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente / Funcionario
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-yellow-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setAusentismoForm({
+                                                        ...ausentismoForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula,
+                                                        cargo: p.puestoTrabajo || 'SERVIDOR/DOCENTE'
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-yellow-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula} · {p.puestoTrabajo}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : ausentismoForm.paciente}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, paciente: e.target.value })}
+                                        placeholder="Ej: MONTEROS MONTERO RODRIGO"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 uppercase"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Cédula</label>
+                                    <input
+                                        type="text"
+                                        value={patientSelected?.cedula || ausentismoForm.cedula}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, cedula: e.target.value })}
+                                        placeholder="020XXXXXXX"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Motivo de Ausentismo</label>
+                                    <select
+                                        value={ausentismoForm.motivoTipo}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, motivoTipo: e.target.value })}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500"
+                                    >
+                                        <option value="enfermedad_comun">Enfermedad Común</option>
+                                        <option value="enfermedad_laboral">Enfermedad Laboral</option>
+                                        <option value="accidente_laboral">Accidente Laboral</option>
+                                        <option value="otros">Otros Motivos / Consulta Médica</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Diagnóstico / Detalle</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={ausentismoForm.diagnostico}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, diagnostico: e.target.value })}
+                                        placeholder="Ej: FARINGITIS AGUDA / CONSULTA MÉD"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 uppercase"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Días Perdidos</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={ausentismoForm.diasPerdidos}
+                                        onChange={(e) => {
+                                            const d = parseInt(e.target.value) || 1;
+                                            setAusentismoForm({
+                                                ...ausentismoForm,
+                                                diasPerdidos: e.target.value,
+                                                horasAusentismo: String(d * 8)
+                                            });
+                                        }}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Horas Ausencia</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={ausentismoForm.horasAusentismo}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, horasAusentismo: e.target.value })}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold text-blue-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Horas Trabajadas</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={ausentismoForm.horasTrabajadas}
+                                        onChange={(e) => setAusentismoForm({ ...ausentismoForm, horasTrabajadas: e.target.value })}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold text-sky-700"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Indicador en tiempo real del Índice */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex justify-between items-center">
+                                <div>
+                                    <span className="text-[11px] font-bold text-blue-900 block">Índice de Ausentismo Calculado:</span>
+                                    <span className="text-[10px] text-blue-700">Fórmula: Horas Ausencia ({ausentismoForm.horasAusentismo || 0}) / Horas Trabajadas ({ausentismoForm.horasTrabajadas || 1})</span>
+                                </div>
+                                <span className="text-base font-black text-blue-700">
+                                    {((parseInt(ausentismoForm.horasAusentismo) || 0) / (parseInt(ausentismoForm.horasTrabajadas) || 1)).toFixed(3).replace('.', ',')}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAusentismoModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold bg-[#facc15] hover:bg-yellow-400 text-slate-900 rounded-lg shadow-md"
+                                >
+                                    Guardar en Matriz
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL REGISTRO CENSO DE EMBARAZADAS --- */}
+            {isEmbarazadasModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#00b0f0] text-slate-900 p-4 flex justify-between items-center border-b border-sky-400">
+                            <div className="flex items-center gap-2">
+                                <Baby size={20} className="text-slate-900" />
+                                <h3 className="font-bold text-base uppercase">Registrar en Censo de Embarazadas UEB</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsEmbarazadasModalOpen(false)}
+                                className="text-slate-800 hover:text-slate-950 p-1 rounded-lg hover:bg-sky-300"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEmbarazadasRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente / Funcionaria
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-sky-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setEmbarazadasForm({
+                                                        ...embarazadasForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula,
+                                                        edad: String(p.edad || 30)
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-sky-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula} · {p.edad ? `${p.edad} años` : ''}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Completo</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : embarazadasForm.paciente}
+                                        onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, paciente: e.target.value })}
+                                        placeholder="Ej: LEON MONAR PATRICIA"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 uppercase"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Edad</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="16"
+                                        max="60"
+                                        value={patientSelected?.edad || embarazadasForm.edad}
+                                        onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, edad: e.target.value })}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">FUM (Última Menstruación)</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={embarazadasForm.fum}
+                                        onChange={(e) => {
+                                            const fumVal = e.target.value;
+                                            let fppCalc = embarazadasForm.fechaProbableParto;
+                                            let semCalc = embarazadasForm.semanasGestacion;
+                                            try {
+                                                const fumDate = new Date(fumVal);
+                                                if (!isNaN(fumDate.getTime())) {
+                                                    const fppDate = new Date(fumDate.getTime() + 280 * 24 * 60 * 60 * 1000);
+                                                    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+                                                    const yearShort = String(fppDate.getFullYear()).slice(-2);
+                                                    fppCalc = `${monthNames[fppDate.getMonth()]}-${yearShort}`;
+                                                    const diffMs = new Date().getTime() - fumDate.getTime();
+                                                    const diffWeeks = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7)));
+                                                    const todayFormatted = new Date().toLocaleDateString('es-EC');
+                                                    semCalc = `${diffWeeks} SEMANAS (${todayFormatted})`;
+                                                }
+                                            } catch (err) {}
+                                            setEmbarazadasForm({
+                                                ...embarazadasForm,
+                                                fum: fumVal,
+                                                fechaProbableParto: fppCalc,
+                                                semanasGestacion: semCalc
+                                            });
+                                        }}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">FPP Calculada</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={embarazadasForm.fechaProbableParto}
+                                        onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, fechaProbableParto: e.target.value })}
+                                        placeholder="may-26"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 font-bold text-emerald-700"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Semanas de Gestación</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={embarazadasForm.semanasGestacion}
+                                        onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, semanasGestacion: e.target.value })}
+                                        placeholder="21 SEMANAS (14/01/2026)"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 font-bold text-orange-700"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Controles Prenatales</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        required
+                                        value={embarazadasForm.controles}
+                                        onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, controles: e.target.value })}
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 font-bold text-blue-700"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Teléfono de Contacto</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={embarazadasForm.telefono}
+                                    onChange={(e) => setEmbarazadasForm({ ...embarazadasForm, telefono: e.target.value })}
+                                    placeholder="0986268194"
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEmbarazadasModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold bg-[#00b0f0] hover:bg-sky-500 text-slate-900 rounded-lg shadow-md font-bold"
+                                >
+                                    Guardar en Censo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL REGISTRO DE RIESGO PSICOSOCIAL (ANSIEDAD Y DEPRESIÓN) --- */}
+            {isPsicosocialModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#c55a11] text-white p-4 flex justify-between items-center border-b border-orange-700">
+                            <div className="flex items-center gap-2">
+                                <Brain size={20} className="text-white" />
+                                <h3 className="font-bold text-base uppercase">Registrar Caso de Riesgo Psicosocial UEB</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsPsicosocialModalOpen(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSavePsicosocialRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente / Funcionario
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-orange-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setPsicosocialForm({
+                                                        ...psicosocialForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula || '0201234567'
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-orange-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula} · {p.tipo || 'Funcionario'}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombres y Apellidos</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : psicosocialForm.paciente}
+                                        onChange={(e) => setPsicosocialForm({ ...psicosocialForm, paciente: e.target.value })}
+                                        placeholder="Ej: ZAVALA CARDENAS LORENA DEL ROCIO"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 uppercase"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Cédula</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected?.cedula || psicosocialForm.cedula}
+                                        onChange={(e) => setPsicosocialForm({ ...psicosocialForm, cedula: e.target.value })}
+                                        placeholder="0201234567"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tipo de Servidor</label>
+                                <select
+                                    value={psicosocialForm.tiposervidor}
+                                    onChange={(e) => setPsicosocialForm({ ...psicosocialForm, tiposervidor: e.target.value })}
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold"
+                                >
+                                    <option value="DOCENTE TITULAR">DOCENTE TITULAR</option>
+                                    <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
+                                    <option value="CODIGO">CODIGO (CÓDIGO DE TRABAJO)</option>
+                                    <option value="DOCENTE OCASIONAL">DOCENTE OCASIONAL</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Diagnóstico Psicosocial</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={psicosocialForm.diagnostico}
+                                    onChange={(e) => setPsicosocialForm({ ...psicosocialForm, diagnostico: e.target.value })}
+                                    placeholder="Ej: DEPRESION Y ANSIEDAD"
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold uppercase text-red-700"
+                                />
+                                <div className="flex gap-1 mt-1 flex-wrap">
+                                    {['DEPRESION Y ANSIEDAD', 'EPISODIO DEPRESIVO MODERADO', 'TRASTORNO DE ANSIEDAD GENERALIZADA', 'ESTRÉS LABORAL / BURNOUT'].map(d => (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => setPsicosocialForm({ ...psicosocialForm, diagnostico: d })}
+                                            className="text-[10px] bg-slate-100 hover:bg-orange-100 text-slate-700 px-2 py-0.5 rounded cursor-pointer border border-slate-200"
+                                        >
+                                            {d}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Observaciones / Plan de Intervención</label>
+                                <textarea
+                                    rows={2}
+                                    value={psicosocialForm.observaciones}
+                                    onChange={(e) => setPsicosocialForm({ ...psicosocialForm, observaciones: e.target.value })}
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    placeholder="Seguimiento por Salud Ocupacional y Psicología Institucional..."
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPsicosocialModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold bg-[#c55a11] hover:bg-orange-700 text-white rounded-lg shadow-md font-bold"
+                                >
+                                    Guardar en Matriz
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL REGISTRO DE ENFERMEDAD NUEVA (INCIDENCIA UEB) --- */}
+            {isEnfermedadesNuevasModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#ed7d31] text-white p-4 flex justify-between items-center border-b border-orange-600">
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={20} className="text-white" />
+                                <h3 className="font-bold text-base uppercase">Registrar Enfermedad Nueva (Incidencia UEB)</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsEnfermedadesNuevasModalOpen(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveEnfermedadesNuevasRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente / Funcionario
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-orange-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setEnfermedadesNuevasForm({
+                                                        ...enfermedadesNuevasForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula || '0201234567'
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-orange-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula} · {p.tipo || 'Funcionario'}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombres y Apellidos</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : enfermedadesNuevasForm.paciente}
+                                        onChange={(e) => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, paciente: e.target.value })}
+                                        placeholder="Ej: CHELA YAZUMA TEODORO"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 uppercase font-bold"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Cédula</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={patientSelected?.cedula || enfermedadesNuevasForm.cedula}
+                                        onChange={(e) => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, cedula: e.target.value })}
+                                        placeholder="0201234567"
+                                        className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Patología Nueva (Incidencia)</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={enfermedadesNuevasForm.patologiaNueva}
+                                    onChange={(e) => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, patologiaNueva: e.target.value })}
+                                    placeholder="Ej: BRONQUITIS, POLIARTROSIS, etc."
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold uppercase text-emerald-700"
+                                />
+                                <div className="flex gap-1 mt-1 flex-wrap">
+                                    {['BRONQUITIS', 'POLIARTROSIS', 'ARTRITIS REUMATOIDE', 'TRASTORNO DEL DISCO LUMBAR', 'HIPERPLASIA ENDOMETRIAL', 'MIOMAS UTERINOS'].map(d => (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, patologiaNueva: d })}
+                                            className="text-[10px] bg-slate-100 hover:bg-orange-100 text-slate-700 px-2 py-0.5 rounded cursor-pointer border border-slate-200"
+                                        >
+                                            {d}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha de Aparecimiento</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={enfermedadesNuevasForm.fechaAparecimiento}
+                                    onChange={(e) => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, fechaAparecimiento: e.target.value })}
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Observaciones / Criterio Médico Ocupacional</label>
+                                <textarea
+                                    rows={2}
+                                    value={enfermedadesNuevasForm.observaciones}
+                                    onChange={(e) => setEnfermedadesNuevasForm({ ...enfermedadesNuevasForm, observaciones: e.target.value })}
+                                    className="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    placeholder="Detalles del diagnóstico, evolución o seguimiento..."
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEnfermedadesNuevasModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold bg-[#ed7d31] hover:bg-orange-700 text-white rounded-lg shadow-md font-bold"
+                                >
+                                    Guardar Patología
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL REGISTRO / ACTUALIZACIÓN EXÁMENES MÉDICOS Y FICHAS PERIÓDICAS --- */}
+            {isExamenesPeriodicosModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#ed7d31] text-white p-4 flex justify-between items-center border-b border-orange-600">
+                            <div className="flex items-center gap-2">
+                                <Calendar size={20} className="text-white" />
+                                <h3 className="font-bold text-base uppercase">Actualizar Exámenes - Año {examenesPeriodicosSelectedYear}</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsExamenesPeriodicosModalOpen(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveExamenesPeriodicosRecord} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Mes a Registrar / Actualizar
+                                </label>
+                                <select
+                                    value={examenesPeriodicosForm.mes}
+                                    onChange={(e) => {
+                                        const selectedMes = e.target.value;
+                                        const currentYearList = examenesPeriodicosData[examenesPeriodicosSelectedYear] || [];
+                                        const existing = currentYearList.find(i => i.mes.toUpperCase() === selectedMes.toUpperCase());
+                                        setExamenesPeriodicosForm({
+                                            mes: selectedMes,
+                                            examenes: existing ? existing.examenes : 0
+                                        });
+                                    }}
+                                    className="w-full p-2.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold"
+                                >
+                                    {[
+                                        'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                                        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+                                    ].map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Total de Exámenes Médicos y Fichas Periódicas
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    required
+                                    value={examenesPeriodicosForm.examenes}
+                                    onChange={(e) => setExamenesPeriodicosForm({ ...examenesPeriodicosForm, examenes: e.target.value })}
+                                    placeholder="Ej: 68"
+                                    className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-extrabold text-blue-900"
+                                />
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    Este valor se registrará como el total oficial completado para el mes de {examenesPeriodicosForm.mes} en el año {examenesPeriodicosSelectedYear}.
+                                </p>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExamenesPeriodicosModalOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2 text-xs font-bold bg-[#ed7d31] hover:bg-orange-700 text-white rounded-lg shadow-md font-bold"
+                                >
+                                    Guardar en Matriz
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL REGISTRO PERSONAL NUEVO QUE INGRESÓ --- */}
+            {isPersonalNuevoModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#ea580c] text-white p-4 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <UserPlus size={20} />
+                                <h3 className="font-bold text-base uppercase">Registrar Personal Nuevo que Ingresó</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsPersonalNuevoModalOpen(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSavePersonalNuevoRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente Existente
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-orange-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setPersonalNuevoForm({
+                                                        ...personalNuevoForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula,
+                                                        cargo: p.puestoTrabajo || ''
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-orange-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nombre Completo */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Nombre y Apellido *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={personalNuevoForm.paciente}
+                                    onChange={(e) => setPersonalNuevoForm({ ...personalNuevoForm, paciente: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold uppercase"
+                                    placeholder="EJ: ALFREDO DAVID APUNTE GARCIA"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                        Cédula *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={personalNuevoForm.cedula}
+                                        onChange={(e) => setPersonalNuevoForm({ ...personalNuevoForm, cedula: e.target.value })}
+                                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold font-mono"
+                                        placeholder="EJ: 201747821"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                        Fecha de Ingreso *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={personalNuevoForm.fechaIngreso}
+                                        onChange={(e) => setPersonalNuevoForm({ ...personalNuevoForm, fechaIngreso: e.target.value })}
+                                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Cargo */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Cargo Institucional *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={personalNuevoForm.cargo}
+                                    onChange={(e) => setPersonalNuevoForm({ ...personalNuevoForm, cargo: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold uppercase"
+                                    placeholder="EJ: PROFESOR OCASIONAL TIEMPO COMPLETO / AUXILIAR DE MANTENIMIENTO"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-2 border-t">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPersonalNuevoModalOpen(false)}
+                                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-200"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-[#ea580c] text-white rounded-lg text-xs font-bold hover:bg-orange-700 shadow-sm"
+                                >
+                                    Guardar Ingreso
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+
+            {isVulnerablePatologiasModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+                        <div className="bg-[#0070c0] text-white p-4 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <HeartPulse size={20} />
+                                <h3 className="font-bold text-base uppercase">Registrar Paciente en Grupo Vulnerable</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsVulnerablePatologiasModalOpen(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveVulnerablePatologiaRecord} className="p-6 space-y-4">
+                            {/* Buscar Paciente en Sistema */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Buscar Paciente Existente
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        className="w-full pl-3 pr-8 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    {isSearchingPatients && (
+                                        <Loader2 className="animate-spin absolute right-2.5 top-2.5 text-blue-600" size={16} />
+                                    )}
+                                </div>
+                                {searchResults.length > 0 && (
+                                    <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 divide-y shadow-sm">
+                                        {searchResults.map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => {
+                                                    setPatientSelected(p);
+                                                    setVulnerablePatologiasForm({
+                                                        ...vulnerablePatologiasForm,
+                                                        paciente: `${p.nombres} ${p.apellidos}`.toUpperCase(),
+                                                        cedula: p.cedula
+                                                    });
+                                                    setSearchResults([]);
+                                                }}
+                                                className="p-2 text-xs hover:bg-blue-50 cursor-pointer flex justify-between"
+                                            >
+                                                <span className="font-bold">{p.nombres} {p.apellidos}</span>
+                                                <span className="text-slate-500">{p.cedula}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nombre completo */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Nombres y Apellidos *
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={vulnerablePatologiasForm.paciente}
+                                    onChange={(e) => setVulnerablePatologiasForm({ ...vulnerablePatologiasForm, paciente: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold uppercase"
+                                    placeholder="EJ: ALBAN GARCIA DORINDA FABIOLA"
+                                />
+                            </div>
+
+                            {/* Selección de Grupo */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                    Grupo Vulnerable *
+                                </label>
+                                <select
+                                    value={vulnerablePatologiasForm.grupo}
+                                    onChange={(e) => setVulnerablePatologiasForm({ ...vulnerablePatologiasForm, grupo: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold"
+                                >
+                                    <option value="diabeticos">GRUPO DE DIABÉTICOS</option>
+                                    <option value="hipertensos">GRUPO DE HIPERTENSOS</option>
+                                    <option value="adultoMayor">GRUPO DE ADULTO MAYOR</option>
+                                    <option value="otras">OTRAS ENFERMEDADES</option>
+                                </select>
+                            </div>
+
+                            {/* Edad (si es adulto mayor) */}
+                            {vulnerablePatologiasForm.grupo === 'adultoMayor' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                        Edad (en Años)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={vulnerablePatologiasForm.edad}
+                                        onChange={(e) => setVulnerablePatologiasForm({ ...vulnerablePatologiasForm, edad: e.target.value })}
+                                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold"
+                                        placeholder="EJ: 64"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Patología / Diagnóstico (si es Otras Enfermedades) */}
+                            {vulnerablePatologiasForm.grupo === 'otras' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                                        Patología / Diagnóstico Específico
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={vulnerablePatologiasForm.patologia}
+                                        onChange={(e) => setVulnerablePatologiasForm({ ...vulnerablePatologiasForm, patologia: e.target.value })}
+                                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-bold uppercase"
+                                        placeholder="EJ: SARCOIDOSIS (AFECTACION DE LOS GANGLIOS LINFATICOS)"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="pt-4 flex justify-end gap-2 border-t">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsVulnerablePatologiasModalOpen(false)}
+                                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-200"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-[#0070c0] text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-sm"
+                                >
+                                    Guardar Registro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+
+            {isDiscapacidadModalOpen && (
+                <div className="clinical-modal show" style={{ zIndex: 1080 }}>
+                    <div className="clinical-modal__backdrop" onClick={() => setIsDiscapacidadModalOpen(false)}></div>
+                    <section className="clinical-modal__dialog" style={{ maxWidth: '580px' }}>
+                        <header className="clinical-modal__header" style={{ background: '#0070c0', color: '#ffffff' }}>
+                            <div className="clinical-modal__patient">
+                                <span className="clinical-modal__avatar" style={{ background: '#ea580c', color: '#fff' }}>DIS</span>
+                                <div>
+                                    <span style={{ color: '#bae6fd', fontWeight: 'bold', fontSize: '11px' }}>MATRIZ DE DISCAPACIDAD Y VULNERABILIDAD</span>
+                                    <h2 style={{ color: '#ffffff', margin: 0, fontSize: '16px' }}>Registrar Funcionario con Discapacidad</h2>
+                                </div>
+                            </div>
+                            <button className="clinical-modal__close" onClick={() => setIsDiscapacidadModalOpen(false)}><X size={15} color="#fff" /></button>
+                        </header>
+
+                        <form onSubmit={handleSaveDiscapacidadRecord} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div>
+                                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>BUSCAR PACIENTE REGISTRADO</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Escriba cédula o nombres para autocompletar..."
+                                        value={patientSearchTerm}
+                                        onChange={(e) => {
+                                            setPatientSearchTerm(e.target.value);
+                                            handleSearchPatients(e.target.value);
+                                        }}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px' }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>NOMBRES Y APELLIDOS *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={discapacidadForm.paciente}
+                                    onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, paciente: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                                    placeholder="EJ: ACEBEDO DEL VALLE GINA MARISOL"
+                                />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>TIPO DE DISCAPACIDAD</label>
+                                    <select
+                                        value={discapacidadForm.tipoDiscapacidad}
+                                        onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, tipoDiscapacidad: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                    >
+                                        <option value="FÍSICA">FÍSICA</option>
+                                        <option value="VISUAL">VISUAL</option>
+                                        <option value="AUDITIVA">AUDITIVA</option>
+                                        <option value="INTELECTUAL">INTELECTUAL</option>
+                                        <option value="PSICOSOCIAL">PSICOSOCIAL</option>
+                                        <option value="MÚLTIPLE">MÚLTIPLE</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>PORCENTAJE %</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={discapacidadForm.porcentaje}
+                                        onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, porcentaje: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                        placeholder="EJ: 40%"
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>CARGO</label>
+                                    <input
+                                        type="text"
+                                        value={discapacidadForm.cargo}
+                                        onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, cargo: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', textTransform: 'uppercase' }}
+                                        placeholder="EJ: DOCENTE TITULAR"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>CONDICIÓN LABORAL</label>
+                                    <select
+                                        value={discapacidadForm.condicionLaboral}
+                                        onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, condicionLaboral: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', fontWeight: 'bold' }}
+                                    >
+                                        <option value="NOMBRAMIENTO">NOMBRAMIENTO</option>
+                                        <option value="CONTRATO OCASIONAL">CONTRATO OCASIONAL</option>
+                                        <option value="CÓDIGO DE TRABAJO">CÓDIGO DE TRABAJO</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>DEPENDENCIA / FACULTAD</label>
+                                <input
+                                    type="text"
+                                    value={discapacidadForm.dependencia}
+                                    onChange={(e) => setDiscapacidadForm({ ...discapacidadForm, dependencia: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '12px', textTransform: 'uppercase' }}
+                                    placeholder="EJ: FACULTAD DE CIENCIAS ADMINISTRATIVAS"
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', justifySelf: 'end', gap: '8px', marginTop: '10px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDiscapacidadModalOpen(false)}
+                                    style={{ padding: '8px 16px', borderRadius: '8px', background: '#f1f5f9', border: 'none', color: '#475569', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    style={{ padding: '8px 20px', borderRadius: '8px', background: '#0070c0', border: 'none', color: '#ffffff', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                    Guardar Funcionario
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            )}
 
             {/* MODAL GLOBAL: CONSULTA MÉDICA OCUPACIONAL (STEPPER) */}
             {isConsultaModalOpen && (
@@ -3954,14 +11206,167 @@ export default function MedicoOcupacionalPage() {
                                             const newRecord = {
                                                 id: Date.now(),
                                                 fecha: new Date().toISOString().split('T')[0],
-                                                paciente: patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : 'Paciente Trabajo',
-                                                cedula: patientSelected?.cedula || '1723456789',
+                                                fechaIngreso: new Date().toISOString().split('T')[0],
+                                                paciente: patientSelected ? `${patientSelected.nombres || ''} ${patientSelected.apellidos || ''}`.trim() : 'Paciente Ocupacional',
+                                                primerApellido: patientSelected?.apellidos ? patientSelected.apellidos.trim().split(/\s+/)[0] : '',
+                                                segundoApellido: patientSelected?.apellidos ? patientSelected.apellidos.trim().split(/\s+/).slice(1).join(' ') : '',
+                                                primerNombre: patientSelected?.nombres ? patientSelected.nombres.trim().split(/\s+/)[0] : '',
+                                                segundoNombre: patientSelected?.nombres ? patientSelected.nombres.trim().split(/\s+/).slice(1).join(' ') : '',
+                                                cedula: patientSelected?.cedula || patientSelected?.ci || '1723456789',
                                                 tipo: tipoFicha,
-                                                puesto: patientSelected?.puestoTrabajo || 'Servidor/Docente',
+                                                puesto: puestoTrabajo || patientSelected?.puestoTrabajo || patientSelected?.cargo || 'Servidor/Docente',
+                                                cargo: puestoTrabajo || patientSelected?.puestoTrabajo || patientSelected?.cargo || 'Servidor/Docente',
+                                                ciuo: patientSelected?.ciuo || 'C02',
+                                                actividades: patientSelected?.actividades || 'ACTIVIDADES ADMINISTRATIVAS Y DOCENCIA',
+                                                area: areaTrabajo || patientSelected?.area || 'Campus Matriz',
+                                                sexo: patientSelected?.sexo || 'M',
+                                                edad: patientSelected?.edad || 32,
+                                                religion: patientSelected?.religion || 'Católica',
+                                                grupoSanguineo: vitalSigns.tipoSangre || patientSelected?.tipo_sangre || 'ORH+',
+                                                lateralidad: patientSelected?.lateralidad || 'DIESTRO',
+                                                orientacionSexual: patientSelected?.orientacion_sexual || 'Heterosexual',
+                                                identidadGenero: patientSelected?.identidad_genero || (patientSelected?.sexo === 'F' ? 'Femenino' : 'Masculino'),
+                                                discapacidad: patientSelected?.discapacidad || { tiene: false, tipo: '', porcentaje: '' },
+                                                telefono: patientSelected?.celular || patientSelected?.telefono || '0987654321',
+                                                motivoConsulta: motivoConsulta || 'EVALUACIÓN MÉDICA OCUPACIONAL PARA EL PUESTO DE TRABAJO',
+                                                enfermedadActual: enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DEL EXAMEN.',
+                                                antecedentesClinicos: antecedentesPersonales || 'NINGUNO RELEVANTE REFERIDO POR EL PACIENTE',
+                                                antecedentesPersonales: antecedentesPersonales || 'NINGUNO RELEVANTE',
+                                                antecedentesOcupacionales: antecedentesOcupacionales || 'LABORES PREVIAS EN EL ÁREA',
+                                                factoresRiesgo: factoresRiesgo.length > 0 ? factoresRiesgo : ['Ergonómico', 'Físico'],
+                                                examenFisico: {
+                                                    normal: !examenFisico || examenFisico.toLowerCase().includes('normal'),
+                                                    descripcion: examenFisico || 'NO SE EVIDENCIA SIGNOS PATOLÓGICOS'
+                                                },
+                                                constantes: {
+                                                    pa: vitalSigns.paSystolic && vitalSigns.paDiastolic ? `${vitalSigns.paSystolic}/${vitalSigns.paDiastolic}` : '120/80',
+                                                    temp: vitalSigns.temp || '36.5',
+                                                    fc: vitalSigns.fc || '75',
+                                                    satO2: vitalSigns.spo2 || '98',
+                                                    fr: vitalSigns.fr || '18',
+                                                    peso: vitalSigns.peso || '70',
+                                                    talla: vitalSigns.talla ? (parseFloat(vitalSigns.talla) > 3 ? (parseFloat(vitalSigns.talla) / 100).toFixed(2) : vitalSigns.talla) : '1.70',
+                                                    imc: vitalSigns.imc || '24.2',
+                                                    perimetroAbd: '-'
+                                                },
+                                                vitalSigns: { ...vitalSigns },
+                                                diagnosticoCie: diagnosticoCie || 'Z00.0 - Examen médico general',
+                                                diagnosticos: diagnosticoCie ? [
+                                                    {
+                                                        num: 1,
+                                                        desc: diagnosticoCie.includes('-') ? diagnosticoCie.split('-')[1].trim().toUpperCase() : diagnosticoCie.toUpperCase(),
+                                                        cie: diagnosticoCie.includes('-') ? diagnosticoCie.split('-')[0].trim().toUpperCase() : 'Z00.0',
+                                                        pre: false,
+                                                        def: true
+                                                    }
+                                                ] : [
+                                                    { num: 1, desc: 'EXAMEN MÉDICO GENERAL OCUPACIONAL', cie: 'Z00.0', pre: false, def: true }
+                                                ],
                                                 aptitud: aptitudLaboral === 'apto' ? 'Apto' : aptitudLaboral === 'apto_restriccion' ? 'Apto con Restricción' : 'No Apto',
+                                                aptitudLaboral,
+                                                restriccionesOcupacionales,
+                                                aptitudDetalle: {
+                                                    apto: aptitudLaboral === 'apto',
+                                                    aptoObservacion: aptitudLaboral === 'apto_restriccion',
+                                                    aptoLimitaciones: aptitudLaboral === 'apto_restriccion',
+                                                    noApto: aptitudLaboral === 'no_apto',
+                                                    observacion: restriccionesOcupacionales || 'Ninguna',
+                                                    limitacion: restriccionesOcupacionales || 'Uso adecuado de los Equipos de Protección Individual (EPP)'
+                                                },
+                                                planTratamiento: planTratamiento || 'MEDIDAS HIGIÉNICO DIETÉTICAS Y ERGONÓMICAS',
+                                                prescripcionesList: [...prescripcionesList],
+                                                recomendaciones: [
+                                                    planTratamiento || 'PAUSAS ACTIVAS CADA 2 HORAS EN LA JORNADA LABORAL',
+                                                    'USO ADECUADO Y PERMANENTE DE EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPP)',
+                                                    'INGESTA ADECUADA DE LÍQUIDOS Y HÁBITOS DE VIDA SALUDABLES',
+                                                    'EN CASO DE PRESENTAR SÍNTOMAS ACUDIR AL DISPENSARIO MÉDICO DE LA UEB',
+                                                    ...(prescripcionesList.length > 0 ? prescripcionesList.map(p => `TRATAMIENTO: ${p.detalle_medicamento} (${p.dosis}, cada ${p.frecuencia}h x ${p.duracion} días)`) : [])
+                                                ],
+                                                profesional: {
+                                                    fecha: new Date().toISOString().split('T')[0],
+                                                    hora: new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }),
+                                                    nombre: user?.nombre || 'DR. JORGE MORALES',
+                                                    codigo: user?.cedula || '1804486288'
+                                                },
+                                                fechaRetiro: new Date().toISOString().split('T')[0],
+                                                fechaReintegro: new Date().toISOString().split('T')[0],
+                                                fechaUltimoDia: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                                                dias: 30,
+                                                causaSalida: motivoConsulta || 'REPOSO MÉDICO AUTORIZADO',
+                                                causaRetiro: motivoConsulta || 'CULMINACIÓN DE RELACIÓN LABORAL',
+                                                tiempoServicio: 'SEGÚN EXPEDIENTE INSTITUCIONAL',
+                                                condSalida: {
+                                                    satisfactorio: aptitudLaboral === 'apto',
+                                                    conPatologiaComun: aptitudLaboral === 'apto_restriccion',
+                                                    conSecuelaLaboral: aptitudLaboral === 'no_apto',
+                                                    observacion: restriccionesOcupacionales || 'El trabajador no presenta enfermedades profesionales ni secuelas originadas por el trabajo en la institución.',
+                                                    recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción o cese.'
+                                                },
+                                                patientSelected: patientSelected ? { ...patientSelected } : null,
                                                 estado: 'Completado'
                                             };
                                             setFichasData(prev => [newRecord, ...prev]);
+                                            if (tipoFicha === 'Reintegro') {
+                                                setReintegrosData(prev => [newRecord, ...prev]);
+                                            }
+
+                                            // Persistencia al backend si el paciente está registrado
+                                            if (patientSelected?.id) {
+                                                api.post('/medicina-general/signos-vitales', {
+                                                    id_usuario_paciente: patientSelected.id,
+                                                    presion_arterial_sistolica: parseFloat(vitalSigns.paSystolic) || 120,
+                                                    presion_arterial_diastolica: parseFloat(vitalSigns.paDiastolic) || 80,
+                                                    frecuencia_cardiaca: parseInt(vitalSigns.fc) || 75,
+                                                    frecuencia_respiratoria: parseInt(vitalSigns.fr) || 18,
+                                                    temperatura: parseFloat(vitalSigns.temp) || 36.5,
+                                                    peso: parseFloat(vitalSigns.peso) || 70,
+                                                    talla: parseFloat(vitalSigns.talla) || 1.70,
+                                                    fecha: new Date().toISOString().split('T')[0]
+                                                }).catch(() => {});
+
+                                                if (diagnosticoCie) {
+                                                    api.post('/medicina-general/diagnosticos', {
+                                                        id_usuario_paciente: patientSelected.id,
+                                                        detalle_diagnostico: diagnosticoCie,
+                                                        cie10: diagnosticoCie.includes('-') ? diagnosticoCie.split('-')[0].trim() : 'Z00.0',
+                                                        presuntivo: false,
+                                                        definitivo: true
+                                                    }).catch(() => {});
+                                                }
+
+                                                if (tipoFicha === 'Ingreso' || tipoFicha === 'Periódico') {
+                                                    api.post('/medicina-ocupacional/personal-nuevo', {
+                                                        id_usuario_paciente: patientSelected.id,
+                                                        fecha_ingreso: new Date().toISOString().split('T')[0]
+                                                    }).catch(() => {});
+                                                } else if (tipoFicha === 'Retiro' || tipoFicha === 'Cese') {
+                                                    api.post('/medicina-ocupacional/cese-funciones', {
+                                                        id_usuario_paciente: patientSelected.id,
+                                                        fecha_salida: new Date().toISOString().split('T')[0],
+                                                        detalle_motivo_salida: motivoConsulta || 'Cese laboral institucional'
+                                                    }).catch(() => {});
+                                                } else if (tipoFicha === 'Reintegro') {
+                                                    api.post('/medicina-ocupacional/reintegro-ueb', {
+                                                        id_usuario_paciente: patientSelected.id,
+                                                        fecha_salida: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+                                                        fecha_reintegro: new Date().toISOString().split('T')[0],
+                                                        detalle_motivo_salida: motivoConsulta || 'Reintegro a funciones laborales'
+                                                    }).catch(() => {});
+                                                }
+
+                                                api.post('/medicina-general/parte-diario', {
+                                                    id_usuario_paciente: patientSelected.id,
+                                                    fecha: new Date().toISOString().split('T')[0],
+                                                    tipo_atencion: 'primaria',
+                                                    condicion: 'evaluacion_ocupacional'
+                                                }).catch(() => {});
+
+                                                if (vitalSigns.tipoSangre) {
+                                                    api.post(`/medicina-ocupacional/patient/${patientSelected.id}/blood-type`, {
+                                                        blood_type: vitalSigns.tipoSangre
+                                                    }).catch(() => {});
+                                                }
+                                            }
 
                                             // Guardar también en el Recetario si existen medicamentos prescritos
                                             if (prescripcionesList.length > 0) {
@@ -4772,10 +12177,10 @@ export default function MedicoOcupacionalPage() {
                                                     <th style={{ padding: '6px' }}>Dosis</th>
                                                     <th style={{ padding: '6px' }}>Frecuencia</th>
                                                     <th style={{ padding: '6px' }}>Vía</th>
-                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Mañana 🌅</th>
-                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Mediodía ☀️</th>
-                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Tarde 🌤️</th>
-                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Noche 🌙</th>
+                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Mañana</th>
+                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Mediodía</th>
+                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Tarde</th>
+                                                    <th style={{ padding: '6px', textAlign: 'center' }}>Noche</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -4823,16 +12228,300 @@ export default function MedicoOcupacionalPage() {
                 </div>
             )}
 
+            {/* MODAL DETALLE / VISOR EXACTO DEL FORMATO OFICIAL DE REINTEGRO LABORAL (FORMULARIO 077 REINTEGRO - EXCEL MSP) */}
+            <OfficialFichaReintegroModal
+                isOpen={isReintegroDetailModalOpen}
+                onClose={() => setIsReintegroDetailModalOpen(false)}
+                record={selectedReintegroDetail}
+                uebBannerLogo={uebBannerLogo}
+            />
+
+            {/* MODAL VISOR EN PANTALLA: REPORTE GENERAL DE MATRICES / FICHAS */}
+            {isReportMatrixModalOpen && (
+                <div className="clinical-modal-backdrop" onClick={() => setIsReportMatrixModalOpen(false)}>
+                    <div
+                        className="clinical-modal"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            maxWidth: '1200px',
+                            width: '95vw',
+                            maxHeight: '92vh',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            boxShadow: '0 25px 60px rgba(0, 32, 96, 0.35)',
+                            border: '1px solid #cbd5e1'
+                        }}
+                    >
+                        {/* HEADER DEL MODAL */}
+                        <header className="clinical-modal__header" style={{ background: '#002060', color: '#ffffff', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}>
+                                    <img src={uebBannerLogo} alt="UEB" style={{ height: '32px', objectFit: 'contain' }} />
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', letterSpacing: '0.3px', color: '#ffffff' }}>
+                                        UNIVERSIDAD ESTATAL DE BOLÍVAR · INFORME OFICIAL
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#93c5fd' }}>
+                                        {fichaSubTab === 'reintegro' ? 'Registro de Reintegro Laboral y Adaptación Ocupacional' :
+                                         fichaSubTab === 'ingreso' ? 'Fichas Médicas Ocupacionales de Ingreso / Periódicas' :
+                                         fichaSubTab === 'cese' ? 'Fichas Médicas de Retiro / Cese Laboral' :
+                                         fichaSubTab === 'embarazadas' ? 'Vigilancia Médica de Gestantes y Lactantes' :
+                                         fichaSubTab === 'discapacidad' ? 'Fichas Ocupacionales de Funcionarios con Discapacidad' :
+                                         fichaSubTab === 'vulnerables_patologias' ? 'Fichas de Grupos Vulnerables (Patologías)' :
+                                         'Fichas de Personal Nuevo que Ingresó'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button
+                                    type="button"
+                                    onClick={handlePrintFichasMatrix}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        background: '#0284c7',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        padding: '7px 14px',
+                                        borderRadius: '8px',
+                                        fontWeight: '700',
+                                        fontSize: '12px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Printer size={15} /> Imprimir / PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleExportFichasCSV}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        background: '#334155',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        padding: '7px 14px',
+                                        borderRadius: '8px',
+                                        fontWeight: '700',
+                                        fontSize: '12px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Download size={15} /> Exportar CSV
+                                </button>
+                                <button
+                                    type="button"
+                                    className="close-button"
+                                    onClick={() => setIsReportMatrixModalOpen(false)}
+                                    style={{ color: '#ffffff', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </header>
+
+                        {/* CUERPO DEL INFORME */}
+                        <div className="clinical-modal__body" style={{ padding: '24px', overflowY: 'auto', background: '#f8fafc' }}>
+                            <div style={{ background: '#ffffff', padding: '24px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
+                                {/* ENCABEZADO INSTITUCIONAL */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #002060', paddingBottom: '12px', marginBottom: '16px' }}>
+                                    <img src={uebBannerLogo} alt="Logo UEB" style={{ height: '52px', objectFit: 'contain' }} />
+                                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#475569' }}>
+                                        <div style={{ fontWeight: '800', color: '#002060', fontSize: '12px' }}>UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
+                                        <div>DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
+                                        <div>Fecha de Generación: {new Date().toLocaleDateString('es-EC')}</div>
+                                    </div>
+                                </div>
+
+                                {/* BANNER DEL REPORTE */}
+                                <div style={{ background: '#002060', color: '#ffffff', padding: '12px 16px', borderRadius: '8px', textAlign: 'center', fontWeight: '800', fontSize: '15px', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '16px' }}>
+                                    {fichaSubTab === 'reintegro' ? 'REGISTRO DE REINTEGRO LABORAL Y ADAPTACIÓN OCUPACIONAL' :
+                                     fichaSubTab === 'ingreso' ? 'FICHAS MÉDICAS OCUPACIONALES DE INGRESO / PERIÓDICAS' :
+                                     fichaSubTab === 'cese' ? 'FICHAS MÉDICAS DE RETIRO / CESE LABORAL' :
+                                     fichaSubTab === 'embarazadas' ? 'VIGILANCIA MÉDICA DE GESTANTES Y LACTANTES' :
+                                     fichaSubTab === 'discapacidad' ? 'FICHAS OCUPACIONALES DE FUNCIONARIOS CON DISCAPACIDAD' :
+                                     fichaSubTab === 'vulnerables_patologias' ? 'FICHAS DE GRUPOS VULNERABLES (PATOLOGÍAS)' :
+                                     'FICHAS DE PERSONAL NUEVO QUE INGRESÓ'}
+                                </div>
+
+                                {/* TABLA DE DATOS */}
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                                        <thead>
+                                            {fichaSubTab === 'reintegro' ? (
+                                                <tr style={{ background: '#0284c7', color: '#ffffff', textTransform: 'uppercase', textAlign: 'center' }}>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1', width: '35px' }}>N°</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Fecha Reintegro</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Trabajador</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Cédula</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Puesto</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Días Incapacidad</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Diagnóstico Origen</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Modalidad</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Estado</th>
+                                                </tr>
+                                            ) : (
+                                                <tr style={{ background: '#0284c7', color: '#ffffff', textTransform: 'uppercase', textAlign: 'center' }}>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1', width: '35px' }}>N°</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Fecha Evaluación</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Trabajador / Paciente</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Cédula</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Tipo de Evaluación</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Puesto de Trabajo</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Dictamen de Aptitud</th>
+                                                    <th style={{ padding: '8px 6px', border: '1px solid #0369a1' }}>Estado</th>
+                                                </tr>
+                                            )}
+                                        </thead>
+                                        <tbody>
+                                            {fichaSubTab === 'reintegro' ? (
+                                                filteredReintegros.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={9} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                                                            No se encontraron registros de reintegro laboral.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredReintegros.map((item, idx) => (
+                                                        <tr key={item.id || idx} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', padding: '7px 6px' }}>{idx + 1}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: '#0284c7', padding: '7px 6px' }}>{item.fecha}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', fontWeight: 'bold', textTransform: 'uppercase', padding: '7px 8px' }}>{item.paciente}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontFamily: 'monospace', padding: '7px 6px' }}>{item.cedula}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textTransform: 'uppercase', padding: '7px 8px' }}>{item.puesto}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: '#0369a1', padding: '7px 6px' }}>{item.dias} días</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', padding: '7px 8px' }}>{item.diagnostico}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', padding: '7px 6px' }}>{item.tipo}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: item.estado === 'Aprobado' ? '#166534' : '#b45309', padding: '7px 6px' }}>
+                                                                {item.estado}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )
+                                            ) : (
+                                                filteredFichas.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                                                            No se encontraron fichas médicas registradas en esta categoría.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredFichas.map((item, idx) => (
+                                                        <tr key={item.id || idx} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', padding: '7px 6px' }}>{idx + 1}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: '#0284c7', padding: '7px 6px' }}>{item.fecha}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', fontWeight: 'bold', textTransform: 'uppercase', padding: '7px 8px' }}>{item.paciente}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontFamily: 'monospace', padding: '7px 6px' }}>{item.cedula}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: '#334155', padding: '7px 6px' }}>{item.tipo}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textTransform: 'uppercase', padding: '7px 8px' }}>{item.puesto}</td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: (item.aptitud || '').includes('Restricción') ? '#b45309' : (item.aptitud || '').includes('No') ? '#dc2626' : '#15803d', padding: '7px 6px' }}>
+                                                                {item.aptitud}
+                                                            </td>
+                                                            <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', color: '#166534', padding: '7px 6px' }}>
+                                                                {item.estado || 'Completado'}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* FIRMAS DE RESPONSABILIDAD */}
+                                <div style={{ marginTop: '36px', display: 'flex', justifyContent: 'space-around', textAlign: 'center', fontSize: '11px', paddingTop: '20px', borderTop: '1px dashed #cbd5e1' }}>
+                                    <div>
+                                        <div style={{ borderTop: '1px solid #000', width: '240px', margin: '0 auto 4px auto', paddingTop: '4px', fontWeight: 'bold' }}>
+                                            MÉDICO OCUPACIONAL
+                                        </div>
+                                        <div style={{ color: '#64748b' }}>Unidad de Salud Ocupacional - UEB</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ borderTop: '1px solid #000', width: '240px', margin: '0 auto 4px auto', paddingTop: '4px', fontWeight: 'bold' }}>
+                                            RESPONSABLE SEGURIDAD Y SALUD
+                                        </div>
+                                        <div style={{ color: '#64748b' }}>Dirección de Talento Humano - UEB</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* FOOTER DEL MODAL */}
+                        <footer className="clinical-modal__actions" style={{ padding: '14px 24px', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+                            <button
+                                type="button"
+                                className="action-button action-button--light"
+                                onClick={() => setIsReportMatrixModalOpen(false)}
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                type="button"
+                                className="action-button action-button--accent"
+                                onClick={handlePrintFichasMatrix}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                                <Printer size={15} /> Imprimir / Guardar en PDF
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DETALLE / VISOR EXACTO DEL FORMATO OFICIAL DE INGRESO / PERIÓDICO (FORMULARIO 077 - EXCEL CH DE INGRESO) */}
+            <OfficialFichaIngresoModal
+                isOpen={isIngresoDetailModalOpen}
+                onClose={() => setIsIngresoDetailModalOpen(false)}
+                record={selectedIngresoDetail}
+                uebBannerLogo={uebBannerLogo}
+            />
+
+            {/* MODAL DETALLE / VISOR EXACTO DEL FORMATO OFICIAL DE RETIRO / CESE LABORAL (FORMULARIO 077 RETIRO - EXCEL MSP) */}
+            <OfficialFichaRetiroModal
+                isOpen={isRetiroDetailModalOpen}
+                onClose={() => setIsRetiroDetailModalOpen(false)}
+                record={selectedRetiroDetail}
+                uebBannerLogo={uebBannerLogo}
+            />
+
             {/* PANEL DE AYUDA */}
             <HelpPanel
                 helpItems={[
                     { title: 'Paso 1: Buscar o Registrar Trabajador', content: 'Use el buscador de Cédula o nombre para cargar al trabajador. Si es nuevo, regístrelo en el sistema.' },
                     { title: 'Paso 2: Evaluación Ocupacional', content: 'Complete los pasos de la consulta ocupacional (Vigilancia, Antecedentes, Examen Físico, Aptitud Laboral y Prescripción Médica).' },
                     { title: 'Paso 3: Matriz de Riesgos y Exámenes', content: 'Emita órdenes de exámenes diagnósticos o genere certificados de aptitud laboral.' },
-                    { title: 'Paso 4: Reportes y Fichas', content: 'Consulte partes diarios y fichas ocupacionales (Ingreso, Retiro, Reintegro, Gestantes, Discapacidad).' }
+                    { title: 'Paso 4: Reportes y Fichas', content: 'Consulte partes diarios y fichas ocupacionales (Ingreso, Retiro, Reintegro).' }
                 ]}
                 contactInfo={{ email: 'soporte@ueb.edu.ec' }}
             />
+
+            {toast.show && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '24px',
+                    right: '24px',
+                    background: '#0f172a',
+                    color: '#fff',
+                    padding: '12px 20px',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                    zIndex: 99999,
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    animation: 'fadeIn 0.2s ease-out'
+                }}>
+                    <Info size={16} color="#38bdf8" />
+                    <span>{toast.message}</span>
+                </div>
+            )}
         </div>
     );
 }

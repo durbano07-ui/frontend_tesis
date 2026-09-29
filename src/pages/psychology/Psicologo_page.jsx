@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -6,8 +6,10 @@ import api from '../../api/axios';
 import '../../medical.css'; // Estilos unificados médicos y psicológicos
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
+import NotificationMenu from '../../components/NotificationMenu';
 import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
+import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 
 import {
     Menu,
@@ -246,7 +248,7 @@ const Psicologo_page = () => {
         detalle_pronostico: '',
         detalle_recomendacion: '',
         // Parte Diario automático asociado
-        tipo_atencion: 'primaria', // primaria | secundaria | certificadomedico
+        tipo_atencion: 'primaria', // primaria | secundaria
         tipo_atencion2: 'curativo' // curativo | preventivo
     });
 
@@ -268,6 +270,19 @@ const Psicologo_page = () => {
         fecha: new Date().toISOString().slice(0, 10),
         detalle_evolucion: ''
     });
+    // Tratamientos agrupados y control de despliegue
+    const [expandedTreatments, setExpandedTreatments] = useState({});
+    const [evolutionViewMode, setEvolutionViewMode] = useState('tratamientos'); // 'tratamientos' | 'todas'
+
+    const toggleTreatment = (treatmentId, defaultState = true) => {
+        setExpandedTreatments(prev => {
+            const currentVal = prev[treatmentId];
+            return {
+                ...prev,
+                [treatmentId]: currentVal !== undefined ? !currentVal : !defaultState
+            };
+        });
+    };
 
     // ==========================================
     // 4. ESTADOS DE HISTORIAL GENERAL
@@ -519,7 +534,9 @@ const Psicologo_page = () => {
                 <div class="page-sheet">
                     <div>
                         <header class="header">
-                            <div style="width: 80px;"></div>
+                            <div style="width: 110px; display: flex; align-items: center;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
+                            </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
                                 <h2>Bienestar Estudiantil</h2>
@@ -1246,14 +1263,6 @@ const Psicologo_page = () => {
         }
     }, [activeTab, parteDiarioDate]);
 
-    const getParteKPIs = () => {
-        const total = parteDiarioList.length;
-        const primarias = parteDiarioList.filter(item => item.tipo_atencion === 'primaria').length;
-        const secundarias = parteDiarioList.filter(item => item.tipo_atencion === 'secundaria').length;
-        const certificados = parteDiarioList.filter(item => item.tipo_atencion === 'certificadomedico').length;
-        return { total, primarias, secundarias, certificados };
-    };
-
     const handlePrintParteDiario = async () => {
         if (parteDiarioList.length === 0) {
             showSystemToast('No hay atenciones en esta fecha para generar el reporte.');
@@ -1582,7 +1591,9 @@ const Psicologo_page = () => {
                 <div class="page-sheet">
                     <div>
                         <header class="header">
-                            <div style="width: 80px;"></div>
+                            <div style="width: 110px; display: flex; align-items: center;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
+                            </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
                                 <h2>Bienestar Estudiantil</h2>
@@ -1693,15 +1704,33 @@ const Psicologo_page = () => {
                 ...item,
                 type: 'evolucion',
                 recordTitle: `Evolución Sesión #${item.sesion_numero}`,
+                tipo_atencion: item.tipo_atencion || (Number(item.sesion_numero) > 1 ? 'secundaria' : 'primaria'),
                 fecha: item.fecha ? item.fecha.slice(0, 10) : ''
             }));
             const mappedDiario = (diarioRes.data.data || []).map(item => ({
                 ...item,
                 type: 'diario',
                 recordTitle: 'Atención Diario Psicología',
+                tipo_atencion: item.tipo_atencion || 'primaria',
                 fecha: item.fecha ? item.fecha.slice(0, 10) : ''
             }));
-            const combined = [...mappedEvol, ...mappedDiario].sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+            // Evitar duplicados automáticos entre historial-evolución y parte-diario
+            const seenKeys = new Set();
+            const uniqueRecords = [];
+            mappedEvol.forEach(item => {
+                seenKeys.add(`${item.fecha}_${item.sesion_numero}`);
+                uniqueRecords.push(item);
+            });
+            mappedDiario.forEach(item => {
+                const match = item.detalle_diagnostico && item.detalle_diagnostico.match(/Sesión de evolución N°\s*(\d+)/i);
+                if (match && seenKeys.has(`${item.fecha}_${match[1]}`)) {
+                    return; // Ya representado con más detalle en mappedEvol
+                }
+                uniqueRecords.push(item);
+            });
+
+            const combined = uniqueRecords.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
             setAreaHistories({ psicologia: combined });
         } catch (err) {
             console.error("Error al cargar historial por área:", err);
@@ -1709,6 +1738,97 @@ const Psicologo_page = () => {
             setAreaHistoriesLoading(false);
         }
     };
+
+    // Algoritmo clínico para agrupar citas en Ciclos de Tratamiento:
+    // 1. Atención "Primaria (Primera Vez)" inicia un tratamiento (y cierra el anterior si estaba activo).
+    // 2. Atención "Secundaria (Subsecuente / Evolución)" continúa el tratamiento activo.
+    // 3. Cuando ocurre otra "Primaria", el tratamiento previo se cierra automáticamente y se inicia uno nuevo.
+    const processCitasAndTreatments = (records = []) => {
+        // Ordenar cronológicamente (de la cita más antigua a la más reciente)
+        const sorted = [...records].sort((a, b) => {
+            const dateA = a.fecha || a.created_at || '';
+            const dateB = b.fecha || b.created_at || '';
+            if (dateA === dateB) return (a.id || 0) - (b.id || 0);
+            return dateA.localeCompare(dateB);
+        });
+
+        const treatmentsList = [];
+        let currentTreatment = null;
+        let treatmentIndex = 1;
+
+        sorted.forEach(record => {
+            const isExplicitSecundaria = record.tipo_atencion === 'secundaria' ||
+                (record.type === 'evolucion' && Number(record.sesion_numero) > 1);
+
+            // Inicia un nuevo tratamiento si es 'primaria' O si no hay ningún tratamiento activo aún
+            const startsNewTreatment = record.tipo_atencion === 'primaria' ||
+                (record.type === 'evolucion' && Number(record.sesion_numero) === 1) ||
+                (!currentTreatment && !isExplicitSecundaria);
+
+            if (startsNewTreatment) {
+                // Si había un tratamiento previo en curso, se CIERRA automáticamente
+                if (currentTreatment) {
+                    currentTreatment.estado = 'cerrado';
+                    currentTreatment.fecha_fin = currentTreatment.citas[currentTreatment.citas.length - 1]?.fecha || currentTreatment.fecha_inicio;
+                }
+
+                // Inicia un nuevo ciclo de tratamiento
+                currentTreatment = {
+                    id: `tratamiento-${treatmentIndex}`,
+                    numero: treatmentIndex,
+                    fecha_inicio: record.fecha || (record.created_at || '').slice(0, 10),
+                    fecha_fin: record.fecha || (record.created_at || '').slice(0, 10),
+                    diagnostico: record.detalle_diagnostico || record.detalle_motivo || record.detalle_evolucion || 'Atención y Valoración Psicológica',
+                    tipo_atencion2: record.tipo_atencion2 || 'curativo',
+                    estado: 'en_curso', // Permanece en curso hasta que una próxima cita sea Primaria
+                    citas: [record],
+                    cita_inicial: record
+                };
+                record.treatmentId = currentTreatment.id;
+                record.treatmentNumero = treatmentIndex;
+                record.treatmentEstado = 'en_curso';
+                treatmentsList.push(currentTreatment);
+                treatmentIndex++;
+            } else {
+                // Continúa el tratamiento activo actual
+                if (!currentTreatment) {
+                    currentTreatment = {
+                        id: `tratamiento-${treatmentIndex}`,
+                        numero: treatmentIndex,
+                        fecha_inicio: record.fecha || (record.created_at || '').slice(0, 10),
+                        fecha_fin: record.fecha || (record.created_at || '').slice(0, 10),
+                        diagnostico: record.detalle_diagnostico || record.detalle_evolucion || 'Tratamiento Psicoterapéutico',
+                        tipo_atencion2: record.tipo_atencion2 || 'curativo',
+                        estado: 'en_curso',
+                        citas: [record],
+                        cita_inicial: record
+                    };
+                    treatmentsList.push(currentTreatment);
+                    treatmentIndex++;
+                } else {
+                    currentTreatment.citas.push(record);
+                    currentTreatment.fecha_fin = record.fecha || (record.created_at || '').slice(0, 10);
+                }
+                record.treatmentId = currentTreatment.id;
+                record.treatmentNumero = currentTreatment.numero;
+                record.treatmentEstado = currentTreatment.estado;
+            }
+        });
+
+        // Asegurar que las citas vinculadas tengan referencia al tratamiento y su estado final
+        treatmentsList.forEach(t => {
+            t.citas.forEach(c => {
+                c.treatment = t;
+                c.treatmentEstado = t.estado;
+            });
+        });
+
+        return treatmentsList;
+    };
+
+    const treatments = useMemo(() => {
+        return processCitasAndTreatments(areaHistories.psicologia || []);
+    }, [areaHistories.psicologia]);
 
     const handleSaveEvolucion = async (e) => {
         e.preventDefault();
@@ -1728,7 +1848,7 @@ const Psicologo_page = () => {
             const dailyPayload = {
                 id_usuario_paciente: patientId,
                 fecha: today,
-                tipo_atencion: 'primaria',
+                tipo_atencion: parseInt(evolucionForm.sesion_numero, 10) > 1 ? 'secundaria' : 'primaria',
                 tipo_atencion2: 'curativo',
                 detalle_diagnostico: `Sesión de evolución N° ${evolucionForm.sesion_numero}: ${evolucionForm.detalle_evolucion}`
             };
@@ -1873,6 +1993,13 @@ const Psicologo_page = () => {
         }
     };
 
+    const handleNavigateToCitasFromNotif = (fecha) => {
+        if (fecha) {
+            setCitasDate(fecha);
+        }
+        setActiveTab('citas');
+    };
+
     const handlePrintReporteCitas = () => {
         try {
             const printWindow = window.open('', '_blank');
@@ -2011,8 +2138,8 @@ const Psicologo_page = () => {
                 <body>
                     <div class="page-sheet">
                         <div class="header-container">
-                            <div class="header-logo">
-                                UEB <span>Universidad Estatal de Bolívar</span>
+                            <div class="header-logo" style="display: flex; align-items: center;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-center">
                                 <h1>UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
@@ -2384,9 +2511,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Datos de Identificación</td>
             <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
-                <div style="font-size: 7px; color: #666; margin-top: 2px;">PUESTO DE SALUD</div>
+                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2548,8 +2673,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Historia Clínica Psicológica</td>
             <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
+                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2650,8 +2774,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Evaluación Psicológica y Resultados</td>
             <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
+                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2690,8 +2813,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Hoja de Evolución Psicología</td>
             <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
+                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2899,6 +3021,9 @@ const Psicologo_page = () => {
                 <body>
                     <div class="certificate-border">
                         <div class="header">
+                            <div style="margin-bottom: 12px; display: flex; justify-content: center;">
+                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 58px; width: auto; object-fit: contain;" />
+                            </div>
                             <div class="logo-main">Universidad Estatal de Bolívar</div>
                             <div class="logo-sub">DEPARTAMENTO DE BIENESTAR UNIVERSITARIO</div>
                         </div>
@@ -3052,12 +3177,13 @@ const Psicologo_page = () => {
                                 <h1>
                                     {activeTab === 'ficha' ? 'Consulta Médica' :
                                         activeTab === 'diario' ? 'Parte Diario de Psicología' :
-                                            activeTab === 'evolucion' ? 'Seguimiento a Pacientes' : 'Historial Clínico'}
+                                            activeTab === 'evolucion' ? 'Seguimiento a Pacientes' :
+                                                activeTab === 'citas' ? 'Gestión de Citas' : 'Historial Clínico'}
                                 </h1>
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
+                            <NotificationMenu onNavigateToCitas={handleNavigateToCitasFromNotif} />
                             <UserProfileMenu />
                         </div>
                     </header>
@@ -3148,36 +3274,6 @@ const Psicologo_page = () => {
                                                 </button>
                                             </div>
                                         </div>
-                                        <section className="psycho-kpis" style={{ marginTop: '20px' }}>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><UserCheck size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Atendidos Hoy</span>
-                                                    <strong>{getParteKPIs().total}</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><HeartHandshake size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Primaria</span>
-                                                    <strong>{getParteKPIs().primarias}</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: '#e9f8f2', color: 'var(--success)' }}><TrendingUp size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Secundaria</span>
-                                                    <strong>{getParteKPIs().secundarias}</strong>
-                                                </div>
-                                            </div>
-                                            <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
-                                                <div className="psycho-kpi-card__info">
-                                                    <span>Certificados</span>
-                                                    <strong>{getParteKPIs().certificados}</strong>
-                                                </div>
-                                            </div>
-                                        </section>
                                     </article>
 
                                     <article className="nurse-card span-12" style={{ marginTop: '20px' }}>
@@ -3283,6 +3379,15 @@ const Psicologo_page = () => {
                         {/* TAB 3: SESIONES DE EVOLUCIÓN */}
                         {activeTab === 'evolucion' && (
                             <div>
+                                <section className="page-hero" style={{ marginBottom: '20px' }}>
+                                    <div>
+                                        <span className="page-hero__label"><TrendingUp size={14} style={{ marginRight: '6px', display: 'inline' }} /> Seguimiento Clínico</span>
+                                        <h2>Evolución y Seguimiento de Pacientes</h2>
+                                        <p>Consulte el expediente clínico, historial de consultas psicológicas y el seguimiento continuo de cada paciente atendido.</p>
+                                    </div>
+                                    <div className="page-hero__icon"><TrendingUp size={34} /></div>
+                                </section>
+
                                 <section className="nurse-card patient-selector-card" style={{ marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -3323,148 +3428,526 @@ const Psicologo_page = () => {
                                         </div>
 
                                         {/* Table and Detail Grid */}
-                                        <div className="historial-grid-container" style={{ gridTemplateColumns: activeBookRecord ? '1fr 1fr' : '1fr' }}>
-                                            {/* Table Column */}
-                                            <div className="evolution-table-container">
+                                        <div
+                                            className="historial-grid-container"
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: activeBookRecord ? 'minmax(0, 1.35fr) minmax(320px, 0.95fr)' : '1fr',
+                                                gap: '20px',
+                                                alignItems: 'start',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            {/* Column: Treatments List / All Consultations */}
+                                            <div style={{ minWidth: 0, width: '100%' }}>
                                                 {areaHistoriesLoading ? (
                                                     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Cargando registros...</div>
                                                 ) : !areaHistories.psicologia || areaHistories.psicologia.length === 0 ? (
-                                                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontStyle: 'italic', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                                                         No se registran antecedentes en psicología.
                                                     </div>
                                                 ) : (
-                                                    <table className="evolution-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Fecha</th>
-                                                                <th>Especialidad</th>
-                                                                <th>Detalle / Diagnóstico</th>
-                                                                <th>Acción</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {areaHistories.psicologia.map((record, index) => (
-                                                                <tr
-                                                                    key={record.id || index}
-                                                                    className={activeBookRecord?.id === record.id ? 'active' : ''}
-                                                                    onClick={() => setActiveBookRecord(record)}
+                                                    <div>
+                                                        {/* Top bar with count & view mode toggle */}
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                                {treatments.length} {treatments.length === 1 ? 'tratamiento registrado' : 'tratamientos registrados'} · {areaHistories.psicologia.length} {areaHistories.psicologia.length === 1 ? 'cita' : 'citas en total'}
+                                                            </div>
+                                                            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{
+                                                                        padding: '4px 12px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 600,
+                                                                        border: 'none',
+                                                                        borderRadius: '6px',
+                                                                        cursor: 'pointer',
+                                                                        background: evolutionViewMode === 'tratamientos' ? '#ffffff' : 'transparent',
+                                                                        color: evolutionViewMode === 'tratamientos' ? 'var(--primary)' : 'var(--text-muted)',
+                                                                        boxShadow: evolutionViewMode === 'tratamientos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                                    }}
+                                                                    onClick={() => setEvolutionViewMode('tratamientos')}
                                                                 >
-                                                                    <td>{(record.fecha || record.created_at || '').slice(0, 10)}</td>
-                                                                    <td>
-                                                                        <span className="evolution-badge evolution-badge--psicologia">
-                                                                            {record.recordTitle || record.type}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                        {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
-                                                                    </td>
-                                                                    <td>
-                                                                        <button
-                                                                            className="action-button action-button--primary"
-                                                                            style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '8px' }}
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                setActiveBookRecord(record);
+                                                                    Agrupado por Tratamiento
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{
+                                                                        padding: '4px 12px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 600,
+                                                                        border: 'none',
+                                                                        borderRadius: '6px',
+                                                                        cursor: 'pointer',
+                                                                        background: evolutionViewMode === 'todas' ? '#ffffff' : 'transparent',
+                                                                        color: evolutionViewMode === 'todas' ? 'var(--primary)' : 'var(--text-muted)',
+                                                                        boxShadow: evolutionViewMode === 'todas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                                    }}
+                                                                    onClick={() => setEvolutionViewMode('todas')}
+                                                                >
+                                                                    Todas las Citas
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {evolutionViewMode === 'tratamientos' ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                                                {treatments.slice().reverse().map(treatment => {
+                                                                    const isExpanded = expandedTreatments[treatment.id] !== undefined
+                                                                        ? expandedTreatments[treatment.id]
+                                                                        : (treatment.estado === 'en_curso' || treatments.length === 1);
+
+                                                                    return (
+                                                                        <div
+                                                                            key={treatment.id}
+                                                                            style={{
+                                                                                background: '#ffffff',
+                                                                                border: treatment.estado === 'en_curso' ? '1.5px solid rgba(0, 32, 64, 0.22)' : '1px solid #e2e8f0',
+                                                                                borderRadius: '12px',
+                                                                                overflow: 'hidden',
+                                                                                boxShadow: treatment.estado === 'en_curso' ? '0 4px 12px rgba(0, 32, 64, 0.06)' : '0 1px 4px rgba(0,0,0,0.03)',
+                                                                                transition: 'all 0.2s ease'
                                                                             }}
                                                                         >
-                                                                            Ver Detalle
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
+                                                                            {/* Header */}
+                                                                            <div
+                                                                                style={{
+                                                                                    padding: '12px 16px',
+                                                                                    display: 'flex',
+                                                                                    justifyContent: 'space-between',
+                                                                                    alignItems: 'center',
+                                                                                    cursor: 'pointer',
+                                                                                    background: isExpanded ? 'rgba(0, 32, 64, 0.02)' : '#ffffff',
+                                                                                    borderBottom: isExpanded ? '1px solid #edf2f7' : 'none',
+                                                                                    gap: '12px',
+                                                                                    flexWrap: 'wrap'
+                                                                                }}
+                                                                                onClick={() => toggleTreatment(treatment.id, treatment.estado === 'en_curso')}
+                                                                            >
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px', minWidth: 0 }}>
+                                                                                    <div style={{
+                                                                                        width: '36px',
+                                                                                        height: '36px',
+                                                                                        borderRadius: '10px',
+                                                                                        background: treatment.estado === 'en_curso' ? 'var(--primary-soft)' : '#f1f5f9',
+                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#64748b',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        flexShrink: 0
+                                                                                    }}>
+                                                                                        <HeartHandshake size={19} />
+                                                                                    </div>
+                                                                                    <div style={{ minWidth: 0 }}>
+                                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.4px' }}>
+                                                                                                Tratamiento #{treatment.numero}
+                                                                                            </span>
+                                                                                            {treatment.estado === 'en_curso' ? (
+                                                                                                <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span> En Curso
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span style={{ fontSize: '10px', fontWeight: 600, background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '10px' }}>
+                                                                                                    ✓ Cerrado
+                                                                                                </span>
+                                                                                            )}
+                                                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                                · {treatment.citas.length} {treatment.citas.length === 1 ? 'cita' : 'citas'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <h4 style={{ margin: '3px 0 0', fontSize: '13px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={treatment.diagnostico}>
+                                                                                            {treatment.diagnostico}
+                                                                                        </h4>
+                                                                                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                            Inicio: <strong>{treatment.fecha_inicio}</strong> {treatment.fecha_fin !== treatment.fecha_inicio ? `· Última: ${treatment.fecha_fin}` : ''}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="action-button action-button--light"
+                                                                                    style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        toggleTreatment(treatment.id, treatment.estado === 'en_curso');
+                                                                                    }}
+                                                                                >
+                                                                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                                                    <span>{isExpanded ? 'Ocultar Citas' : `Desplegar Citas (${treatment.citas.length})`}</span>
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {/* Citas del Tratamiento Desplegadas */}
+                                                                            {isExpanded && (
+                                                                                <div style={{ padding: '8px', background: '#fafbfc' }}>
+                                                                                    <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                                                                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                                            <colgroup>
+                                                                                                <col style={{ width: '80px' }} />
+                                                                                                <col style={{ width: '85px' }} />
+                                                                                                <col style={{ width: '88px' }} />
+                                                                                                <col style={{ width: 'auto' }} />
+                                                                                                <col style={{ width: '92px' }} />
+                                                                                            </colgroup>
+                                                                                            <thead>
+                                                                                                <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Cita</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle Clínico</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody>
+                                                                                                {treatment.citas.map((cita, cIdx) => (
+                                                                                                    <tr
+                                                                                                        key={cita.id || cIdx}
+                                                                                                        style={{
+                                                                                                            borderBottom: cIdx === treatment.citas.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                                                                            background: activeBookRecord?.id === cita.id ? 'rgba(0, 32, 64, 0.05)' : 'transparent',
+                                                                                                            cursor: 'pointer',
+                                                                                                            transition: 'background 0.15s ease'
+                                                                                                        }}
+                                                                                                        onClick={() => setActiveBookRecord(cita)}
+                                                                                                    >
+                                                                                                        <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--primary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                                                                            {cIdx === 0 ? 'Cita #1' : `Cita #${cIdx + 1}`}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>
+                                                                                                            {(cita.fecha || cita.created_at || '').slice(0, 10)}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px' }}>
+                                                                                                            <span style={{
+                                                                                                                background: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                                                color: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary)' : 'var(--accent)',
+                                                                                                                padding: '2px 7px',
+                                                                                                                borderRadius: '5px',
+                                                                                                                fontSize: '10px',
+                                                                                                                fontWeight: 700,
+                                                                                                                display: 'inline-block',
+                                                                                                                whiteSpace: 'nowrap'
+                                                                                                            }}>
+                                                                                                                {(cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'Primaria' : 'Secundaria'}
+                                                                                                            </span>
+                                                                                                        </td>
+                                                                                                        <td
+                                                                                                            style={{
+                                                                                                                padding: '8px 10px',
+                                                                                                                fontSize: '11px',
+                                                                                                                color: '#475569',
+                                                                                                                overflow: 'hidden',
+                                                                                                                textOverflow: 'ellipsis',
+                                                                                                                whiteSpace: 'nowrap'
+                                                                                                            }}
+                                                                                                            title={cita.detalle_evolucion || cita.detalle_diagnostico || cita.detalle_motivo || 'Consulta registrada'}
+                                                                                                        >
+                                                                                                            {cita.detalle_evolucion || cita.detalle_diagnostico || cita.detalle_motivo || 'Consulta registrada'}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                                                                                            <button
+                                                                                                                type="button"
+                                                                                                                className="action-button action-button--primary"
+                                                                                                                style={{
+                                                                                                                    fontSize: '10.5px',
+                                                                                                                    minHeight: '26px',
+                                                                                                                    padding: '0 8px',
+                                                                                                                    borderRadius: '6px',
+                                                                                                                    whiteSpace: 'nowrap',
+                                                                                                                    width: '100%',
+                                                                                                                    maxWidth: '82px',
+                                                                                                                    display: 'inline-flex',
+                                                                                                                    alignItems: 'center',
+                                                                                                                    justifyContent: 'center'
+                                                                                                                }}
+                                                                                                                onClick={(e) => {
+                                                                                                                    e.stopPropagation();
+                                                                                                                    setActiveBookRecord(cita);
+                                                                                                                }}
+                                                                                                            >
+                                                                                                                Ver Detalle
+                                                                                                            </button>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                ))}
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            /* Vista de todas las citas */
+                                                            <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+                                                                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                    <colgroup>
+                                                                        <col style={{ width: '85px' }} />
+                                                                        <col style={{ width: '110px' }} />
+                                                                        <col style={{ width: '90px' }} />
+                                                                        <col style={{ width: 'auto' }} />
+                                                                        <col style={{ width: '92px' }} />
+                                                                    </colgroup>
+                                                                    <thead>
+                                                                        <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Tratamiento</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle / Diagnóstico</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {areaHistories.psicologia.map((record, index) => {
+                                                                            const isPrimaria = record.tipo_atencion === 'primaria';
+                                                                            return (
+                                                                                <tr
+                                                                                    key={record.id || index}
+                                                                                    style={{
+                                                                                        borderBottom: index === areaHistories.psicologia.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                                                        background: activeBookRecord?.id === record.id ? 'rgba(0, 32, 64, 0.05)' : 'transparent',
+                                                                                        cursor: 'pointer'
+                                                                                    }}
+                                                                                    onClick={() => setActiveBookRecord(record)}
+                                                                                >
+                                                                                    <td style={{ padding: '9px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>
+                                                                                        {(record.fecha || record.created_at || '').slice(0, 10)}
+                                                                                    </td>
+                                                                                    <td style={{ padding: '9px 10px' }}>
+                                                                                        {record.treatment ? (
+                                                                                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
+                                                                                                Tratamiento #{record.treatment.numero}
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>-</span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td style={{ padding: '9px 10px' }}>
+                                                                                        <span style={{
+                                                                                            background: isPrimaria ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                            color: isPrimaria ? 'var(--primary)' : 'var(--accent)',
+                                                                                            padding: '2px 7px',
+                                                                                            borderRadius: '5px',
+                                                                                            fontSize: '10px',
+                                                                                            fontWeight: 700,
+                                                                                            display: 'inline-block',
+                                                                                            whiteSpace: 'nowrap'
+                                                                                        }}>
+                                                                                            {isPrimaria ? 'Primaria' : 'Secundaria'}
+                                                                                        </span>
+                                                                                    </td>
+                                                                                    <td
+                                                                                        style={{
+                                                                                            padding: '9px 10px',
+                                                                                            fontSize: '11px',
+                                                                                            color: '#475569',
+                                                                                            overflow: 'hidden',
+                                                                                            textOverflow: 'ellipsis',
+                                                                                            whiteSpace: 'nowrap'
+                                                                                        }}
+                                                                                        title={record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
+                                                                                    >
+                                                                                        {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
+                                                                                    </td>
+                                                                                    <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="action-button action-button--primary"
+                                                                                            style={{
+                                                                                                fontSize: '10.5px',
+                                                                                                minHeight: '26px',
+                                                                                                padding: '0 8px',
+                                                                                                borderRadius: '6px',
+                                                                                                whiteSpace: 'nowrap',
+                                                                                                width: '100%',
+                                                                                                maxWidth: '82px'
+                                                                                            }}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setActiveBookRecord(record);
+                                                                                            }}
+                                                                                        >
+                                                                                            Ver Detalle
+                                                                                        </button>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
 
                                             {/* Detail Column */}
                                             {activeBookRecord && (
-                                                <div className="premium-field-card clinical-detail-card" style={{ padding: '24px', position: 'sticky', top: '20px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 32, 64, 0.05)', paddingBottom: '12px', marginBottom: '16px' }}>
-                                                        <div>
-                                                            <span className="eyebrow" style={{ textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Detalle Clínico</span>
-                                                            <h4 style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--primary)', fontWeight: 800 }}>
-                                                                {activeBookRecord.recordTitle || 'Sesión de Evolución'}
+                                                <div
+                                                    style={{
+                                                        background: '#ffffff',
+                                                        borderRadius: '14px',
+                                                        border: '1.5px solid rgba(0, 32, 64, 0.12)',
+                                                        boxShadow: '0 6px 20px rgba(0, 32, 64, 0.07)',
+                                                        padding: '20px',
+                                                        position: 'sticky',
+                                                        top: '20px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '14px'
+                                                    }}
+                                                >
+                                                    {/* Header */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf2f7', paddingBottom: '12px', gap: '10px' }}>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
+                                                                Detalle Clínico de Consulta
+                                                            </span>
+                                                            <h4 style={{ margin: '3px 0 0', fontSize: '14.5px', color: 'var(--primary)', fontWeight: 800 }}>
+                                                                {activeBookRecord.recordTitle || (activeBookRecord.type === 'evolucion' ? 'Sesión de Evolución' : 'Atención Psicológica')}
                                                             </h4>
-                                                            <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                                                Fecha: {(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}
-                                                            </p>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                    Fecha: <strong>{(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}</strong>
+                                                                </span>
+                                                                {activeBookRecord.treatment && (
+                                                                    <span style={{
+                                                                        fontSize: '10px',
+                                                                        fontWeight: 700,
+                                                                        background: activeBookRecord.treatment.estado === 'en_curso' ? '#dcfce7' : '#f1f5f9',
+                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#64748b',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '10px',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '3px'
+                                                                    }}>
+                                                                        Tratamiento #{activeBookRecord.treatment.numero} ({activeBookRecord.treatment.estado === 'en_curso' ? 'En Curso' : 'Cerrado'})
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', gap: '8px' }}>
+
+                                                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                                                             <button
+                                                                type="button"
                                                                 className="action-button action-button--accent"
-                                                                style={{ fontSize: '11px', minHeight: '32px', padding: '0 12px', borderRadius: '8px' }}
+                                                                style={{ fontSize: '11px', minHeight: '30px', padding: '0 10px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px' }}
                                                                 onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, activeBookRecord?.id)}
                                                                 title="Descargar Historia Clínica PDF"
                                                             >
-                                                                <FileText size={14} /> PDF
+                                                                <FileText size={13} /> PDF
                                                             </button>
                                                             <button
+                                                                type="button"
                                                                 className="action-button action-button--light"
-                                                                style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                style={{ minHeight: '30px', width: '30px', padding: 0, borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                                 onClick={() => setActiveBookRecord(null)}
+                                                                title="Cerrar detalle"
                                                             >
                                                                 <X size={15} />
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }} className="clinical-modal__body">
-                                                        {activeBookRecord.type === 'evolucion' && (
-                                                            <>
-                                                                <div className="preview-paper-field">
-                                                                    <span>Detalle de Evolución Psicológica</span>
-                                                                    <p style={{ fontStyle: 'italic', background: '#f5f3ff', padding: '12px', borderRadius: '8px', border: '1px solid #ddd6fe', lineHeight: '1.5', margin: 0 }}>
-                                                                        {activeBookRecord.detalle_evolucion}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="preview-paper-field">
-                                                                    <span>Prescripción / Recomendaciones</span>
-                                                                    <p style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #99f6e4', color: '#0f766e', margin: 0 }}>
-                                                                        {activeBookRecord.prescripcion_medica || 'Sin recomendaciones registradas.'}
-                                                                    </p>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                        {activeBookRecord.type === 'diario' && (
-                                                            <>
-                                                                <div className="preview-paper-field">
-                                                                    <span>Tipo de Atención</span>
-                                                                    <strong style={{ textTransform: 'capitalize' }}>{activeBookRecord.tipo_atencion} - {activeBookRecord.tipo_atencion2 || 'General'}</strong>
-                                                                </div>
-                                                                <div className="preview-paper-field">
-                                                                    <span>Diagnóstico Clínico</span>
-                                                                    <p style={{ fontWeight: '600', margin: 0 }}>{activeBookRecord.detalle_diagnostico}</p>
-                                                                </div>
-                                                                {activeBookRecord.procedimiento && (
-                                                                    <div className="preview-paper-field">
-                                                                        <span>Procedimiento / Terapia</span>
-                                                                        <p style={{ margin: 0 }}>{activeBookRecord.procedimiento}</p>
-                                                                    </div>
-                                                                )}
-                                                            </>
+                                                    {/* Content Fields */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {/* Nivel de Atención */}
+                                                        <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                Nivel de Atención
+                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                                                                <span style={{
+                                                                    background: activeBookRecord.tipo_atencion === 'primaria' ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                    color: activeBookRecord.tipo_atencion === 'primaria' ? 'var(--primary)' : 'var(--accent)',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '5px',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: 700
+                                                                }}>
+                                                                    {activeBookRecord.tipo_atencion === 'primaria' ? 'Primaria (Primera Vez)' : activeBookRecord.tipo_atencion === 'secundaria' ? 'Secundaria (Evolución)' : (activeBookRecord.tipo_atencion || 'Atención General')}
+                                                                </span>
+                                                                <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize' }}>
+                                                                    · {activeBookRecord.tipo_atencion2 || 'Curativo'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Diagnóstico Clínico */}
+                                                        {(activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico) && (
+                                                            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Diagnóstico Clínico
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>
+                                                                    {activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico}
+                                                                </p>
+                                                            </div>
                                                         )}
 
-                                                        {/* Acciones de Certificado */}
-                                                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(0,32,64,0.05)' }}>
-                                                            {activeBookRecord.tipo_atencion === 'certificadomedico' ? (
-                                                                <button
-                                                                    className="action-button action-button--accent"
-                                                                    onClick={() => handlePrintSessionCertificate(activeBookRecord)}
-                                                                    style={{ width: '100%', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                                                >
-                                                                    <Printer size={16} /> Imprimir Certificado
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    className="action-button action-button--accent"
-                                                                    onClick={() => handleIssueCertificate(activeBookRecord)}
-                                                                    style={{ width: '100%', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                                                >
-                                                                    <FileCheck size={16} /> Otorgar Certificado
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                        {/* Evolución / Notas Clínicas */}
+                                                        {(activeBookRecord.detalle_evolucion || activeBookRecord.detalle_motivo) && (
+                                                            <div style={{ background: '#f5f3ff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
+                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Detalle de Evolución Psicológica
+                                                                </span>
+                                                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b0764', lineHeight: '1.5', fontStyle: 'italic' }}>
+                                                                    {activeBookRecord.detalle_evolucion || activeBookRecord.detalle_motivo}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Procedimiento */}
+                                                        {activeBookRecord.procedimiento && (
+                                                            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Procedimiento / Terapia Aplicada
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#334155' }}>
+                                                                    {activeBookRecord.procedimiento}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Prescripción */}
+                                                        {activeBookRecord.prescripcion_medica && (
+                                                            <div style={{ background: '#f0fdf4', padding: '10px 12px', borderRadius: '8px', border: '1px solid #99f6e4' }}>
+                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Prescripción / Recomendaciones
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#134e4a', lineHeight: '1.4' }}>
+                                                                    {activeBookRecord.prescripcion_medica}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Footer Actions */}
+                                                    <div style={{ paddingTop: '8px', borderTop: '1px solid #edf2f7' }}>
+                                                        {activeBookRecord.tipo_atencion === 'certificadomedico' ? (
+                                                            <button
+                                                                type="button"
+                                                                className="action-button action-button--accent"
+                                                                onClick={() => handlePrintSessionCertificate(activeBookRecord)}
+                                                                style={{ width: '100%', fontWeight: 700, fontSize: '12px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                                                            >
+                                                                <Printer size={15} /> Imprimir Certificado
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="action-button action-button--accent"
+                                                                onClick={() => handleIssueCertificate(activeBookRecord)}
+                                                                style={{ width: '100%', fontWeight: 700, fontSize: '12px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                                                            >
+                                                                <FileCheck size={15} /> Otorgar Certificado
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -3533,37 +4016,6 @@ const Psicologo_page = () => {
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            <section className="psycho-kpis" style={{ marginTop: '20px' }}>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><UserCheck size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Atendidos Hoy</span>
-                                                        <strong>{getParteKPIs().total}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><HeartHandshake size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Primaria</span>
-                                                        <strong>{getParteKPIs().primarias}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#e9f8f2', color: 'var(--success)' }}><TrendingUp size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Secundaria</span>
-                                                        <strong>{getParteKPIs().secundarias}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Certificados</span>
-                                                        <strong>{getParteKPIs().certificados}</strong>
-                                                    </div>
-                                                </div>
-                                            </section>
                                         </section>
 
                                         <section className="nurse-card">
@@ -3675,37 +4127,6 @@ const Psicologo_page = () => {
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            <section className="psycho-kpis" style={{ marginTop: '20px' }}>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Calendar size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Total Citas</span>
-                                                        <strong>{reportCitasList.length}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#e9f8f2', color: 'var(--success)' }}><CheckCircle size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Completadas</span>
-                                                        <strong>{reportCitasList.filter(c => c.estado === 'completada').length}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Clock size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Programadas</span>
-                                                        <strong>{reportCitasList.filter(c => c.estado === 'programada' || c.estado === 'confirmada').length}</strong>
-                                                    </div>
-                                                </div>
-                                                <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fee2e2', color: '#b91c1c' }}><X size={20} /></div>
-                                                    <div className="psycho-kpi-card__info">
-                                                        <span>Canceladas</span>
-                                                        <strong>{reportCitasList.filter(c => c.estado === 'cancelada').length}</strong>
-                                                    </div>
-                                                </div>
-                                            </section>
                                         </section>
 
                                         <section className="nurse-card">
@@ -3767,11 +4188,20 @@ const Psicologo_page = () => {
                         {/* PESTAÑA 5: GESTIÓN DE CITAS */}
                         {activeTab === 'citas' && (
                             <div className="citas-manager" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <section className="page-hero">
+                                    <div>
+                                        <span className="page-hero__label"><Calendar size={14} style={{ marginRight: '6px', display: 'inline' }} /> Control de Agenda</span>
+                                        <h2>Agenda de Consultas de Psicología</h2>
+                                        <p>Gestione las citas programadas, el control de asistencias y la agenda de atenciones psicológicas de estudiantes y funcionarios.</p>
+                                    </div>
+                                    <div className="page-hero__icon"><Calendar size={34} /></div>
+                                </section>
+
                                 <div className="card" style={{ borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', boxShadow: 'var(--shadow-sm)' }}>
                                     <div>
-                                        <span className="eyebrow">CONTROL DE CITAS</span>
-                                        <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Agenda de Consultas</h3>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Gestione las citas programadas de los estudiantes y el personal.</p>
+                                        <span className="eyebrow">AGENDA POR FECHA</span>
+                                        <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Citas Programadas</h3>
+                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Seleccione una fecha para visualizar y gestionar la agenda del día.</p>
                                     </div>
                                     <div className="date-navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -3996,10 +4426,7 @@ const Psicologo_page = () => {
 
                             <div style={{ marginTop: '20px' }}>
                                 {modalSearchResults.map((pat, idx) => (
-                                    <div key={idx} className="patient-suggestion" style={{ gridTemplateColumns: 'auto 1fr auto', display: 'grid' }}>
-                                        <div className="patient-suggestion__avatar">
-                                            {(pat.nombre_completo || pat.name || '').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                                        </div>
+                                    <div key={idx} className="patient-suggestion" style={{ gridTemplateColumns: '1fr auto', display: 'grid' }}>
                                         <div className="patient-suggestion__identity">
                                             <strong>{pat.nombre_completo || pat.name || 'Sin nombre'}</strong>
                                             <small>Cédula: {pat.cedula} · Correo: {pat.email || 'N/D'}</small>
@@ -4036,9 +4463,8 @@ const Psicologo_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><User size={15} /></span>
-                                            <h4 className="field-header__title">Nombres y Apellidos Completos</h4>
+                                            <h4 className="field-header__title">Nombres y Apellidos Completos <span className="field-req-star">*</span></h4>
                                         </div>
-                                        <span className="field-badge-req">Requerido</span>
                                     </div>
                                     <input
                                         value={newPatientForm.nombre_completo}
@@ -4054,9 +4480,8 @@ const Psicologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Documento</h4>
+                                                <h4 className="field-header__title">Tipo de Documento <span className="field-req-star">*</span></h4>
                                             </div>
-                                            <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <select
                                             value={newPatientForm.tipo_documento}
@@ -4073,10 +4498,9 @@ const Psicologo_page = () => {
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
                                                 <h4 className="field-header__title">
-                                                    {newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
+                                                    {newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'} <span className="field-req-star">*</span>
                                                 </h4>
                                             </div>
-                                            <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <input
                                             value={newPatientForm.cedula}
@@ -4093,9 +4517,8 @@ const Psicologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Paciente</h4>
+                                                <h4 className="field-header__title">Tipo de Paciente <span className="field-req-star">*</span></h4>
                                             </div>
-                                            <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <select
                                             value={newPatientForm.id_tipo_usuario || 2}
@@ -4114,9 +4537,8 @@ const Psicologo_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                    <h4 className="field-header__title">País de Origen</h4>
+                                                    <h4 className="field-header__title">País de Origen <span className="field-req-star">*</span></h4>
                                                 </div>
-                                                <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <select
                                                 value={newPatientForm.pais_origen}
@@ -4134,9 +4556,8 @@ const Psicologo_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><Mail size={15} /></span>
-                                            <h4 className="field-header__title">Correo Electrónico Institucional</h4>
+                                            <h4 className="field-header__title">Correo Electrónico Institucional <span className="field-req-star">*</span></h4>
                                         </div>
-                                        <span className="field-badge-req">Requerido</span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', border: !newPatientForm.correo ? '1.5px solid #b71a34' : '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#ffffff', minHeight: '46px', boxSizing: 'border-box' }}>
                                         <input
@@ -4261,9 +4682,8 @@ const Psicologo_page = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Brain size={15} /></span>
-                                                                <h4 className="field-header__title">Motivo de Consulta Principal</h4>
+                                                                <h4 className="field-header__title">Motivo de Consulta Principal <span className="field-req-star">*</span></h4>
                                                             </div>
-                                                            <span className="field-badge-req">Requerido</span>
                                                         </div>
                                                         <textarea
                                                             value={fichaForm.detalle_motivo}
@@ -4280,9 +4700,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><User size={15} /></span>
-                                                                    <h4 className="field-header__title">Anamnesis Personal</h4>
+                                                                    <h4 className="field-header__title">Anamnesis Personal <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.psicoanamnesis_personal}
@@ -4296,9 +4715,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><HeartHandshake size={15} /></span>
-                                                                    <h4 className="field-header__title">Anamnesis Familiar</h4>
+                                                                    <h4 className="field-header__title">Anamnesis Familiar <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.psicoanamnesis_familiar}
@@ -4326,9 +4744,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Briefcase size={15} /></span>
-                                                                    <h4 className="field-header__title">Historial Laboral / Académico</h4>
+                                                                    <h4 className="field-header__title">Historial Laboral / Académico <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_laboral}
@@ -4342,9 +4759,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                                    <h4 className="field-header__title">Historial Social y Entorno</h4>
+                                                                    <h4 className="field-header__title">Historial Social y Entorno <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_social}
@@ -4361,9 +4777,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Heart size={15} /></span>
-                                                                    <h4 className="field-header__title">Historial Sexual y de Pareja</h4>
+                                                                    <h4 className="field-header__title">Historial Sexual y de Pareja <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_sexual}
@@ -4377,9 +4792,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Activity size={15} /></span>
-                                                                    <h4 className="field-header__title">Patologías y Antecedentes Clínicos</h4>
+                                                                    <h4 className="field-header__title">Patologías y Antecedentes Clínicos <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_patologia}
@@ -4449,7 +4863,7 @@ const Psicologo_page = () => {
                                                                 <label><Heart size={13} style={{ color: 'var(--primary)' }} /> Apetito y nutrición</label>
                                                                 <input value={fichaForm.apetito} onChange={(e) => setFichaForm(prev => ({ ...prev, apetito: e.target.value }))} placeholder="Ej. Normorexia, hiporexia..." />
                                                             </div>
-                                                            <div className="mental-status-card" style={{ gridColumn: 'span 2' }}>
+                                                            <div className="mental-status-card">
                                                                 <label><Smile size={13} style={{ color: 'var(--primary)' }} /> Afectividad y estado de ánimo</label>
                                                                 <input value={fichaForm.afectividad} onChange={(e) => setFichaForm(prev => ({ ...prev, afectividad: e.target.value }))} placeholder="Ej. Eutímico, anhedonia, lábil, congruente..." />
                                                             </div>
@@ -4505,9 +4919,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><FileText size={15} /></span>
-                                                                    <h4 className="field-header__title">Pruebas Psicométricas / Proyectivas</h4>
+                                                                    <h4 className="field-header__title">Pruebas Psicométricas / Proyectivas <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_prueba_aplicada}
@@ -4521,9 +4934,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><TrendingUp size={15} /></span>
-                                                                    <h4 className="field-header__title">Análisis e Interpretación de Resultados</h4>
+                                                                    <h4 className="field-header__title">Análisis e Interpretación de Resultados <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_analisis_resultados}
@@ -4551,9 +4963,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Brain size={15} /></span>
-                                                                    <h4 className="field-header__title">Conclusiones Clínicas</h4>
+                                                                    <h4 className="field-header__title">Conclusiones Clínicas <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_conclusion}
@@ -4567,9 +4978,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><CheckCircle size={15} /></span>
-                                                                    <h4 className="field-header__title">Diagnóstico Clínico (CIE-10 / DSM-5)</h4>
+                                                                    <h4 className="field-header__title">Diagnóstico Clínico (CIE-10 / DSM-5) <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_diagnostico}
@@ -4587,9 +4997,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><TrendingUp size={15} /></span>
-                                                                    <h4 className="field-header__title">Pronóstico Clínico</h4>
+                                                                    <h4 className="field-header__title">Pronóstico Clínico <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_pronostico}
@@ -4603,9 +5012,8 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><FileText size={15} /></span>
-                                                                    <h4 className="field-header__title">Recomendaciones y Plan Terapéutico</h4>
+                                                                    <h4 className="field-header__title">Recomendaciones y Plan Terapéutico <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <textarea
                                                                 value={fichaForm.detalle_recomendacion}
@@ -4639,8 +5047,18 @@ const Psicologo_page = () => {
                                                                 >
                                                                     <option value="primaria">Primaria (Primera Vez)</option>
                                                                     <option value="secundaria">Secundaria (Subsecuente / Evolución)</option>
-                                                                    <option value="certificadomedico">Certificado Médico / Psicológico</option>
                                                                 </select>
+                                                                {fichaForm.tipo_atencion === 'primaria' ? (
+                                                                    <div style={{ fontSize: '10.5px', color: '#1e40af', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                        <Info size={12} />
+                                                                        <span>Inicia un nuevo tratamiento (cierra el tratamiento anterior si existía uno activo).</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div style={{ fontSize: '10.5px', color: '#047857', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                        <Info size={12} />
+                                                                        <span>Continúa el tratamiento activo como sesión de evolución y seguimiento.</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <div className="field">
                                                                 <span>Tipo de Atención *</span>
@@ -4772,9 +5190,8 @@ const Psicologo_page = () => {
                                 <div className="field-header">
                                     <div className="field-header__left">
                                         <span className="field-header__icon"><FileText size={15} /></span>
-                                        <h4 className="field-header__title">Notas Clínicas y Observaciones</h4>
+                                        <h4 className="field-header__title">Notas Clínicas y Observaciones <span className="field-req-star">*</span></h4>
                                     </div>
-                                    <span className="field-badge-req">Requerido</span>
                                 </div>
                                 <textarea
                                     required

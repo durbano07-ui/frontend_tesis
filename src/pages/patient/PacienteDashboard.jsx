@@ -1,46 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    User, BookOpen, HeartPulse, Brain, Shield, Activity, 
-    ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, 
+import {
+    User, BookOpen, HeartPulse, Brain, Shield, Activity,
+    ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone,
     AlertCircle, FileText, CheckCircle2, ShieldAlert,
     Info, LogOut, Bell, Stethoscope, ClipboardList, Menu, X, Camera,
     FileSpreadsheet, Scale, Thermometer, Heart, Coins, Edit3, Eye,
     Calendar, Clock, Trash2, Pencil, Download, AlertTriangle, Printer,
     Sparkles, UserCheck, Home, Globe, Award, XCircle, Search, Plus, Filter,
-    Droplet
+    Droplet, CalendarCheck, Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
 import UserProfileMenu from '../../components/UserProfileMenu';
+import NotificationMenu from '../../components/NotificationMenu';
 import '../../medical.css';
 
 const COUNTRIES = [
-  'Afganistán','Albania','Alemania','Andorra','Angola','Antigua y Barbuda','Arabia Saudita',
-  'Argelia','Argentina','Armenia','Australia','Austria','Azerbaiyán','Bahamas','Bangladés',
-  'Barbados','Baréin','Bélgica','Belice','Benín','Bielorrusia','Bolivia','Bosnia y Herzegovina',
-  'Botsuana','Brasil','Brunéi','Bulgaria','Burkina Faso','Burundi','Bután','Cabo Verde',
-  'Camboya','Camerún','Canadá','Catar','Chad','Chile','China','Chipre','Colombia','Comoras',
-  'Corea del Norte','Corea del Sur','Costa Rica','Costa de Marfil','Croacia','Cuba',
-  'Dinamarca','Djibouti','Dominica','Ecuador','Egipto','El Salvador','Emiratos Árabes Unidos',
-  'Eritrea','Eslovaquia','Eslovenia','España','Estados Unidos','Estonia','Etiopía','Filipinas',
-  'Finlandia','Fiyi','Francia','Gabón','Gambia','Georgia','Ghana','Granada','Grecia',
-  'Guatemala','Guinea','Guinea-Bisáu','Guinea Ecuatorial','Guyana','Haití','Honduras',
-  'Hungría','India','Indonesia','Irak','Irán','Irlanda','Islandia','Islas Marshall',
-  'Islas Salomón','Israel','Italia','Jamaica','Japón','Jordania','Kazajistán','Kenia',
-  'Kirguistán','Kiribati','Kuwait','Laos','Lesoto','Letonia','Líbano','Liberia','Libia',
-  'Liechtenstein','Lituania','Luxemburgo','Madagascar','Malasia','Malaui','Maldivas',
-  'Mali','Malta','Marruecos','Mauricio','Mauritania','México','Micronesia','Moldavia',
-  'Mónaco','Mongolia','Montenegro','Mozambique','Myanmar','Namibia','Nauru','Nepal',
-  'Nicaragua','Níger','Nigeria','Noruega','Nueva Zelanda','Omán','Países Bajos','Pakistán',
-  'Palaos','Palestina','Panamá','Papúa Nueva Guinea','Paraguay','Perú','Polonia','Portugal',
-  'Reino Unido','República Centroafricana','República Checa','República Democrática del Congo',
-  'República Dominicana','República del Congo','Ruanda','Rumanía','Rusia','Samoa','San Cristóbal y Nieves',
-  'San Marino','San Vicente y las Granadinas','Santa Lucía','Santo Tomé y Príncipe','Senegal',
-  'Serbia','Seychelles','Sierra Leona','Singapur','Siria','Somalia','Sri Lanka','Suazilandia',
-  'Sudáfrica','Sudán','Sudán del Sur','Suecia','Suiza','Surinam','Tailandia','Tanzania',
-  'Tayikistán','Timor Oriental','Togo','Tonga','Trinidad y Tobago','Túnez','Turkmenistán',
-  'Turquía','Tuvalu','Ucrania','Uganda','Uruguay','Uzbekistán','Vanuatu','Venezuela',
-  'Vietnam','Yemen','Yibuti','Zambia','Zimbabue'
+    'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
+    'Argelia', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaiyán', 'Bahamas', 'Bangladés',
+    'Barbados', 'Baréin', 'Bélgica', 'Belice', 'Benín', 'Bielorrusia', 'Bolivia', 'Bosnia y Herzegovina',
+    'Botsuana', 'Brasil', 'Brunéi', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Bután', 'Cabo Verde',
+    'Camboya', 'Camerún', 'Canadá', 'Catar', 'Chad', 'Chile', 'China', 'Chipre', 'Colombia', 'Comoras',
+    'Corea del Norte', 'Corea del Sur', 'Costa Rica', 'Costa de Marfil', 'Croacia', 'Cuba',
+    'Dinamarca', 'Djibouti', 'Dominica', 'Ecuador', 'Egipto', 'El Salvador', 'Emiratos Árabes Unidos',
+    'Eritrea', 'Eslovaquia', 'Eslovenia', 'España', 'Estados Unidos', 'Estonia', 'Etiopía', 'Filipinas',
+    'Finlandia', 'Fiyi', 'Francia', 'Gabón', 'Gambia', 'Georgia', 'Ghana', 'Granada', 'Grecia',
+    'Guatemala', 'Guinea', 'Guinea-Bisáu', 'Guinea Ecuatorial', 'Guyana', 'Haití', 'Honduras',
+    'Hungría', 'India', 'Indonesia', 'Irak', 'Irán', 'Irlanda', 'Islandia', 'Islas Marshall',
+    'Islas Salomón', 'Israel', 'Italia', 'Jamaica', 'Japón', 'Jordania', 'Kazajistán', 'Kenia',
+    'Kirguistán', 'Kiribati', 'Kuwait', 'Laos', 'Lesoto', 'Letonia', 'Líbano', 'Liberia', 'Libia',
+    'Liechtenstein', 'Lituania', 'Luxemburgo', 'Madagascar', 'Malasia', 'Malaui', 'Maldivas',
+    'Mali', 'Malta', 'Marruecos', 'Mauricio', 'Mauritania', 'México', 'Micronesia', 'Moldavia',
+    'Mónaco', 'Mongolia', 'Montenegro', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal',
+    'Nicaragua', 'Níger', 'Nigeria', 'Noruega', 'Nueva Zelanda', 'Omán', 'Países Bajos', 'Pakistán',
+    'Palaos', 'Palestina', 'Panamá', 'Papúa Nueva Guinea', 'Paraguay', 'Perú', 'Polonia', 'Portugal',
+    'Reino Unido', 'República Centroafricana', 'República Checa', 'República Democrática del Congo',
+    'República Dominicana', 'República del Congo', 'Ruanda', 'Rumanía', 'Rusia', 'Samoa', 'San Cristóbal y Nieves',
+    'San Marino', 'San Vicente y las Granadinas', 'Santa Lucía', 'Santo Tomé y Príncipe', 'Senegal',
+    'Serbia', 'Seychelles', 'Sierra Leona', 'Singapur', 'Siria', 'Somalia', 'Sri Lanka', 'Suazilandia',
+    'Sudáfrica', 'Sudán', 'Sudán del Sur', 'Suecia', 'Suiza', 'Surinam', 'Tailandia', 'Tanzania',
+    'Tayikistán', 'Timor Oriental', 'Togo', 'Tonga', 'Trinidad y Tobago', 'Túnez', 'Turkmenistán',
+    'Turquía', 'Tuvalu', 'Ucrania', 'Uganda', 'Uruguay', 'Uzbekistán', 'Vanuatu', 'Venezuela',
+    'Vietnam', 'Yemen', 'Yibuti', 'Zambia', 'Zimbabue'
 ];
 
 // Fallback Mock Data for catalogs if backend returns empty lists
@@ -148,7 +149,7 @@ const getAnatomicalRegion = (x, y) => {
 
 const PacienteDashboard = () => {
     const { user, logout } = useAuthStore();
-    
+
     // Core Navigation & UI state
     const [activeTab, setActiveTab] = useState('portal'); // 'portal' | 'historial'
     const [activeSubTab, setActiveSubTab] = useState('libros'); // 'libros' | 'recetario' | 'libro'
@@ -161,6 +162,7 @@ const PacienteDashboard = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isViewFichaOpen, setIsViewFichaOpen] = useState(false);
+    const [photoError, setPhotoError] = useState(false);
 
     // Appointments states (Citas Médicas)
     const [citasList, setCitasList] = useState([]);
@@ -185,7 +187,7 @@ const PacienteDashboard = () => {
     const [errorCita, setErrorCita] = useState('');
     const [successCita, setSuccessCita] = useState('');
     const [ocupacionalAccessDenied, setOcupacionalAccessDenied] = useState(false);
-    
+
     // Catalogs
     const [catalogs, setCatalogs] = useState({
         facultades: [],
@@ -197,7 +199,8 @@ const PacienteDashboard = () => {
         estados_civil: [],
         provincias: [],
         cantones: [],
-        tipos_direccion: []
+        tipos_direccion: [],
+        tipos_sangre: []
     });
 
     // Medical History data
@@ -207,7 +210,7 @@ const PacienteDashboard = () => {
         odontologia: [],
         enfermeria: []
     });
-    
+
     // Medical File details (Ficha de Salud)
     const [vitalsList, setVitalsList] = useState([]);
     const [antecedentes, setAntecedentes] = useState([]);
@@ -245,7 +248,7 @@ const PacienteDashboard = () => {
         id_identificacion_etnica: '',
         nacionalidad: 'Ecuador',
         id_tipo_sangre: '',
-        
+
         // Lugar de Nacimiento
         id_provincia_nacimiento: '',
         id_canton_nacimiento: '',
@@ -320,7 +323,8 @@ const PacienteDashboard = () => {
             const res = await api.get('/user-profile/profile');
             const data = res.data.data;
             setProfile(data);
-            
+            setPhotoError(false);
+
             // Prefill forms if data exists, otherwise parse from user.name
             if (data.identification) {
                 setPersonalForm({
@@ -356,9 +360,14 @@ const PacienteDashboard = () => {
                 }));
             }
             if (data.blood_type) {
+                const bId = data.blood_type.id_tipo_sangre
+                    || data.blood_type.tipoSangre?.id
+                    || data.blood_type.tipo_sangre?.id
+                    || data.blood_type.id
+                    || '';
                 setDemographicForm(prev => ({
                     ...prev,
-                    id_tipo_sangre: data.blood_type.id || ''
+                    id_tipo_sangre: bId ? String(bId) : ''
                 }));
             }
             if (data.addresses && data.addresses.length > 0) {
@@ -421,7 +430,7 @@ const PacienteDashboard = () => {
         try {
             const res = await api.get('/user-profile/catalogos');
             const data = res.data;
-            
+
             setCatalogs({
                 facultades: data.facultades?.length ? data.facultades : mockFacultades,
                 carreras: data.carreras?.length ? data.carreras : mockCarreras,
@@ -432,7 +441,8 @@ const PacienteDashboard = () => {
                 estados_civil: data.estados_civil?.length ? data.estados_civil : mockEstadosCivil,
                 provincias: data.provincias?.length ? data.provincias : mockProvincias,
                 cantones: data.cantones?.length ? data.cantones : mockCantones,
-                tipos_direccion: data.tipos_direccion?.length ? data.tipos_direccion : mockTiposDireccion
+                tipos_direccion: data.tipos_direccion?.length ? data.tipos_direccion : mockTiposDireccion,
+                tipos_sangre: data.tipos_sangre?.length ? data.tipos_sangre : []
             });
         } catch (err) {
             console.error("Error al obtener catálogos, usando fallbacks:", err);
@@ -446,7 +456,8 @@ const PacienteDashboard = () => {
                 estados_civil: mockEstadosCivil,
                 provincias: mockProvincias,
                 cantones: mockCantones,
-                tipos_direccion: mockTiposDireccion
+                tipos_direccion: mockTiposDireccion,
+                tipos_sangre: []
             });
         }
     };
@@ -549,6 +560,7 @@ const PacienteDashboard = () => {
         formData.append('foto', file);
 
         setUploadingPhoto(true);
+        setPhotoError(false);
         try {
             await api.post('/user-profile/photo', formData, {
                 headers: {
@@ -782,16 +794,16 @@ const PacienteDashboard = () => {
     const isProfileComplete = () => {
         const hasIdent = !!profile?.identification?.numero_cedula;
         if (!hasIdent) return false;
-        
+
         const idTipo = Number(profile?.career_study?.id_tipo_usuario);
         if (!idTipo) return false;
-        
+
         if (idTipo === 2) { // Estudiante
             return !!(profile?.career_study?.id_facultad && profile?.career_study?.id_carrera && profile?.career_study?.id_ciclo);
         } else if (idTipo === 3 || idTipo === 4) { // Docente o Administrativo
             return !!profile?.career_study?.id_facultad;
         }
-        
+
         return true; // Conserje (idTipo === 5)
     };
 
@@ -827,7 +839,7 @@ const PacienteDashboard = () => {
             if (!demographicForm.id_genero) errors.id_genero = 'Género es obligatorio';
             if (!demographicForm.id_estado_civil) errors.id_estado_civil = 'Estado civil es obligatorio';
             if (!demographicForm.id_identificacion_etnica) errors.id_identificacion_etnica = 'Etnia es obligatoria';
-            
+
             if (!demographicForm.es_extranjero) {
                 if (!demographicForm.id_provincia) errors.id_provincia = 'Provincia es obligatoria';
                 if (!demographicForm.id_canton) errors.id_canton = 'Cantón es obligatorio';
@@ -839,7 +851,7 @@ const PacienteDashboard = () => {
             if (!emergencyForm.parentesco.trim()) errors.emergency_parentesco = 'Parentesco es obligatorio';
             if (!emergencyForm.telefono.trim()) errors.emergency_telefono = 'Teléfono de contacto es obligatorio';
         }
-        
+
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -861,27 +873,27 @@ const PacienteDashboard = () => {
             // Clear existing address, contact, and extra options to prevent duplicates
             if (profile?.addresses && profile.addresses.length > 0) {
                 for (const addr of profile.addresses) {
-                    try { await api.delete(`/user-profile/addresses/${addr.id}`); } catch (e) {}
+                    try { await api.delete(`/user-profile/addresses/${addr.id}`); } catch (e) { }
                 }
             }
             if (profile?.emergency_contacts && profile.emergency_contacts.length > 0) {
                 for (const contact of profile.emergency_contacts) {
-                    try { await api.delete(`/user-profile/emergency-contacts/${contact.id}`); } catch (e) {}
+                    try { await api.delete(`/user-profile/emergency-contacts/${contact.id}`); } catch (e) { }
                 }
             }
             if (profile?.children && profile.children.length > 0) {
                 for (const child of profile.children) {
-                    try { await api.delete(`/user-profile/children/${child.id}`); } catch (e) {}
+                    try { await api.delete(`/user-profile/children/${child.id}`); } catch (e) { }
                 }
             }
             if (profile?.allergies && profile.allergies.length > 0) {
                 for (const allergy of profile.allergies) {
-                    try { await api.delete(`/user-profile/allergies/${allergy.id}`); } catch (e) {}
+                    try { await api.delete(`/user-profile/allergies/${allergy.id}`); } catch (e) { }
                 }
             }
             if (profile?.disabilities && profile.disabilities.length > 0) {
                 for (const disability of profile.disabilities) {
-                    try { await api.delete(`/user-profile/disabilities/${disability.id}`); } catch (e) {}
+                    try { await api.delete(`/user-profile/disabilities/${disability.id}`); } catch (e) { }
                 }
             }
 
@@ -899,11 +911,16 @@ const PacienteDashboard = () => {
                 nacionalidad: demographicForm.es_extranjero ? demographicForm.nacionalidad : 'Ecuatoriana'
             });
 
-            // 3b. Save Blood Type
-            if (demographicForm.id_tipo_sangre) {
-                await api.post('/user-profile/blood-type', {
-                    id_tipo_sangre: Number(demographicForm.id_tipo_sangre)
-                });
+            // 3b. Save Blood Type (Opcional)
+            const bloodTypeId = Number(demographicForm.id_tipo_sangre);
+            if (bloodTypeId && bloodTypeId >= 1 && bloodTypeId <= 8) {
+                try {
+                    await api.post('/user-profile/blood-type', {
+                        id_tipo_sangre: bloodTypeId
+                    });
+                } catch (bErr) {
+                    console.warn("No se pudo actualizar el tipo de sangre opcional:", bErr);
+                }
             }
 
             // 4. Save Address (Residencia Actual)
@@ -957,7 +974,7 @@ const PacienteDashboard = () => {
         } catch (err) {
             console.error("Error al guardar perfil:", err);
             let message = "Ocurrió un error al guardar tu perfil. Por favor, verifica los campos.";
-            
+
             if (err.response) {
                 const status = err.response.status;
                 const url = err.response.config?.url || '';
@@ -1086,7 +1103,7 @@ const PacienteDashboard = () => {
                 `;
             };
 
-            const photoHtml = getPhotoUrl() 
+            const photoHtml = getPhotoUrl()
                 ? `<img src="${getPhotoUrl()}" style="width: 100px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" />`
                 : `<div style="width: 100px; height: 120px; border: 1px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; text-align: center;">Sin Foto</div>`;
 
@@ -1255,7 +1272,7 @@ const PacienteDashboard = () => {
             let diagnosis = record.detalle_diagnostico || 'Evaluación Médica';
             let roleName = 'Médico/a Responsable';
             let departmentName = 'Área Médica';
-            
+
             if (area === 'psicologia') {
                 areaName = 'Psicología Clínica';
                 diagnosis = record.detalle_diagnostico || 'Evaluación Psicológica';
@@ -1461,14 +1478,20 @@ const PacienteDashboard = () => {
 
     // Resolve base path for photo url
     const getPhotoUrl = () => {
-        if (profile?.photo?.url) {
-            return profile.photo.url;
+        if (photoError) return null;
+        if (!profile?.photo) return null;
+        if (profile.photo.url) return profile.photo.url;
+
+        const path = profile.photo.direccion_imagen;
+        if (!path) return null;
+
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return path;
         }
-        if (profile?.photo?.direccion_imagen) {
-            const base = api.defaults.baseURL.replace('/api/v1', '');
-            return `${base}/storage/${profile.photo.direccion_imagen}`;
-        }
-        return null;
+
+        const base = (api.defaults.baseURL || '').replace(/\/api\/v1\/?$/, '');
+        const cleanPath = path.replace(/^\/?(storage\/)?/, '');
+        return `${base}/storage/${cleanPath}`;
     };
 
     // Get initials for profile badge fallback
@@ -1490,7 +1513,7 @@ const PacienteDashboard = () => {
         const value = (parseFloat(weight) / (hMeters * hMeters)).toFixed(1);
         let text = 'Normal';
         let color = 'var(--success)';
-        
+
         if (value < 18.5) {
             text = 'Bajo Peso';
             color = 'var(--warning)';
@@ -1501,7 +1524,7 @@ const PacienteDashboard = () => {
             text = 'Obesidad';
             color = 'var(--accent)';
         }
-        
+
         return { value, text, color };
     };
 
@@ -1741,7 +1764,7 @@ const PacienteDashboard = () => {
 
                     <p className="sidebar__label">MI ESPACIO DE SALUD</p>
                     <nav className="navigation">
-                        <button 
+                        <button
                             className={`navigation__item ${activeTab === 'portal' ? 'active' : ''}`}
                             onClick={() => { setActiveTab('portal'); setIsSidebarOpen(false); }}
                             disabled={isRegistering}
@@ -1751,7 +1774,7 @@ const PacienteDashboard = () => {
                             <span className="navigation__text">Mi Portal</span>
                         </button>
 
-                        <button 
+                        <button
                             className={`navigation__item ${activeTab === 'historial' ? 'active' : ''}`}
                             onClick={() => { setActiveTab('historial'); setActiveSubTab('recetario'); setIsSidebarOpen(false); }}
                             disabled={!isProfileComplete() || isRegistering}
@@ -1761,17 +1784,19 @@ const PacienteDashboard = () => {
                             <span className="navigation__text">Recetario</span>
                         </button>
 
-                        <button 
+                        <button
                             className={`navigation__item ${activeTab === 'socioeconomica' ? 'active' : ''}`}
-                            onClick={() => { setActiveTab('socioeconomica'); setIsSidebarOpen(false); }}
-                            disabled={!isProfileComplete() || isRegistering}
+                            onClick={(e) => { e.preventDefault(); }}
+                            disabled={true}
+                            style={{ opacity: 0.45, cursor: 'not-allowed' }}
+                            title="Pestaña desactivada temporalmente"
                         >
                             <span className="navigation__indicator"></span>
                             <span className="navigation__icon"><Coins size={18} /></span>
                             <span className="navigation__text">Ficha Socioeconómica</span>
                         </button>
 
-                        <button 
+                        <button
                             className={`navigation__item ${activeTab === 'citas' ? 'active' : ''}`}
                             onClick={() => { setActiveTab('citas'); setIsSidebarOpen(false); }}
                             disabled={!isProfileComplete() || isRegistering}
@@ -1804,8 +1829,12 @@ const PacienteDashboard = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
-                            <UserProfileMenu />
+                            <NotificationMenu onNavigateToCitas={() => setActiveTab('citas')} />
+                            <UserProfileMenu
+                                avatarUrl={getPhotoUrl()}
+                                onPhotoChange={handlePhotoChange}
+                                isUploadingPhoto={uploadingPhoto}
+                            />
                         </div>
                     </header>
 
@@ -1826,15 +1855,15 @@ const PacienteDashboard = () => {
                                 {/* PROGRESS BAR */}
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
                                     {[1, 2, 3, 4].map(s => (
-                                        <div 
-                                            key={s} 
-                                            style={{ 
-                                                flex: 1, 
-                                                height: '6px', 
-                                                borderRadius: '3px', 
+                                        <div
+                                            key={s}
+                                            style={{
+                                                flex: 1,
+                                                height: '6px',
+                                                borderRadius: '3px',
                                                 background: s <= currentStep ? 'linear-gradient(to right, var(--primary), var(--accent))' : 'var(--border)',
-                                                transition: 'background-color 0.3s ease' 
-                                            }} 
+                                                transition: 'background-color 0.3s ease'
+                                            }}
                                         />
                                     ))}
                                 </div>
@@ -1851,14 +1880,14 @@ const PacienteDashboard = () => {
 
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(183,26,52,0.04)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(183,26,52,0.15)', marginBottom: '4px', opacity: !!profile?.identification?.numero_cedula ? 0.7 : 1 }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '12.5px', color: 'var(--primary)', margin: 0 }}>
-                                                <input 
-                                                    type="checkbox" 
+                                                <input
+                                                    type="checkbox"
                                                     checked={demographicForm.es_extranjero}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => {
                                                         const isChecked = e.target.checked;
-                                                        setDemographicForm(prev => ({ 
-                                                            ...prev, 
+                                                        setDemographicForm(prev => ({
+                                                            ...prev,
                                                             es_extranjero: isChecked,
                                                             nacionalidad: isChecked ? '' : 'Ecuatoriana'
                                                         }));
@@ -1880,26 +1909,25 @@ const PacienteDashboard = () => {
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><FileText size={15} /></span>
                                                         <h4 className="field-header__title">
-                                                            {demographicForm.es_extranjero ? 'Número de Pasaporte' : 'Número de Cédula'}
+                                                            {demographicForm.es_extranjero ? 'Número de Pasaporte' : 'Número de Cédula'} <span className="field-req-star">*</span>
                                                             {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     maxLength={demographicForm.es_extranjero ? 20 : 10}
                                                     value={personalForm.numero_cedula}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => {
                                                         const val = e.target.value;
-                                                        setPersonalForm({ 
-                                                            ...personalForm, 
-                                                            numero_cedula: demographicForm.es_extranjero ? val.toUpperCase().trim() : val.replace(/\D/g, '') 
+                                                        setPersonalForm({
+                                                            ...personalForm,
+                                                            numero_cedula: demographicForm.es_extranjero ? val.toUpperCase().trim() : val.replace(/\D/g, '')
                                                         });
                                                     }}
                                                     placeholder={demographicForm.es_extranjero ? "Ej. A1234567B" : "Ej. 0201234567"}
-                                                    style={{ 
+                                                    style={{
                                                         border: formErrors.numero_cedula ? '1.5px solid var(--accent)' : undefined,
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
@@ -1913,18 +1941,17 @@ const PacienteDashboard = () => {
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><Calendar size={15} /></span>
                                                         <h4 className="field-header__title">
-                                                            Fecha de Nacimiento
+                                                            Fecha de Nacimiento <span className="field-req-star">*</span>
                                                             {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <input 
-                                                    type="date" 
+                                                <input
+                                                    type="date"
                                                     value={personalForm.fecha_nacimiento}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => setPersonalForm({ ...personalForm, fecha_nacimiento: e.target.value })}
-                                                    style={{ 
+                                                    style={{
                                                         border: formErrors.fecha_nacimiento ? '1.5px solid var(--accent)' : undefined,
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
@@ -1940,19 +1967,18 @@ const PacienteDashboard = () => {
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
-                                                            Primer Nombre
+                                                            Primer Nombre <span className="field-req-star">*</span>
                                                             {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={personalForm.primer_nombre}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => setPersonalForm({ ...personalForm, primer_nombre: e.target.value })}
                                                     placeholder="Ej. Juan"
-                                                    style={{ 
+                                                    style={{
                                                         border: formErrors.primer_nombre ? '1.5px solid var(--accent)' : undefined,
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
@@ -1972,13 +1998,13 @@ const PacienteDashboard = () => {
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
                                                 </div>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={personalForm.segundo_nombre}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => setPersonalForm({ ...personalForm, segundo_nombre: e.target.value })}
                                                     placeholder="Ej. Carlos"
-                                                    style={{ 
+                                                    style={{
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
@@ -1992,19 +2018,18 @@ const PacienteDashboard = () => {
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
-                                                            Apellido Paterno
+                                                            Apellido Paterno <span className="field-req-star">*</span>
                                                             {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={personalForm.apellido_paterno}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => setPersonalForm({ ...personalForm, apellido_paterno: e.target.value })}
                                                     placeholder="Ej. Pérez"
-                                                    style={{ 
+                                                    style={{
                                                         border: formErrors.apellido_paterno ? '1.5px solid var(--accent)' : undefined,
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
@@ -2024,13 +2049,13 @@ const PacienteDashboard = () => {
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
                                                 </div>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={personalForm.apellido_materno}
                                                     disabled={!!profile?.identification?.numero_cedula}
                                                     onChange={e => setPersonalForm({ ...personalForm, apellido_materno: e.target.value })}
                                                     placeholder="Ej. López"
-                                                    style={{ 
+                                                    style={{
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
@@ -2054,11 +2079,10 @@ const PacienteDashboard = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                    <h4 className="field-header__title">Tipo de Usuario Institucional</h4>
+                                                    <h4 className="field-header__title">Tipo de Usuario Institucional <span className="field-req-star">*</span></h4>
                                                 </div>
-                                                <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select 
+                                            <select
                                                 value={academicForm.id_tipo_usuario}
                                                 onChange={e => {
                                                     const nextType = e.target.value;
@@ -2086,11 +2110,10 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><GraduationCap size={15} /></span>
-                                                                <h4 className="field-header__title">Facultad</h4>
+                                                                <h4 className="field-header__title">Facultad <span className="field-req-star">*</span></h4>
                                                             </div>
-                                                            <span className="field-badge-req">Requerido</span>
                                                         </div>
-                                                        <select 
+                                                        <select
                                                             value={academicForm.id_facultad}
                                                             onChange={e => setAcademicForm({ ...academicForm, id_facultad: e.target.value, id_carrera: '' })}
                                                             style={{ border: formErrors.id_facultad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2107,11 +2130,10 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><BookOpen size={15} /></span>
-                                                                <h4 className="field-header__title">Carrera</h4>
+                                                                <h4 className="field-header__title">Carrera <span className="field-req-star">*</span></h4>
                                                             </div>
-                                                            <span className="field-badge-req">Requerido</span>
                                                         </div>
-                                                        <select 
+                                                        <select
                                                             value={academicForm.id_carrera}
                                                             onChange={e => setAcademicForm({ ...academicForm, id_carrera: e.target.value })}
                                                             disabled={!academicForm.id_facultad}
@@ -2130,11 +2152,10 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Award size={15} /></span>
-                                                            <h4 className="field-header__title">Ciclo / Semestre Actual</h4>
+                                                            <h4 className="field-header__title">Ciclo / Semestre Actual <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <select 
+                                                    <select
                                                         value={academicForm.id_ciclo}
                                                         onChange={e => setAcademicForm({ ...academicForm, id_ciclo: e.target.value })}
                                                         style={{ border: formErrors.id_ciclo ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2154,11 +2175,10 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><GraduationCap size={15} /></span>
-                                                        <h4 className="field-header__title">Facultad / Unidad de Adscripción</h4>
+                                                        <h4 className="field-header__title">Facultad / Unidad de Adscripción <span className="field-req-star">*</span></h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <select 
+                                                <select
                                                     value={academicForm.id_facultad}
                                                     onChange={e => setAcademicForm({ ...academicForm, id_facultad: e.target.value })}
                                                     style={{ border: formErrors.id_facultad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2198,11 +2218,10 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><User size={15} /></span>
-                                                        <h4 className="field-header__title">Identificación de Género</h4>
+                                                        <h4 className="field-header__title">Identificación de Género <span className="field-req-star">*</span></h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <select 
+                                                <select
                                                     value={demographicForm.id_genero}
                                                     onChange={e => setDemographicForm({ ...demographicForm, id_genero: e.target.value })}
                                                     style={{ border: formErrors.id_genero ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2219,11 +2238,10 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><Heart size={15} /></span>
-                                                        <h4 className="field-header__title">Estado Civil</h4>
+                                                        <h4 className="field-header__title">Estado Civil <span className="field-req-star">*</span></h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <select 
+                                                <select
                                                     value={demographicForm.id_estado_civil}
                                                     onChange={e => setDemographicForm({ ...demographicForm, id_estado_civil: e.target.value })}
                                                     style={{ border: formErrors.id_estado_civil ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2242,11 +2260,10 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><Globe size={15} /></span>
-                                                        <h4 className="field-header__title">Autoidentificación Étnica</h4>
+                                                        <h4 className="field-header__title">Autoidentificación Étnica <span className="field-req-star">*</span></h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
-                                                <select 
+                                                <select
                                                     value={demographicForm.id_identificacion_etnica}
                                                     onChange={e => setDemographicForm({ ...demographicForm, id_identificacion_etnica: e.target.value })}
                                                     style={{ border: formErrors.id_identificacion_etnica ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2263,12 +2280,11 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><Globe size={15} /></span>
-                                                        <h4 className="field-header__title">Nacionalidad</h4>
+                                                        <h4 className="field-header__title">Nacionalidad <span className="field-req-star">*</span></h4>
                                                     </div>
-                                                    <span className="field-badge-req">Requerido</span>
                                                 </div>
                                                 {demographicForm.es_extranjero ? (
-                                                    <select 
+                                                    <select
                                                         value={demographicForm.nacionalidad}
                                                         onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
                                                         style={{ width: '100%' }}
@@ -2277,11 +2293,11 @@ const PacienteDashboard = () => {
                                                         {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                                                     </select>
                                                 ) : (
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value="Ecuatoriana"
                                                         disabled
-                                                        style={{ 
+                                                        style={{
                                                             backgroundColor: '#f1f5f9',
                                                             cursor: 'not-allowed'
                                                         }}
@@ -2297,20 +2313,28 @@ const PacienteDashboard = () => {
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
                                                 </div>
-                                                <select 
+                                                <select
                                                     value={demographicForm.id_tipo_sangre || ''}
                                                     onChange={e => setDemographicForm({ ...demographicForm, id_tipo_sangre: e.target.value })}
                                                     style={{ width: '100%' }}
                                                 >
                                                     <option value="">Seleccione su tipo de sangre (si lo conoce)</option>
-                                                    <option value="1">A+</option>
-                                                    <option value="2">A-</option>
-                                                    <option value="3">B+</option>
-                                                    <option value="4">B-</option>
-                                                    <option value="5">AB+</option>
-                                                    <option value="6">AB-</option>
-                                                    <option value="7">O+</option>
-                                                    <option value="8">O-</option>
+                                                    {(catalogs.tipos_sangre && catalogs.tipos_sangre.length > 0) ? (
+                                                        catalogs.tipos_sangre.map(ts => (
+                                                            <option key={ts.id} value={ts.id}>{ts.nombre}</option>
+                                                        ))
+                                                    ) : (
+                                                        <>
+                                                            <option value="1">A+</option>
+                                                            <option value="2">A-</option>
+                                                            <option value="3">B+</option>
+                                                            <option value="4">B-</option>
+                                                            <option value="5">AB+</option>
+                                                            <option value="6">AB-</option>
+                                                            <option value="7">O+</option>
+                                                            <option value="8">O-</option>
+                                                        </>
+                                                    )}
                                                 </select>
                                             </div>
                                         </div>
@@ -2332,11 +2356,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Provincia de Nacimiento</h4>
+                                                                    <h4 className="field-header__title">Provincia de Nacimiento <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
-                                                            <select 
+                                                            <select
                                                                 value={demographicForm.id_provincia_nacimiento}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, id_provincia_nacimiento: e.target.value, id_canton_nacimiento: '' })}
                                                                 style={{ border: formErrors.id_provincia_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2353,11 +2376,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Cantón de Nacimiento</h4>
+                                                                    <h4 className="field-header__title">Cantón de Nacimiento <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
-                                                            <select 
+                                                            <select
                                                                 value={demographicForm.id_canton_nacimiento}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, id_canton_nacimiento: e.target.value })}
                                                                 disabled={!demographicForm.id_provincia_nacimiento}
@@ -2376,11 +2398,10 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Globe size={15} /></span>
-                                                                <h4 className="field-header__title">País de Origen / Nacimiento</h4>
+                                                                <h4 className="field-header__title">País de Origen / Nacimiento <span className="field-req-star">*</span></h4>
                                                             </div>
-                                                            <span className="field-badge-req">Requerido</span>
                                                         </div>
-                                                        <select 
+                                                        <select
                                                             value={demographicForm.nacionalidad}
                                                             onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
                                                             style={{ width: '100%' }}
@@ -2405,11 +2426,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Provincia</h4>
+                                                                    <h4 className="field-header__title">Provincia <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
-                                                            <select 
+                                                            <select
                                                                 value={demographicForm.id_provincia}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, id_provincia: e.target.value, id_canton: '' })}
                                                                 style={{ border: formErrors.id_provincia ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2426,11 +2446,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Cantón</h4>
+                                                                    <h4 className="field-header__title">Cantón <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
-                                                            <select 
+                                                            <select
                                                                 value={demographicForm.id_canton}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, id_canton: e.target.value })}
                                                                 disabled={!demographicForm.id_provincia}
@@ -2450,12 +2469,11 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Home size={15} /></span>
-                                                            <h4 className="field-header__title">Dirección Referencial (Calles / Barrio)</h4>
+                                                            <h4 className="field-header__title">Dirección Referencial (Calles / Barrio) <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={demographicForm.direccion_referencia}
                                                         onChange={e => setDemographicForm({ ...demographicForm, direccion_referencia: e.target.value })}
                                                         placeholder="Ej. Calle 10 de Agosto y Rocafuerte, Barrio Central"
@@ -2472,8 +2490,8 @@ const PacienteDashboard = () => {
                                                         </div>
                                                         <span className="field-badge-opt">Opcional</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={demographicForm.telefono_convencional}
                                                         onChange={e => setDemographicForm({ ...demographicForm, telefono_convencional: e.target.value })}
                                                         placeholder="Ej. 022987654"
@@ -2498,18 +2516,17 @@ const PacienteDashboard = () => {
                                             <h4 style={{ margin: '0 0 16px 0', color: 'var(--accent)', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <Phone size={16} /> Contacto de Emergencia Obligatorio
                                             </h4>
-                                            
+
                                             <div className="clinical-fields-grid">
                                                 <div className="premium-field-card">
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><User size={15} /></span>
-                                                            <h4 className="field-header__title">Nombre Completo</h4>
+                                                            <h4 className="field-header__title">Nombre Completo <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={emergencyForm.nombre_completo}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, nombre_completo: e.target.value })}
                                                         placeholder="Ej. María López"
@@ -2522,12 +2539,11 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                            <h4 className="field-header__title">Parentesco (Relación)</h4>
+                                                            <h4 className="field-header__title">Parentesco (Relación) <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={emergencyForm.parentesco}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, parentesco: e.target.value })}
                                                         placeholder="Ej. Madre, Padre, Cónyuge"
@@ -2540,12 +2556,11 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Phone size={15} /></span>
-                                                            <h4 className="field-header__title">Teléfono Principal</h4>
+                                                            <h4 className="field-header__title">Teléfono Principal <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={emergencyForm.telefono}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, telefono: e.target.value })}
                                                         placeholder="Ej. 0998877665"
@@ -2562,8 +2577,8 @@ const PacienteDashboard = () => {
                                                         </div>
                                                         <span className="field-badge-opt">Opcional</span>
                                                     </div>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={emergencyForm.celular}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, celular: e.target.value })}
                                                         placeholder="Ej. 0988776655"
@@ -2575,8 +2590,8 @@ const PacienteDashboard = () => {
                                         <div className="clinical-fields-grid">
                                             <div className="field">
                                                 <span>¿Tienes Hijos? (Indica cantidad)</span>
-                                                <input 
-                                                    type="number" 
+                                                <input
+                                                    type="number"
                                                     min={0}
                                                     value={extraForm.numero_hijos}
                                                     onChange={e => setExtraForm({ ...extraForm, numero_hijos: parseInt(e.target.value) || 0 })}
@@ -2584,8 +2599,8 @@ const PacienteDashboard = () => {
                                             </div>
                                             <div className="field" style={{ gridColumn: 'span 2' }}>
                                                 <span>¿Alergias Conocidas? (Separadas por comas)</span>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={extraForm.alergias}
                                                     onChange={e => setExtraForm({ ...extraForm, alergias: e.target.value })}
                                                     placeholder="Ej. Penicilina, Mariscos, Ninguna"
@@ -2593,8 +2608,8 @@ const PacienteDashboard = () => {
                                             </div>
                                             <div className="field" style={{ gridColumn: 'span 3' }}>
                                                 <span>¿Tienes alguna Discapacidad? (Indicar cuál o dejar vacío)</span>
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     value={extraForm.discapacidades}
                                                     onChange={e => setExtraForm({ ...extraForm, discapacidades: e.target.value })}
                                                     placeholder="Ej. Discapacidad visual leve, Ninguna"
@@ -2607,16 +2622,16 @@ const PacienteDashboard = () => {
                                 {/* UNIFIED ACTIONS FOOTER WITH CLINICAL BUTTONS */}
                                 <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                                     {currentStep > 1 ? (
-                                        <button 
-                                            className="action-button action-button--light" 
-                                            onClick={handleBack} 
+                                        <button
+                                            className="action-button action-button--light"
+                                            onClick={handleBack}
                                             type="button"
                                         >
                                             Atrás
                                         </button>
                                     ) : (
-                                        <button 
-                                            className="action-button action-button--danger" 
+                                        <button
+                                            className="action-button action-button--danger"
                                             onClick={() => setIsRegistering(false)}
                                             type="button"
                                         >
@@ -2625,17 +2640,17 @@ const PacienteDashboard = () => {
                                     )}
 
                                     {currentStep < 4 ? (
-                                        <button 
-                                            className="action-button action-button--primary" 
-                                            onClick={handleNext} 
+                                        <button
+                                            className="action-button action-button--primary"
+                                            onClick={handleNext}
                                             type="button"
                                         >
                                             Siguiente
                                         </button>
                                     ) : (
-                                        <button 
-                                            className="action-button action-button--success" 
-                                            onClick={handleSaveProfile} 
+                                        <button
+                                            className="action-button action-button--success"
+                                            onClick={handleSaveProfile}
                                             disabled={saving}
                                             type="button"
                                         >
@@ -2667,7 +2682,7 @@ const PacienteDashboard = () => {
                                         </div>
 
                                         <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-start', position: 'relative', zIndex: 2 }}>
-                                            <button 
+                                            <button
                                                 className="btn"
                                                 onClick={() => setIsRegistering(true)}
                                                 style={{
@@ -2696,130 +2711,240 @@ const PacienteDashboard = () => {
                                     /* IF PROFILE COMPLETE AND PORTAL TAB ACTIVE */
                                     activeTab === 'portal' && (
                                         <div className="module-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '20px' }}>
-                                            
-                                            {/* COMPONENT 1: STUDENT ID CARD (FICHA DEL ESTUDIANTE) */}
-                                            <div className="nurse-card span-8" style={{ padding: '24px', background: 'radial-gradient(circle at 100% 0%, #1e293b, var(--primary))', color: 'white', position: 'relative', overflow: 'hidden' }}>
-                                                
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                                                        
-                                                        {/* CLICKABLE PROFILE IMAGE UPLOAD */}
-                                                        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => document.getElementById('student-photo-input').click()}>
-                                                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--primary-light))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', border: '3px solid white', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
-                                                                {getPhotoUrl() ? (
-                                                                    <img src={getPhotoUrl()} alt="Foto estudiante" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                                ) : (
-                                                                    getInitials()
-                                                                )}
-                                                            </div>
-                                                            <div style={{ position: 'absolute', bottom: 0, right: 0, background: 'var(--accent)', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'grid', placeItems: 'center', border: '2px solid white', boxShadow: 'var(--shadow-sm)' }}>
-                                                                <Camera size={12} />
-                                                            </div>
-                                                            <button 
-                                                                type="button" 
-                                                                style={{ display: 'none' }} 
-                                                            />
-                                                            <input 
-                                                                type="file" 
-                                                                id="student-photo-input" 
-                                                                accept="image/*" 
-                                                                style={{ display: 'none' }} 
-                                                                onChange={handlePhotoChange} 
-                                                            />
+
+                                            {/* COMPONENT 1: TARJETA BLANCA MÉDICA INSTITUCIONAL */}
+                                            <div
+                                                className="nurse-card span-8"
+                                                style={{
+                                                    padding: '24px 28px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    justifyContent: 'space-between',
+                                                    backgroundColor: '#ffffff',
+                                                    border: '1px solid var(--border, #e2e8f0)',
+                                                    borderRadius: '16px',
+                                                    boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06))',
+                                                    position: 'relative',
+                                                    overflow: 'hidden'
+                                                }}
+                                            >
+                                                {/* Header & Identification */}
+                                                <div>
+                                                    {/* Top Badges & Actions */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                            <span style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '20px',
+                                                                background: 'var(--primary-soft, #eaf0f5)',
+                                                                color: 'var(--primary, #002040)',
+                                                                fontSize: '11px',
+                                                                fontWeight: '750',
+                                                                letterSpacing: '0.4px',
+                                                                textTransform: 'uppercase'
+                                                            }}>
+                                                                <GraduationCap size={13} style={{ color: 'var(--primary, #002040)' }} />
+                                                                Portal del Estudiante • UEB
+                                                            </span>
+                                                            <span style={{
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '5px',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '20px',
+                                                                background: '#dcfce7',
+                                                                color: '#15803d',
+                                                                fontSize: '11px',
+                                                                fontWeight: '700'
+                                                            }}>
+                                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
+                                                                Ficha Médica Activa
+                                                            </span>
                                                         </div>
 
-                                                        <div>
-                                                            <h3 style={{ margin: 0, fontSize: '20px', color: 'white' }}>
-                                                                {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno}
-                                                            </h3>
-                                                            <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                                                                {profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}
-                                                            </p>
-                                                            <div style={{ marginTop: '8px' }}>
-                                                                <span style={{ border: '1px solid rgba(255,255,255,0.4)', padding: '3px 8px', borderRadius: '20px', fontSize: '9.5px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px', background: 'rgba(255,255,255,0.15)', color: 'white', display: 'inline-block' }}>
-                                                                    UEB Ficha Activa
-                                                                </span>
-                                                            </div>
+                                                        {/* Action buttons */}
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setIsViewFichaOpen(true)}
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    padding: '7px 14px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid #cbd5e1',
+                                                                    background: '#ffffff',
+                                                                    color: 'var(--text-primary, #1e293b)',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: '650',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.2s ease',
+                                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                                                }}
+                                                                onMouseEnter={e => {
+                                                                    e.currentTarget.style.background = '#f8fafc';
+                                                                    e.currentTarget.style.borderColor = '#94a3b8';
+                                                                }}
+                                                                onMouseLeave={e => {
+                                                                    e.currentTarget.style.background = '#ffffff';
+                                                                    e.currentTarget.style.borderColor = '#cbd5e1';
+                                                                }}
+                                                            >
+                                                                <Eye size={14} style={{ color: 'var(--primary, #002040)' }} />
+                                                                <span>Ver Ficha</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsRegistering(true);
+                                                                    setCurrentStep(1);
+                                                                }}
+                                                                style={{
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    padding: '7px 14px',
+                                                                    borderRadius: '8px',
+                                                                    border: 'none',
+                                                                    background: 'linear-gradient(135deg, var(--primary, #002040), #0d3b66)',
+                                                                    color: '#ffffff',
+                                                                    fontSize: '12px',
+                                                                    fontWeight: '650',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.2s ease',
+                                                                    boxShadow: '0 2px 6px rgba(0,32,64,0.18)'
+                                                                }}
+                                                                onMouseEnter={e => {
+                                                                    e.currentTarget.style.opacity = '0.92';
+                                                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                }}
+                                                                onMouseLeave={e => {
+                                                                    e.currentTarget.style.opacity = '1';
+                                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                                }}
+                                                            >
+                                                                <Edit3 size={14} />
+                                                                <span>Editar Ficha</span>
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                        <button
-                                                            onClick={() => setIsViewFichaOpen(true)}
-                                                            style={{
-                                                                background: 'rgba(255,255,255,0.15)',
-                                                                border: '1px solid rgba(255,255,255,0.3)',
-                                                                color: 'white',
-                                                                padding: '6px 12px',
-                                                                borderRadius: '20px',
-                                                                fontSize: '11px',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '6px',
-                                                                transition: 'background 0.2s, transform 0.1s'
-                                                            }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                                                        >
-                                                            <Eye size={12} /> Ver Ficha
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setIsRegistering(true);
-                                                                setCurrentStep(1);
-                                                            }}
-                                                            style={{
-                                                                background: 'rgba(255,255,255,0.25)',
-                                                                border: '1px solid rgba(255,255,255,0.4)',
-                                                                color: 'white',
-                                                                padding: '6px 12px',
-                                                                borderRadius: '20px',
-                                                                fontSize: '11px',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '6px',
-                                                                transition: 'background 0.2s, transform 0.1s'
-                                                            }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
-                                                        >
-                                                            <Edit3 size={12} /> Editar Ficha
-                                                        </button>
+
+                                                    {/* Student Name & Program */}
+                                                    <div>
+                                                        <h2 style={{
+                                                            margin: 0,
+                                                            fontSize: '22px',
+                                                            fontWeight: '800',
+                                                            color: 'var(--primary, #002040)',
+                                                            letterSpacing: '-0.3px',
+                                                            lineHeight: '1.25'
+                                                        }}>
+                                                            {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno}
+                                                        </h2>
+                                                        <p style={{
+                                                            margin: '4px 0 0',
+                                                            color: 'var(--text-muted, #64748b)',
+                                                            fontSize: '13px',
+                                                            fontWeight: '500',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px'
+                                                        }}>
+                                                            <span>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante Regular'}</span>
+                                                            <span style={{ opacity: 0.4 }}>•</span>
+                                                            <span style={{ color: 'var(--primary, #002040)', fontWeight: '600' }}>Dirección de Bienestar Universitario</span>
+                                                        </p>
                                                     </div>
                                                 </div>
 
-                                                <div style={{ marginTop: '28px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
+                                                {/* Bottom Row: Clean, Unboxed Academic Metadata */}
+                                                <div style={{
+                                                    marginTop: '22px',
+                                                    paddingTop: '18px',
+                                                    borderTop: '1px solid var(--border, #e2e8f0)',
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '130px 1.5fr 1fr',
+                                                    gap: '24px',
+                                                    alignItems: 'flex-start'
+                                                }}>
+                                                    {/* Data 1: Identification */}
                                                     <div>
-                                                        <small style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '10px', textTransform: 'uppercase' }}>
+                                                        <span style={{
+                                                            display: 'block',
+                                                            fontSize: '10.5px',
+                                                            textTransform: 'uppercase',
+                                                            color: 'var(--text-muted, #64748b)',
+                                                            fontWeight: '700',
+                                                            letterSpacing: '0.4px',
+                                                            marginBottom: '3px'
+                                                        }}>
                                                             {isDocCedula ? 'Cédula de Identidad' : 'Pasaporte'}
-                                                        </small>
-                                                        <strong style={{ fontSize: '13px' }}>{profile?.identification?.numero_cedula}</strong>
+                                                        </span>
+                                                        <strong style={{
+                                                            fontSize: '14px',
+                                                            color: 'var(--text-primary, #0f172a)',
+                                                            fontWeight: '750',
+                                                            letterSpacing: '0.5px'
+                                                        }}>
+                                                            {profile?.identification?.numero_cedula || '—'}
+                                                        </strong>
                                                     </div>
+
+                                                    {/* Data 2: Faculty */}
                                                     <div>
-                                                        <small style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '10px', textTransform: 'uppercase' }}>Facultad / Unidad</small>
-                                                        <strong style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={profile?.career_study?.facultad?.nombre}>
+                                                        <span style={{
+                                                            display: 'block',
+                                                            fontSize: '10.5px',
+                                                            textTransform: 'uppercase',
+                                                            color: 'var(--text-muted, #64748b)',
+                                                            fontWeight: '700',
+                                                            letterSpacing: '0.4px',
+                                                            marginBottom: '3px'
+                                                        }}>
+                                                            Facultad / Unidad Académica
+                                                        </span>
+                                                        <strong style={{
+                                                            fontSize: '13px',
+                                                            color: 'var(--text-primary, #0f172a)',
+                                                            fontWeight: '650',
+                                                            lineHeight: '1.4',
+                                                            display: 'block'
+                                                        }}>
                                                             {profile?.career_study?.facultad?.nombre || 'No Aplica'}
                                                         </strong>
                                                     </div>
+
+                                                    {/* Data 3: Career & Cycle */}
                                                     <div>
-                                                        {Number(profile?.career_study?.id_tipo_usuario) === 2 ? (
-                                                            <>
-                                                                <small style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '10px', textTransform: 'uppercase' }}>Carrera y Ciclo</small>
-                                                                <strong style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                    {profile?.career_study?.carrera?.nombre} - {profile?.career_study?.ciclo?.numero}
-                                                                </strong>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <small style={{ display: 'block', color: 'rgba(255,255,255,0.5)', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
-                                                                <strong style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                    {profile?.career_study?.tipo_usuario?.nombre || 'General'}
-                                                                </strong>
-                                                            </>
-                                                        )}
+                                                        <span style={{
+                                                            display: 'block',
+                                                            fontSize: '10.5px',
+                                                            textTransform: 'uppercase',
+                                                            color: 'var(--text-muted, #64748b)',
+                                                            fontWeight: '700',
+                                                            letterSpacing: '0.4px',
+                                                            marginBottom: '3px'
+                                                        }}>
+                                                            {Number(profile?.career_study?.id_tipo_usuario) === 2 ? 'Carrera y Ciclo' : 'Tipo de Usuario'}
+                                                        </span>
+                                                        <strong style={{
+                                                            fontSize: '13px',
+                                                            color: 'var(--primary, #002040)',
+                                                            fontWeight: '700',
+                                                            lineHeight: '1.4',
+                                                            display: 'block'
+                                                        }}>
+                                                            {Number(profile?.career_study?.id_tipo_usuario) === 2
+                                                                ? (profile?.career_study?.carrera?.nombre
+                                                                    ? `${profile.career_study.carrera.nombre} - Ciclo ${profile?.career_study?.ciclo?.numero || 'S/C'}`
+                                                                    : '—')
+                                                                : (profile?.career_study?.tipo_usuario?.nombre || 'General')
+                                                            }
+                                                        </strong>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2827,7 +2952,7 @@ const PacienteDashboard = () => {
                                             {/* COMPONENT 2: QUICK HEALTH METRICS BADGES */}
                                             <div className="nurse-card span-4" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                 <h3 style={{ margin: 0, fontSize: '14px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', fontWeight: 'bold' }}>Alertas Clínicas</h3>
-                                                
+
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--accent-soft)', padding: '10px 14px', borderRadius: '8px' }}>
                                                         <ShieldAlert size={18} color="var(--accent)" />
@@ -2939,10 +3064,10 @@ const PacienteDashboard = () => {
                                         {/* FILTER BUTTONS ROW */}
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
                                             {['Todos', 'Medicina General', 'Psicología Clínica', 'Odontología', 'Enfermería'].map(area => {
-                                                const count = area === 'Todos' 
-                                                    ? allPrescriptions.length 
+                                                const count = area === 'Todos'
+                                                    ? allPrescriptions.length
                                                     : allPrescriptions.filter(p => p.areaName === area).length;
-                                                
+
                                                 const isActive = recetarioFilter === area;
 
                                                 return (
@@ -3005,8 +3130,8 @@ const PacienteDashboard = () => {
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                                <input 
-                                                    type="date" 
+                                                <input
+                                                    type="date"
                                                     value={recetarioDate}
                                                     onChange={e => setRecetarioDate(e.target.value)}
                                                     style={{
@@ -3021,7 +3146,7 @@ const PacienteDashboard = () => {
                                                 />
 
                                                 {recetarioDate && (
-                                                    <button 
+                                                    <button
                                                         onClick={() => setRecetarioDate('')}
                                                         style={{
                                                             background: '#fee2e2',
@@ -3053,17 +3178,17 @@ const PacienteDashboard = () => {
                                                         const isDentist = item.areaKey === 'odontologia';
                                                         const isNurse = item.areaKey === 'enfermeria';
 
-                                                        const themeColor = isMedicine ? 'var(--primary)' : 
-                                                                           isPsychology ? '#8b5cf6' : 
-                                                                           isDentist ? '#10b981' : '#f97316';
+                                                        const themeColor = isMedicine ? 'var(--primary)' :
+                                                            isPsychology ? '#8b5cf6' :
+                                                                isDentist ? '#10b981' : '#f97316';
 
-                                                        const themeBgSoft = isMedicine ? 'var(--primary-soft)' : 
-                                                                            isPsychology ? '#f5f3ff' : 
-                                                                            isDentist ? '#ecfdf5' : '#fff7ed';
+                                                        const themeBgSoft = isMedicine ? 'var(--primary-soft)' :
+                                                            isPsychology ? '#f5f3ff' :
+                                                                isDentist ? '#ecfdf5' : '#fff7ed';
 
                                                         return (
-                                                            <div 
-                                                                key={item.id} 
+                                                            <div
+                                                                key={item.id}
                                                                 style={{
                                                                     background: 'white',
                                                                     borderRadius: '16px',
@@ -3163,11 +3288,11 @@ const PacienteDashboard = () => {
 
                                                 {/* PAGINATION CONTROLS */}
                                                 {totalPages > 1 && (
-                                                    <div style={{ 
-                                                        display: 'flex', 
-                                                        justifyContent: 'center', 
-                                                        alignItems: 'center', 
-                                                        gap: '12px', 
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'center',
+                                                        alignItems: 'center',
+                                                        gap: '12px',
                                                         marginTop: '32px',
                                                         borderTop: '1px solid var(--border)',
                                                         paddingTop: '20px'
@@ -3176,11 +3301,11 @@ const PacienteDashboard = () => {
                                                             onClick={() => setRecetarioPage(prev => Math.max(prev - 1, 1))}
                                                             disabled={recetarioPage === 1}
                                                             className="action-button action-button--light"
-                                                            style={{ 
-                                                                minHeight: '36px', 
-                                                                height: '36px', 
-                                                                padding: '0 12px', 
-                                                                fontSize: '11px', 
+                                                            style={{
+                                                                minHeight: '36px',
+                                                                height: '36px',
+                                                                padding: '0 12px',
+                                                                fontSize: '11px',
                                                                 fontWeight: 'bold',
                                                                 opacity: recetarioPage === 1 ? 0.5 : 1,
                                                                 cursor: recetarioPage === 1 ? 'not-allowed' : 'pointer'
@@ -3197,11 +3322,11 @@ const PacienteDashboard = () => {
                                                             onClick={() => setRecetarioPage(prev => Math.min(prev + 1, totalPages))}
                                                             disabled={recetarioPage === totalPages}
                                                             className="action-button action-button--light"
-                                                            style={{ 
-                                                                minHeight: '36px', 
-                                                                height: '36px', 
-                                                                padding: '0 12px', 
-                                                                fontSize: '11px', 
+                                                            style={{
+                                                                minHeight: '36px',
+                                                                height: '36px',
+                                                                padding: '0 12px',
+                                                                fontSize: '11px',
                                                                 fontWeight: 'bold',
                                                                 opacity: recetarioPage === totalPages ? 0.5 : 1,
                                                                 cursor: recetarioPage === totalPages ? 'not-allowed' : 'pointer'
@@ -3217,8 +3342,8 @@ const PacienteDashboard = () => {
                                                 <ClipboardList size={36} style={{ margin: '0 auto 12px', opacity: 0.4, color: 'var(--primary)' }} />
                                                 <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: 'var(--primary)', fontWeight: 'bold' }}>No se encontraron registros</h4>
                                                 <p style={{ margin: 0, fontSize: '12px' }}>
-                                                    {recetarioFilter === 'Todos' 
-                                                        ? 'Aún no se registran recetas o indicaciones en tu historial de consultas.' 
+                                                    {recetarioFilter === 'Todos'
+                                                        ? 'Aún no se registran recetas o indicaciones en tu historial de consultas.'
                                                         : `No se registran recetas o indicaciones para el área de ${recetarioFilter}.`}
                                                 </p>
                                             </div>
@@ -3226,203 +3351,203 @@ const PacienteDashboard = () => {
                                     </div>
                                 )}
 
-                                        {/* SCENARIO D: FICHA SOCIOECONOMICA */}
-                                        {activeTab === 'socioeconomica' && isProfileComplete() && (
-                                            <div className="nurse-card span-12" style={{ padding: '28px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-                                                    <div>
-                                                        <h2 style={{ fontSize: '18px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <Coins size={22} color="var(--accent)" /> Ficha Socioeconómica
-                                                        </h2>
-                                                        <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: '4px 0 0' }}>Registra y actualiza tu información socioeconómica de bienestar estudiantil.</p>
-                                                    </div>
-                                                    <button 
-                                                        className="action-button action-button--light" 
-                                                        onClick={() => setActiveTab('portal')}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', minHeight: 'auto', height: '36px' }}
-                                                    >
-                                                        <ChevronLeft size={16} /> Volver al Portal
-                                                    </button>
-                                                </div>
+                                {/* SCENARIO D: FICHA SOCIOECONOMICA */}
+                                {activeTab === 'socioeconomica' && isProfileComplete() && (
+                                    <div className="nurse-card span-12" style={{ padding: '28px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+                                            <div>
+                                                <h2 style={{ fontSize: '18px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Coins size={22} color="var(--accent)" /> Ficha Socioeconómica
+                                                </h2>
+                                                <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: '4px 0 0' }}>Registra y actualiza tu información socioeconómica de bienestar estudiantil.</p>
+                                            </div>
+                                            <button
+                                                className="action-button action-button--light"
+                                                onClick={() => setActiveTab('portal')}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', minHeight: 'auto', height: '36px' }}
+                                            >
+                                                <ChevronLeft size={16} /> Volver al Portal
+                                            </button>
+                                        </div>
 
-                                                {socioeconomicMessage && (
-                                                    <div style={{
-                                                        padding: '12px 16px',
-                                                        borderRadius: '8px',
-                                                        fontSize: '13px',
-                                                        fontWeight: '500',
-                                                        marginBottom: '20px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '8px',
-                                                        background: socioeconomicMessage.type === 'success' ? '#ecfdf5' : '#fef2f2',
-                                                        border: `1px solid ${socioeconomicMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
-                                                        color: socioeconomicMessage.type === 'success' ? '#065f46' : '#991b1b'
-                                                    }}>
-                                                        {socioeconomicMessage.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                                                        <span>{socioeconomicMessage.text}</span>
-                                                    </div>
-                                                )}
-
-                                                <form onSubmit={handleSaveSocioeconomic} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                                    {/* SECTION 1: ESTRUCTURA FAMILIAR */}
-                                                    <div>
-                                                        <h3 style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '14px', borderLeft: '3px solid var(--accent)', paddingLeft: '8px' }}>
-                                                            1. Estructura y Composición Familiar
-                                                        </h3>
-                                                        <div className="socioeconomic-grid">
-                                                            <div className="field">
-                                                                <span>Nivel de instrucción del Jefe de Hogar</span>
-                                                                <select
-                                                                    value={socioeconomicForm.nivel_instruccion_jefe_hogar}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, nivel_instruccion_jefe_hogar: e.target.value })}
-                                                                    style={{ width: '100%', border: '1px solid var(--border)' }}
-                                                                >
-                                                                    <option value="">Seleccione nivel</option>
-                                                                    <option value="Ninguno">Ninguno</option>
-                                                                    <option value="Primaria">Educación Primaria</option>
-                                                                    <option value="Secundaria">Educación Secundaria / Bachillerato</option>
-                                                                    <option value="Superior">Educación Superior / Universitaria</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div className="field">
-                                                                <span>Ocupación / Empleo del Jefe de Hogar</span>
-                                                                <select
-                                                                    value={socioeconomicForm.empleo_jefe_hogar}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, empleo_jefe_hogar: e.target.value })}
-                                                                    style={{ width: '100%', border: '1px solid var(--border)' }}
-                                                                >
-                                                                    <option value="">Seleccione ocupación</option>
-                                                                    <option value="Empleado Público">Empleado Público</option>
-                                                                    <option value="Empleado Privado">Empleado Privado</option>
-                                                                    <option value="Independiente">Trabajador Independiente / Negocio Propio</option>
-                                                                    <option value="Desempleado">Desempleado / Quehaceres Domésticos</option>
-                                                                    <option value="Jubilado">Jubilado / Pensionista</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div className="field">
-                                                                <span>Ingresos Mensuales del Hogar</span>
-                                                                <select
-                                                                    value={socioeconomicForm.ingresos_mensuales}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, ingresos_mensuales: e.target.value })}
-                                                                    style={{ width: '100%', border: '1px solid var(--border)' }}
-                                                                >
-                                                                    <option value="">Seleccione rango de ingresos</option>
-                                                                    <option value="Menos de 1 SBU (Menos de $460)">Menos de 1 SBU (Menos de $460)</option>
-                                                                    <option value="Entre 1 y 2 SBUs ($460 - $920)">Entre 1 y 2 SBUs ($460 - $920)</option>
-                                                                    <option value="Entre 2 y 3 SBUs ($920 - $1380)">Entre 2 y 3 SBUs ($920 - $1380)</option>
-                                                                    <option value="Más de 3 SBUs (Más de $1380)">Más de 3 SBUs (Más de $1380)</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div className="field">
-                                                                <span>Número de personas en el hogar</span>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    placeholder="Ej. 4"
-                                                                    value={socioeconomicForm.numero_personas_hogar}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, numero_personas_hogar: e.target.value })}
-                                                                    style={{ border: '1px solid var(--border)' }}
-                                                                />
-                                                            </div>
-
-                                                            <div className="field">
-                                                                <span>Aportantes económicos en el hogar</span>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    placeholder="Ej. 2"
-                                                                    value={socioeconomicForm.numero_aportantes}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, numero_aportantes: e.target.value })}
-                                                                    style={{ border: '1px solid var(--border)' }}
-                                                                />
-                                                            </div>
-
-                                                            <div className="field">
-                                                                <span>Tipo de vivienda</span>
-                                                                <select
-                                                                    value={socioeconomicForm.tipo_vivienda}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, tipo_vivienda: e.target.value })}
-                                                                    style={{ width: '100%', border: '1px solid var(--border)' }}
-                                                                >
-                                                                    <option value="">Seleccione tipo</option>
-                                                                    <option value="Propia">Propia (Pagada o Financiándose)</option>
-                                                                    <option value="Arrendada">Arrendada / Alquilada</option>
-                                                                    <option value="Prestada">Prestada por Familiares</option>
-                                                                    <option value="Compartida">Compartida / De Alojamiento</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* SECTION 2: TECNOLOGIA E INDICADORES VULNERABILIDAD */}
-                                                    <div>
-                                                        <h3 style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '14px', borderLeft: '3px solid var(--accent)', paddingLeft: '8px' }}>
-                                                            2. Indicadores Tecnológicos y de Apoyo Social
-                                                        </h3>
-                                                        <div className="socioeconomic-grid" style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={socioeconomicForm.posee_internet}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, posee_internet: e.target.checked })}
-                                                                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
-                                                                />
-                                                                Tiene Acceso a Internet en el Hogar
-                                                            </label>
-
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={socioeconomicForm.posee_computadora}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, posee_computadora: e.target.checked })}
-                                                                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
-                                                                />
-                                                                Posee Computadora / Computadora Portátil
-                                                            </label>
-
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={socioeconomicForm.recibe_beca}
-                                                                    onChange={e => setSocioeconomicForm({ ...socioeconomicForm, recibe_beca: e.target.checked })}
-                                                                    style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
-                                                                />
-                                                                Recibe Beca / Ayuda Financiera Universitaria
-                                                            </label>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* SUBMIT BUTTON */}
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
-                                                        <button
-                                                            type="submit"
-                                                            className="btn"
-                                                            disabled={savingSocioeconomic}
-                                                            style={{
-                                                                background: 'linear-gradient(to right, var(--primary), var(--primary-light))',
-                                                                color: 'white',
-                                                                padding: '12px 28px',
-                                                                fontSize: '12.5px',
-                                                                fontWeight: 'bold',
-                                                                borderRadius: '10px',
-                                                                border: 'none',
-                                                                cursor: 'pointer',
-                                                                boxShadow: 'var(--shadow-sm)',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '8px'
-                                                            }}
-                                                        >
-                                                            {savingSocioeconomic ? 'Guardando...' : 'Guardar Información'}
-                                                        </button>
-                                                    </div>
-                                                </form>
+                                        {socioeconomicMessage && (
+                                            <div style={{
+                                                padding: '12px 16px',
+                                                borderRadius: '8px',
+                                                fontSize: '13px',
+                                                fontWeight: '500',
+                                                marginBottom: '20px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                background: socioeconomicMessage.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                                                border: `1px solid ${socioeconomicMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
+                                                color: socioeconomicMessage.type === 'success' ? '#065f46' : '#991b1b'
+                                            }}>
+                                                {socioeconomicMessage.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                                                <span>{socioeconomicMessage.text}</span>
                                             </div>
                                         )}
+
+                                        <form onSubmit={handleSaveSocioeconomic} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                            {/* SECTION 1: ESTRUCTURA FAMILIAR */}
+                                            <div>
+                                                <h3 style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '14px', borderLeft: '3px solid var(--accent)', paddingLeft: '8px' }}>
+                                                    1. Estructura y Composición Familiar
+                                                </h3>
+                                                <div className="socioeconomic-grid">
+                                                    <div className="field">
+                                                        <span>Nivel de instrucción del Jefe de Hogar</span>
+                                                        <select
+                                                            value={socioeconomicForm.nivel_instruccion_jefe_hogar}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, nivel_instruccion_jefe_hogar: e.target.value })}
+                                                            style={{ width: '100%', border: '1px solid var(--border)' }}
+                                                        >
+                                                            <option value="">Seleccione nivel</option>
+                                                            <option value="Ninguno">Ninguno</option>
+                                                            <option value="Primaria">Educación Primaria</option>
+                                                            <option value="Secundaria">Educación Secundaria / Bachillerato</option>
+                                                            <option value="Superior">Educación Superior / Universitaria</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="field">
+                                                        <span>Ocupación / Empleo del Jefe de Hogar</span>
+                                                        <select
+                                                            value={socioeconomicForm.empleo_jefe_hogar}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, empleo_jefe_hogar: e.target.value })}
+                                                            style={{ width: '100%', border: '1px solid var(--border)' }}
+                                                        >
+                                                            <option value="">Seleccione ocupación</option>
+                                                            <option value="Empleado Público">Empleado Público</option>
+                                                            <option value="Empleado Privado">Empleado Privado</option>
+                                                            <option value="Independiente">Trabajador Independiente / Negocio Propio</option>
+                                                            <option value="Desempleado">Desempleado / Quehaceres Domésticos</option>
+                                                            <option value="Jubilado">Jubilado / Pensionista</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="field">
+                                                        <span>Ingresos Mensuales del Hogar</span>
+                                                        <select
+                                                            value={socioeconomicForm.ingresos_mensuales}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, ingresos_mensuales: e.target.value })}
+                                                            style={{ width: '100%', border: '1px solid var(--border)' }}
+                                                        >
+                                                            <option value="">Seleccione rango de ingresos</option>
+                                                            <option value="Menos de 1 SBU (Menos de $460)">Menos de 1 SBU (Menos de $460)</option>
+                                                            <option value="Entre 1 y 2 SBUs ($460 - $920)">Entre 1 y 2 SBUs ($460 - $920)</option>
+                                                            <option value="Entre 2 y 3 SBUs ($920 - $1380)">Entre 2 y 3 SBUs ($920 - $1380)</option>
+                                                            <option value="Más de 3 SBUs (Más de $1380)">Más de 3 SBUs (Más de $1380)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="field">
+                                                        <span>Número de personas en el hogar</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="Ej. 4"
+                                                            value={socioeconomicForm.numero_personas_hogar}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, numero_personas_hogar: e.target.value })}
+                                                            style={{ border: '1px solid var(--border)' }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="field">
+                                                        <span>Aportantes económicos en el hogar</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            placeholder="Ej. 2"
+                                                            value={socioeconomicForm.numero_aportantes}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, numero_aportantes: e.target.value })}
+                                                            style={{ border: '1px solid var(--border)' }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="field">
+                                                        <span>Tipo de vivienda</span>
+                                                        <select
+                                                            value={socioeconomicForm.tipo_vivienda}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, tipo_vivienda: e.target.value })}
+                                                            style={{ width: '100%', border: '1px solid var(--border)' }}
+                                                        >
+                                                            <option value="">Seleccione tipo</option>
+                                                            <option value="Propia">Propia (Pagada o Financiándose)</option>
+                                                            <option value="Arrendada">Arrendada / Alquilada</option>
+                                                            <option value="Prestada">Prestada por Familiares</option>
+                                                            <option value="Compartida">Compartida / De Alojamiento</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* SECTION 2: TECNOLOGIA E INDICADORES VULNERABILIDAD */}
+                                            <div>
+                                                <h3 style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 'bold', marginBottom: '14px', borderLeft: '3px solid var(--accent)', paddingLeft: '8px' }}>
+                                                    2. Indicadores Tecnológicos y de Apoyo Social
+                                                </h3>
+                                                <div className="socioeconomic-grid" style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={socioeconomicForm.posee_internet}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, posee_internet: e.target.checked })}
+                                                            style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                                                        />
+                                                        Tiene Acceso a Internet en el Hogar
+                                                    </label>
+
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={socioeconomicForm.posee_computadora}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, posee_computadora: e.target.checked })}
+                                                            style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                                                        />
+                                                        Posee Computadora / Computadora Portátil
+                                                    </label>
+
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '12.5px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={socioeconomicForm.recibe_beca}
+                                                            onChange={e => setSocioeconomicForm({ ...socioeconomicForm, recibe_beca: e.target.checked })}
+                                                            style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                                                        />
+                                                        Recibe Beca / Ayuda Financiera Universitaria
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {/* SUBMIT BUTTON */}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
+                                                <button
+                                                    type="submit"
+                                                    className="btn"
+                                                    disabled={savingSocioeconomic}
+                                                    style={{
+                                                        background: 'linear-gradient(to right, var(--primary), var(--primary-light))',
+                                                        color: 'white',
+                                                        padding: '12px 28px',
+                                                        fontSize: '12.5px',
+                                                        fontWeight: 'bold',
+                                                        borderRadius: '10px',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        boxShadow: 'var(--shadow-sm)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px'
+                                                    }}
+                                                >
+                                                    {savingSocioeconomic ? 'Guardando...' : 'Guardar Información'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                )}
 
                                 {/* SCENARIO E: CITAS MEDICAS */}
                                 {activeTab === 'citas' && isProfileComplete() && (
@@ -3432,7 +3557,7 @@ const PacienteDashboard = () => {
                                             <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
                                                 <Calendar size={18} color="var(--primary)" /> Nueva Cita Médica
                                             </h2>
-                                            
+
                                             {errorCita && (
                                                 <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2', padding: '12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <AlertCircle size={14} /> {errorCita}
@@ -3449,12 +3574,11 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Stethoscope size={15} /></span>
-                                                            <h4 className="field-header__title">Especialidad Requerida</h4>
+                                                            <h4 className="field-header__title">Especialidad Requerida <span className="field-req-star">*</span></h4>
                                                         </div>
-                                                        <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <select 
-                                                        value={selectedRolDoctor} 
+                                                    <select
+                                                        value={selectedRolDoctor}
                                                         onChange={(e) => setSelectedRolDoctor(e.target.value)}
                                                         style={{ width: '100%' }}
                                                     >
@@ -3478,9 +3602,8 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                                    <h4 className="field-header__title">Profesional Especialista</h4>
+                                                                    <h4 className="field-header__title">Profesional Especialista <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
                                                             <select
                                                                 value={selectedDoctorId}
@@ -3489,7 +3612,7 @@ const PacienteDashboard = () => {
                                                                 style={{ width: '100%' }}
                                                             >
                                                                 <option value="">-- Elija un especialista --</option>
-                                                                {((doctoresDisponibles || []).filter(doc => 
+                                                                {((doctoresDisponibles || []).filter(doc =>
                                                                     doc.roles && doc.roles.some(r => r.name === selectedRolDoctor)
                                                                 )).map(doc => (
                                                                     <option key={doc.id} value={doc.id}>
@@ -3503,11 +3626,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Calendar size={15} /></span>
-                                                                    <h4 className="field-header__title">Fecha de la Cita</h4>
+                                                                    <h4 className="field-header__title">Fecha de la Cita <span className="field-req-star">*</span></h4>
                                                                 </div>
-                                                                <span className="field-badge-req">Requerido</span>
                                                             </div>
-                                                            <input 
+                                                            <input
                                                                 type="date"
                                                                 value={selectedDate}
                                                                 min={getTodayLocalDateStr()}
@@ -3536,9 +3658,8 @@ const PacienteDashboard = () => {
                                                                 <div className="field-header">
                                                                     <div className="field-header__left">
                                                                         <span className="field-header__icon"><Clock size={15} /></span>
-                                                                        <h4 className="field-header__title">Horarios Disponibles</h4>
+                                                                        <h4 className="field-header__title">Horarios Disponibles <span className="field-req-star">*</span></h4>
                                                                     </div>
-                                                                    <span className="field-badge-req">Requerido</span>
                                                                 </div>
                                                                 {slotsLoading ? (
                                                                     <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)' }}>Cargando disponibilidad...</span>
@@ -3559,18 +3680,18 @@ const PacienteDashboard = () => {
                                                                                         borderRadius: '10px',
                                                                                         border: isPast
                                                                                             ? '1px solid #e5e7eb'
-                                                                                            : selectedSlot === slot 
-                                                                                                ? '2px solid var(--primary)' 
+                                                                                            : selectedSlot === slot
+                                                                                                ? '2px solid var(--primary)'
                                                                                                 : '1px solid rgba(0,32,64,0.12)',
                                                                                         background: isPast
                                                                                             ? '#f3f4f6'
-                                                                                            : selectedSlot === slot 
-                                                                                                ? 'var(--primary-soft)' 
+                                                                                            : selectedSlot === slot
+                                                                                                ? 'var(--primary-soft)'
                                                                                                 : '#ffffff',
                                                                                         color: isPast
                                                                                             ? '#9ca3af'
-                                                                                            : selectedSlot === slot 
-                                                                                                ? 'var(--primary)' 
+                                                                                            : selectedSlot === slot
+                                                                                                ? 'var(--primary)'
                                                                                                 : 'var(--text)',
                                                                                         fontWeight: selectedSlot === slot ? 'bold' : '600',
                                                                                         fontSize: '12px',
@@ -3609,27 +3730,53 @@ const PacienteDashboard = () => {
                                                             />
                                                         </div>
 
+                                                        {selectedSlot && selectedDate && (
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '10px',
+                                                                padding: '10px 14px',
+                                                                borderRadius: '12px',
+                                                                background: 'rgba(183, 26, 52, 0.05)',
+                                                                border: '1px solid rgba(183, 26, 52, 0.15)',
+                                                                color: 'var(--primary)',
+                                                                fontSize: '12px',
+                                                                marginTop: '4px'
+                                                            }}>
+                                                                <Clock size={16} color="var(--accent)" />
+                                                                <div>
+                                                                    <span>Horario seleccionado: </span>
+                                                                    <strong style={{ color: 'var(--accent)' }}>{selectedDate} a las {selectedSlot}</strong>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <button
                                                             type="submit"
                                                             disabled={savingCita || !selectedSlot}
-                                                            style={{
-                                                                background: 'var(--accent)',
-                                                                color: 'white',
-                                                                height: '46px',
-                                                                padding: '0 32px',
-                                                                borderRadius: '12px',
-                                                                border: 0,
-                                                                fontWeight: 'bold',
-                                                                cursor: !selectedSlot ? 'not-allowed' : 'pointer',
-                                                                fontSize: '13px',
-                                                                marginTop: '16px',
-                                                                boxShadow: '0 4px 12px rgba(183, 26, 52, 0.2)',
-                                                                opacity: !selectedSlot || savingCita ? 0.6 : 1,
-                                                                alignSelf: 'center',
-                                                                width: 'fit-content'
-                                                            }}
+                                                            className="btn-agendar-cita"
                                                         >
-                                                            {savingCita ? 'Agendando...' : 'Confirmar Agendamiento'}
+                                                            {savingCita ? (
+                                                                <>
+                                                                    <Loader2 size={18} className="spin-icon" />
+                                                                    <span>Confirmando Cita...</span>
+                                                                </>
+                                                            ) : !selectedDate ? (
+                                                                <>
+                                                                    <CalendarCheck size={18} />
+                                                                    <span>Seleccione Fecha y Horario</span>
+                                                                </>
+                                                            ) : !selectedSlot ? (
+                                                                <>
+                                                                    <Clock size={18} />
+                                                                    <span>Seleccione un Horario</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <CalendarCheck size={18} />
+                                                                    <span>Confirmar Agendamiento</span>
+                                                                </>
+                                                            )}
                                                         </button>
                                                     </>
                                                 )}
@@ -3706,8 +3853,8 @@ const PacienteDashboard = () => {
                                                     <Calendar size={36} style={{ marginBottom: '12px', opacity: 0.4 }} />
                                                     <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>No se encontraron citas</h4>
                                                     <p style={{ fontSize: '11px', margin: '4px 0 0', maxWidth: '260px' }}>
-                                                        {citasList.length === 0 
-                                                            ? 'No tienes citas médicas en tu historial. Utiliza el formulario de la izquierda para agendar una.' 
+                                                        {citasList.length === 0
+                                                            ? 'No tienes citas médicas en tu historial. Utiliza el formulario de la izquierda para agendar una.'
                                                             : 'No hay citas que coincidan con los filtros seleccionados.'}
                                                     </p>
                                                 </div>
@@ -3890,634 +4037,655 @@ const PacienteDashboard = () => {
                         )}
                     </div>
                 </main>
-            {/* MODAL: NO CERTIFICATE AVAILABLE */}
-            {noCertificateModal.show && (
-                <div className="clinical-modal show" style={{ zIndex: 9999 }}>
-                    <div className="clinical-modal__backdrop" onClick={() => setNoCertificateModal({ show: false, message: '' })}></div>
-                    <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '440px', borderRadius: '16px', overflow: 'hidden' }}>
-                        <header className="clinical-modal__header" style={{ background: '#e11d48', color: '#fff', padding: '16px 20px' }}>
-                            <div className="clinical-modal__patient" style={{ gap: '10px' }}>
-                                <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <AlertCircle size={18} />
-                                </span>
-                                <div>
-                                    <h2 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>Certificado No Disponible</h2>
-                                </div>
-                            </div>
-                            <button className="clinical-modal__close" onClick={() => setNoCertificateModal({ show: false, message: '' })} style={{ color: '#fff' }}><X size={15} /></button>
-                        </header>
-                        <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 20px' }}>
-                                {noCertificateModal.message}
-                            </p>
-                            <button
-                                className="action-button"
-                                onClick={() => setNoCertificateModal({ show: false, message: '' })}
-                                style={{ width: '100%', minHeight: '40px', borderRadius: '10px', background: '#e11d48', border: 0, color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
-                            >
-                                Entendido
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* MODAL: VIEW DETAILS OF CONSULTATION */}
-            {viewDetailsModal.show && viewDetailsModal.record && (
-                <div className="clinical-modal show" style={{ zIndex: 9990 }}>
-                    <div className="clinical-modal__backdrop" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })}></div>
-                    <div className="clinical-modal__dialog" style={{ width: '90vw', maxWidth: '600px', borderRadius: '16px', overflow: 'hidden' }}>
-                        <header className="clinical-modal__header" style={{ background: 'var(--primary)', color: '#fff', padding: '18px 20px' }}>
-                            <div className="clinical-modal__patient" style={{ gap: '10px' }}>
-                                <div className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <FileText size={18} />
-                                </div>
-                                <div>
-                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        Detalles de Atención - {viewDetailsModal.area === 'medicina' ? 'Medicina General' :
-                                                                viewDetailsModal.area === 'psicologia' ? 'Psicología Clínica' :
-                                                                viewDetailsModal.area === 'odontologia' ? 'Odontología' : 'Enfermería'}
+                {/* MODAL: NO CERTIFICATE AVAILABLE */}
+                {noCertificateModal.show && (
+                    <div className="clinical-modal show" style={{ zIndex: 9999 }}>
+                        <div className="clinical-modal__backdrop" onClick={() => setNoCertificateModal({ show: false, message: '' })}></div>
+                        <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '440px', borderRadius: '16px', overflow: 'hidden' }}>
+                            <header className="clinical-modal__header" style={{ background: '#e11d48', color: '#fff', padding: '16px 20px' }}>
+                                <div className="clinical-modal__patient" style={{ gap: '10px' }}>
+                                    <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <AlertCircle size={18} />
                                     </span>
-                                    <h2 style={{ fontSize: '16px', color: '#fff', margin: '2px 0 0' }}>{viewDetailsModal.record.recordTitle}</h2>
+                                    <div>
+                                        <h2 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>Certificado No Disponible</h2>
+                                    </div>
                                 </div>
-                            </div>
-                            <button className="clinical-modal__close" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })} style={{ color: '#fff' }}><X size={16} /></button>
-                        </header>
-                        <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '75vh', overflowY: 'auto' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                    <strong>Fecha de registro:</strong> {(viewDetailsModal.record.fecha || viewDetailsModal.record.created_at || '').slice(0, 10)}
-                                </span>
-                                <span style={{ fontSize: '11px', background: 'var(--primary-soft)', color: 'var(--primary)', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'capitalize' }}>
-                                    {viewDetailsModal.record.type}
-                                </span>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                                {/* MEDICINA DETAILS */}
-                                {viewDetailsModal.area === 'medicina' && (
-                                    <>
-                                        {viewDetailsModal.record.type === 'evolucion' && (
-                                            <>
-                                                <div className="preview-paper-field">
-                                                    <span>Evolución Médica</span>
-                                                    <p style={{ fontStyle: 'italic', background: '#eef2f6', padding: '12px', borderRadius: '8px', border: '1px solid #cfdbe6', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                                                        {viewDetailsModal.record.detalle_evolucion}
-                                                    </p>
-                                                </div>
-                                                <div className="preview-paper-field">
-                                                    <span>Prescripción / Indicación</span>
-                                                    <p style={{ background: '#f5fbf7', padding: '12px', borderRadius: '8px', border: '1px solid #d3ebd8', color: 'var(--success)', fontSize: '12px', margin: 0 }}>
-                                                        {viewDetailsModal.record.prescripcion_medica || 'Sin prescripción.'}
-                                                    </p>
-                                                </div>
-                                            </>
-                                        )}
-                                        {viewDetailsModal.record.type === 'diario' && (
-                                            <>
-                                                <div className="preview-paper-field">
-                                                    <span>Sintomatología Declarada</span>
-                                                    <p style={{ fontSize: '12.5px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', margin: 0 }}>
-                                                        {viewDetailsModal.record.detalle_diagnostico || 'Atención general'}
-                                                    </p>
-                                                </div>
-                                                <div className="preview-paper-field">
-                                                    <span>Tipo de Atención</span>
-                                                    <strong style={{ fontSize: '12px', textTransform: 'capitalize' }}>{viewDetailsModal.record.tipo_atencion}</strong>
-                                                </div>
-                                            </>
-                                        )}
-                                        {viewDetailsModal.record.type === 'signos' && (
-                                            <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                                <div>
-                                                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>P. Arterial</span>
-                                                    <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
-                                                </div>
-                                                <div>
-                                                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>F. Cardiaca</span>
-                                                    <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
-                                                </div>
-                                                <div>
-                                                    <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>Temperatura</span>
-                                                    <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                {/* PSICOLOGIA DETAILS */}
-                                {viewDetailsModal.area === 'psicologia' && (
-                                    <>
-                                        {viewDetailsModal.record.type === 'evolucion' && (
-                                            <>
-                                                <div className="preview-paper-field">
-                                                    <span>Detalle de Sesión Psicológica</span>
-                                                    <p style={{ fontStyle: 'italic', background: '#f5f3ff', padding: '12px', borderRadius: '8px', border: '1px solid #ddd6fe', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                                                        {viewDetailsModal.record.detalle_evolucion}
-                                                    </p>
-                                                </div>
-                                                <div className="preview-paper-field">
-                                                    <span>Recomendaciones</span>
-                                                    <p style={{ background: '#f0fdfa', padding: '12px', borderRadius: '8px', border: '1px solid #99f6e4', color: '#0f766e', fontSize: '12px', margin: 0 }}>
-                                                        {viewDetailsModal.record.prescripcion_medica || 'Sin recomendaciones.'}
-                                                    </p>
-                                                </div>
-                                            </>
-                                        )}
-                                        {viewDetailsModal.record.type === 'diario' && (
-                                            <>
-                                                <div className="preview-paper-field">
-                                                    <span>Tipo de Consulta</span>
-                                                    <strong style={{ fontSize: '12.5px', textTransform: 'capitalize', display: 'block', background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)' }}>{viewDetailsModal.record.tipo_atencion}</strong>
-                                                </div>
-                                                <div className="preview-paper-field">
-                                                    <span>Diagnóstico</span>
-                                                    <p style={{ fontSize: '12.5px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', margin: 0 }}>{viewDetailsModal.record.detalle_diagnostico}</p>
-                                                </div>
-                                            </>
-                                        )}
-                                    </>
-                                )}
-
-                                {/* ODONTOLOGIA DETAILS */}
-                                {viewDetailsModal.area === 'odontologia' && (
-                                    <>
-                                        {viewDetailsModal.record.type === 'evolucion' && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-                                                    <thead>
-                                                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
-                                                            <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Tratamiento Realizado / Evolución</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style={{ padding: '12px 10px', color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: '1.5' }}>
-                                                                {viewDetailsModal.record.detalle_evolucion}
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                        {viewDetailsModal.record.type === 'diario' && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-                                                    <thead>
-                                                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
-                                                            <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)', width: '50%' }}>Motivo Odontológico</th>
-                                                            <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Procedimiento Realizado</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style={{ padding: '12px 10px', color: 'var(--text-secondary)' }}>{viewDetailsModal.record.diagnostico || 'Consulta dental'}</td>
-                                                            <td style={{ padding: '12px 10px', fontWeight: 'bold', color: 'var(--accent)' }}>{viewDetailsModal.record.procedimiento || 'General'}</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                {/* ENFERMERIA DETAILS */}
-                                {viewDetailsModal.area === 'enfermeria' && (
-                                    <>
-                                        {viewDetailsModal.record.type === 'vitals' && (
-                                            <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                                <div>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Presión Arterial</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
-                                                </div>
-                                                <div>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Cardíaca</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
-                                                </div>
-                                                <div>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Respiratoria</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_respiratoria || '—'} rpm</strong>
-                                                </div>
-                                                <div style={{ marginTop: '10px' }}>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Temperatura</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
-                                                </div>
-                                                <div style={{ marginTop: '10px' }}>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Talla (Estatura)</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.talla || '—'} cm</strong>
-                                                </div>
-                                                <div style={{ marginTop: '10px' }}>
-                                                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Peso Corporal</span>
-                                                    <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.peso || '—'} kg</strong>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {viewDetailsModal.record.type === 'diario' && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-                                                    <thead>
-                                                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
-                                                            <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)', width: '45%' }}>Procedimiento de Enfermería</th>
-                                                            <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Detalles y Observaciones</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style={{ padding: '12px 10px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{viewDetailsModal.record.procedimiento?.nombre_procedimiento || 'Cura / Inyección'}</td>
-                                                            <td style={{ padding: '12px 10px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: '1.5' }}>
-                                                                {viewDetailsModal.record.detalle_procedimiento || 'Sin observaciones.'}
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                                <button className="clinical-modal__close" onClick={() => setNoCertificateModal({ show: false, message: '' })} style={{ color: '#fff' }}><X size={15} /></button>
+                            </header>
+                            <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 20px' }}>
+                                    {noCertificateModal.message}
+                                </p>
                                 <button
-                                    className="action-button action-button--primary"
-                                    onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })}
-                                    style={{ padding: '8px 24px', fontSize: '12.5px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}
+                                    className="action-button"
+                                    onClick={() => setNoCertificateModal({ show: false, message: '' })}
+                                    style={{ width: '100%', minHeight: '40px', borderRadius: '10px', background: '#e11d48', border: 0, color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
                                 >
-                                    Cerrar Detalles
+                                    Entendido
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* MODAL DE VISTA DE FICHA SOCIOECONÓMICA / PERFIL */}
-            {isViewFichaOpen && profile && (
-                <div className="clinical-modal show" style={{ zIndex: 4000 }}>
-                    <div className="clinical-modal__backdrop" onClick={() => setIsViewFichaOpen(false)}></div>
-                    <div className="clinical-modal__dialog" style={{ maxWidth: '850px', width: '90vw' }}>
-                        <header className="clinical-modal__header" style={{ background: 'var(--primary)', color: 'white' }}>
-                            <div className="clinical-modal__patient">
-                                {getPhotoUrl() ? (
-                                    <img 
-                                        src={getPhotoUrl()} 
-                                        alt="Estudiante" 
-                                        style={{ 
-                                            width: '46px', 
-                                            height: '46px', 
-                                            borderRadius: '12px', 
-                                            objectFit: 'cover', 
-                                            border: '2px solid rgba(255,255,255,0.4)',
-                                            marginRight: '12px' 
-                                        }} 
-                                    />
-                                ) : (
-                                    <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', marginRight: '12px' }}>
-                                        <User size={20} />
+                {/* MODAL: VIEW DETAILS OF CONSULTATION */}
+                {viewDetailsModal.show && viewDetailsModal.record && (
+                    <div className="clinical-modal show" style={{ zIndex: 9990 }}>
+                        <div className="clinical-modal__backdrop" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })}></div>
+                        <div className="clinical-modal__dialog" style={{ width: '90vw', maxWidth: '600px', borderRadius: '16px', overflow: 'hidden' }}>
+                            <header className="clinical-modal__header" style={{ background: 'var(--primary)', color: '#fff', padding: '18px 20px' }}>
+                                <div className="clinical-modal__patient" style={{ gap: '10px' }}>
+                                    <div className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <FileText size={18} />
+                                    </div>
+                                    <div>
+                                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Detalles de Atención - {viewDetailsModal.area === 'medicina' ? 'Medicina General' :
+                                                viewDetailsModal.area === 'psicologia' ? 'Psicología Clínica' :
+                                                    viewDetailsModal.area === 'odontologia' ? 'Odontología' : 'Enfermería'}
+                                        </span>
+                                        <h2 style={{ fontSize: '16px', color: '#fff', margin: '2px 0 0' }}>{viewDetailsModal.record.recordTitle}</h2>
+                                    </div>
+                                </div>
+                                <button className="clinical-modal__close" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })} style={{ color: '#fff' }}><X size={16} /></button>
+                            </header>
+                            <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '75vh', overflowY: 'auto' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        <strong>Fecha de registro:</strong> {(viewDetailsModal.record.fecha || viewDetailsModal.record.created_at || '').slice(0, 10)}
                                     </span>
-                                )}
-                                <div>
-                                    <span>Resumen del Registro</span>
-                                    <h2 style={{ color: 'white', margin: 0 }}>Ficha Médica & Demográfica</h2>
-                                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', margin: '2px 0 0' }}>
-                                        {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
-                                    </p>
+                                    <span style={{ fontSize: '11px', background: 'var(--primary-soft)', color: 'var(--primary)', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                                        {viewDetailsModal.record.type}
+                                    </span>
                                 </div>
-                            </div>
-                            <button className="clinical-modal__close" onClick={() => setIsViewFichaOpen(false)} style={{ color: 'white' }}><X size={16} /></button>
-                        </header>
 
-                        <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
-                            {/* SECCIÓN 1: DATOS PERSONALES */}
-                            <div style={{ marginBottom: '24px' }}>
-                                <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Datos Personales de Identificación
-                                </h3>
-                                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                                    {getPhotoUrl() && (
-                                        <div style={{ flexShrink: 0, marginBottom: '10px' }}>
-                                            <img 
-                                                src={getPhotoUrl()} 
-                                                alt="Foto Estudiante" 
-                                                style={{ 
-                                                    width: '110px', 
-                                                    height: '130px', 
-                                                    borderRadius: '12px', 
-                                                    objectFit: 'cover', 
-                                                    border: '1px solid var(--border)',
-                                                    boxShadow: 'var(--shadow-sm)'
-                                                }} 
-                                            />
-                                        </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                                    {/* MEDICINA DETAILS */}
+                                    {viewDetailsModal.area === 'medicina' && (
+                                        <>
+                                            {viewDetailsModal.record.type === 'evolucion' && (
+                                                <>
+                                                    <div className="preview-paper-field">
+                                                        <span>Evolución Médica</span>
+                                                        <p style={{ fontStyle: 'italic', background: '#eef2f6', padding: '12px', borderRadius: '8px', border: '1px solid #cfdbe6', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                                                            {viewDetailsModal.record.detalle_evolucion}
+                                                        </p>
+                                                    </div>
+                                                    <div className="preview-paper-field">
+                                                        <span>Prescripción / Indicación</span>
+                                                        <p style={{ background: '#f5fbf7', padding: '12px', borderRadius: '8px', border: '1px solid #d3ebd8', color: 'var(--success)', fontSize: '12px', margin: 0 }}>
+                                                            {viewDetailsModal.record.prescripcion_medica || 'Sin prescripción.'}
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {viewDetailsModal.record.type === 'diario' && (
+                                                <>
+                                                    <div className="preview-paper-field">
+                                                        <span>Sintomatología Declarada</span>
+                                                        <p style={{ fontSize: '12.5px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', margin: 0 }}>
+                                                            {viewDetailsModal.record.detalle_diagnostico || 'Atención general'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="preview-paper-field">
+                                                        <span>Tipo de Atención</span>
+                                                        <strong style={{ fontSize: '12px', textTransform: 'capitalize' }}>{viewDetailsModal.record.tipo_atencion}</strong>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {viewDetailsModal.record.type === 'signos' && (
+                                                <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                    <div>
+                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>P. Arterial</span>
+                                                        <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>F. Cardiaca</span>
+                                                        <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>Temperatura</span>
+                                                        <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
-                                    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Cédula / Pasaporte</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.numero_cedula || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombres Completos</small>
-                                            <strong style={{ fontSize: '12.5px' }}>
-                                                {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''}
-                                            </strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Apellidos Completos</small>
-                                            <strong style={{ fontSize: '12.5px' }}>
-                                                {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
-                                            </strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Fecha de Nacimiento</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.fecha_nacimiento || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Género</small>
-                                            <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.genero?.nombre || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Estado Civil</small>
-                                            <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nacionalidad</small>
-                                            <strong style={{ fontSize: '12.5px' }}>
-                                                {profile?.identification?.es_extranjero ? `Extranjero (${profile?.identification?.nacionalidad || '—'})` : 'Ecuatoriana'}
-                                            </strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Sangre</small>
-                                            <strong style={{ fontSize: '12.5px', color: profile?.blood_type?.nombre ? 'var(--accent)' : 'inherit' }}>
-                                                {profile?.blood_type?.nombre || 'No asignado'}
-                                            </strong>
-                                        </div>
-                                    </div>
+
+                                    {/* PSICOLOGIA DETAILS */}
+                                    {viewDetailsModal.area === 'psicologia' && (
+                                        <>
+                                            {viewDetailsModal.record.type === 'evolucion' && (
+                                                <>
+                                                    <div className="preview-paper-field">
+                                                        <span>Detalle de Sesión Psicológica</span>
+                                                        <p style={{ fontStyle: 'italic', background: '#f5f3ff', padding: '12px', borderRadius: '8px', border: '1px solid #ddd6fe', fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                                                            {viewDetailsModal.record.detalle_evolucion}
+                                                        </p>
+                                                    </div>
+                                                    <div className="preview-paper-field">
+                                                        <span>Recomendaciones</span>
+                                                        <p style={{ background: '#f0fdfa', padding: '12px', borderRadius: '8px', border: '1px solid #99f6e4', color: '#0f766e', fontSize: '12px', margin: 0 }}>
+                                                            {viewDetailsModal.record.prescripcion_medica || 'Sin recomendaciones.'}
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {viewDetailsModal.record.type === 'diario' && (
+                                                <>
+                                                    <div className="preview-paper-field">
+                                                        <span>Tipo de Consulta</span>
+                                                        <strong style={{ fontSize: '12.5px', textTransform: 'capitalize', display: 'block', background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)' }}>{viewDetailsModal.record.tipo_atencion}</strong>
+                                                    </div>
+                                                    <div className="preview-paper-field">
+                                                        <span>Diagnóstico</span>
+                                                        <p style={{ fontSize: '12.5px', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', margin: 0 }}>{viewDetailsModal.record.detalle_diagnostico}</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* ODONTOLOGIA DETAILS */}
+                                    {viewDetailsModal.area === 'odontologia' && (
+                                        <>
+                                            {viewDetailsModal.record.type === 'evolucion' && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                                                        <thead>
+                                                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
+                                                                <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Tratamiento Realizado / Evolución</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td style={{ padding: '12px 10px', color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                                                                    {viewDetailsModal.record.detalle_evolucion}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                            {viewDetailsModal.record.type === 'diario' && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                                                        <thead>
+                                                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
+                                                                <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)', width: '50%' }}>Motivo Odontológico</th>
+                                                                <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Procedimiento Realizado</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td style={{ padding: '12px 10px', color: 'var(--text-secondary)' }}>{viewDetailsModal.record.diagnostico || 'Consulta dental'}</td>
+                                                                <td style={{ padding: '12px 10px', fontWeight: 'bold', color: 'var(--accent)' }}>{viewDetailsModal.record.procedimiento || 'General'}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* ENFERMERIA DETAILS */}
+                                    {viewDetailsModal.area === 'enfermeria' && (
+                                        <>
+                                            {viewDetailsModal.record.type === 'vitals' && (
+                                                <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                                    <div>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Presión Arterial</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Cardíaca</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Respiratoria</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_respiratoria || '—'} rpm</strong>
+                                                    </div>
+                                                    <div style={{ marginTop: '10px' }}>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Temperatura</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
+                                                    </div>
+                                                    <div style={{ marginTop: '10px' }}>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Talla (Estatura)</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.talla || '—'} cm</strong>
+                                                    </div>
+                                                    <div style={{ marginTop: '10px' }}>
+                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Peso Corporal</span>
+                                                        <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.peso || '—'} kg</strong>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {viewDetailsModal.record.type === 'diario' && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                                                        <thead>
+                                                            <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--border)' }}>
+                                                                <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)', width: '45%' }}>Procedimiento de Enfermería</th>
+                                                                <th style={{ padding: '10px', textAlign: 'left', fontWeight: 'bold', color: 'var(--text-primary)' }}>Detalles y Observaciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td style={{ padding: '12px 10px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{viewDetailsModal.record.procedimiento?.nombre_procedimiento || 'Cura / Inyección'}</td>
+                                                                <td style={{ padding: '12px 10px', color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: '1.5' }}>
+                                                                    {viewDetailsModal.record.detalle_procedimiento || 'Sin observaciones.'}
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                                    <button
+                                        className="action-button action-button--primary"
+                                        onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })}
+                                        style={{ padding: '8px 24px', fontSize: '12.5px', fontWeight: 'bold', borderRadius: '8px', cursor: 'pointer' }}
+                                    >
+                                        Cerrar Detalles
+                                    </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
 
-                            {/* SECCIÓN 2: INFORMACIÓN ACADÉMICA / LABORAL */}
-                            <div style={{ marginBottom: '24px' }}>
-                                <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Información Institucional
-                                </h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                {/* MODAL DE VISTA DE FICHA SOCIOECONÓMICA / PERFIL */}
+                {isViewFichaOpen && profile && (
+                    <div className="clinical-modal show" style={{ zIndex: 4000 }}>
+                        <div className="clinical-modal__backdrop" onClick={() => setIsViewFichaOpen(false)}></div>
+                        <div className="clinical-modal__dialog" style={{ maxWidth: '850px', width: '90vw' }}>
+                            <header className="clinical-modal__header" style={{ background: 'var(--primary)', color: 'white' }}>
+                                <div className="clinical-modal__patient">
+                                    {getPhotoUrl() ? (
+                                        <img
+                                            src={getPhotoUrl()}
+                                            alt=""
+                                            onError={() => setPhotoError(true)}
+                                            style={{
+                                                width: '46px',
+                                                height: '46px',
+                                                borderRadius: '12px',
+                                                objectFit: 'cover',
+                                                border: '2px solid rgba(255,255,255,0.4)',
+                                                marginRight: '12px'
+                                            }}
+                                        />
+                                    ) : (
+                                        <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', marginRight: '12px' }}>
+                                            <User size={20} />
+                                        </span>
+                                    )}
                                     <div>
-                                        <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
-                                        <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}</strong>
-                                    </div>
-                                    {profile?.career_study?.facultad && (
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Facultad</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.facultad?.nombre || '—'}</strong>
-                                        </div>
-                                    )}
-                                    {profile?.career_study?.carrera && (
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Carrera</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.carrera?.nombre || '—'}</strong>
-                                        </div>
-                                    )}
-                                    {profile?.career_study?.ciclo && (
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Semestre / Ciclo</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.ciclo?.numero || '—'}</strong>
-                                        </div>
-                                    )}
-                                    {profile?.career_study?.paralelo && (
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Paralelo</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.paralelo || '—'}</strong>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* SECCIÓN 3: DATOS DE CONTACTO */}
-                            <div style={{ marginBottom: '24px' }}>
-                                <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Información de Contacto
-                                </h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                                    <div>
-                                        <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono Convencional (Fijo)</small>
-                                        <strong style={{ fontSize: '12.5px' }}>{profile?.addresses?.[0]?.telefono_convencional || '—'}</strong>
-                                    </div>
-                                    <div>
-                                        <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Correo Institucional</small>
-                                        <strong style={{ fontSize: '12.5px' }}>{user?.email || '—'}</strong>
+                                        <span>Resumen del Registro</span>
+                                        <h2 style={{ color: 'white', margin: 0 }}>Ficha Médica & Demográfica</h2>
+                                        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', margin: '2px 0 0' }}>
+                                            {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
+                                <button className="clinical-modal__close" onClick={() => setIsViewFichaOpen(false)} style={{ color: 'white' }}><X size={16} /></button>
+                            </header>
 
-                            {/* SECCIÓN 4: CONTACTO DE EMERGENCIA */}
-                            {profile?.emergency_contacts && profile.emergency_contacts.length > 0 && (
+                            <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+                                {/* SECCIÓN 1: DATOS PERSONALES */}
                                 <div style={{ marginBottom: '24px' }}>
                                     <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        Contacto de Emergencia
+                                        Datos Personales de Identificación
+                                    </h3>
+                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {getPhotoUrl() ? (
+                                            <div style={{ flexShrink: 0, marginBottom: '10px' }}>
+                                                <img
+                                                    src={getPhotoUrl()}
+                                                    alt=""
+                                                    onError={() => setPhotoError(true)}
+                                                    style={{
+                                                        width: '110px',
+                                                        height: '130px',
+                                                        borderRadius: '12px',
+                                                        objectFit: 'cover',
+                                                        border: '1px solid var(--border)',
+                                                        boxShadow: 'var(--shadow-sm)'
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div style={{ flexShrink: 0, marginBottom: '10px' }}>
+                                                <div style={{
+                                                    width: '110px',
+                                                    height: '130px',
+                                                    borderRadius: '12px',
+                                                    background: 'linear-gradient(135deg, var(--primary-soft), #f1f5f9)',
+                                                    border: '1px dashed var(--border)',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '6px',
+                                                    color: 'var(--text-muted)'
+                                                }}>
+                                                    <User size={32} />
+                                                    <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Sin Foto</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Cédula / Pasaporte</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.numero_cedula || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombres Completos</small>
+                                                <strong style={{ fontSize: '12.5px' }}>
+                                                    {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Apellidos Completos</small>
+                                                <strong style={{ fontSize: '12.5px' }}>
+                                                    {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Fecha de Nacimiento</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.fecha_nacimiento || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Género</small>
+                                                <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.genero?.nombre || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Estado Civil</small>
+                                                <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nacionalidad</small>
+                                                <strong style={{ fontSize: '12.5px' }}>
+                                                    {profile?.identification?.es_extranjero ? `Extranjero (${profile?.identification?.nacionalidad || '—'})` : 'Ecuatoriana'}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Sangre</small>
+                                                <strong style={{ fontSize: '12.5px', color: profile?.blood_type?.nombre ? 'var(--accent)' : 'inherit' }}>
+                                                    {profile?.blood_type?.nombre || 'No asignado'}
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* SECCIÓN 2: INFORMACIÓN ACADÉMICA / LABORAL */}
+                                <div style={{ marginBottom: '24px' }}>
+                                    <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Información Institucional
                                     </h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombre Completo</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].nombre_completo || '—'}</strong>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
+                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}</strong>
+                                        </div>
+                                        {profile?.career_study?.facultad && (
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Facultad</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.facultad?.nombre || '—'}</strong>
+                                            </div>
+                                        )}
+                                        {profile?.career_study?.carrera && (
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Carrera</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.carrera?.nombre || '—'}</strong>
+                                            </div>
+                                        )}
+                                        {profile?.career_study?.ciclo && (
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Semestre / Ciclo</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.ciclo?.numero || '—'}</strong>
+                                            </div>
+                                        )}
+                                        {profile?.career_study?.paralelo && (
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Paralelo</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.paralelo || '—'}</strong>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* SECCIÓN 3: DATOS DE CONTACTO */}
+                                <div style={{ marginBottom: '24px' }}>
+                                    <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Información de Contacto
+                                    </h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                        <div>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono Convencional (Fijo)</small>
+                                            <strong style={{ fontSize: '12.5px' }}>{profile?.addresses?.[0]?.telefono_convencional || '—'}</strong>
                                         </div>
                                         <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Parentesco</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].parentesco || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono de Contacto</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].telefono || '—'}</strong>
-                                        </div>
-                                        <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Celular Alterno</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].celular || '—'}</strong>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Correo Institucional</small>
+                                            <strong style={{ fontSize: '12.5px' }}>{user?.email || '—'}</strong>
                                         </div>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* SECCIÓN 4: DIRECCIONES */}
-                            {profile?.directions && profile.directions.length > 0 && (
-                                <div>
-                                    <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        Ubicación y Direcciones Registradas
-                                    </h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                        {profile.directions.map((dir, idx) => (
-                                            <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                                <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                                                    Dirección de {dir.id_tipo_direccion === 1 ? 'Procedencia' : 'Residencia'}
-                                                </span>
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
-                                                    <div>
-                                                        <span style={{ color: 'var(--text-muted)' }}>Provincia:</span> <strong>{dir.provincia?.nombre || '—'}</strong>
-                                                    </div>
-                                                    <div>
-                                                        <span style={{ color: 'var(--text-muted)' }}>Cantón:</span> <strong>{dir.canton?.nombre || '—'}</strong>
-                                                    </div>
-                                                    <div>
-                                                        <span style={{ color: 'var(--text-muted)' }}>Calle Principal:</span> <strong>{dir.calle_principal || '—'}</strong>
-                                                    </div>
-                                                    <div>
-                                                        <span style={{ color: 'var(--text-muted)' }}>Calle Secundaria:</span> <strong>{dir.calle_secundaria || '—'}</strong>
-                                                    </div>
-                                                    <div>
-                                                        <span style={{ color: 'var(--text-muted)' }}>Referencia:</span> <strong>{dir.referencia || '—'}</strong>
+                                {/* SECCIÓN 4: CONTACTO DE EMERGENCIA */}
+                                {profile?.emergency_contacts && profile.emergency_contacts.length > 0 && (
+                                    <div style={{ marginBottom: '24px' }}>
+                                        <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Contacto de Emergencia
+                                        </h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombre Completo</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].nombre_completo || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Parentesco</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].parentesco || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono de Contacto</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].telefono || '—'}</strong>
+                                            </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Celular Alterno</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].celular || '—'}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* SECCIÓN 4: DIRECCIONES */}
+                                {profile?.directions && profile.directions.length > 0 && (
+                                    <div>
+                                        <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            Ubicación y Direcciones Registradas
+                                        </h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                            {profile.directions.map((dir, idx) => (
+                                                <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                    <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                                                        Dirección de {dir.id_tipo_direccion === 1 ? 'Procedencia' : 'Residencia'}
+                                                    </span>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
+                                                        <div>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Provincia:</span> <strong>{dir.provincia?.nombre || '—'}</strong>
+                                                        </div>
+                                                        <div>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Cantón:</span> <strong>{dir.canton?.nombre || '—'}</strong>
+                                                        </div>
+                                                        <div>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Calle Principal:</span> <strong>{dir.calle_principal || '—'}</strong>
+                                                        </div>
+                                                        <div>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Calle Secundaria:</span> <strong>{dir.calle_secundaria || '—'}</strong>
+                                                        </div>
+                                                        <div>
+                                                            <span style={{ color: 'var(--text-muted)' }}>Referencia:</span> <strong>{dir.referencia || '—'}</strong>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <footer className="clinical-modal__actions" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="action-button action-button--primary"
+                                    onClick={handlePrintFicha}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px' }}
+                                >
+                                    <Printer size={15} /> Imprimir Ficha
+                                </button>
+                                <button className="action-button action-button--light" onClick={() => setIsViewFichaOpen(false)} style={{ minWidth: '120px' }}>
+                                    Cerrar Vista
+                                </button>
+                            </footer>
+                        </div>
+                    </div>
+                )}
+
+                {/* GENERIC CUSTOM CLINICAL ALERT MODAL */}
+                {alertModal.show && (
+                    <div className="clinical-modal show" style={{ zIndex: 10000 }}>
+                        <div className="clinical-modal__backdrop" onClick={() => setAlertModal({ ...alertModal, show: false })} />
+                        <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '440px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                            <header className="clinical-modal__header" style={{
+                                background: alertModal.type === 'danger' ? 'linear-gradient(135deg, #dc2626, #991b1b)' :
+                                    alertModal.type === 'warning' ? 'linear-gradient(135deg, #d97706, #b45309)' :
+                                        alertModal.type === 'success' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
+                                            'linear-gradient(135deg, var(--primary), var(--primary-light))',
+                                color: '#fff',
+                                padding: '16px 20px'
+                            }}>
+                                <div className="clinical-modal__patient" style={{ gap: '12px' }}>
+                                    <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', width: '38px', height: '38px' }}>
+                                        {alertModal.type === 'danger' ? <AlertCircle size={20} /> :
+                                            alertModal.type === 'warning' ? <AlertTriangle size={20} /> :
+                                                alertModal.type === 'success' ? <CheckCircle2 size={20} /> :
+                                                    <Info size={20} />}
+                                    </span>
+                                    <div>
+                                        <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{alertModal.title}</h2>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        <footer className="clinical-modal__actions" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                            <button 
-                                className="action-button action-button--primary" 
-                                onClick={handlePrintFicha} 
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '130px' }}
-                            >
-                                <Printer size={15} /> Imprimir Ficha
-                            </button>
-                            <button className="action-button action-button--light" onClick={() => setIsViewFichaOpen(false)} style={{ minWidth: '120px' }}>
-                                Cerrar Vista
-                            </button>
-                        </footer>
-                    </div>
-                </div>
-            )}
-
-            {/* GENERIC CUSTOM CLINICAL ALERT MODAL */}
-            {alertModal.show && (
-                <div className="clinical-modal show" style={{ zIndex: 10000 }}>
-                    <div className="clinical-modal__backdrop" onClick={() => setAlertModal({ ...alertModal, show: false })} />
-                    <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '440px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                        <header className="clinical-modal__header" style={{
-                            background: alertModal.type === 'danger' ? 'linear-gradient(135deg, #dc2626, #991b1b)' :
-                                        alertModal.type === 'warning' ? 'linear-gradient(135deg, #d97706, #b45309)' :
-                                        alertModal.type === 'success' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
-                                        'linear-gradient(135deg, var(--primary), var(--primary-light))',
-                            color: '#fff',
-                            padding: '16px 20px'
-                        }}>
-                            <div className="clinical-modal__patient" style={{ gap: '12px' }}>
-                                <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', width: '38px', height: '38px' }}>
-                                    {alertModal.type === 'danger' ? <AlertCircle size={20} /> :
-                                     alertModal.type === 'warning' ? <AlertTriangle size={20} /> :
-                                     alertModal.type === 'success' ? <CheckCircle2 size={20} /> :
-                                     <Info size={20} />}
-                                </span>
-                                <div>
-                                    <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{alertModal.title}</h2>
-                                </div>
-                            </div>
-                            <button className="clinical-modal__close" onClick={() => setAlertModal({ ...alertModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
-                        </header>
-                        <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', fontWeight: '500', whiteSpace: 'pre-wrap' }}>
-                                {alertModal.message}
-                            </p>
-                            <button
-                                className="action-button"
-                                onClick={() => setAlertModal({ ...alertModal, show: false })}
-                                style={{
-                                    width: '100%',
-                                    minHeight: '44px',
-                                    borderRadius: '12px',
-                                    background: alertModal.type === 'danger' ? '#dc2626' :
-                                                alertModal.type === 'warning' ? '#d97706' :
+                                <button className="clinical-modal__close" onClick={() => setAlertModal({ ...alertModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
+                            </header>
+                            <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
+                                <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', fontWeight: '500', whiteSpace: 'pre-wrap' }}>
+                                    {alertModal.message}
+                                </p>
+                                <button
+                                    className="action-button"
+                                    onClick={() => setAlertModal({ ...alertModal, show: false })}
+                                    style={{
+                                        width: '100%',
+                                        minHeight: '44px',
+                                        borderRadius: '12px',
+                                        background: alertModal.type === 'danger' ? '#dc2626' :
+                                            alertModal.type === 'warning' ? '#d97706' :
                                                 alertModal.type === 'success' ? '#16a34a' : 'var(--primary)',
-                                    border: 0,
-                                    color: '#fff',
-                                    fontWeight: 'bold',
-                                    fontSize: '13px',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                                }}
-                            >
-                                Entendido
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* GENERIC CUSTOM CLINICAL CONFIRMATION MODAL */}
-            {confirmModal.show && (
-                <div className="clinical-modal show" style={{ zIndex: 10005 }}>
-                    <div className="clinical-modal__backdrop" onClick={() => setConfirmModal({ ...confirmModal, show: false })} />
-                    <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '460px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                        <header className="clinical-modal__header" style={{
-                            background: confirmModal.type === 'danger' ? 'linear-gradient(135deg, #dc2626, #991b1b)' :
-                                        confirmModal.type === 'success' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
-                                        'linear-gradient(135deg, var(--primary), var(--primary-light))',
-                            color: '#fff',
-                            padding: '16px 20px'
-                        }}>
-                            <div className="clinical-modal__patient" style={{ gap: '12px' }}>
-                                <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', width: '38px', height: '38px' }}>
-                                    {confirmModal.type === 'danger' ? <AlertCircle size={20} /> :
-                                     confirmModal.type === 'success' ? <CheckCircle2 size={20} /> :
-                                     <Info size={20} />}
-                                </span>
-                                <div>
-                                    <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{confirmModal.title}</h2>
-                                </div>
-                            </div>
-                            <button className="clinical-modal__close" onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
-                        </header>
-                        <div className="clinical-modal__body" style={{ padding: '24px 20px' }}>
-                            <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', textAlign: 'center', fontWeight: '500' }}>
-                                {confirmModal.message}
-                            </p>
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setConfirmModal({ ...confirmModal, show: false })}
-                                    style={{
-                                        flex: 1,
-                                        minHeight: '44px',
-                                        borderRadius: '12px',
-                                        background: '#f1f5f9',
-                                        border: '1px solid var(--border)',
-                                        color: 'var(--text-primary)',
-                                        fontWeight: 'bold',
-                                        fontSize: '12.5px',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {confirmModal.cancelText || 'Cancelar'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const action = confirmModal.onConfirm;
-                                        setConfirmModal({ ...confirmModal, show: false });
-                                        if (action) action();
-                                    }}
-                                    style={{
-                                        flex: 1,
-                                        minHeight: '44px',
-                                        borderRadius: '12px',
-                                        background: confirmModal.type === 'danger' ? '#dc2626' :
-                                                    confirmModal.type === 'success' ? '#16a34a' :
-                                                    'var(--primary)',
                                         border: 0,
                                         color: '#fff',
                                         fontWeight: 'bold',
-                                        fontSize: '12.5px',
+                                        fontSize: '13px',
                                         cursor: 'pointer',
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                                     }}
                                 >
-                                    {confirmModal.confirmText || 'Confirmar'}
+                                    Entendido
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* GENERIC CUSTOM CLINICAL CONFIRMATION MODAL */}
+                {confirmModal.show && (
+                    <div className="clinical-modal show" style={{ zIndex: 10005 }}>
+                        <div className="clinical-modal__backdrop" onClick={() => setConfirmModal({ ...confirmModal, show: false })} />
+                        <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '460px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                            <header className="clinical-modal__header" style={{
+                                background: confirmModal.type === 'danger' ? 'linear-gradient(135deg, #dc2626, #991b1b)' :
+                                    confirmModal.type === 'success' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
+                                        'linear-gradient(135deg, var(--primary), var(--primary-light))',
+                                color: '#fff',
+                                padding: '16px 20px'
+                            }}>
+                                <div className="clinical-modal__patient" style={{ gap: '12px' }}>
+                                    <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', width: '38px', height: '38px' }}>
+                                        {confirmModal.type === 'danger' ? <AlertCircle size={20} /> :
+                                            confirmModal.type === 'success' ? <CheckCircle2 size={20} /> :
+                                                <Info size={20} />}
+                                    </span>
+                                    <div>
+                                        <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{confirmModal.title}</h2>
+                                    </div>
+                                </div>
+                                <button className="clinical-modal__close" onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
+                            </header>
+                            <div className="clinical-modal__body" style={{ padding: '24px 20px' }}>
+                                <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', textAlign: 'center', fontWeight: '500' }}>
+                                    {confirmModal.message}
+                                </p>
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmModal({ ...confirmModal, show: false })}
+                                        style={{
+                                            flex: 1,
+                                            minHeight: '44px',
+                                            borderRadius: '12px',
+                                            background: '#f1f5f9',
+                                            border: '1px solid var(--border)',
+                                            color: 'var(--text-primary)',
+                                            fontWeight: 'bold',
+                                            fontSize: '12.5px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {confirmModal.cancelText || 'Cancelar'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const action = confirmModal.onConfirm;
+                                            setConfirmModal({ ...confirmModal, show: false });
+                                            if (action) action();
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            minHeight: '44px',
+                                            borderRadius: '12px',
+                                            background: confirmModal.type === 'danger' ? '#dc2626' :
+                                                confirmModal.type === 'success' ? '#16a34a' :
+                                                    'var(--primary)',
+                                            border: 0,
+                                            color: '#fff',
+                                            fontWeight: 'bold',
+                                            fontSize: '12.5px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                        }}
+                                    >
+                                        {confirmModal.confirmText || 'Confirmar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

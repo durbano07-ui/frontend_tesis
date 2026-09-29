@@ -166,9 +166,24 @@
     display: none !important;
 }
 
-.navigation__item:hover {
+.navigation__item:hover:not(:disabled) {
     color: #fff;
     transform: translateX(3px);
+}
+
+.navigation__item:disabled,
+.navigation__item[disabled] {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.navigation__item:disabled:hover,
+.navigation__item[disabled]:hover {
+    color: rgba(255, 255, 255, .68) !important;
+    transform: none !important;
+    background: transparent !important;
 }
 
 .navigation__item.active {
@@ -1054,7 +1069,8 @@
     z-index: 1;
 }
 
-.page-hero__eyebrow {
+.page-hero__eyebrow,
+.page-hero__label {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -4078,8 +4094,9 @@ tbody tr:hover {
 /* Grilla para el examen mental */
 .mental-status-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
+    width: 100%;
 }
 
 /* Sesiones de evolución y línea de tiempo (Timeline) */
@@ -4229,21 +4246,19 @@ tbody tr:hover {
 }
 
 /* CLINICAL STEPPER WIZARD STYLES */
-/* ===== NAVEGACIÓN LÍQUIDA EN STEPPER (ETIQUETA DEBAJO DEL NÚMERO) ===== */
+/* ===== NAVEGACIÓN EN STEPPER (SOLO PUNTOS VISIBLES, ETIQUETA EN HOVER) ===== */
 .clinical-stepper {
     display: flex !important;
-    align-items: flex-start !important;
+    align-items: center !important;
     justify-content: space-between !important;
     gap: 8px !important;
     margin-bottom: 24px !important;
-    padding: 14px 20px 38px 20px !important;
+    padding: 16px 28px !important;
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid var(--border) !important;
     border-radius: 20px !important;
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 4px 16px rgba(0, 32, 64, 0.04) !important;
-    overflow-x: auto !important;
-    -ms-overflow-style: none !important;
-    scrollbar-width: none !important;
+    overflow: visible !important;
     box-sizing: border-box !important;
     width: 100% !important;
     position: relative !important;
@@ -4265,7 +4280,7 @@ tbody tr:hover {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    justify-content: flex-start !important;
+    justify-content: center !important;
     gap: 0px !important;
     cursor: pointer !important;
     flex-shrink: 0 !important;
@@ -4312,31 +4327,32 @@ tbody tr:hover {
     box-shadow: 0 4px 12px rgba(0, 32, 64, 0.18) !important;
 }
 
-/* Etiqueta líquida: ubicada directamente DEBAJO del número de forma flotante */
+/* Etiqueta tooltip: aparece únicamente al pasar el cursor sobre el número */
 .stepper-step__label {
     position: absolute !important;
-    top: 100% !important;
+    top: calc(100% + 8px) !important;
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
     font-size: 11px !important;
     font-weight: 700 !important;
     color: var(--text-secondary) !important;
-    transition: opacity 0.3s ease, transform 0.3s ease !important;
-    padding: 4px 10px !important;
-    margin-top: 6px !important;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease !important;
+    padding: 5px 12px !important;
     border-radius: 10px !important;
     letter-spacing: -0.2px !important;
     text-align: center !important;
-    z-index: 10 !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
+    z-index: 100 !important;
+    box-shadow: 0 6px 20px rgba(0, 32, 64, 0.14) !important;
+    white-space: nowrap !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 32, 64, 0.12) !important;
 }
 
 .stepper-step:first-of-type .stepper-step__label {
     left: 0 !important;
-    transform: translateY(-4px) !important;
+    transform: translateY(4px) !important;
 }
-.stepper-step:first-of-type.active .stepper-step__label,
 .stepper-step:first-of-type:hover .stepper-step__label {
     transform: translateY(0) !important;
 }
@@ -4344,40 +4360,32 @@ tbody tr:hover {
 .stepper-step:last-of-type .stepper-step__label {
     right: 0 !important;
     left: auto !important;
-    transform: translateY(-4px) !important;
+    transform: translateY(4px) !important;
 }
-.stepper-step:last-of-type.active .stepper-step__label,
 .stepper-step:last-of-type:hover .stepper-step__label {
     transform: translateY(0) !important;
 }
 
 .stepper-step:not(:first-of-type):not(:last-of-type) .stepper-step__label {
     left: 50% !important;
-    transform: translate(-50%, -4px) !important;
+    transform: translate(-50%, 4px) !important;
 }
-.stepper-step:not(:first-of-type):not(:last-of-type).active .stepper-step__label,
 .stepper-step:not(:first-of-type):not(:last-of-type):hover .stepper-step__label {
     transform: translate(-50%, 0) !important;
 }
 
-.stepper-step.active .stepper-step__label,
 .stepper-step:hover .stepper-step__label {
     opacity: 1 !important;
     visibility: visible !important;
     background: #ffffff !important;
     color: var(--accent) !important;
-    border: 1px solid rgba(183, 26, 52, 0.25) !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    width: max-content !important;
-    max-width: 150px !important;
+    border: 1px solid rgba(183, 26, 52, 0.3) !important;
 }
 
-.stepper-step.completed.active .stepper-step__label,
 .stepper-step.completed:hover .stepper-step__label {
     background: #ffffff !important;
     color: var(--primary) !important;
-    border: 1px solid rgba(0, 32, 64, 0.25) !important;
+    border: 1px solid rgba(0, 32, 64, 0.3) !important;
 }
 
 .stepper-separator {
@@ -4388,8 +4396,8 @@ tbody tr:hover {
     max-width: 48px !important;
     border-radius: 4px !important;
     transition: background 0.35s ease !important;
-    align-self: flex-start !important;
-    margin-top: 18px !important;
+    align-self: center !important;
+    margin-top: 0 !important;
 }
 
 .stepper-step.completed+.stepper-separator {
@@ -5636,9 +5644,10 @@ input.email-addon-input {
     }
 
     .clinical-stepper {
-        padding: 10px 12px 34px 12px !important;
+        padding: 12px 16px !important;
         gap: 4px !important;
         justify-content: space-between !important;
+        overflow: visible !important;
     }
 
     .stepper-step {
@@ -5654,12 +5663,12 @@ input.email-addon-input {
 
     .stepper-step__label {
         font-size: 10px !important;
-        max-width: 110px !important;
-        padding: 3px 8px !important;
+        padding: 4px 10px !important;
     }
 
     .stepper-separator {
-        margin-top: 15px !important;
+        margin-top: 0 !important;
+        align-self: center !important;
         min-width: 6px !important;
         max-width: 32px !important;
     }
@@ -5740,6 +5749,14 @@ input.email-addon-input {
     font-weight: 700 !important;
     letter-spacing: 0.2px;
     margin: 0 !important;
+}
+
+.field-req-star {
+    color: var(--accent, #b71a34) !important;
+    font-weight: 700 !important;
+    font-size: 13px !important;
+    margin-left: 3px !important;
+    line-height: 1 !important;
 }
 
 .field-badge-req {
@@ -6155,4 +6172,59 @@ div.patient-search-input > input:active {
     min-height: unset !important;
     max-height: unset !important;
     line-height: normal !important;
+}
+
+/* Botón de Agendamiento de Cita */
+.btn-agendar-cita {
+    width: 100% !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    margin-top: 14px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border: none !important;
+    outline: none !important;
+    user-select: none !important;
+}
+
+.btn-agendar-cita:not(:disabled) {
+    background: linear-gradient(135deg, var(--accent, #b71a34) 0%, #8b1326 100%) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    box-shadow: 0 6px 18px rgba(183, 26, 52, 0.32) !important;
+}
+
+.btn-agendar-cita:not(:disabled):hover {
+    background: linear-gradient(135deg, #c71f3a 0%, #901428 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 24px rgba(183, 26, 52, 0.42) !important;
+}
+
+.btn-agendar-cita:not(:disabled):active {
+    transform: translateY(0) !important;
+    box-shadow: 0 4px 12px rgba(183, 26, 52, 0.25) !important;
+}
+
+.btn-agendar-cita:disabled {
+    background: #f1f5f9 !important;
+    color: #94a3b8 !important;
+    border: 1.5px dashed #cbd5e1 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+}
+
+@keyframes spinIcon {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+    animation: spinIcon 0.9s linear infinite !important;
 }
