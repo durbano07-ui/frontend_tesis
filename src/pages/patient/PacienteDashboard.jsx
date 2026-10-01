@@ -3089,20 +3089,6 @@ const PacienteDashboard = () => {
                                                                 <GraduationCap size={13} style={{ color: 'var(--primary, #002040)' }} />
                                                                 Portal del Estudiante • UEB
                                                             </span>
-                                                            <span style={{
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '5px',
-                                                                padding: '4px 10px',
-                                                                borderRadius: '20px',
-                                                                background: '#dcfce7',
-                                                                color: '#15803d',
-                                                                fontSize: '11px',
-                                                                fontWeight: '700'
-                                                            }}>
-                                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span>
-                                                                Ficha Médica Activa
-                                                            </span>
                                                         </div>
 
                                                         {/* Action buttons */}
@@ -3195,8 +3181,6 @@ const PacienteDashboard = () => {
                                                             gap: '6px'
                                                         }}>
                                                             <span>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante Regular'}</span>
-                                                            <span style={{ opacity: 0.4 }}>•</span>
-                                                            <span style={{ color: 'var(--primary, #002040)', fontWeight: '600' }}>Dirección de Bienestar Universitario</span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -3287,72 +3271,6 @@ const PacienteDashboard = () => {
                                                         </strong>
                                                     </div>
                                                 </div>
-                                            </div>
-
-                                            {/* COMPONENT 4: EMERGENCY CONTACT INFO */}
-                                            <div className="nurse-card span-6" style={{ padding: '24px' }}>
-                                                <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', color: 'var(--accent)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', fontWeight: 'bold' }}>
-                                                    En Caso de Emergencia Contactar a:
-                                                </h3>
-                                                {profile?.emergency_contacts && profile.emergency_contacts.length > 0 ? (
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                                        <div>
-                                                            <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '10px' }}>Nombre del Contacto</small>
-                                                            <strong style={{ fontSize: '13px' }}>{profile.emergency_contacts[0].nombre_completo}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '10px' }}>Relación / Parentesco</small>
-                                                            <strong style={{ fontSize: '13px' }}>{profile.emergency_contacts[0].parentesco}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '10px' }}>Teléfono Primario</small>
-                                                            <strong style={{ fontSize: '13px' }}><Phone size={12} style={{ display: 'inline', marginRight: '4px' }} /> {profile.emergency_contacts[0].telefono}</strong>
-                                                        </div>
-                                                        {profile.emergency_contacts[0].celular && (
-                                                            <div>
-                                                                <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '10px' }}>Celular Alterno</small>
-                                                                <strong style={{ fontSize: '13px' }}>{profile.emergency_contacts[0].celular}</strong>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '12px' }}>No hay contacto registrado.</p>
-                                                )}
-                                            </div>
-
-                                            {/* COMPONENT 5: RESIDENCE INFO */}
-                                            <div className="nurse-card span-6" style={{ padding: '24px' }}>
-                                                <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', fontWeight: 'bold' }}>
-                                                    Dirección Domiciliaria Registrada:
-                                                </h3>
-                                                {(() => {
-                                                    const activeAddress = profile?.addresses?.find(a => Number(a.id_tipo_direccion) === 2) || profile?.addresses?.[0];
-                                                    if (!activeAddress) {
-                                                        return <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: '12px' }}>No hay dirección registrada.</p>;
-                                                    }
-                                                    return (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <MapPin size={16} color="var(--primary)" />
-                                                                <span style={{ fontSize: '13px' }}>
-                                                                    {activeAddress.es_extranjero ? (
-                                                                        <strong>Extranjero / {activeAddress.nacionalidad}</strong>
-                                                                    ) : (
-                                                                        <strong>{activeAddress.provincia?.nombre} - {activeAddress.canton?.nombre}</strong>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <p style={{ margin: '4px 0 0 24px', fontStyle: 'italic', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                                {activeAddress.direccion_referencia}
-                                                            </p>
-                                                            {activeAddress.telefono_convencional && (
-                                                                <span style={{ margin: '0 0 0 24px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                                                    Teléfono Fijo: {activeAddress.telefono_convencional}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })()}
                                             </div>
 
                                         </div>

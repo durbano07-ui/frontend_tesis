@@ -13,12 +13,10 @@ import UEBpet from '../../assets/UEBpet.png';
 import {
     BadgeCheck,
     LockKeyhole,
-    ArrowLeft,
     Mail,
     Eye,
     EyeOff,
     ArrowRight,
-    Send,
     CircleHelp,
     MessageCircle,
     X,
@@ -210,10 +208,6 @@ const Registro = () => {
                         {(flipNav) => (
                             <div className="auth-panel__inner">
 
-                                <Link className="auth-back" to="/login" onClick={(e) => flipNav('/login', e)}>
-                                    <ArrowLeft size={15} /> Volver al inicio de sesión
-                                </Link>
-
                         {!isSuccess ? (
                             <div data-form-container>
                                 <div className="auth-heading">
@@ -322,20 +316,26 @@ const Registro = () => {
                                         <span>Acepto las políticas de privacidad y las condiciones de uso institucional.</span>
                                     </label>
 
-                                    <button
-                                        className={`auth-submit ${loading ? 'loading' : ''}`}
-                                        type="submit"
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <span className="spinner" style={{ display: 'block' }}></span>
-                                        ) : (
-                                            <>
+                                    <div className="auth-actions-group">
+                                        <button
+                                            className={`auth-submit ${loading ? 'loading' : ''}`}
+                                            type="submit"
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <span className="spinner" style={{ display: 'block' }}></span>
+                                            ) : (
                                                 <span className="button-text">Registrarse</span>
-                                                <Send size={16} />
-                                            </>
-                                        )}
-                                    </button>
+                                            )}
+                                        </button>
+                                        <Link
+                                            className="auth-btn-secondary"
+                                            to="/login"
+                                            onClick={(e) => flipNav('/login', e)}
+                                        >
+                                            <span className="button-text">Iniciar sesión</span>
+                                        </Link>
+                                    </div>
 
                                 </form>
                             </div>

@@ -879,6 +879,65 @@ svg {
     display: block;
 }
 
+.auth-actions-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.auth-actions-group .auth-submit {
+    flex: 1;
+    margin-top: 0;
+}
+
+.auth-btn-secondary {
+    min-height: 50px;
+    height: 50px;
+    padding: 0 18px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1.5px solid var(--border);
+    color: var(--primary);
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition);
+    flex: 1;
+    text-align: center;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.auth-btn-secondary:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 18px rgba(183, 26, 52, 0.12);
+}
+
+.auth-btn-secondary:active {
+    transform: scale(0.985);
+}
+
+@media (max-width: 480px) {
+    .auth-actions-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .auth-btn-secondary,
+    .auth-actions-group .auth-submit {
+        width: 100%;
+    }
+}
+
 .auth-divider {
     margin: 24px 0;
     display: flex;
