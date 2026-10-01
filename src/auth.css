@@ -49,10 +49,12 @@ a {
 }
 
 .image-right {
-    width: 100%;
-    height: auto;
+    height: 48px;
+    width: auto;
+    max-width: 180px;
     object-fit: contain;
-    margin-bottom: 16px;
+    margin: 0 auto 16px auto;
+    display: block;
 }
 
 button,
@@ -72,15 +74,17 @@ svg {
 
 .auth-page {
     min-height: 100vh;
-    padding: 0;
+    padding: 20px 14px;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    align-items: center;
     position: relative;
     overflow-x: hidden;
     background:
-        radial-gradient(circle at 12% 15%, rgba(183, 26, 52, .14), transparent 28%),
-        radial-gradient(circle at 88% 84%, rgba(0, 32, 64, .16), transparent 32%),
-        #edf2f6;
+        radial-gradient(circle at 10% 12%, rgba(183, 26, 52, .08), transparent 36%),
+        radial-gradient(circle at 90% 88%, rgba(0, 32, 64, .09), transparent 36%),
+        #f8fafc;
 }
 
 .auth-page::before,
@@ -112,30 +116,22 @@ svg {
 
 .auth-shell {
     width: 100%;
-    min-height: 100vh;
-    border: 0;
-    border-radius: 0;
+    max-width: 430px;
+    min-height: auto;
+    border-radius: 24px;
     background: var(--white);
+    box-shadow: 0 12px 36px rgba(0, 32, 64, 0.07), 0 2px 6px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(226, 232, 240, 0.9);
     display: flex;
     flex-direction: column;
     position: relative;
     z-index: 2;
     animation: shellEnter .85s cubic-bezier(.22, 1, .36, 1) both;
+    overflow: hidden;
 }
 
 .auth-visual {
-    padding: 32px 24px;
-    color: var(--white);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    background:
-        linear-gradient(145deg, rgba(0, 32, 64, .96), rgba(0, 32, 64, .72) 56%, rgba(188, 20, 48, 0.813)),
-        url("./assets/ueb_banner.png") center/cover;
+    display: none;
 }
 
 .auth-visual::before {
@@ -265,16 +261,15 @@ svg {
 }
 
 .auth-panel {
-    padding: 32px 20px;
-    background: var(--surface);
+    padding: 32px 22px;
+    background: var(--white);
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
     perspective: 1400px;
     perspective-origin: 50% 50%;
-    overflow-y: auto;
-    max-height: 100vh;
+    width: 100%;
 }
 
 .auth-panel::-webkit-scrollbar {
@@ -386,22 +381,23 @@ svg {
 
 .auth-heading h2 {
     color: var(--primary);
-    font-size: 29px;
-    letter-spacing: -.8px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -.5px;
 }
 
 .auth-heading p {
-    margin-top: 9px;
+    margin-top: 6px;
     color: var(--text-secondary);
-    font-size: 11.5px;
-    line-height: 1.65;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .auth-form {
-    margin-top: 29px;
+    margin-top: 20px;
     display: flex;
     flex-direction: column;
-    gap: 17px;
+    gap: 15px;
 }
 
 .form-row {
@@ -412,44 +408,49 @@ svg {
 
 .form-group {
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .form-group label {
-    margin-bottom: 8px;
-    color: var(--primary);
+    margin-bottom: 6px;
+    color: #334155;
     display: block;
-    font-size: 10px;
-    font-weight: 680;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.1px;
 }
 
 .input-shell {
-    height: 50px;
+    height: 52px;
     padding: 0 14px;
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    background: #fbfcfd;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 11px;
     transition: var(--transition);
     position: relative;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .input-shell:focus-within {
-    border-color: rgba(0, 32, 64, .36);
+    border-color: var(--accent);
     background: var(--white);
-    box-shadow: 0 0 0 4px rgba(0, 32, 64, .055), 0 8px 20px rgba(0, 32, 64, .06);
+    box-shadow: 0 0 0 3.5px rgba(183, 26, 52, 0.12);
     transform: translateY(-1px);
 }
 
 .input-shell.invalid {
-    border-color: rgba(180, 35, 24, .45);
-    box-shadow: 0 0 0 4px rgba(180, 35, 24, .06);
+    border-color: rgba(180, 35, 24, .7);
+    box-shadow: 0 0 0 3.5px rgba(180, 35, 24, .12);
 }
 
 .input-shell>svg {
-    width: 17px;
-    color: var(--text-muted);
+    width: 18px;
+    height: 18px;
+    color: #94a3b8;
     flex-shrink: 0;
     transition: var(--transition);
 }
@@ -464,11 +465,28 @@ svg {
     outline: 0;
     background: transparent;
     color: var(--text-primary);
-    font-size: 11.5px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .input-shell input::placeholder {
-    color: #a5afbd;
+    color: #94a3b8;
+    font-size: 13.5px;
+    font-weight: 450;
+}
+
+.email-suffix {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    user-select: none;
+    white-space: nowrap;
+    margin-left: 6px;
+    flex-shrink: 0;
 }
 
 .password-toggle {
@@ -507,34 +525,44 @@ svg {
 }
 
 .form-options {
-    margin-top: -2px;
+    margin-top: 2px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .checkbox {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-secondary);
-    font-size: 9.5px;
+    color: #334155;
+    font-size: 11.5px;
+    font-weight: 700;
     cursor: pointer;
     user-select: none;
+    line-height: 1.35;
 }
 
 .checkbox input {
     appearance: none;
-    width: 16px;
-    height: 16px;
-    border: 1px solid #cfd6df;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    border: 1.8px solid #94a3b8;
     border-radius: 5px;
     background: var(--white);
     display: grid;
     place-items: center;
     cursor: pointer;
     transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.checkbox input:hover {
+    border-color: var(--accent);
 }
 
 .checkbox input::before {
@@ -545,6 +573,7 @@ svg {
     border-bottom: 2px solid white;
     transform: rotate(-45deg) scale(0);
     transition: var(--transition);
+    margin-top: -1px;
 }
 
 .checkbox input:checked {
@@ -556,15 +585,46 @@ svg {
     transform: rotate(-45deg) scale(1);
 }
 
+.checkbox--terms {
+    margin-top: 14px;
+    margin-bottom: 20px;
+    line-height: 1.4;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #334155;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.checkbox--terms input {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    border: 1.8px solid #94a3b8;
+    border-radius: 5px;
+    margin-top: 1px;
+}
+
+.checkbox--terms input::before {
+    width: 7px;
+    height: 4px;
+    border-left: 2px solid white;
+    border-bottom: 2px solid white;
+}
+
 .text-link {
     color: var(--accent);
-    font-size: 9.5px;
-    font-weight: 680;
+    font-size: 11.5px;
+    font-weight: 700;
     transition: var(--transition);
+    white-space: nowrap;
 }
 
 .text-link:hover {
     color: var(--accent-dark);
+    text-decoration: underline;
 }
 
 .password-strength {
@@ -684,7 +744,8 @@ svg {
 
 @media (max-width: 480px) {
     .reqs-checklist {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px 8px;
     }
 }
 
@@ -740,22 +801,33 @@ svg {
 
 .auth-submit {
     min-height: 50px;
-    margin-top: 3px;
-    padding: 0 18px;
-    border-radius: 13px;
-    background: linear-gradient(135deg, var(--accent), #cf2945);
+    height: 50px;
+    margin-top: 4px;
+    padding: 0 20px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
     color: var(--white);
-    box-shadow: 0 13px 28px rgba(183, 26, 52, .23);
+    box-shadow: 0 8px 22px rgba(183, 26, 52, 0.28);
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 9px;
-    font-size: 11px;
-    font-weight: 720;
+    font-size: 14.5px;
+    font-weight: 700;
     cursor: pointer;
     position: relative;
     overflow: hidden;
     transition: var(--transition);
+    width: 100%;
+}
+
+.auth-submit:hover:not(:disabled) {
+    transform: translateY(-1.5px);
+    box-shadow: 0 12px 26px rgba(183, 26, 52, 0.35);
+}
+
+.auth-submit:active:not(:disabled) {
+    transform: scale(0.985);
 }
 
 .auth-submit::before {
@@ -827,13 +899,20 @@ svg {
 .auth-alternative {
     text-align: center;
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .auth-alternative a {
-    margin-left: 4px;
+    margin-left: 6px;
     color: var(--accent);
-    font-weight: 720;
+    font-weight: 750;
+    transition: var(--transition);
+}
+
+.auth-alternative a:hover {
+    color: var(--accent-dark);
+    text-decoration: underline;
 }
 
 .security-note {
@@ -957,6 +1036,7 @@ svg {
 
     .auth-shell {
         width: min(1180px, 100%);
+        max-width: none;
         min-height: 700px;
         border: 1px solid rgba(255, 255, 255, .75);
         border-radius: 30px;
@@ -1330,10 +1410,6 @@ svg {
     overflow-wrap: anywhere;
 }
 
-.checkbox--terms {
-    margin-top: 18px;
-    line-height: 1.55;
-}
 
 @keyframes wizardStepIn {
     from {
@@ -1609,6 +1685,16 @@ svg {
 .help-assistant {
     right: 12px;
     bottom: 10px;
+}
+
+@media (max-width: 767px) {
+    .help-assistant {
+        right: 8px;
+        bottom: 6px;
+        transform: scale(0.65);
+        transform-origin: bottom right;
+        opacity: 0.92;
+    }
 }
 
 .help-mascot {

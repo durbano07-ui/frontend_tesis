@@ -78,8 +78,8 @@ const Login = () => {
             } else if (responseData?.errors) {
                 const firstError = Object.values(responseData.errors)[0];
                 msg = Array.isArray(firstError) ? firstError[0] : firstError;
-            } else if (err.message === 'Network Error') {
-                msg = 'No se pudo conectar con el servidor. Verifica que el backend esté activo en http://127.0.0.1:8000.';
+            } else if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+                msg = 'No se pudo conectar con el servidor. Verifica tu conexión o el estado del sistema.';
             }
             setError(msg);
             setShowErrorModal(true);
@@ -131,7 +131,7 @@ const Login = () => {
                                                  id="loginEmail"
                                                  type="text"
                                                  name="email"
-                                                 placeholder="nombre.usuario"
+                                                 placeholder="correo.institucional"
                                                  value={email}
                                                  onChange={(e) => {
                                                      const val = e.target.value.replace(/@.*/, '').trim();
@@ -140,7 +140,7 @@ const Login = () => {
                                                  required
                                                  style={{ flex: 1 }}
                                              />
-                                             <span style={{ color: 'var(--text-muted)', fontSize: '11.5px', fontWeight: 600, paddingLeft: '10px', borderLeft: '1.5px solid var(--border)', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                             <span className="email-suffix">
                                                  @ueb.edu.ec
                                              </span>
                                          </div>

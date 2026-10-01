@@ -231,7 +231,7 @@ const Registro = () => {
                                                 id="registerEmail"
                                                 type="text"
                                                 name="email"
-                                                placeholder="nombre.usuario"
+                                                placeholder="correo.institucional"
                                                 value={formData.email}
                                                 onChange={(e) => {
                                                     const val = e.target.value.replace(/@.*/, '').trim();
@@ -241,7 +241,7 @@ const Registro = () => {
                                                 required
                                                 style={{ flex: 1 }}
                                             />
-                                            <span style={{ color: 'var(--text-muted)', fontSize: '11.5px', fontWeight: 600, paddingLeft: '10px', borderLeft: '1.5px solid var(--border)', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                            <span className="email-suffix">
                                                 @ueb.edu.ec
                                             </span>
                                         </div>
@@ -312,14 +312,14 @@ const Registro = () => {
                                     </div>
 
                                     {/* Checkbox de Términos y Condiciones */}
-                                    <label className="checkbox checkbox--terms" style={{ marginTop: '16px', marginBottom: '24px' }}>
+                                    <label className="checkbox checkbox--terms">
                                         <input
                                             type="checkbox"
                                             name="terms"
                                             checked={formData.terms}
                                             onChange={handleChange}
                                         />
-                                        Acepto las políticas de privacidad y las condiciones de uso institucional.
+                                        <span>Acepto las políticas de privacidad y las condiciones de uso institucional.</span>
                                     </label>
 
                                     <button

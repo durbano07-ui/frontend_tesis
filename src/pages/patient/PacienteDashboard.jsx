@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     User, BookOpen, HeartPulse, Brain, Shield, Activity,
     ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone,
@@ -7,9 +8,10 @@ import {
     FileSpreadsheet, Scale, Thermometer, Heart, Coins, Edit3, Eye,
     Calendar, Clock, Trash2, Pencil, Download, AlertTriangle, Printer,
     Sparkles, UserCheck, Home, Globe, Award, XCircle, Search, Plus, Filter,
-    Droplet, CalendarCheck, Loader2
+    Droplet, CalendarCheck, Loader2, Check, ChevronDown
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
@@ -73,8 +75,74 @@ const mockCiclos = [
     { id: 5, numero: 'Quinto' },
     { id: 6, numero: 'Sexto' },
     { id: 7, numero: 'Séptimo' },
-    { id: 8, numero: 'Octavo' }
+    { id: 8, numero: 'Octavo' },
+    { id: 9, numero: 'Noveno' },
+    { id: 10, numero: 'Décimo' }
 ];
+
+// Helper para ordenar ciclos de manera ordinal (Primer, Segundo, Tercer...)
+const getCicloOrderWeight = (ci) => {
+    if (!ci) return 999;
+    const str = `${ci.numero || ''} ${ci.nombre || ''}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    if (str.includes('decimo primer') || str.includes('undecim') || /\b11\b/.test(str)) return 11;
+    if (str.includes('decimo segund') || str.includes('duodecim') || /\b12\b/.test(str)) return 12;
+    if (str.includes('decim') || /\b10\b/.test(str)) return 10;
+    if (str.includes('noven') || /\b9\b/.test(str)) return 9;
+    if (str.includes('octav') || /\b8\b/.test(str)) return 8;
+    if (str.includes('septim') || /\b7\b/.test(str)) return 7;
+    if (str.includes('sext') || /\b6\b/.test(str)) return 6;
+    if (str.includes('quint') || /\b5\b/.test(str)) return 5;
+    if (str.includes('cuart') || /\b4\b/.test(str)) return 4;
+    if (str.includes('tercer') || /\b3\b/.test(str)) return 3;
+    if (str.includes('segund') || /\b2\b/.test(str)) return 2;
+    if (str.includes('primer') || /\b1\b/.test(str)) return 1;
+    
+    return Number(ci.id) || 999;
+};
+
+const sortCiclos = (list) => {
+    if (!Array.isArray(list)) return [];
+    return [...list].sort((a, b) => getCicloOrderWeight(a) - getCicloOrderWeight(b));
+};
+
+const formatCicloLabel = (ci) => {
+    if (!ci) return '';
+    const raw = (ci.numero || ci.nombre || '').trim();
+    if (!raw) return `Semestre ${ci.id || ''}`;
+    
+    const clean = raw.replace(/semestre/gi, '').replace(/ciclo/gi, '').trim();
+    const cleanNorm = clean.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    let ordinal = clean;
+    if (/^primer[oa]?$/i.test(cleanNorm) || cleanNorm === '1' || cleanNorm === '1ro' || cleanNorm === '1er') {
+        ordinal = 'Primer';
+    } else if (/^segund[oa]?$/i.test(cleanNorm) || cleanNorm === '2' || cleanNorm === '2do') {
+        ordinal = 'Segundo';
+    } else if (/^tercer[oa]?$/i.test(cleanNorm) || cleanNorm === '3' || cleanNorm === '3ro' || cleanNorm === '3er') {
+        ordinal = 'Tercer';
+    } else if (/^cuart[oa]?$/i.test(cleanNorm) || cleanNorm === '4' || cleanNorm === '4to') {
+        ordinal = 'Cuarto';
+    } else if (/^quint[oa]?$/i.test(cleanNorm) || cleanNorm === '5' || cleanNorm === '5to') {
+        ordinal = 'Quinto';
+    } else if (/^sext[oa]?$/i.test(cleanNorm) || cleanNorm === '6' || cleanNorm === '6to') {
+        ordinal = 'Sexto';
+    } else if (/^septim[oa]?$/i.test(cleanNorm) || cleanNorm === '7' || cleanNorm === '7mo') {
+        ordinal = 'Séptimo';
+    } else if (/^octav[oa]?$/i.test(cleanNorm) || cleanNorm === '8' || cleanNorm === '8vo') {
+        ordinal = 'Octavo';
+    } else if (/^noven[oa]?$/i.test(cleanNorm) || cleanNorm === '9' || cleanNorm === '9no') {
+        ordinal = 'Noveno';
+    } else if (/^decim[oa]?$/i.test(cleanNorm) || cleanNorm === '10' || cleanNorm === '10mo') {
+        ordinal = 'Décimo';
+    } else if (/^decimo\s*primer[oa]?$/i.test(cleanNorm) || /^undecim[oa]?$/i.test(cleanNorm) || cleanNorm === '11') {
+        ordinal = 'Décimo Primer';
+    } else if (/^decimo\s*segund[oa]?$/i.test(cleanNorm) || /^duodecim[oa]?$/i.test(cleanNorm) || cleanNorm === '12') {
+        ordinal = 'Décimo Segundo';
+    }
+
+    return `${ordinal} Semestre`;
+};
 
 const mockTiposUsuario = [
     { id: 2, nombre: 'Estudiante' },
@@ -149,6 +217,7 @@ const getAnatomicalRegion = (x, y) => {
 
 const PacienteDashboard = () => {
     const { user, logout } = useAuthStore();
+    const navigate = useNavigate();
 
     // Core Navigation & UI state
     const [activeTab, setActiveTab] = useState('portal'); // 'portal' | 'historial'
@@ -156,6 +225,22 @@ const PacienteDashboard = () => {
     const [recetarioFilter, setRecetarioFilter] = useState('Todos');
     const [recetarioDate, setRecetarioDate] = useState('');
     const [recetarioPage, setRecetarioPage] = useState(1);
+    const [showRecetarioFilters, setShowRecetarioFilters] = useState(false);
+    const recetarioFilterRef = React.useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (recetarioFilterRef.current && !recetarioFilterRef.current.contains(event.target)) {
+                setShowRecetarioFilters(false);
+            }
+        };
+        if (showRecetarioFilters) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showRecetarioFilters]);
+
+    const activeRecetarioFilterCount = (recetarioFilter !== 'Todos' ? 1 : 0) + (recetarioDate ? 1 : 0);
     const [profile, setProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(true);
     const [isRegistering, setIsRegistering] = useState(false);
@@ -177,6 +262,8 @@ const PacienteDashboard = () => {
     const [citaFilterMonth, setCitaFilterMonth] = useState('todos');
     const [citaFilterSpecialty, setCitaFilterSpecialty] = useState('todas');
     const [citaPage, setCitaPage] = useState(1);
+    const [showCitasFilters, setShowCitasFilters] = useState(false);
+    const activeCitasFilterCount = (citaFilterSpecialty !== 'todas' ? 1 : 0) + (citaFilterMonth !== 'todos' ? 1 : 0);
     const CITAS_PER_PAGE = 5;
 
     const [availableSlots, setAvailableSlots] = useState([]);
@@ -220,8 +307,25 @@ const PacienteDashboard = () => {
 
     // Form states for Stepper
     const [currentStep, setCurrentStep] = useState(1);
+    const [subStep3, setSubStep3] = useState(1); // 1: Datos Personales, 2: Lugar de Nacimiento, 3: Residencia Actual
     const [saving, setSaving] = useState(false);
     const [formErrors, setFormErrors] = useState({});
+
+    // Helper para verificar completitud visual de las subsecciones del Paso 3
+    const isSubStep3Complete = (num) => {
+        if (num === 1) {
+            return !!(demographicForm.id_genero && demographicForm.id_estado_civil && demographicForm.id_identificacion_etnica && (!demographicForm.es_extranjero || demographicForm.nacionalidad));
+        }
+        if (num === 2) {
+            return demographicForm.es_extranjero ? !!demographicForm.nacionalidad : (!!demographicForm.id_provincia_nacimiento && !!demographicForm.id_canton_nacimiento);
+        }
+        if (num === 3) {
+            const hasAddr = !!demographicForm.direccion_referencia?.trim();
+            const hasLocation = demographicForm.es_extranjero ? true : (!!demographicForm.id_provincia && !!demographicForm.id_canton);
+            return hasAddr && hasLocation;
+        }
+        return false;
+    };
 
     // Step 1 Form (Identification)
     const [personalForm, setPersonalForm] = useState({
@@ -434,7 +538,7 @@ const PacienteDashboard = () => {
             setCatalogs({
                 facultades: data.facultades?.length ? data.facultades : mockFacultades,
                 carreras: data.carreras?.length ? data.carreras : mockCarreras,
-                ciclos: data.ciclos?.length ? data.ciclos : mockCiclos,
+                ciclos: sortCiclos(data.ciclos?.length ? data.ciclos : mockCiclos),
                 tipos_usuario: data.tipos_usuario?.length ? data.tipos_usuario : mockTiposUsuario,
                 etnias: data.etnias?.length ? data.etnias : mockEtnias,
                 generos: data.generos?.length ? data.generos : mockGeneros,
@@ -449,7 +553,7 @@ const PacienteDashboard = () => {
             setCatalogs({
                 facultades: mockFacultades,
                 carreras: mockCarreras,
-                ciclos: mockCiclos,
+                ciclos: sortCiclos(mockCiclos),
                 tipos_usuario: mockTiposUsuario,
                 etnias: mockEtnias,
                 generos: mockGeneros,
@@ -623,6 +727,11 @@ const PacienteDashboard = () => {
 
     const fetchDisponibilidad = async (doctorId, fecha) => {
         if (!doctorId || !fecha) return;
+        const todayStr = getTodayLocalDateStr();
+        if (fecha < todayStr) {
+            setAvailableSlots([]);
+            return;
+        }
         setSlotsLoading(true);
         setAvailableSlots([]);
         setSelectedSlot('');
@@ -669,6 +778,41 @@ const PacienteDashboard = () => {
         return `${hours}:${minutes}`;
     };
 
+    const normalizeTimeStr = (timeStr) => {
+        if (!timeStr) return '';
+        const parts = timeStr.trim().split(':');
+        if (parts.length >= 2) {
+            const hh = parts[0].padStart(2, '0');
+            const mm = parts[1].padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+        return timeStr;
+    };
+
+    // Filtrar turnos: garantizar estrictamente que ni fecha ni hora pasadas se muestren
+    const validAvailableSlots = useMemo(() => {
+        if (!availableSlots || !Array.isArray(availableSlots)) return [];
+        const todayStr = getTodayLocalDateStr();
+        if (!selectedDate || selectedDate < todayStr) {
+            return [];
+        }
+        const currentHHMM = normalizeTimeStr(getCurrentLocalTimeStr());
+
+        return availableSlots.filter(slot => {
+            if (selectedDate === todayStr) {
+                return normalizeTimeStr(slot) > currentHHMM;
+            }
+            return true;
+        });
+    }, [availableSlots, selectedDate]);
+
+    // Si el turno que estaba seleccionado ya pasó o ya no es válido, deseleccionarlo
+    useEffect(() => {
+        if (selectedSlot && !validAvailableSlots.includes(selectedSlot)) {
+            setSelectedSlot('');
+        }
+    }, [validAvailableSlots, selectedSlot]);
+
     const handleAgendarCita = async (e) => {
         e.preventDefault();
         if (!selectedDoctorId || !selectedRolDoctor || !selectedDate || !selectedSlot) {
@@ -677,9 +821,16 @@ const PacienteDashboard = () => {
         }
 
         const todayStr = getTodayLocalDateStr();
-        const currentHHMM = getCurrentLocalTimeStr();
-        if (selectedDate === todayStr && selectedSlot <= currentHHMM) {
-            setErrorCita("El horario seleccionado ya ha transcurrido. Por favor seleccione otro horario.");
+        const currentHHMM = normalizeTimeStr(getCurrentLocalTimeStr());
+
+        // Control estricto: ni fecha ni hora pasadas permitidas
+        if (selectedDate < todayStr) {
+            setErrorCita("No es posible agendar una cita médica en una fecha pasada.");
+            return;
+        }
+
+        if (selectedDate === todayStr && normalizeTimeStr(selectedSlot) <= currentHHMM) {
+            setErrorCita("El horario seleccionado ya ha transcurrido. Por favor seleccione un horario posterior.");
             return;
         }
 
@@ -819,7 +970,30 @@ const PacienteDashboard = () => {
             } else if (demographicForm.es_extranjero && !/^[A-Za-z0-9-]{5,20}$/.test(personalForm.numero_cedula)) {
                 errors.numero_cedula = 'El pasaporte debe ser un código alfanumérico válido de entre 5 y 20 caracteres';
             }
-            if (!personalForm.fecha_nacimiento) errors.fecha_nacimiento = 'Fecha de nacimiento es obligatoria';
+            if (!personalForm.fecha_nacimiento) {
+                errors.fecha_nacimiento = 'Fecha de nacimiento es obligatoria';
+            } else {
+                const birthDate = new Date(personalForm.fecha_nacimiento + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (isNaN(birthDate.getTime())) {
+                    errors.fecha_nacimiento = 'Ingresa una fecha de nacimiento válida';
+                } else if (birthDate > today) {
+                    errors.fecha_nacimiento = 'La fecha de nacimiento no puede ser futura';
+                } else {
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    if (age <= 12) {
+                        errors.fecha_nacimiento = 'La edad debe ser mayor a 12 años';
+                    } else if (age > 120) {
+                        errors.fecha_nacimiento = 'Ingresa un año de nacimiento válido';
+                    }
+                }
+            }
         }
         if (step === 2) {
             if (!academicForm.id_tipo_usuario) {
@@ -841,8 +1015,12 @@ const PacienteDashboard = () => {
             if (!demographicForm.id_identificacion_etnica) errors.id_identificacion_etnica = 'Etnia es obligatoria';
 
             if (!demographicForm.es_extranjero) {
-                if (!demographicForm.id_provincia) errors.id_provincia = 'Provincia es obligatoria';
-                if (!demographicForm.id_canton) errors.id_canton = 'Cantón es obligatorio';
+                if (!demographicForm.id_provincia_nacimiento) errors.id_provincia_nacimiento = 'Provincia de nacimiento es obligatoria';
+                if (!demographicForm.id_canton_nacimiento) errors.id_canton_nacimiento = 'Cantón de nacimiento es obligatorio';
+                if (!demographicForm.id_provincia) errors.id_provincia = 'Provincia de residencia es obligatoria';
+                if (!demographicForm.id_canton) errors.id_canton = 'Cantón de residencia es obligatorio';
+            } else {
+                if (!demographicForm.nacionalidad) errors.nacionalidad = 'Nacionalidad / País de origen es obligatorio';
             }
             if (!demographicForm.direccion_referencia.trim()) errors.direccion_referencia = 'Dirección de residencia es obligatoria';
         }
@@ -857,12 +1035,90 @@ const PacienteDashboard = () => {
     };
 
     const handleNext = () => {
+        if (currentStep === 3) {
+            if (subStep3 === 1) {
+                const errs = {};
+                if (!demographicForm.id_genero) errs.id_genero = 'Género es obligatorio';
+                if (!demographicForm.id_estado_civil) errs.id_estado_civil = 'Estado civil es obligatorio';
+                if (!demographicForm.id_identificacion_etnica) errs.id_identificacion_etnica = 'Etnia es obligatoria';
+                if (demographicForm.es_extranjero && !demographicForm.nacionalidad) {
+                    errs.nacionalidad = 'Nacionalidad es obligatoria';
+                }
+
+                if (Object.keys(errs).length > 0) {
+                    setFormErrors(prev => ({ ...prev, ...errs }));
+                    return;
+                }
+                setFormErrors(prev => {
+                    const n = { ...prev };
+                    delete n.id_genero;
+                    delete n.id_estado_civil;
+                    delete n.id_identificacion_etnica;
+                    delete n.nacionalidad;
+                    return n;
+                });
+                setSubStep3(2);
+                return;
+            }
+
+            if (subStep3 === 2) {
+                const errs = {};
+                if (!demographicForm.es_extranjero) {
+                    if (!demographicForm.id_provincia_nacimiento) errs.id_provincia_nacimiento = 'Provincia de nacimiento es obligatoria';
+                    if (!demographicForm.id_canton_nacimiento) errs.id_canton_nacimiento = 'Cantón de nacimiento es obligatorio';
+                } else {
+                    if (!demographicForm.nacionalidad) errs.nacionalidad = 'País de origen es obligatorio';
+                }
+
+                if (Object.keys(errs).length > 0) {
+                    setFormErrors(prev => ({ ...prev, ...errs }));
+                    return;
+                }
+                setFormErrors(prev => {
+                    const n = { ...prev };
+                    delete n.id_provincia_nacimiento;
+                    delete n.id_canton_nacimiento;
+                    delete n.nacionalidad;
+                    return n;
+                });
+                setSubStep3(3);
+                return;
+            }
+
+            if (subStep3 === 3) {
+                if (validateStep(3)) {
+                    setCurrentStep(4);
+                }
+                return;
+            }
+        }
+
         if (validateStep(currentStep)) {
+            if (currentStep === 2) {
+                setSubStep3(1);
+            }
             setCurrentStep(prev => prev + 1);
         }
     };
 
     const handleBack = () => {
+        if (currentStep === 3) {
+            if (subStep3 === 3) {
+                setSubStep3(2);
+                return;
+            }
+            if (subStep3 === 2) {
+                setSubStep3(1);
+                return;
+            }
+            if (subStep3 === 1) {
+                setCurrentStep(2);
+                return;
+            }
+        }
+        if (currentStep === 4) {
+            setSubStep3(3);
+        }
         setCurrentStep(prev => prev - 1);
     };
 
@@ -1038,6 +1294,18 @@ const PacienteDashboard = () => {
     const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', type: 'danger', confirmText: '', cancelText: '', onConfirm: null });
     const [noCertificateModal, setNoCertificateModal] = useState({ show: false, message: '' });
     const [viewDetailsModal, setViewDetailsModal] = useState({ show: false, record: null, area: '' });
+
+    const handleLogoutClick = () => {
+        setConfirmModal({
+            show: true,
+            title: 'Cerrar Sesión',
+            message: '¿Está seguro de que desea cerrar la sesión?',
+            onConfirm: () => {
+                logout();
+                navigate('/login');
+            }
+        });
+    };
 
     const handlePrintFicha = () => {
         if (!profile) return;
@@ -1808,7 +2076,7 @@ const PacienteDashboard = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={logout}>
+                        <button className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={18} /></span>
                             <span>Cerrar Sesión</span>
                         </button>
@@ -1841,7 +2109,7 @@ const PacienteDashboard = () => {
                     <div className="content">
                         {/* SCENARIO A: STAGE 1 - PROFILE SETUP WIZARD */}
                         {isRegistering ? (
-                            <div className="nurse-card span-12" style={{ padding: '32px', position: 'relative', maxWidth: '840px', margin: '0 auto', width: '100%' }}>
+                            <div className="nurse-card span-12 student-wizard-card" style={{ position: 'relative', maxWidth: '840px', margin: '0 auto', width: '100%' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
                                     <div>
                                         <span className="eyebrow" style={{ color: 'var(--accent)' }}>REGISTRO DE FICHA</span>
@@ -1878,8 +2146,8 @@ const PacienteDashboard = () => {
                                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 1 de 4</span>
                                         </div>
 
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(183,26,52,0.04)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(183,26,52,0.15)', marginBottom: '4px', opacity: !!profile?.identification?.numero_cedula ? 0.7 : 1 }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '12.5px', color: 'var(--primary)', margin: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(183,26,52,0.04)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(183,26,52,0.15)', marginBottom: '4px', opacity: !!profile?.identification?.numero_cedula ? 0.7 : 1 }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '13px', color: 'var(--primary)', margin: 0, width: '100%' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={demographicForm.es_extranjero}
@@ -1894,13 +2162,11 @@ const PacienteDashboard = () => {
                                                         setPersonalForm(prev => ({ ...prev, numero_cedula: '' }));
                                                         setFormErrors(prev => ({ ...prev, numero_cedula: null }));
                                                     }}
-                                                    style={{ width: '17px', height: '17px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', accentColor: 'var(--accent)' }}
+                                                    style={{ width: '18px', height: '18px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }}
                                                 />
-                                                <Globe size={16} color="var(--accent)" /> Soy estudiante o usuario extranjero (Usar Pasaporte)
+                                                <Globe size={17} color="var(--accent)" style={{ flexShrink: 0 }} />
+                                                <span>Soy estudiante extranjero</span>
                                             </label>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                                                {demographicForm.es_extranjero ? 'Pasaporte' : 'Cédula Ecuatoriana'}
-                                            </span>
                                         </div>
 
                                         <div className="clinical-fields-grid">
@@ -1949,8 +2215,37 @@ const PacienteDashboard = () => {
                                                 <input
                                                     type="date"
                                                     value={personalForm.fecha_nacimiento}
+                                                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
                                                     disabled={!!profile?.identification?.numero_cedula}
-                                                    onChange={e => setPersonalForm({ ...personalForm, fecha_nacimiento: e.target.value })}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        setPersonalForm(prev => ({ ...prev, fecha_nacimiento: val }));
+                                                        if (val) {
+                                                            const birthDate = new Date(val + 'T00:00:00');
+                                                            const today = new Date();
+                                                            today.setHours(0, 0, 0, 0);
+                                                            if (isNaN(birthDate.getTime())) {
+                                                                setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'Fecha no válida' }));
+                                                            } else if (birthDate > today) {
+                                                                setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'La fecha no puede ser futura' }));
+                                                            } else {
+                                                                let age = today.getFullYear() - birthDate.getFullYear();
+                                                                const m = today.getMonth() - birthDate.getMonth();
+                                                                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                                                                    age--;
+                                                                }
+                                                                if (age <= 12) {
+                                                                    setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'La edad debe ser mayor a 12 años' }));
+                                                                } else if (age > 120) {
+                                                                    setFormErrors(prev => ({ ...prev, fecha_nacimiento: 'Ingresa un año de nacimiento válido' }));
+                                                                } else {
+                                                                    setFormErrors(prev => ({ ...prev, fecha_nacimiento: null }));
+                                                                }
+                                                            }
+                                                        } else {
+                                                            setFormErrors(prev => ({ ...prev, fecha_nacimiento: null }));
+                                                        }
+                                                    }}
                                                     style={{
                                                         border: formErrors.fecha_nacimiento ? '1.5px solid var(--accent)' : undefined,
                                                         background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
@@ -2161,8 +2456,8 @@ const PacienteDashboard = () => {
                                                         style={{ border: formErrors.id_ciclo ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
                                                     >
                                                         <option value="">Seleccione un Semestre</option>
-                                                        {catalogs.ciclos.map(ci => (
-                                                            <option key={ci.id} value={ci.id}>{ci.numero} Semestre</option>
+                                                        {sortCiclos(catalogs.ciclos).map(ci => (
+                                                            <option key={ci.id} value={ci.id}>{formatCicloLabel(ci)}</option>
                                                         ))}
                                                     </select>
                                                     {formErrors.id_ciclo && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_ciclo}</small>}
@@ -2213,292 +2508,353 @@ const PacienteDashboard = () => {
                                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 3 de 4</span>
                                         </div>
 
-                                        <div className="clinical-fields-grid">
-                                            <div className="premium-field-card">
-                                                <div className="field-header">
-                                                    <div className="field-header__left">
-                                                        <span className="field-header__icon"><User size={15} /></span>
-                                                        <h4 className="field-header__title">Identificación de Género <span className="field-req-star">*</span></h4>
-                                                    </div>
-                                                </div>
-                                                <select
-                                                    value={demographicForm.id_genero}
-                                                    onChange={e => setDemographicForm({ ...demographicForm, id_genero: e.target.value })}
-                                                    style={{ border: formErrors.id_genero ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                >
-                                                    <option value="">Seleccione</option>
-                                                    {catalogs.generos.map(g => (
-                                                        <option key={g.id} value={g.id}>{g.nombre}</option>
-                                                    ))}
-                                                </select>
-                                                {formErrors.id_genero && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_genero}</small>}
-                                            </div>
-
-                                            <div className="premium-field-card">
-                                                <div className="field-header">
-                                                    <div className="field-header__left">
-                                                        <span className="field-header__icon"><Heart size={15} /></span>
-                                                        <h4 className="field-header__title">Estado Civil <span className="field-req-star">*</span></h4>
-                                                    </div>
-                                                </div>
-                                                <select
-                                                    value={demographicForm.id_estado_civil}
-                                                    onChange={e => setDemographicForm({ ...demographicForm, id_estado_civil: e.target.value })}
-                                                    style={{ border: formErrors.id_estado_civil ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                >
-                                                    <option value="">Seleccione</option>
-                                                    {catalogs.estados_civil.map(ec => (
-                                                        <option key={ec.id} value={ec.id}>{ec.nombres || ec.nombre || ec.nombre_estado_civil || ec.nombre_estado || 'Estado Civil'}</option>
-                                                    ))}
-                                                </select>
-                                                {formErrors.id_estado_civil && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_estado_civil}</small>}
-                                            </div>
+                                        {/* Sub-step Tabs Selector - Solo números compactos */}
+                                        <div className="substep-tabs">
+                                            <button
+                                                type="button"
+                                                className={`substep-tab-btn ${subStep3 === 1 ? 'active' : ''} ${isSubStep3Complete(1) ? 'is-complete' : ''}`}
+                                                onClick={() => setSubStep3(1)}
+                                                title="Sección 1: Datos Personales"
+                                            >
+                                                {isSubStep3Complete(1) ? <Check size={14} strokeWidth={2.5} /> : '1'}
+                                            </button>
+                                            <div className="substep-divider" />
+                                            <button
+                                                type="button"
+                                                className={`substep-tab-btn ${subStep3 === 2 ? 'active' : ''} ${isSubStep3Complete(2) ? 'is-complete' : ''}`}
+                                                onClick={() => setSubStep3(2)}
+                                                title="Sección 2: Lugar de Nacimiento"
+                                            >
+                                                {isSubStep3Complete(2) ? <Check size={14} strokeWidth={2.5} /> : '2'}
+                                            </button>
+                                            <div className="substep-divider" />
+                                            <button
+                                                type="button"
+                                                className={`substep-tab-btn ${subStep3 === 3 ? 'active' : ''} ${isSubStep3Complete(3) ? 'is-complete' : ''}`}
+                                                onClick={() => setSubStep3(3)}
+                                                title="Sección 3: Residencia Actual"
+                                            >
+                                                {isSubStep3Complete(3) ? <Check size={14} strokeWidth={2.5} /> : '3'}
+                                            </button>
                                         </div>
 
-                                        <div className="clinical-fields-grid">
-                                            <div className="premium-field-card">
-                                                <div className="field-header">
-                                                    <div className="field-header__left">
-                                                        <span className="field-header__icon"><Globe size={15} /></span>
-                                                        <h4 className="field-header__title">Autoidentificación Étnica <span className="field-req-star">*</span></h4>
+                                        {/* SECTION 1: DATOS PERSONALES */}
+                                        {subStep3 === 1 && (
+                                            <div className="substep-content-card">
+                                                <div className="substep-header">
+                                                    <div>
+                                                        <h4 className="substep-header__title">
+                                                            <User size={16} color="var(--accent)" /> 1. Información Personal y Demográfica
+                                                        </h4>
+                                                        <p className="substep-header__subtitle">
+                                                            Identidad, estado civil y características básicas
+                                                        </p>
                                                     </div>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                        Sección 1 de 3
+                                                    </span>
                                                 </div>
-                                                <select
-                                                    value={demographicForm.id_identificacion_etnica}
-                                                    onChange={e => setDemographicForm({ ...demographicForm, id_identificacion_etnica: e.target.value })}
-                                                    style={{ border: formErrors.id_identificacion_etnica ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                >
-                                                    <option value="">Seleccione</option>
-                                                    {catalogs.etnias.map(et => (
-                                                        <option key={et.id} value={et.id}>{et.nombre}</option>
-                                                    ))}
-                                                </select>
-                                                {formErrors.id_identificacion_etnica && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_identificacion_etnica}</small>}
-                                            </div>
 
-                                            <div className="premium-field-card">
-                                                <div className="field-header">
-                                                    <div className="field-header__left">
-                                                        <span className="field-header__icon"><Globe size={15} /></span>
-                                                        <h4 className="field-header__title">Nacionalidad <span className="field-req-star">*</span></h4>
-                                                    </div>
-                                                </div>
-                                                {demographicForm.es_extranjero ? (
-                                                    <select
-                                                        value={demographicForm.nacionalidad}
-                                                        onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
-                                                        style={{ width: '100%' }}
-                                                    >
-                                                        <option value="">-- Seleccione un país --</option>
-                                                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                                    </select>
-                                                ) : (
-                                                    <input
-                                                        type="text"
-                                                        value="Ecuatoriana"
-                                                        disabled
-                                                        style={{
-                                                            backgroundColor: '#f1f5f9',
-                                                            cursor: 'not-allowed'
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-
-                                            <div className="premium-field-card" style={{ gridColumn: 'span 2' }}>
-                                                <div className="field-header">
-                                                    <div className="field-header__left">
-                                                        <span className="field-header__icon"><Droplet size={15} color="var(--accent)" /></span>
-                                                        <h4 className="field-header__title">Tipo de Sangre</h4>
-                                                    </div>
-                                                    <span className="field-badge-opt">Opcional</span>
-                                                </div>
-                                                <select
-                                                    value={demographicForm.id_tipo_sangre || ''}
-                                                    onChange={e => setDemographicForm({ ...demographicForm, id_tipo_sangre: e.target.value })}
-                                                    style={{ width: '100%' }}
-                                                >
-                                                    <option value="">Seleccione su tipo de sangre (si lo conoce)</option>
-                                                    {(catalogs.tipos_sangre && catalogs.tipos_sangre.length > 0) ? (
-                                                        catalogs.tipos_sangre.map(ts => (
-                                                            <option key={ts.id} value={ts.id}>{ts.nombre}</option>
-                                                        ))
-                                                    ) : (
-                                                        <>
-                                                            <option value="1">A+</option>
-                                                            <option value="2">A-</option>
-                                                            <option value="3">B+</option>
-                                                            <option value="4">B-</option>
-                                                            <option value="5">AB+</option>
-                                                            <option value="6">AB-</option>
-                                                            <option value="7">O+</option>
-                                                            <option value="8">O-</option>
-                                                        </>
-                                                    )}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="mental-cluster" style={{ background: '#ffffff', padding: '20px', borderRadius: '16px', border: '1px solid rgba(0,32,64,0.1)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                                <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Globe size={16} color="var(--primary)" /> Lugar de Nacimiento
-                                                </h4>
-                                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                                                    {demographicForm.es_extranjero ? 'Identificado como Extranjero' : 'Identificado como Ecuatoriano'}
-                                                </span>
-                                            </div>
-
-                                            <div className="clinical-fields-grid" style={{ marginBottom: '20px' }}>
-                                                {!demographicForm.es_extranjero ? (
-                                                    <>
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Provincia de Nacimiento <span className="field-req-star">*</span></h4>
-                                                                </div>
-                                                            </div>
-                                                            <select
-                                                                value={demographicForm.id_provincia_nacimiento}
-                                                                onChange={e => setDemographicForm({ ...demographicForm, id_provincia_nacimiento: e.target.value, id_canton_nacimiento: '' })}
-                                                                style={{ border: formErrors.id_provincia_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                            >
-                                                                <option value="">Seleccione Provincia de Nacimiento</option>
-                                                                {catalogs.provincias.map(pr => (
-                                                                    <option key={pr.id} value={pr.id}>{pr.nombre}</option>
-                                                                ))}
-                                                            </select>
-                                                            {formErrors.id_provincia_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia_nacimiento}</small>}
-                                                        </div>
-
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Cantón de Nacimiento <span className="field-req-star">*</span></h4>
-                                                                </div>
-                                                            </div>
-                                                            <select
-                                                                value={demographicForm.id_canton_nacimiento}
-                                                                onChange={e => setDemographicForm({ ...demographicForm, id_canton_nacimiento: e.target.value })}
-                                                                disabled={!demographicForm.id_provincia_nacimiento}
-                                                                style={{ border: formErrors.id_canton_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                            >
-                                                                <option value="">Seleccione Cantón de Nacimiento</option>
-                                                                {filteredCantonesNacimiento.map(ct => (
-                                                                    <option key={ct.id} value={ct.id}>{ct.nombre}</option>
-                                                                ))}
-                                                            </select>
-                                                            {formErrors.id_canton_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton_nacimiento}</small>}
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className="premium-field-card" style={{ gridColumn: 'span 2' }}>
+                                                <div className="clinical-fields-grid">
+                                                    <div className="premium-field-card">
                                                         <div className="field-header">
                                                             <div className="field-header__left">
-                                                                <span className="field-header__icon"><Globe size={15} /></span>
-                                                                <h4 className="field-header__title">País de Origen / Nacimiento <span className="field-req-star">*</span></h4>
+                                                                <span className="field-header__icon"><User size={15} /></span>
+                                                                <h4 className="field-header__title">Identificación de Género <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
                                                         <select
-                                                            value={demographicForm.nacionalidad}
-                                                            onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
+                                                            value={demographicForm.id_genero}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, id_genero: e.target.value })}
+                                                            style={{ border: formErrors.id_genero ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                        >
+                                                            <option value="">Seleccione</option>
+                                                            {catalogs.generos.map(g => (
+                                                                <option key={g.id} value={g.id}>{g.nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                        {formErrors.id_genero && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_genero}</small>}
+                                                    </div>
+
+                                                    <div className="premium-field-card">
+                                                        <div className="field-header">
+                                                            <div className="field-header__left">
+                                                                <span className="field-header__icon"><Heart size={15} /></span>
+                                                                <h4 className="field-header__title">Estado Civil <span className="field-req-star">*</span></h4>
+                                                            </div>
+                                                        </div>
+                                                        <select
+                                                            value={demographicForm.id_estado_civil}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, id_estado_civil: e.target.value })}
+                                                            style={{ border: formErrors.id_estado_civil ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                        >
+                                                            <option value="">Seleccione</option>
+                                                            {catalogs.estados_civil.map(ec => (
+                                                                <option key={ec.id} value={ec.id}>{ec.nombres || ec.nombre || ec.nombre_estado_civil || ec.nombre_estado || 'Estado Civil'}</option>
+                                                            ))}
+                                                        </select>
+                                                        {formErrors.id_estado_civil && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_estado_civil}</small>}
+                                                    </div>
+
+                                                    <div className="premium-field-card">
+                                                        <div className="field-header">
+                                                            <div className="field-header__left">
+                                                                <span className="field-header__icon"><Globe size={15} /></span>
+                                                                <h4 className="field-header__title">Autoidentificación Étnica <span className="field-req-star">*</span></h4>
+                                                            </div>
+                                                        </div>
+                                                        <select
+                                                            value={demographicForm.id_identificacion_etnica}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, id_identificacion_etnica: e.target.value })}
+                                                            style={{ border: formErrors.id_identificacion_etnica ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                        >
+                                                            <option value="">Seleccione</option>
+                                                            {catalogs.etnias.map(et => (
+                                                                <option key={et.id} value={et.id}>{et.nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                        {formErrors.id_identificacion_etnica && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_identificacion_etnica}</small>}
+                                                    </div>
+
+                                                    {/* Nacionalidad SOLO si es extranjero */}
+                                                    {demographicForm.es_extranjero && (
+                                                        <div className="premium-field-card">
+                                                            <div className="field-header">
+                                                                <div className="field-header__left">
+                                                                    <span className="field-header__icon"><Globe size={15} /></span>
+                                                                    <h4 className="field-header__title">Nacionalidad <span className="field-req-star">*</span></h4>
+                                                                </div>
+                                                            </div>
+                                                            <select
+                                                                value={demographicForm.nacionalidad}
+                                                                onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
+                                                                style={{ border: formErrors.nacionalidad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                            >
+                                                                <option value="">-- Seleccione un país --</option>
+                                                                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                            </select>
+                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
+                                                        </div>
+                                                    )}
+
+                                                    <div className={`premium-field-card ${demographicForm.es_extranjero ? 'clinical-col-span-2' : ''}`}>
+                                                        <div className="field-header">
+                                                            <div className="field-header__left">
+                                                                <span className="field-header__icon"><Droplet size={15} color="var(--accent)" /></span>
+                                                                <h4 className="field-header__title">Tipo de Sangre</h4>
+                                                            </div>
+                                                            <span className="field-badge-opt">Opcional</span>
+                                                        </div>
+                                                        <select
+                                                            value={demographicForm.id_tipo_sangre || ''}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, id_tipo_sangre: e.target.value })}
                                                             style={{ width: '100%' }}
                                                         >
-                                                            <option value="">-- Seleccione un país --</option>
-                                                            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                            <option value="">Seleccione su tipo de sangre (si lo conoce)</option>
+                                                            {(catalogs.tipos_sangre && catalogs.tipos_sangre.length > 0) ? (
+                                                                catalogs.tipos_sangre.map(ts => (
+                                                                    <option key={ts.id} value={ts.id}>{ts.nombre}</option>
+                                                                ))
+                                                            ) : (
+                                                                <>
+                                                                    <option value="1">A+</option>
+                                                                    <option value="2">A-</option>
+                                                                    <option value="3">B+</option>
+                                                                    <option value="4">B-</option>
+                                                                    <option value="5">AB+</option>
+                                                                    <option value="6">AB-</option>
+                                                                    <option value="7">O+</option>
+                                                                    <option value="8">O-</option>
+                                                                </>
+                                                            )}
                                                         </select>
                                                     </div>
-                                                )}
+                                                </div>
                                             </div>
+                                        )}
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0 16px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-                                                <h4 style={{ margin: 0, color: 'var(--primary)', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Home size={16} /> Dirección de Residencia Actual
-                                                </h4>
-                                            </div>
+                                        {/* SECTION 2: LUGAR DE NACIMIENTO */}
+                                        {subStep3 === 2 && (
+                                            <div className="substep-content-card">
+                                                <div className="substep-header">
+                                                    <div>
+                                                        <h4 className="substep-header__title">
+                                                            <Globe size={16} color="var(--accent)" /> 2. Lugar de Nacimiento
+                                                        </h4>
+                                                        <p className="substep-header__subtitle">
+                                                            {demographicForm.es_extranjero ? 'Estudiante Extranjero' : 'Identificado como Ecuatoriano'}
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                        Sección 2 de 3
+                                                    </span>
+                                                </div>
 
-                                            <div className="clinical-fields-grid">
-                                                {!demographicForm.es_extranjero && (
-                                                    <>
-                                                        <div className="premium-field-card">
+                                                <div className="clinical-fields-grid">
+                                                    {!demographicForm.es_extranjero ? (
+                                                        <>
+                                                            <div className="premium-field-card">
+                                                                <div className="field-header">
+                                                                    <div className="field-header__left">
+                                                                        <span className="field-header__icon"><MapPin size={15} /></span>
+                                                                        <h4 className="field-header__title">Provincia de Nacimiento <span className="field-req-star">*</span></h4>
+                                                                    </div>
+                                                                </div>
+                                                                <select
+                                                                    value={demographicForm.id_provincia_nacimiento}
+                                                                    onChange={e => setDemographicForm({ ...demographicForm, id_provincia_nacimiento: e.target.value, id_canton_nacimiento: '' })}
+                                                                    style={{ border: formErrors.id_provincia_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                                >
+                                                                    <option value="">Seleccione Provincia de Nacimiento</option>
+                                                                    {catalogs.provincias.map(pr => (
+                                                                        <option key={pr.id} value={pr.id}>{pr.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                                {formErrors.id_provincia_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia_nacimiento}</small>}
+                                                            </div>
+
+                                                            <div className="premium-field-card">
+                                                                <div className="field-header">
+                                                                    <div className="field-header__left">
+                                                                        <span className="field-header__icon"><MapPin size={15} /></span>
+                                                                        <h4 className="field-header__title">Cantón de Nacimiento <span className="field-req-star">*</span></h4>
+                                                                    </div>
+                                                                </div>
+                                                                <select
+                                                                    value={demographicForm.id_canton_nacimiento}
+                                                                    onChange={e => setDemographicForm({ ...demographicForm, id_canton_nacimiento: e.target.value })}
+                                                                    disabled={!demographicForm.id_provincia_nacimiento}
+                                                                    style={{ border: formErrors.id_canton_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                                >
+                                                                    <option value="">Seleccione Cantón de Nacimiento</option>
+                                                                    {filteredCantonesNacimiento.map(ct => (
+                                                                        <option key={ct.id} value={ct.id}>{ct.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                                {formErrors.id_canton_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton_nacimiento}</small>}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="premium-field-card clinical-col-span-2">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
-                                                                    <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Provincia <span className="field-req-star">*</span></h4>
+                                                                    <span className="field-header__icon"><Globe size={15} /></span>
+                                                                    <h4 className="field-header__title">País de Origen / Nacimiento <span className="field-req-star">*</span></h4>
                                                                 </div>
                                                             </div>
                                                             <select
-                                                                value={demographicForm.id_provincia}
-                                                                onChange={e => setDemographicForm({ ...demographicForm, id_provincia: e.target.value, id_canton: '' })}
-                                                                style={{ border: formErrors.id_provincia ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                                value={demographicForm.nacionalidad}
+                                                                onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
+                                                                style={{ border: formErrors.nacionalidad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
                                                             >
-                                                                <option value="">Seleccione una Provincia</option>
-                                                                {catalogs.provincias.map(pr => (
-                                                                    <option key={pr.id} value={pr.id}>{pr.nombre}</option>
-                                                                ))}
+                                                                <option value="">-- Seleccione un país --</option>
+                                                                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                                                             </select>
-                                                            {formErrors.id_provincia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia}</small>}
+                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
                                                         </div>
-
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                    <h4 className="field-header__title">Cantón <span className="field-req-star">*</span></h4>
-                                                                </div>
-                                                            </div>
-                                                            <select
-                                                                value={demographicForm.id_canton}
-                                                                onChange={e => setDemographicForm({ ...demographicForm, id_canton: e.target.value })}
-                                                                disabled={!demographicForm.id_provincia}
-                                                                style={{ border: formErrors.id_canton ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
-                                                            >
-                                                                <option value="">Seleccione un Cantón</option>
-                                                                {filteredCantones.map(ct => (
-                                                                    <option key={ct.id} value={ct.id}>{ct.nombre}</option>
-                                                                ))}
-                                                            </select>
-                                                            {formErrors.id_canton && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton}</small>}
-                                                        </div>
-                                                    </>
-                                                )}
-
-                                                <div className="premium-field-card">
-                                                    <div className="field-header">
-                                                        <div className="field-header__left">
-                                                            <span className="field-header__icon"><Home size={15} /></span>
-                                                            <h4 className="field-header__title">Dirección Referencial (Calles / Barrio) <span className="field-req-star">*</span></h4>
-                                                        </div>
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        value={demographicForm.direccion_referencia}
-                                                        onChange={e => setDemographicForm({ ...demographicForm, direccion_referencia: e.target.value })}
-                                                        placeholder="Ej. Calle 10 de Agosto y Rocafuerte, Barrio Central"
-                                                        style={{ border: formErrors.direccion_referencia ? '1.5px solid var(--accent)' : undefined }}
-                                                    />
-                                                    {formErrors.direccion_referencia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.direccion_referencia}</small>}
-                                                </div>
-
-                                                <div className="premium-field-card">
-                                                    <div className="field-header">
-                                                        <div className="field-header__left">
-                                                            <span className="field-header__icon"><Phone size={15} /></span>
-                                                            <h4 className="field-header__title">Teléfono Fijo / Convencional</h4>
-                                                        </div>
-                                                        <span className="field-badge-opt">Opcional</span>
-                                                    </div>
-                                                    <input
-                                                        type="text"
-                                                        value={demographicForm.telefono_convencional}
-                                                        onChange={e => setDemographicForm({ ...demographicForm, telefono_convencional: e.target.value })}
-                                                        placeholder="Ej. 022987654"
-                                                    />
+                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
+
+                                        {/* SECTION 3: RESIDENCIA ACTUAL */}
+                                        {subStep3 === 3 && (
+                                            <div className="substep-content-card">
+                                                <div className="substep-header">
+                                                    <div>
+                                                        <h4 className="substep-header__title">
+                                                            <Home size={16} color="var(--accent)" /> 3. Dirección de Residencia Actual
+                                                        </h4>
+                                                        <p className="substep-header__subtitle">
+                                                            Lugar donde resides habitualmente en el período lectivo
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                        Sección 3 de 3
+                                                    </span>
+                                                </div>
+
+                                                <div className="clinical-fields-grid">
+                                                    {!demographicForm.es_extranjero && (
+                                                        <>
+                                                            <div className="premium-field-card">
+                                                                <div className="field-header">
+                                                                    <div className="field-header__left">
+                                                                        <span className="field-header__icon"><MapPin size={15} /></span>
+                                                                        <h4 className="field-header__title">Provincia <span className="field-req-star">*</span></h4>
+                                                                    </div>
+                                                                </div>
+                                                                <select
+                                                                    value={demographicForm.id_provincia}
+                                                                    onChange={e => setDemographicForm({ ...demographicForm, id_provincia: e.target.value, id_canton: '' })}
+                                                                    style={{ border: formErrors.id_provincia ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                                >
+                                                                    <option value="">Seleccione una Provincia</option>
+                                                                    {catalogs.provincias.map(pr => (
+                                                                        <option key={pr.id} value={pr.id}>{pr.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                                {formErrors.id_provincia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia}</small>}
+                                                            </div>
+
+                                                            <div className="premium-field-card">
+                                                                <div className="field-header">
+                                                                    <div className="field-header__left">
+                                                                        <span className="field-header__icon"><MapPin size={15} /></span>
+                                                                        <h4 className="field-header__title">Cantón <span className="field-req-star">*</span></h4>
+                                                                    </div>
+                                                                </div>
+                                                                <select
+                                                                    value={demographicForm.id_canton}
+                                                                    onChange={e => setDemographicForm({ ...demographicForm, id_canton: e.target.value })}
+                                                                    disabled={!demographicForm.id_provincia}
+                                                                    style={{ border: formErrors.id_canton ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
+                                                                >
+                                                                    <option value="">Seleccione un Cantón</option>
+                                                                    {filteredCantones.map(ct => (
+                                                                        <option key={ct.id} value={ct.id}>{ct.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                                {formErrors.id_canton && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton}</small>}
+                                                            </div>
+                                                        </>
+                                                    )}
+
+                                                    <div className="premium-field-card clinical-col-span-2">
+                                                        <div className="field-header">
+                                                            <div className="field-header__left">
+                                                                <span className="field-header__icon"><Home size={15} /></span>
+                                                                <h4 className="field-header__title">Dirección Referencial (Calles / Barrio) <span className="field-req-star">*</span></h4>
+                                                            </div>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={demographicForm.direccion_referencia}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, direccion_referencia: e.target.value })}
+                                                            placeholder="Ej. Calle 10 de Agosto y Rocafuerte, Barrio Central"
+                                                            style={{ border: formErrors.direccion_referencia ? '1.5px solid var(--accent)' : undefined }}
+                                                        />
+                                                        {formErrors.direccion_referencia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.direccion_referencia}</small>}
+                                                    </div>
+
+                                                    <div className="premium-field-card clinical-col-span-2">
+                                                        <div className="field-header">
+                                                            <div className="field-header__left">
+                                                                <span className="field-header__icon"><Phone size={15} /></span>
+                                                                <h4 className="field-header__title">Teléfono Fijo / Convencional</h4>
+                                                            </div>
+                                                            <span className="field-badge-opt">Opcional</span>
+                                                        </div>
+                                                        <input
+                                                            type="text"
+                                                            value={demographicForm.telefono_convencional}
+                                                            onChange={e => setDemographicForm({ ...demographicForm, telefono_convencional: e.target.value })}
+                                                            placeholder="Ej. 022987654"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -2597,7 +2953,7 @@ const PacienteDashboard = () => {
                                                     onChange={e => setExtraForm({ ...extraForm, numero_hijos: parseInt(e.target.value) || 0 })}
                                                 />
                                             </div>
-                                            <div className="field" style={{ gridColumn: 'span 2' }}>
+                                            <div className="field clinical-col-span-2">
                                                 <span>¿Alergias Conocidas? (Separadas por comas)</span>
                                                 <input
                                                     type="text"
@@ -2606,7 +2962,7 @@ const PacienteDashboard = () => {
                                                     placeholder="Ej. Penicilina, Mariscos, Ninguna"
                                                 />
                                             </div>
-                                            <div className="field" style={{ gridColumn: 'span 3' }}>
+                                            <div className="field clinical-col-span-3">
                                                 <span>¿Tienes alguna Discapacidad? (Indicar cuál o dejar vacío)</span>
                                                 <input
                                                     type="text"
@@ -2645,7 +3001,7 @@ const PacienteDashboard = () => {
                                             onClick={handleNext}
                                             type="button"
                                         >
-                                            Siguiente
+                                            {currentStep === 3 && subStep3 < 3 ? 'Siguiente Sección →' : 'Siguiente'}
                                         </button>
                                     ) : (
                                         <button
@@ -2664,43 +3020,27 @@ const PacienteDashboard = () => {
                             <div>
                                 {/* IF PROFILE INCOMPLETE: SHOW ONBOARDING CARD WITH 'Iniciar Registro' */}
                                 {!isProfileComplete() ? (
-                                    <div className="nurse-card span-12" style={{ padding: '40px', background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)', color: 'white', overflow: 'hidden', position: 'relative' }}>
-                                        <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '220px', height: '220px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-                                        <div style={{ position: 'absolute', bottom: '-80px', left: '10%', width: '180px', height: '180px', borderRadius: '50%', background: 'rgba(183, 26, 52, 0.1)' }} />
+                                    <div className="nurse-card span-12 student-welcome-banner">
+                                        <div className="student-welcome-banner__decor-1" />
+                                        <div className="student-welcome-banner__decor-2" />
 
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', position: 'relative', zIndex: 2 }}>
-                                            <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                                                <GraduationCap size={44} color="var(--accent)" />
+                                        <div className="student-welcome-banner__inner">
+                                            <div className="student-welcome-banner__icon">
+                                                <GraduationCap size={38} color="var(--accent)" />
                                             </div>
-                                            <div>
-                                                <span style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>Portal de Bienestar Universitario</span>
-                                                <h2 style={{ fontSize: '26px', margin: '4px 0 10px', color: 'white' }}>¡Bienvenido, {user?.name || user?.email}!</h2>
-                                                <p style={{ maxWidth: '750px', fontSize: '14px', lineHeight: '1.6', color: 'rgba(255,255,255,0.8)', margin: 0 }}>
+                                            <div className="student-welcome-banner__text">
+                                                <span className="student-welcome-banner__eyebrow">Portal de Bienestar Universitario</span>
+                                                <h2 className="student-welcome-banner__title">¡Bienvenido, {user?.name || user?.email}!</h2>
+                                                <p className="student-welcome-banner__desc">
                                                     Para poder acceder a tu historial clínico, consultar recetas, visualizar atenciones de enfermería, medicina general, odontología o psicología, es de carácter obligatorio completar los datos de tu ficha de registro. Este proceso toma menos de 3 minutos.
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-start', position: 'relative', zIndex: 2 }}>
+                                        <div className="student-welcome-banner__actions">
                                             <button
-                                                className="btn"
+                                                className="student-welcome-banner__btn"
                                                 onClick={() => setIsRegistering(true)}
-                                                style={{
-                                                    background: 'linear-gradient(to right, var(--accent), var(--accent-dark))',
-                                                    color: 'white',
-                                                    padding: '14px 28px',
-                                                    fontSize: '13px',
-                                                    fontWeight: 'bold',
-                                                    borderRadius: '12px',
-                                                    boxShadow: '0 8px 24px rgba(183, 26, 52, 0.4)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    cursor: 'pointer',
-                                                    transition: 'transform 0.2s'
-                                                }}
-                                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
-                                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                                             >
                                                 <span>Iniciar Registro de Perfil</span>
                                                 <ChevronRight size={18} />
@@ -2710,13 +3050,13 @@ const PacienteDashboard = () => {
                                 ) : (
                                     /* IF PROFILE COMPLETE AND PORTAL TAB ACTIVE */
                                     activeTab === 'portal' && (
-                                        <div className="module-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '20px' }}>
+                                        <div className="module-grid">
 
                                             {/* COMPONENT 1: TARJETA BLANCA MÉDICA INSTITUCIONAL */}
                                             <div
-                                                className="nurse-card span-8"
+                                                className="nurse-card span-12"
                                                 style={{
-                                                    padding: '24px 28px',
+                                                    padding: 'clamp(18px, 3vw, 28px)',
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     justifyContent: 'space-between',
@@ -2949,33 +3289,6 @@ const PacienteDashboard = () => {
                                                 </div>
                                             </div>
 
-                                            {/* COMPONENT 2: QUICK HEALTH METRICS BADGES */}
-                                            <div className="nurse-card span-4" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                <h3 style={{ margin: 0, fontSize: '14px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', fontWeight: 'bold' }}>Alertas Clínicas</h3>
-
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, justifyContent: 'center' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--accent-soft)', padding: '10px 14px', borderRadius: '8px' }}>
-                                                        <ShieldAlert size={18} color="var(--accent)" />
-                                                        <div style={{ fontSize: '12px' }}>
-                                                            <span style={{ display: 'block', color: 'var(--accent)', fontWeight: 'bold' }}>Alergias Declaradas</span>
-                                                            <strong style={{ color: 'var(--text-primary)' }}>
-                                                                {extraForm.alergias || 'Ninguna declarada'}
-                                                            </strong>
-                                                        </div>
-                                                    </div>
-
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--primary-soft)', padding: '10px 14px', borderRadius: '8px' }}>
-                                                        <Activity size={18} color="var(--primary)" />
-                                                        <div style={{ fontSize: '12px' }}>
-                                                            <span style={{ display: 'block', color: 'var(--primary)', fontWeight: 'bold' }}>Discapacidades</span>
-                                                            <strong style={{ color: 'var(--text-primary)' }}>
-                                                                {extraForm.discapacidades || 'Ninguna declarada'}
-                                                            </strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
                                             {/* COMPONENT 4: EMERGENCY CONTACT INFO */}
                                             <div className="nurse-card span-6" style={{ padding: '24px' }}>
                                                 <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', color: 'var(--accent)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', fontWeight: 'bold' }}>
@@ -3049,9 +3362,9 @@ const PacienteDashboard = () => {
                                 {/* SCENARIO C: RECETARIO CLÍNICO */}
                                 {activeTab === 'historial' && isProfileComplete() && (
                                     <div className="nurse-card span-12" style={{ padding: '28px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)' }}>
-                                        {/* HEADER */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-                                            <div>
+                                        {/* HEADER CON BOTÓN DE FILTRO */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                            <div style={{ flex: '1 1 240px' }}>
                                                 <h2 style={{ fontSize: '18px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <ClipboardList size={22} color="var(--accent)" /> Recetario Clínico e Indicaciones
                                                 </h2>
@@ -3059,114 +3372,199 @@ const PacienteDashboard = () => {
                                                     Consulta todas las recetas, indicaciones de tratamiento y recomendaciones emitidas por cada especialidad médica.
                                                 </p>
                                             </div>
+
+                                            {/* BOTÓN TOGGLE DE FILTROS */}
+                                            <div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowRecetarioFilters(!showRecetarioFilters)}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '7px',
+                                                        padding: '8px 16px',
+                                                        borderRadius: '10px',
+                                                        fontSize: '12.5px',
+                                                        fontWeight: '650',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        border: showRecetarioFilters || activeRecetarioFilterCount > 0 ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                                                        background: showRecetarioFilters || activeRecetarioFilterCount > 0 ? 'var(--primary-soft, #eaf0f5)' : '#ffffff',
+                                                        color: showRecetarioFilters || activeRecetarioFilterCount > 0 ? 'var(--primary, #002040)' : 'var(--text-primary)',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                                    }}
+                                                >
+                                                    <Filter size={15} color="var(--primary)" />
+                                                    <span>Filtros</span>
+                                                    {activeRecetarioFilterCount > 0 && (
+                                                        <span style={{
+                                                            background: 'var(--primary, #002040)',
+                                                            color: '#ffffff',
+                                                            borderRadius: '50%',
+                                                            width: '18px',
+                                                            height: '18px',
+                                                            display: 'grid',
+                                                            placeItems: 'center',
+                                                            fontSize: '10.5px',
+                                                            fontWeight: 'bold',
+                                                            marginLeft: '2px'
+                                                        }}>
+                                                            {activeRecetarioFilterCount}
+                                                        </span>
+                                                    )}
+                                                    <ChevronDown size={14} style={{ transform: showRecetarioFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        {/* FILTER BUTTONS ROW */}
-                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                                            {['Todos', 'Medicina General', 'Psicología Clínica', 'Odontología', 'Enfermería'].map(area => {
-                                                const count = area === 'Todos'
-                                                    ? allPrescriptions.length
-                                                    : allPrescriptions.filter(p => p.areaName === area).length;
+                                        {/* PANEL DESPLEGABLE DE FILTROS (100% RESPONSIVE EN EL FLUJO DEL CARD) */}
+                                        {showRecetarioFilters && (
+                                            <div style={{
+                                                background: '#f8fafc',
+                                                borderRadius: '14px',
+                                                border: '1px solid #cbd5e1',
+                                                padding: '16px',
+                                                marginBottom: '20px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '14px',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                                                    <span style={{ fontSize: '12px', fontWeight: '750', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <Filter size={14} color="var(--primary)" /> Opciones de Filtro
+                                                    </span>
+                                                    {activeRecetarioFilterCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setRecetarioFilter('Todos');
+                                                                setRecetarioDate('');
+                                                                setRecetarioPage(1);
+                                                            }}
+                                                            style={{ background: 'transparent', border: 'none', color: '#dc2626', fontSize: '11.5px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                        >
+                                                            <X size={13} /> Limpiar filtros
+                                                        </button>
+                                                    )}
+                                                </div>
 
-                                                const isActive = recetarioFilter === area;
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                                                    {/* Filtro: Especialidad Médica */}
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                                            Especialidad Médica
+                                                        </label>
+                                                        <select
+                                                            value={recetarioFilter}
+                                                            onChange={e => { setRecetarioFilter(e.target.value); setRecetarioPage(1); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                fontSize: '12.5px',
+                                                                padding: '9px 12px',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid var(--border)',
+                                                                background: '#ffffff',
+                                                                fontWeight: '600',
+                                                                color: 'var(--text-primary)',
+                                                                cursor: 'pointer',
+                                                                outline: 'none'
+                                                            }}
+                                                        >
+                                                            <option value="Todos">Todas las Especialidades ({allPrescriptions.length})</option>
+                                                            <option value="Medicina General">Medicina General ({allPrescriptions.filter(p => p.areaName === 'Medicina General').length})</option>
+                                                            <option value="Psicología Clínica">Psicología Clínica ({allPrescriptions.filter(p => p.areaName === 'Psicología Clínica').length})</option>
+                                                            <option value="Odontología">Odontología ({allPrescriptions.filter(p => p.areaName === 'Odontología').length})</option>
+                                                            <option value="Enfermería">Enfermería ({allPrescriptions.filter(p => p.areaName === 'Enfermería').length})</option>
+                                                        </select>
+                                                    </div>
 
-                                                return (
+                                                    {/* Filtro: Fecha de Emisión */}
+                                                    <div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                                            <label style={{ fontSize: '11.5px', fontWeight: '650', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <Calendar size={13} color="var(--primary)" /> Fecha de Emisión
+                                                            </label>
+                                                            {recetarioDate && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setRecetarioDate(''); setRecetarioPage(1); }}
+                                                                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '10.5px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                                >
+                                                                    Borrar fecha
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <input
+                                                            type="date"
+                                                            value={recetarioDate}
+                                                            onChange={e => { setRecetarioDate(e.target.value); setRecetarioPage(1); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                boxSizing: 'border-box',
+                                                                padding: '8px 12px',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid var(--border)',
+                                                                fontSize: '12.5px',
+                                                                outline: 'none',
+                                                                color: 'var(--text-primary)',
+                                                                background: '#ffffff',
+                                                                fontWeight: '500'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
+                                                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                        {filteredPrescriptions.length} {filteredPrescriptions.length === 1 ? 'receta encontrada' : 'recetas encontradas'}
+                                                    </span>
                                                     <button
-                                                        key={area}
-                                                        onClick={() => setRecetarioFilter(area)}
+                                                        type="button"
+                                                        onClick={() => setShowRecetarioFilters(false)}
                                                         style={{
-                                                            padding: '8px 16px',
-                                                            borderRadius: '20px',
+                                                            padding: '6px 16px',
+                                                            borderRadius: '8px',
+                                                            border: 'none',
+                                                            background: 'var(--primary, #002040)',
+                                                            color: '#ffffff',
                                                             fontSize: '12px',
                                                             fontWeight: 'bold',
-                                                            border: isActive ? 'none' : '1px solid var(--border)',
-                                                            background: isActive ? 'linear-gradient(135deg, var(--primary), var(--primary-light))' : 'white',
-                                                            color: isActive ? 'white' : 'var(--text-primary)',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '6px',
-                                                            boxShadow: isActive ? '0 4px 12px rgba(11, 34, 64, 0.2)' : 'none',
-                                                            transition: 'all 0.2s'
-                                                        }}
-                                                        onMouseEnter={e => {
-                                                            if (!isActive) e.currentTarget.style.background = '#f8fafc';
-                                                        }}
-                                                        onMouseLeave={e => {
-                                                            if (!isActive) e.currentTarget.style.background = 'white';
+                                                            cursor: 'pointer'
                                                         }}
                                                     >
-                                                        {area}
-                                                        <span style={{
-                                                            background: isActive ? 'rgba(255,255,255,0.2)' : 'var(--border)',
-                                                            color: isActive ? 'white' : 'var(--text-secondary)',
-                                                            padding: '2px 6px',
-                                                            borderRadius: '10px',
-                                                            fontSize: '10px',
-                                                            fontWeight: 'bold'
-                                                        }}>
-                                                            {count}
-                                                        </span>
+                                                        Cerrar
                                                     </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* DATE RANGE FILTER ROW */}
-                                        <div style={{
-                                            background: '#f8fafc',
-                                            padding: '14px 18px',
-                                            borderRadius: '12px',
-                                            border: '1px solid var(--border)',
-                                            display: 'flex',
-                                            gap: '16px',
-                                            alignItems: 'center',
-                                            flexWrap: 'wrap',
-                                            marginBottom: '24px'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <Calendar size={16} color="var(--primary)" />
-                                                <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Seleccionar fecha:</span>
+                                                </div>
                                             </div>
+                                        )}
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                                <input
-                                                    type="date"
-                                                    value={recetarioDate}
-                                                    onChange={e => setRecetarioDate(e.target.value)}
-                                                    style={{
-                                                        padding: '6px 10px',
-                                                        borderRadius: '8px',
-                                                        border: '1px solid var(--border)',
-                                                        fontSize: '12px',
-                                                        outline: 'none',
-                                                        color: 'var(--text-primary)',
-                                                        background: 'white'
-                                                    }}
-                                                />
-
-                                                {recetarioDate && (
-                                                    <button
-                                                        onClick={() => setRecetarioDate('')}
-                                                        style={{
-                                                            background: '#fee2e2',
-                                                            color: '#ef4444',
-                                                            border: 'none',
-                                                            padding: '6px 12px',
-                                                            borderRadius: '8px',
-                                                            fontSize: '11px',
-                                                            fontWeight: 'bold',
-                                                            cursor: 'pointer',
-                                                            transition: 'background 0.2s'
-                                                        }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = '#fecaca'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = '#fee2e2'}
-                                                    >
-                                                        Limpiar Fecha
-                                                    </button>
+                                        {/* CHIPS DE FILTROS ACTIVOS */}
+                                        {activeRecetarioFilterCount > 0 && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '18px' }}>
+                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Filtros activos:</span>
+                                                {recetarioFilter !== 'Todos' && (
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                        <span>{recetarioFilter}</span>
+                                                        <X size={12} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setRecetarioFilter('Todos'); setRecetarioPage(1); }} />
+                                                    </span>
                                                 )}
+                                                {recetarioDate && (
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                        <Calendar size={11} />
+                                                        <span>{recetarioDate}</span>
+                                                        <X size={12} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setRecetarioDate(''); setRecetarioPage(1); }} />
+                                                    </span>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setRecetarioFilter('Todos'); setRecetarioDate(''); setRecetarioPage(1); }}
+                                                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
+                                                >
+                                                    Limpiar todo
+                                                </button>
                                             </div>
-                                        </div>
+                                        )}
 
                                         {/* PRESCRIPTIONS LIST / GRID */}
                                         {paginatedPrescriptions.length > 0 ? (
@@ -3553,65 +3951,82 @@ const PacienteDashboard = () => {
                                 {activeTab === 'citas' && isProfileComplete() && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px', width: '100%' }}>
                                         {/* FORM TO BOOK */}
-                                        <div className="nurse-card span-5" style={{ padding: '24px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                            <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                                                <Calendar size={18} color="var(--primary)" /> Nueva Cita Médica
-                                            </h2>
+                                        <div className="nurse-card span-5" style={{ padding: '20px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                                                <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Calendar size={18} color="var(--primary)" /> Nueva Cita Médica
+                                                </h2>
+                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: '#f1f5f9', padding: '3px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                                    Agendamiento
+                                                </span>
+                                            </div>
 
                                             {errorCita && (
-                                                <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2', padding: '12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <AlertCircle size={14} /> {errorCita}
+                                                <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <AlertCircle size={14} flexShrink={0} /> {errorCita}
                                                 </div>
                                             )}
                                             {successCita && (
-                                                <div style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #dcfce7', padding: '12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <CheckCircle2 size={14} /> {successCita}
+                                                <div style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #dcfce7', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <CheckCircle2 size={14} flexShrink={0} /> {successCita}
                                                 </div>
                                             )}
 
-                                            <form onSubmit={handleAgendarCita} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                                <div className="premium-field-card">
-                                                    <div className="field-header">
-                                                        <div className="field-header__left">
-                                                            <span className="field-header__icon"><Stethoscope size={15} /></span>
-                                                            <h4 className="field-header__title">Especialidad Requerida <span className="field-req-star">*</span></h4>
-                                                        </div>
+                                            <form onSubmit={handleAgendarCita} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                {/* FILA 1: ESPECIALIDAD Y ESPECIALISTA */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', marginBottom: '5px' }}>
+                                                            <Stethoscope size={13} color="var(--primary)" /> Especialidad <span style={{ color: '#dc2626' }}>*</span>
+                                                        </label>
+                                                        <select
+                                                            value={selectedRolDoctor}
+                                                            onChange={(e) => setSelectedRolDoctor(e.target.value)}
+                                                            style={{
+                                                                width: '100%',
+                                                                fontSize: '12px',
+                                                                padding: '8px 10px',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid var(--border)',
+                                                                background: '#ffffff',
+                                                                fontWeight: '600',
+                                                                color: 'var(--text-primary)',
+                                                                outline: 'none',
+                                                                height: '38px',
+                                                                boxSizing: 'border-box'
+                                                            }}
+                                                        >
+                                                            <option value="medico_general">Medicina General</option>
+                                                            <option value="psicologo">Psicología Clínica</option>
+                                                            <option value="odontologo">Odontología</option>
+                                                            <option value="medico_ocupacional">Médico Ocupacional</option>
+                                                        </select>
                                                     </div>
-                                                    <select
-                                                        value={selectedRolDoctor}
-                                                        onChange={(e) => setSelectedRolDoctor(e.target.value)}
-                                                        style={{ width: '100%' }}
-                                                    >
-                                                        <option value="medico_general">Medicina General</option>
-                                                        <option value="psicologo">Psicología Clínica</option>
-                                                        <option value="odontologo">Odontología</option>
-                                                        <option value="medico_ocupacional">Médico Ocupacional</option>
-                                                    </select>
-                                                </div>
 
-                                                {ocupacionalAccessDenied ? (
-                                                    <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', color: '#b45309', padding: '12px', borderRadius: '12px', fontSize: '11px', lineHeight: '1.4', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <AlertTriangle size={16} flexShrink={0} />
+                                                    {!ocupacionalAccessDenied && (
                                                         <div>
-                                                            <strong>Acceso Restringido:</strong> Solo personal docente o acogido al Código de Trabajo tiene permitido agendar consultas con Medicina Ocupacional.
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                                    <h4 className="field-header__title">Profesional Especialista <span className="field-req-star">*</span></h4>
-                                                                </div>
-                                                            </div>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', marginBottom: '5px' }}>
+                                                                <UserCheck size={13} color="var(--primary)" /> Especialista <span style={{ color: '#dc2626' }}>*</span>
+                                                            </label>
                                                             <select
                                                                 value={selectedDoctorId}
                                                                 onChange={(e) => setSelectedDoctorId(e.target.value)}
                                                                 required
-                                                                style={{ width: '100%' }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    fontSize: '12px',
+                                                                    padding: '8px 10px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: '#ffffff',
+                                                                    fontWeight: '600',
+                                                                    color: 'var(--text-primary)',
+                                                                    outline: 'none',
+                                                                    height: '38px',
+                                                                    boxSizing: 'border-box'
+                                                                }}
                                                             >
-                                                                <option value="">-- Elija un especialista --</option>
+                                                                <option value="">-- Elija especialista --</option>
                                                                 {((doctoresDisponibles || []).filter(doc =>
                                                                     doc.roles && doc.roles.some(r => r.name === selectedRolDoctor)
                                                                 )).map(doc => (
@@ -3621,21 +4036,47 @@ const PacienteDashboard = () => {
                                                                 ))}
                                                             </select>
                                                         </div>
+                                                    )}
+                                                </div>
 
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><Calendar size={15} /></span>
-                                                                    <h4 className="field-header__title">Fecha de la Cita <span className="field-req-star">*</span></h4>
-                                                                </div>
-                                                            </div>
+                                                {ocupacionalAccessDenied ? (
+                                                    <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', color: '#b45309', padding: '10px 12px', borderRadius: '8px', fontSize: '11.5px', lineHeight: '1.4', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <AlertTriangle size={16} flexShrink={0} />
+                                                        <div>
+                                                            <strong>Acceso Restringido:</strong> Solo personal docente o acogido al Código de Trabajo tiene permitido agendar consultas con Medicina Ocupacional.
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {/* FILA 2: FECHA DE LA CITA */}
+                                                        <div>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', marginBottom: '5px' }}>
+                                                                <Calendar size={13} color="var(--primary)" /> Fecha de la Cita <span style={{ color: '#dc2626' }}>*</span>
+                                                            </label>
                                                             <input
                                                                 type="date"
                                                                 value={selectedDate}
                                                                 min={getTodayLocalDateStr()}
                                                                 onChange={(e) => {
-                                                                    const date = new Date(e.target.value);
-                                                                    const day = date.getUTCDay();
+                                                                    const val = e.target.value;
+                                                                    if (!val) {
+                                                                        setSelectedDate('');
+                                                                        return;
+                                                                    }
+                                                                    const todayStr = getTodayLocalDateStr();
+                                                                    if (val < todayStr) {
+                                                                        setAlertModal({
+                                                                            show: true,
+                                                                            title: 'Fecha No Permitida',
+                                                                            message: 'No es posible seleccionar una fecha anterior al día de hoy.',
+                                                                            type: 'warning'
+                                                                        });
+                                                                        setSelectedDate('');
+                                                                        return;
+                                                                    }
+                                                                    const [y, m, d] = val.split('-').map(Number);
+                                                                    const dateObj = new Date(y, m - 1, d);
+                                                                    const day = dateObj.getDay();
                                                                     if (day === 0 || day === 6) {
                                                                         setAlertModal({
                                                                             show: true,
@@ -3645,63 +4086,95 @@ const PacienteDashboard = () => {
                                                                         });
                                                                         setSelectedDate('');
                                                                     } else {
-                                                                        setSelectedDate(e.target.value);
+                                                                        setSelectedDate(val);
                                                                     }
                                                                 }}
                                                                 required
-                                                                style={{ width: '100%' }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    fontSize: '12px',
+                                                                    padding: '8px 10px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: '#ffffff',
+                                                                    fontWeight: '600',
+                                                                    color: 'var(--text-primary)',
+                                                                    outline: 'none',
+                                                                    height: '38px',
+                                                                    boxSizing: 'border-box'
+                                                                }}
                                                             />
                                                         </div>
 
+                                                        {/* FILA 3: HORARIOS DISPONIBLES */}
                                                         {selectedDoctorId && selectedDate && (
-                                                            <div className="premium-field-card">
-                                                                <div className="field-header">
-                                                                    <div className="field-header__left">
-                                                                        <span className="field-header__icon"><Clock size={15} /></span>
-                                                                        <h4 className="field-header__title">Horarios Disponibles <span className="field-req-star">*</span></h4>
-                                                                    </div>
+                                                            <div style={{
+                                                                background: '#f8fafc',
+                                                                border: '1px solid #e2e8f0',
+                                                                borderRadius: '10px',
+                                                                padding: '10px 12px',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '6px'
+                                                            }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)' }}>
+                                                                        <Clock size={13} color="var(--primary)" /> Horarios Disponibles <span style={{ color: '#dc2626' }}>*</span>
+                                                                    </span>
+                                                                    {!slotsLoading && validAvailableSlots.length > 0 && (
+                                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                                            {validAvailableSlots.length} turnos
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                                 {slotsLoading ? (
-                                                                    <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)' }}>Cargando disponibilidad...</span>
-                                                                ) : availableSlots.length === 0 ? (
-                                                                    <span style={{ display: 'block', fontSize: '11px', color: '#b91c1c', fontWeight: 'bold' }}>No hay horarios disponibles para esta fecha.</span>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--text-muted)', padding: '6px 0' }}>
+                                                                        <Loader2 size={13} className="spin-icon" /> Consultando disponibilidad...
+                                                                    </div>
+                                                                ) : validAvailableSlots.length === 0 ? (
+                                                                    <span style={{ display: 'block', fontSize: '11px', color: '#b91c1c', fontWeight: '600', padding: '4px 0' }}>
+                                                                        {selectedDate < getTodayLocalDateStr()
+                                                                            ? 'No se permiten fechas pasadas.'
+                                                                            : selectedDate === getTodayLocalDateStr()
+                                                                                ? 'Ya no hay turnos disponibles para el día de hoy (horarios transcurridos).'
+                                                                                : 'No hay horarios disponibles para esta fecha.'}
+                                                                    </span>
                                                                 ) : (
-                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '6px' }}>
-                                                                        {availableSlots.map(slot => {
-                                                                            const isPast = selectedDate === getTodayLocalDateStr() && slot <= getCurrentLocalTimeStr();
+                                                                    <div style={{
+                                                                        display: 'grid',
+                                                                        gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                                                                        gap: '6px',
+                                                                        maxHeight: '115px',
+                                                                        overflowY: 'auto',
+                                                                        paddingRight: '2px'
+                                                                    }}>
+                                                                        {validAvailableSlots.map(slot => {
+                                                                            const isSelected = selectedSlot === slot;
                                                                             return (
                                                                                 <button
                                                                                     key={slot}
                                                                                     type="button"
-                                                                                    disabled={isPast}
-                                                                                    onClick={() => !isPast && setSelectedSlot(slot)}
+                                                                                    onClick={() => setSelectedSlot(slot)}
                                                                                     style={{
-                                                                                        padding: '10px 8px',
-                                                                                        borderRadius: '10px',
-                                                                                        border: isPast
-                                                                                            ? '1px solid #e5e7eb'
-                                                                                            : selectedSlot === slot
-                                                                                                ? '2px solid var(--primary)'
-                                                                                                : '1px solid rgba(0,32,64,0.12)',
-                                                                                        background: isPast
-                                                                                            ? '#f3f4f6'
-                                                                                            : selectedSlot === slot
-                                                                                                ? 'var(--primary-soft)'
-                                                                                                : '#ffffff',
-                                                                                        color: isPast
-                                                                                            ? '#9ca3af'
-                                                                                            : selectedSlot === slot
-                                                                                                ? 'var(--primary)'
-                                                                                                : 'var(--text)',
-                                                                                        fontWeight: selectedSlot === slot ? 'bold' : '600',
-                                                                                        fontSize: '12px',
-                                                                                        cursor: isPast ? 'not-allowed' : 'pointer',
+                                                                                        padding: '6px 4px',
+                                                                                        borderRadius: '6px',
+                                                                                        border: isSelected
+                                                                                            ? '1.5px solid var(--accent, #b71a34)'
+                                                                                            : '1px solid #cbd5e1',
+                                                                                        background: isSelected
+                                                                                            ? 'rgba(183, 26, 52, 0.08)'
+                                                                                            : '#ffffff',
+                                                                                        color: isSelected
+                                                                                            ? 'var(--accent, #b71a34)'
+                                                                                            : 'var(--text-primary)',
+                                                                                        fontWeight: isSelected ? '700' : '600',
+                                                                                        fontSize: '11.5px',
+                                                                                        cursor: 'pointer',
                                                                                         textAlign: 'center',
-                                                                                        transition: 'all 0.2s ease',
-                                                                                        boxShadow: selectedSlot === slot ? '0 3px 10px rgba(0,32,64,0.1)' : 'none',
-                                                                                        opacity: isPast ? 0.55 : 1
+                                                                                        transition: 'all 0.15s ease',
+                                                                                        boxShadow: isSelected ? '0 2px 6px rgba(183, 26, 52, 0.15)' : 'none'
                                                                                     }}
-                                                                                    title={isPast ? 'Este horario ya transcurrió' : `Seleccionar horario ${slot}`}
+                                                                                    title={`Seleccionar horario ${slot}`}
                                                                                 >
                                                                                     {slot}
                                                                                 </button>
@@ -3712,40 +4185,53 @@ const PacienteDashboard = () => {
                                                             </div>
                                                         )}
 
-                                                        <div className="premium-field-card">
-                                                            <div className="field-header">
-                                                                <div className="field-header__left">
-                                                                    <span className="field-header__icon"><FileText size={15} /></span>
-                                                                    <h4 className="field-header__title">Motivo de la Consulta</h4>
-                                                                </div>
-                                                                <span className="field-badge-opt">Opcional</span>
+                                                        {/* FILA 4: MOTIVO DE LA CONSULTA */}
+                                                        <div>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                                                                <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', margin: 0 }}>
+                                                                    <FileText size={13} color="var(--primary)" /> Motivo de la Consulta
+                                                                </label>
+                                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Opcional</span>
                                                             </div>
                                                             <textarea
                                                                 value={motivoCita}
                                                                 onChange={(e) => setMotivoCita(e.target.value)}
                                                                 placeholder="Describa brevemente los síntomas o motivo de su cita..."
-                                                                rows={3}
+                                                                rows={2}
                                                                 maxLength={500}
-                                                                style={{ width: '100%', minHeight: '70px' }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    minHeight: '46px',
+                                                                    maxHeight: '70px',
+                                                                    fontSize: '12px',
+                                                                    padding: '7px 10px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: '#ffffff',
+                                                                    color: 'var(--text-primary)',
+                                                                    outline: 'none',
+                                                                    resize: 'vertical',
+                                                                    boxSizing: 'border-box'
+                                                                }}
                                                             />
                                                         </div>
 
+                                                        {/* BADGE DE HORARIO SELECCIONADO */}
                                                         {selectedSlot && selectedDate && (
                                                             <div style={{
                                                                 display: 'flex',
                                                                 alignItems: 'center',
-                                                                gap: '10px',
-                                                                padding: '10px 14px',
-                                                                borderRadius: '12px',
+                                                                gap: '8px',
+                                                                padding: '7px 10px',
+                                                                borderRadius: '8px',
                                                                 background: 'rgba(183, 26, 52, 0.05)',
                                                                 border: '1px solid rgba(183, 26, 52, 0.15)',
                                                                 color: 'var(--primary)',
-                                                                fontSize: '12px',
-                                                                marginTop: '4px'
+                                                                fontSize: '11.5px'
                                                             }}>
-                                                                <Clock size={16} color="var(--accent)" />
+                                                                <Clock size={13} color="var(--accent)" flexShrink={0} />
                                                                 <div>
-                                                                    <span>Horario seleccionado: </span>
+                                                                    <span>Seleccionado: </span>
                                                                     <strong style={{ color: 'var(--accent)' }}>{selectedDate} a las {selectedSlot}</strong>
                                                                 </div>
                                                             </div>
@@ -3755,25 +4241,26 @@ const PacienteDashboard = () => {
                                                             type="submit"
                                                             disabled={savingCita || !selectedSlot}
                                                             className="btn-agendar-cita"
+                                                            style={{ height: '42px', marginTop: '4px', fontSize: '13px' }}
                                                         >
                                                             {savingCita ? (
                                                                 <>
-                                                                    <Loader2 size={18} className="spin-icon" />
+                                                                    <Loader2 size={16} className="spin-icon" />
                                                                     <span>Confirmando Cita...</span>
                                                                 </>
                                                             ) : !selectedDate ? (
                                                                 <>
-                                                                    <CalendarCheck size={18} />
+                                                                    <CalendarCheck size={16} />
                                                                     <span>Seleccione Fecha y Horario</span>
                                                                 </>
                                                             ) : !selectedSlot ? (
                                                                 <>
-                                                                    <Clock size={18} />
+                                                                    <Clock size={16} />
                                                                     <span>Seleccione un Horario</span>
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <CalendarCheck size={18} />
+                                                                    <CalendarCheck size={16} />
                                                                     <span>Confirmar Agendamiento</span>
                                                                 </>
                                                             )}
@@ -3786,63 +4273,205 @@ const PacienteDashboard = () => {
                                         {/* SCHEDULE LISTINGS WITH FILTERS AND PAGINATION */}
                                         <div className="nurse-card span-7" style={{ padding: '24px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                                                <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Clock size={18} color="var(--primary)" /> Mis Citas Médicas
-                                                </h2>
-                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold' }}>
-                                                    Total: {filteredCitasList.length} citas
-                                                </span>
-                                            </div>
-
-                                            {/* FILTERS TOOLBAR */}
-                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 'bold' }}>
-                                                    <Filter size={14} color="var(--primary)" /> Filtrar:
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <Clock size={18} color="var(--primary)" /> Mis Citas Médicas
+                                                    </h2>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                        ({filteredCitasList.length})
+                                                    </span>
                                                 </div>
 
-                                                {/* Specialty Filter */}
-                                                <select
-                                                    value={citaFilterSpecialty}
-                                                    onChange={e => { setCitaFilterSpecialty(e.target.value); setCitaPage(1); }}
-                                                    style={{ fontSize: '11.5px', padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--border)', background: 'white', fontWeight: '600', cursor: 'pointer' }}
+                                                {/* BOTÓN TOGGLE DE FILTROS */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCitasFilters(!showCitasFilters)}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        padding: '6px 14px',
+                                                        borderRadius: '8px',
+                                                        fontSize: '12px',
+                                                        fontWeight: '650',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s ease',
+                                                        border: showCitasFilters || activeCitasFilterCount > 0 ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                                                        background: showCitasFilters || activeCitasFilterCount > 0 ? 'var(--primary-soft, #eaf0f5)' : '#ffffff',
+                                                        color: showCitasFilters || activeCitasFilterCount > 0 ? 'var(--primary, #002040)' : 'var(--text-primary)',
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                                                    }}
                                                 >
-                                                    <option value="todas">Todas las Especialidades</option>
-                                                    <option value="medico_general">Medicina General</option>
-                                                    <option value="psicologo">Psicología Clínica</option>
-                                                    <option value="odontologo">Odontología</option>
-                                                    <option value="medico_ocupacional">Médico Ocupacional</option>
-                                                </select>
-
-                                                {/* Month Filter */}
-                                                <select
-                                                    value={citaFilterMonth}
-                                                    onChange={e => { setCitaFilterMonth(e.target.value); setCitaPage(1); }}
-                                                    style={{ fontSize: '11.5px', padding: '4px 8px', borderRadius: '8px', border: '1px solid var(--border)', background: 'white', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <option value="todos">Todos los Meses</option>
-                                                    <option value="01">Enero</option>
-                                                    <option value="02">Febrero</option>
-                                                    <option value="03">Marzo</option>
-                                                    <option value="04">Abril</option>
-                                                    <option value="05">Mayo</option>
-                                                    <option value="06">Junio</option>
-                                                    <option value="07">Julio</option>
-                                                    <option value="08">Agosto</option>
-                                                    <option value="09">Septiembre</option>
-                                                    <option value="10">Octubre</option>
-                                                    <option value="11">Noviembre</option>
-                                                    <option value="12">Diciembre</option>
-                                                </select>
-
-                                                {(citaFilterMonth !== 'todos' || citaFilterSpecialty !== 'todas') && (
-                                                    <button
-                                                        onClick={() => { setCitaFilterMonth('todos'); setCitaFilterSpecialty('todas'); setCitaPage(1); }}
-                                                        style={{ fontSize: '10.5px', background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
-                                                    >
-                                                        Limpiar
-                                                    </button>
-                                                )}
+                                                    <Filter size={13} color="var(--primary)" />
+                                                    <span>Filtros</span>
+                                                    {activeCitasFilterCount > 0 && (
+                                                        <span style={{
+                                                            background: 'var(--primary, #002040)',
+                                                            color: '#ffffff',
+                                                            borderRadius: '50%',
+                                                            width: '16px',
+                                                            height: '16px',
+                                                            display: 'grid',
+                                                            placeItems: 'center',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                            marginLeft: '2px'
+                                                        }}>
+                                                            {activeCitasFilterCount}
+                                                        </span>
+                                                    )}
+                                                    <ChevronDown size={13} style={{ transform: showCitasFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                                                </button>
                                             </div>
+
+                                            {/* PANEL DESPLEGABLE DE FILTROS PARA CITAS */}
+                                            {showCitasFilters && (
+                                                <div style={{
+                                                    background: '#f8fafc',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid #cbd5e1',
+                                                    padding: '14px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '12px',
+                                                    boxShadow: '0 3px 10px rgba(0,0,0,0.03)'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
+                                                        <span style={{ fontSize: '11.5px', fontWeight: '750', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <Filter size={13} color="var(--primary)" /> Filtrar Mis Citas
+                                                        </span>
+                                                        {activeCitasFilterCount > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setCitaFilterMonth('todos');
+                                                                    setCitaFilterSpecialty('todas');
+                                                                    setCitaPage(1);
+                                                                }}
+                                                                style={{ background: 'transparent', border: 'none', color: '#dc2626', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                            >
+                                                                <X size={12} /> Limpiar filtros
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
+                                                        {/* Specialty Filter */}
+                                                        <div>
+                                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                                                                Especialidad
+                                                            </label>
+                                                            <select
+                                                                value={citaFilterSpecialty}
+                                                                onChange={e => { setCitaFilterSpecialty(e.target.value); setCitaPage(1); }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    fontSize: '12px',
+                                                                    padding: '7px 10px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: '#ffffff',
+                                                                    fontWeight: '600',
+                                                                    color: 'var(--text-primary)',
+                                                                    cursor: 'pointer',
+                                                                    outline: 'none'
+                                                                }}
+                                                            >
+                                                                <option value="todas">Todas las Especialidades</option>
+                                                                <option value="medico_general">Medicina General</option>
+                                                                <option value="psicologo">Psicología Clínica</option>
+                                                                <option value="odontologo">Odontología</option>
+                                                                <option value="medico_ocupacional">Médico Ocupacional</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {/* Month Filter */}
+                                                        <div>
+                                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                                                                Mes de la Cita
+                                                            </label>
+                                                            <select
+                                                                value={citaFilterMonth}
+                                                                onChange={e => { setCitaFilterMonth(e.target.value); setCitaPage(1); }}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    fontSize: '12px',
+                                                                    padding: '7px 10px',
+                                                                    borderRadius: '8px',
+                                                                    border: '1px solid var(--border)',
+                                                                    background: '#ffffff',
+                                                                    fontWeight: '600',
+                                                                    color: 'var(--text-primary)',
+                                                                    cursor: 'pointer',
+                                                                    outline: 'none'
+                                                                }}
+                                                            >
+                                                                <option value="todos">Todos los Meses</option>
+                                                                <option value="01">Enero</option>
+                                                                <option value="02">Febrero</option>
+                                                                <option value="03">Marzo</option>
+                                                                <option value="04">Abril</option>
+                                                                <option value="05">Mayo</option>
+                                                                <option value="06">Junio</option>
+                                                                <option value="07">Julio</option>
+                                                                <option value="08">Agosto</option>
+                                                                <option value="09">Septiembre</option>
+                                                                <option value="10">Octubre</option>
+                                                                <option value="11">Noviembre</option>
+                                                                <option value="12">Diciembre</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                            {filteredCitasList.length} {filteredCitasList.length === 1 ? 'cita encontrada' : 'citas encontradas'}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowCitasFilters(false)}
+                                                            style={{
+                                                                padding: '5px 14px',
+                                                                borderRadius: '6px',
+                                                                border: 'none',
+                                                                background: 'var(--primary, #002040)',
+                                                                color: '#ffffff',
+                                                                fontSize: '11px',
+                                                                fontWeight: 'bold',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            Cerrar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* CHIPS DE FILTROS ACTIVOS DE CITAS */}
+                                            {activeCitasFilterCount > 0 && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Filtros activos:</span>
+                                                    {citaFilterSpecialty !== 'todas' && (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                            <span>{citaFilterSpecialty === 'medico_general' ? 'Medicina General' : citaFilterSpecialty === 'psicologo' ? 'Psicología' : citaFilterSpecialty === 'odontologo' ? 'Odontología' : 'Médico Ocupacional'}</span>
+                                                            <X size={11} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setCitaFilterSpecialty('todas'); setCitaPage(1); }} />
+                                                        </span>
+                                                    )}
+                                                    {citaFilterMonth !== 'todos' && (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                            <span>Mes: {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(citaFilterMonth) - 1]}</span>
+                                                            <X size={11} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setCitaFilterMonth('todos'); setCitaPage(1); }} />
+                                                        </span>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setCitaFilterMonth('todos'); setCitaFilterSpecialty('todas'); setCitaPage(1); }}
+                                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '10.5px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
+                                                    >
+                                                        Limpiar todo
+                                                    </button>
+                                                </div>
+                                            )}
 
                                             {citasLoading ? (
                                                 <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
@@ -4611,80 +5240,27 @@ const PacienteDashboard = () => {
                     </div>
                 )}
 
-                {/* GENERIC CUSTOM CLINICAL CONFIRMATION MODAL */}
-                {confirmModal.show && (
-                    <div className="clinical-modal show" style={{ zIndex: 10005 }}>
-                        <div className="clinical-modal__backdrop" onClick={() => setConfirmModal({ ...confirmModal, show: false })} />
-                        <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '460px', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                            <header className="clinical-modal__header" style={{
-                                background: confirmModal.type === 'danger' ? 'linear-gradient(135deg, #dc2626, #991b1b)' :
-                                    confirmModal.type === 'success' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
-                                        'linear-gradient(135deg, var(--primary), var(--primary-light))',
-                                color: '#fff',
-                                padding: '16px 20px'
-                            }}>
-                                <div className="clinical-modal__patient" style={{ gap: '12px' }}>
-                                    <span className="clinical-modal__avatar" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', width: '38px', height: '38px' }}>
-                                        {confirmModal.type === 'danger' ? <AlertCircle size={20} /> :
-                                            confirmModal.type === 'success' ? <CheckCircle2 size={20} /> :
-                                                <Info size={20} />}
-                                    </span>
-                                    <div>
-                                        <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{confirmModal.title}</h2>
-                                    </div>
-                                </div>
-                                <button className="clinical-modal__close" onClick={() => setConfirmModal({ ...confirmModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
-                            </header>
-                            <div className="clinical-modal__body" style={{ padding: '24px 20px' }}>
-                                <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', textAlign: 'center', fontWeight: '500' }}>
-                                    {confirmModal.message}
-                                </p>
-                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setConfirmModal({ ...confirmModal, show: false })}
-                                        style={{
-                                            flex: 1,
-                                            minHeight: '44px',
-                                            borderRadius: '12px',
-                                            background: '#f1f5f9',
-                                            border: '1px solid var(--border)',
-                                            color: 'var(--text-primary)',
-                                            fontWeight: 'bold',
-                                            fontSize: '12.5px',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {confirmModal.cancelText || 'Cancelar'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const action = confirmModal.onConfirm;
-                                            setConfirmModal({ ...confirmModal, show: false });
-                                            if (action) action();
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            minHeight: '44px',
-                                            borderRadius: '12px',
-                                            background: confirmModal.type === 'danger' ? '#dc2626' :
-                                                confirmModal.type === 'success' ? '#16a34a' :
-                                                    'var(--primary)',
-                                            border: 0,
-                                            color: '#fff',
-                                            fontWeight: 'bold',
-                                            fontSize: '12.5px',
-                                            cursor: 'pointer',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                                        }}
-                                    >
-                                        {confirmModal.confirmText || 'Confirmar'}
-                                    </button>
-                                </div>
+                {/* MODAL DE CONFIRMACIÓN CUSTOM */}
+                {confirmModal.show && createPortal(
+                    <div className="modal show" style={{ zIndex: 999999, position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }}>
+                        <div className="modal__backdrop" onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}></div>
+                        <div className="modal__content" style={{ border: 'none', position: 'relative', zIndex: 1000000, margin: 'auto' }}>
+                            <div className="modal__icon" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                                <AlertTriangle size={24} />
+                            </div>
+                            <h2>{confirmModal.title}</h2>
+                            <p>{confirmModal.message}</p>
+                            <div className="modal__actions">
+                                <button className="modal__cancel" onClick={() => setConfirmModal(prev => ({ ...prev, show: false }))}>
+                                    {confirmModal.cancelText || 'Cancelar'}
+                                </button>
+                                <button className="modal__confirm" onClick={() => { const action = confirmModal.onConfirm; setConfirmModal(prev => ({ ...prev, show: false })); action?.(); }}>
+                                    {confirmModal.confirmText || 'Confirmar'}
+                                </button>
                             </div>
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </div>
