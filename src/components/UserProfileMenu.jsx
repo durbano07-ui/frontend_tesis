@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import { User, Lock, X, Key, CheckCircle, AlertTriangle, Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/axios';
+import { useBackButtonModal } from '../hooks/useBackButtonModal';
 
 const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPhoto = false }) => {
     const { user, logout } = useAuthStore();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, openModal, closeModal] = useBackButtonModal();
     const [imgError, setImgError] = useState(false);
 
     useEffect(() => {
@@ -104,7 +105,7 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
     };
 
     const handleOpenModal = () => {
-        setIsModalOpen(true);
+        openModal();
         setIsDropdownOpen(false);
         setError('');
         setSuccess('');
@@ -252,7 +253,7 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                 }}>
                     {/* Backdrop */}
                     <div 
-                        onClick={() => setIsModalOpen(false)} 
+                        onClick={closeModal} 
                         style={{ 
                             position: 'absolute', 
                             inset: 0, 
@@ -301,7 +302,7 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 </div>
                             </div>
                             <button 
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={closeModal}
                                 style={{ 
                                     background: 'transparent', 
                                     border: 'none', 
