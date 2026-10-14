@@ -1181,6 +1181,113 @@ svg {
     }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) {
+    .auth-shell {
+        width: min(560px, 100%);
+        min-height: 0;
+        display: flex;
+    }
+
+    .auth-visual {
+        display: none;
+    }
+
+    .auth-panel {
+        padding: 42px clamp(28px, 7vw, 52px);
+    }
+}
+
+@media (min-width: 1024px) {
+    .auth-shell {
+        grid-template-columns: minmax(0, 1fr) minmax(420px, 1.02fr);
+    }
+
+    .auth-panel {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .auth-visual {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        color: #fff;
+        background: linear-gradient(135deg, rgba(0, 32, 64, 0.9), rgba(0, 32, 64, 0.64) 62%, rgba(183, 26, 52, 0.36)), url('./assets/ueb_banner_auth.webp') center / cover;
+    }
+
+    .auth-visual::before {
+        background: linear-gradient(180deg, rgba(0, 20, 40, 0.08), rgba(0, 20, 40, 0.34));
+    }
+
+    .auth-visual h1 span {
+        color: #ffc4ce;
+    }
+
+    .auth-visual h1 {
+        font-size: clamp(36px, 3.3vw, 46px);
+        letter-spacing: 0;
+    }
+
+    .auth-visual__content {
+        padding-bottom: 0;
+    }
+
+    .auth-benefits {
+        grid-template-columns: 1fr;
+        gap: 5px;
+        max-width: 440px;
+        margin-top: 20px;
+    }
+
+    .auth-benefit {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 0;
+        padding: 3px 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
+    }
+
+    .auth-benefit:hover {
+        transform: none;
+        background: transparent;
+    }
+
+    .auth-benefit__icon {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffe0e5;
+    }
+
+    .auth-benefit strong {
+        margin-top: 0;
+        font-size: 11.5px;
+    }
+
+    .auth-benefit span:not(.auth-benefit__icon) {
+        margin-top: 2px;
+        font-size: 9.5px;
+        line-height: 1.35;
+    }
+
+    .auth-visual__footer {
+        gap: 3px;
+        padding-top: 12px;
+        font-size: 10px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
 
     *,

@@ -872,7 +872,7 @@ const Administrador_page = () => {
     };
 
     return (
-        <div className="nurse-shell">
+        <div className="nurse-shell admin-dashboard-shell">
             <div className="app">
                 <div className={`overlay ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
 
@@ -976,28 +976,31 @@ const Administrador_page = () => {
                                 </section>
 
                                 {/* SUBTABS DE NAVEGACIÓN Y ACCIONES */}
-                                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                                    <div className="nurse-card" style={{ display: 'inline-flex', padding: '6px', gap: '6px', margin: 0 }}>
+                                <div className="admin-subnav admin-subnav--campus" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                                    <div className="admin-subnav__tabs admin-filter-group" role="group" aria-label="Filtrar gestión de campus">
                                         <button
-                                            className={`action-button ${campusSubTab === 'campus' ? 'action-button--primary' : 'action-button--light'}`}
+                                            type="button"
+                                            className={`admin-filter-button ${campusSubTab === 'campus' ? 'is-active' : ''}`}
+                                            aria-pressed={campusSubTab === 'campus'}
                                             onClick={() => setCampusSubTab('campus')}
-                                            style={{ height: '36px', borderRadius: '10px' }}
                                         >
-                                            <Building2 size={15} /> Campus (Sedes) ({campusList.length})
+                                            <Building2 size={15} /> <span>Campus</span><span className="admin-filter-count">{campusList.length}</span>
                                         </button>
                                         <button
-                                            className={`action-button ${campusSubTab === 'facultades' ? 'action-button--primary' : 'action-button--light'}`}
+                                            type="button"
+                                            className={`admin-filter-button ${campusSubTab === 'facultades' ? 'is-active' : ''}`}
+                                            aria-pressed={campusSubTab === 'facultades'}
                                             onClick={() => setCampusSubTab('facultades')}
-                                            style={{ height: '36px', borderRadius: '10px' }}
                                         >
-                                            <Landmark size={15} /> Facultades ({facultadesList.length})
+                                            <Landmark size={15} /> <span>Facultades</span><span className="admin-filter-count">{facultadesList.length}</span>
                                         </button>
                                         <button
-                                            className={`action-button ${campusSubTab === 'carreras' ? 'action-button--primary' : 'action-button--light'}`}
+                                            type="button"
+                                            className={`admin-filter-button ${campusSubTab === 'carreras' ? 'is-active' : ''}`}
+                                            aria-pressed={campusSubTab === 'carreras'}
                                             onClick={() => setCampusSubTab('carreras')}
-                                            style={{ height: '36px', borderRadius: '10px' }}
                                         >
-                                            <GraduationCap size={15} /> Carreras ({carrerasList.length})
+                                            <GraduationCap size={15} /> <span>Carreras</span><span className="admin-filter-count">{carrerasList.length}</span>
                                         </button>
                                     </div>
 
@@ -1247,7 +1250,7 @@ const Administrador_page = () => {
                                 </section>
 
                                 <section className="nurse-card history-filter-card" style={{ marginTop: '20px' }}>
-                                    <div className="history-filters" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div className="history-filters admin-user-filters" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <div className="patient-search-input" style={{ flex: 1, minWidth: '240px' }}>
                                             <Search size={16} />
                                             <input
@@ -1379,28 +1382,31 @@ const Administrador_page = () => {
                                     </section>
 
                                     {/* MICROPETAÑAS DE NAVEGACIÓN (ESTILO CAMPUS, FACULTADES Y CARRERAS) */}
-                                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                                        <div className="nurse-card" style={{ display: 'inline-flex', padding: '6px', gap: '6px', margin: 0 }}>
+                                    <div className="admin-subnav admin-subnav--logs" style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+                                        <div className="admin-subnav__tabs admin-filter-group" role="group" aria-label="Filtrar tipo de registro">
                                             <button
-                                                className={`action-button ${logsSubTab === 'audit' ? 'action-button--primary' : 'action-button--light'}`}
+                                                type="button"
+                                                className={`admin-filter-button ${logsSubTab === 'audit' ? 'is-active' : ''}`}
+                                                aria-pressed={logsSubTab === 'audit'}
                                                 onClick={() => setLogsSubTab('audit')}
-                                                style={{ height: '36px', borderRadius: '10px' }}
                                             >
-                                                <History size={15} /> Logs de Auditoría ({filteredAudit.length})
+                                                <History size={15} /> <span>Auditoría</span><span className="admin-filter-count">{filteredAudit.length}</span>
                                             </button>
                                             <button
-                                                className={`action-button ${logsSubTab === 'login' ? 'action-button--primary' : 'action-button--light'}`}
+                                                type="button"
+                                                className={`admin-filter-button ${logsSubTab === 'login' ? 'is-active' : ''}`}
+                                                aria-pressed={logsSubTab === 'login'}
                                                 onClick={() => setLogsSubTab('login')}
-                                                style={{ height: '36px', borderRadius: '10px' }}
                                             >
-                                                <Key size={15} /> Intentos de Login ({filteredLogin.length})
+                                                <Key size={15} /> <span>Login</span><span className="admin-filter-count">{filteredLogin.length}</span>
                                             </button>
                                             <button
-                                                className={`action-button ${logsSubTab === 'security' ? 'action-button--primary' : 'action-button--light'}`}
+                                                type="button"
+                                                className={`admin-filter-button ${logsSubTab === 'security' ? 'is-active' : ''}`}
+                                                aria-pressed={logsSubTab === 'security'}
                                                 onClick={() => setLogsSubTab('security')}
-                                                style={{ height: '36px', borderRadius: '10px' }}
                                             >
-                                                <ShieldAlert size={15} /> Eventos de Seguridad ({filteredSecurity.length})
+                                                <ShieldAlert size={15} /> <span>Seguridad</span><span className="admin-filter-count">{filteredSecurity.length}</span>
                                             </button>
                                         </div>
 

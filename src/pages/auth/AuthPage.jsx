@@ -302,10 +302,10 @@ const AuthPage = () => {
                     <img src={UEBLogo} alt="Logo Universidad Estatal de Bolivar" className="image-left" />
                     <div className="auth-visual__content">
                         <h1>
-                            Bienestar Universitario <span>cuidando juntos nuestra comunidad.</span>
+                            Bienestar Universitario <span>para la comunidad UEB.</span>
                         </h1>
                         <p>
-                            Construimos una comunidad más saludable mediante una atención cercana, organizada y respaldada por la tecnología.
+                            Atención de salud y bienestar para estudiantes, docentes y personal universitario.
                         </p>
                     </div>
 

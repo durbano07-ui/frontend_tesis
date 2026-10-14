@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
+import { compressImage } from '../../utils/compressImage';
 import '../../medical.css';
 
 const COUNTRIES = [
@@ -263,6 +264,7 @@ const PacienteDashboard = () => {
     const [citaFilterSpecialty, setCitaFilterSpecialty] = useState('todas');
     const [citaPage, setCitaPage] = useState(1);
     const [showCitasFilters, setShowCitasFilters] = useState(false);
+    const [activeCitaTab, setActiveCitaTab] = useState('nueva');
     const activeCitasFilterCount = (citaFilterSpecialty !== 'todas' ? 1 : 0) + (citaFilterMonth !== 'todos' ? 1 : 0);
     const CITAS_PER_PAGE = 5;
 
@@ -658,14 +660,32 @@ const PacienteDashboard = () => {
 
     const handlePhotoChange = async (e) => {
         const file = e.target.files[0];
+        e.target.value = '';
         if (!file) return;
-
-        const formData = new FormData();
-        formData.append('foto', file);
 
         setUploadingPhoto(true);
         setPhotoError(false);
         try {
+            let compressed;
+            try {
+                compressed = await compressImage(file);
+            } catch (compressErr) {
+                // Fotos HEIC de iPhone: solo Safari puede decodificarlas
+                const isHeic = /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+                if (isHeic) {
+                    setAlertModal({
+                        show: true,
+                        title: 'Formato de iPhone no compatible',
+                        message: 'La foto está en formato HEIC (iPhone) y este navegador no puede procesarla. Ábrela desde Safari, o en tu iPhone ve a Ajustes > Cámara > Formatos y elige "Más compatible" (JPG). También puedes tomar una captura de pantalla de la foto y subir esa.',
+                        type: 'warning'
+                    });
+                    return;
+                }
+                throw compressErr;
+            }
+            const formData = new FormData();
+            formData.append('foto', compressed);
+
             await api.post('/user-profile/photo', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
@@ -677,7 +697,7 @@ const PacienteDashboard = () => {
             setAlertModal({
                 show: true,
                 title: 'Error al Subir Imagen',
-                message: 'No se pudo subir la foto. Asegúrate de que sea una imagen válida (JPG/PNG) de hasta 5MB.',
+                message: 'No se pudo subir la foto. Asegúrate de seleccionar un archivo de imagen válido.',
                 type: 'danger'
             });
         } finally {
@@ -951,11 +971,9 @@ const PacienteDashboard = () => {
 
         if (idTipo === 2) { // Estudiante
             return !!(profile?.career_study?.id_facultad && profile?.career_study?.id_carrera && profile?.career_study?.id_ciclo);
-        } else if (idTipo === 3 || idTipo === 4) { // Docente o Administrativo
-            return !!profile?.career_study?.id_facultad;
         }
 
-        return true; // Conserje (idTipo === 5)
+        return true; // Docente, Administrativo y Código de Trabajo: datos académicos opcionales
     };
 
     const validateStep = (step) => {
@@ -1004,8 +1022,6 @@ const PacienteDashboard = () => {
                     if (!academicForm.id_facultad) errors.id_facultad = 'Facultad es obligatoria';
                     if (!academicForm.id_carrera) errors.id_carrera = 'Carrera es obligatoria';
                     if (!academicForm.id_ciclo) errors.id_ciclo = 'Ciclo/Semestre es obligatorio';
-                } else if (uType === 3 || uType === 4) { // Docente o Administrativo
-                    if (!academicForm.id_facultad) errors.id_facultad = 'Facultad es obligatoria';
                 }
             }
         }
@@ -2011,7 +2027,7 @@ const PacienteDashboard = () => {
         }));
 
     return (
-        <div className="nurse-shell">
+        <div className="nurse-shell patient-dashboard-shell">
             <div className="app">
                 <div className={`overlay ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
 
@@ -2071,7 +2087,7 @@ const PacienteDashboard = () => {
                         >
                             <span className="navigation__indicator"></span>
                             <span className="navigation__icon"><Calendar size={18} /></span>
-                            <span className="navigation__text">Agendar Cita</span>
+                            <span className="navigation__text">Citas Médicas</span>
                         </button>
                     </nav>
 
@@ -2470,7 +2486,7 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><GraduationCap size={15} /></span>
-                                                        <h4 className="field-header__title">Facultad / Unidad de Adscripción <span className="field-req-star">*</span></h4>
+                                                        <h4 className="field-header__title">Facultad / Unidad de Adscripción <span style={{ fontWeight: 500, fontSize: '11px', color: 'var(--text-secondary)' }}>(opcional)</span></h4>
                                                     </div>
                                                 </div>
                                                 <select
@@ -3186,7 +3202,7 @@ const PacienteDashboard = () => {
                                                 </div>
 
                                                 {/* Bottom Row: Clean, Unboxed Academic Metadata */}
-                                                <div style={{
+                                                <div className="patient-profile-meta" style={{
                                                     marginTop: '22px',
                                                     paddingTop: '18px',
                                                     borderTop: '1px solid var(--border, #e2e8f0)',
@@ -3867,18 +3883,34 @@ const PacienteDashboard = () => {
 
                                 {/* SCENARIO E: CITAS MEDICAS */}
                                 {activeTab === 'citas' && isProfileComplete() && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px', width: '100%' }}>
-                                        {/* FORM TO BOOK */}
-                                        <div className="nurse-card span-5" style={{ padding: '20px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-                                                <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Calendar size={18} color="var(--primary)" /> Nueva Cita Médica
-                                                </h2>
-                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: '#f1f5f9', padding: '3px 8px', borderRadius: '12px', fontWeight: '600' }}>
-                                                    Agendamiento
-                                                </span>
-                                            </div>
+                                    <div className="patient-appointments">
+                                        <div className="patient-appointments__tabs" role="tablist" aria-label="Citas médicas">
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={activeCitaTab === 'nueva'}
+                                                className={`patient-appointments__tab ${activeCitaTab === 'nueva' ? 'is-active' : ''}`}
+                                                onClick={() => setActiveCitaTab('nueva')}
+                                            >
+                                                <Calendar size={17} />
+                                                <span>Nueva cita</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={activeCitaTab === 'mis-citas'}
+                                                className={`patient-appointments__tab ${activeCitaTab === 'mis-citas' ? 'is-active' : ''}`}
+                                                onClick={() => setActiveCitaTab('mis-citas')}
+                                            >
+                                                <Clock size={17} />
+                                                <span>Mis citas</span>
+                                                <span className="patient-appointments__count">{citasList.length}</span>
+                                            </button>
+                                        </div>
 
+                                        {/* FORM TO BOOK */}
+                                        {activeCitaTab === 'nueva' && (
+                                        <div className="nurse-card patient-appointments__panel" style={{ background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                             {errorCita && (
                                                 <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fee2e2', padding: '10px 12px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <AlertCircle size={14} flexShrink={0} /> {errorCita}
@@ -4187,20 +4219,13 @@ const PacienteDashboard = () => {
                                                 )}
                                             </form>
                                         </div>
+                                        )}
 
                                         {/* SCHEDULE LISTINGS WITH FILTERS AND PAGINATION */}
-                                        <div className="nurse-card span-7" style={{ padding: '24px', background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <h2 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Clock size={18} color="var(--primary)" /> Mis Citas Médicas
-                                                    </h2>
-                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                                                        ({filteredCitasList.length})
-                                                    </span>
-                                                </div>
-
+                                        {activeCitaTab === 'mis-citas' && (
+                                        <div className="nurse-card patient-appointments__panel" style={{ background: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-md)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                                 {/* BOTÓN TOGGLE DE FILTROS */}
+                                                <div className="patient-appointments__filter-actions">
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowCitasFilters(!showCitasFilters)}
@@ -4240,7 +4265,7 @@ const PacienteDashboard = () => {
                                                     )}
                                                     <ChevronDown size={13} style={{ transform: showCitasFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                                                 </button>
-                                            </div>
+                                                </div>
 
                                             {/* PANEL DESPLEGABLE DE FILTROS PARA CITAS */}
                                             {showCitasFilters && (
@@ -4341,27 +4366,6 @@ const PacienteDashboard = () => {
                                                         </div>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                                                            {filteredCitasList.length} {filteredCitasList.length === 1 ? 'cita encontrada' : 'citas encontradas'}
-                                                        </span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowCitasFilters(false)}
-                                                            style={{
-                                                                padding: '5px 14px',
-                                                                borderRadius: '6px',
-                                                                border: 'none',
-                                                                background: 'var(--primary, #002040)',
-                                                                color: '#ffffff',
-                                                                fontSize: '11px',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            Cerrar
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             )}
 
@@ -4397,11 +4401,11 @@ const PacienteDashboard = () => {
                                                 </div>
                                             ) : filteredCitasList.length === 0 ? (
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                    <Calendar size={36} style={{ marginBottom: '12px', opacity: 0.4 }} />
-                                                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>No se encontraron citas</h4>
+                                                    <Calendar size={30} style={{ marginBottom: '8px', opacity: 0.4 }} />
+                                                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>{citasList.length === 0 ? 'Aún no tienes citas' : 'No hay resultados'}</h4>
                                                     <p style={{ fontSize: '11px', margin: '4px 0 0', maxWidth: '260px' }}>
                                                         {citasList.length === 0
-                                                            ? 'No tienes citas médicas en tu historial. Utiliza el formulario de la izquierda para agendar una.'
+                                                            ? 'Tus próximas citas aparecerán aquí.'
                                                             : 'No hay citas que coincidan con los filtros seleccionados.'}
                                                     </p>
                                                 </div>
@@ -4578,6 +4582,7 @@ const PacienteDashboard = () => {
                                                 </>
                                             )}
                                         </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

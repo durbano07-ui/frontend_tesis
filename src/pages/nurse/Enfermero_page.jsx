@@ -3197,25 +3197,25 @@ const Enfermero_page = () => {
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                                {campusesCatalog.map(c => (
+                                {campusList.map(c => (
                                     <div
                                         key={c.id}
-                                        onClick={() => setNurseCampusId(c.id)}
+                                        onClick={() => setCampusSetupValue(String(c.id))}
                                         style={{
                                             padding: '12px 16px',
                                             borderRadius: '10px',
-                                            border: `2px solid ${nurseCampusId === c.id ? 'var(--primary)' : 'var(--border)'}`,
-                                            background: nurseCampusId === c.id ? 'var(--primary-soft)' : '#fff',
+                                            border: `2px solid ${String(campusSetupValue) === String(c.id) ? 'var(--primary)' : 'var(--border)'}`,
+                                            background: String(campusSetupValue) === String(c.id) ? 'var(--primary-soft)' : '#fff',
                                             cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            fontWeight: nurseCampusId === c.id ? 'bold' : 'normal',
-                                            color: nurseCampusId === c.id ? 'var(--primary)' : 'var(--text-primary)'
+                                            fontWeight: String(campusSetupValue) === String(c.id) ? 'bold' : 'normal',
+                                            color: String(campusSetupValue) === String(c.id) ? 'var(--primary)' : 'var(--text-primary)'
                                         }}
                                     >
                                         <span>{c.nombre}</span>
-                                        {nurseCampusId === c.id && <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span>}
+                                        {String(campusSetupValue) === String(c.id) && <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span>}
                                     </div>
                                 ))}
                             </div>

@@ -6559,3 +6559,453 @@ div.patient-search-input > input:active {
         padding: 13px 18px;
     }
 }
+
+.patient-dashboard-shell,
+.patient-dashboard-shell .app,
+.patient-dashboard-shell .main-content,
+.patient-dashboard-shell .content,
+.patient-dashboard-shell .module-grid,
+.patient-dashboard-shell .module-grid > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.patient-appointments {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    min-width: 0;
+}
+
+.patient-appointments__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-bottom: 1px solid var(--border);
+}
+
+.patient-appointments__tab {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 10px 14px;
+    border-bottom: 2px solid transparent !important;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.patient-appointments__tab:hover {
+    background: rgba(0, 32, 64, 0.035);
+    color: var(--primary);
+}
+
+.patient-appointments__tab.is-active {
+    border-bottom-color: var(--accent) !important;
+    color: var(--primary);
+}
+
+.patient-appointments__count {
+    display: grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 5px;
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 11px;
+    line-height: 1;
+}
+
+.patient-appointments__panel {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 20px !important;
+}
+
+.patient-appointments__filter-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-dashboard-shell,
+.admin-dashboard-shell .app,
+.admin-dashboard-shell .main-content,
+.admin-dashboard-shell .content {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.admin-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.admin-filter-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 0 !important;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-filter-button:hover {
+    color: var(--primary);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.admin-filter-button.is-active {
+    color: var(--primary);
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 32, 64, 0.12);
+}
+
+.admin-filter-count {
+    min-width: 18px;
+    padding: 2px 5px;
+    border-radius: 10px;
+    background: rgba(0, 32, 64, 0.07);
+    color: inherit;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.patient-dashboard-shell {
+    overflow-x: clip;
+}
+
+.patient-profile-meta {
+    grid-template-columns: minmax(0, 130px) minmax(0, 1.5fr) minmax(0, 1fr) !important;
+}
+
+.patient-profile-meta > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+    .patient-dashboard-shell .topbar {
+        height: auto;
+        min-height: 76px;
+        gap: 10px;
+        padding: 12px 16px !important;
+    }
+
+    .patient-dashboard-shell .topbar__left {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .patient-dashboard-shell .topbar__left > div {
+        min-width: 0;
+    }
+
+    .patient-dashboard-shell .topbar__right {
+        flex: 0 0 auto;
+    }
+
+    .patient-dashboard-shell .topbar h1 {
+        font-size: 17px;
+        line-height: 1.2;
+        white-space: normal;
+    }
+
+    .patient-dashboard-shell .content {
+        padding: 20px 16px 100px !important;
+    }
+
+    .patient-dashboard-shell .patient-profile-meta {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+        margin-top: 16px !important;
+        padding-top: 14px !important;
+    }
+
+    .patient-dashboard-shell .student-wizard-card {
+        padding: 20px !important;
+    }
+
+    .patient-dashboard-shell .student-wizard-card > div:first-child {
+        flex-wrap: wrap;
+        align-items: flex-start !important;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .patient-dashboard-shell .content {
+        padding: 16px 12px 100px !important;
+    }
+
+    .patient-dashboard-shell .topbar {
+        padding: 10px 12px !important;
+    }
+
+    .patient-dashboard-shell .patient-profile-meta {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .patient-dashboard-shell .nurse-card {
+        padding: 18px 14px !important;
+    }
+
+    .patient-appointments {
+        gap: 12px;
+    }
+
+    .patient-appointments__tab {
+        gap: 6px;
+        min-height: 44px;
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .patient-appointments__panel {
+        padding: 16px 12px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .admin-dashboard-shell .topbar {
+        height: auto;
+        min-height: 76px;
+        gap: 10px;
+        padding: 12px 16px !important;
+    }
+
+    .admin-dashboard-shell .topbar__left {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .admin-dashboard-shell .topbar__left > div {
+        min-width: 0;
+    }
+
+    .admin-dashboard-shell .topbar__right {
+        flex: 0 0 auto;
+        gap: 6px;
+    }
+
+    .admin-dashboard-shell .topbar h1 {
+        font-size: 16px;
+        line-height: 1.25;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-dashboard-shell .content {
+        padding: 18px 14px 96px !important;
+    }
+
+    .admin-dashboard-shell .page-hero {
+        display: none;
+    }
+
+    .admin-dashboard-shell .admin-subnav {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px !important;
+        margin-top: 12px !important;
+    }
+
+    .admin-dashboard-shell .admin-subnav__tabs {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        box-sizing: border-box;
+        padding: 4px !important;
+        gap: 4px !important;
+        border-radius: 10px;
+        box-shadow: none !important;
+    }
+
+    .admin-dashboard-shell .admin-subnav__tabs .admin-filter-button {
+        min-width: 0;
+        min-height: 40px;
+        height: auto !important;
+        justify-content: center;
+        gap: 5px;
+        padding: 7px 6px;
+        font-size: 11px;
+        line-height: 1.2;
+        text-align: center;
+        white-space: normal;
+    }
+
+    .admin-dashboard-shell .admin-subnav__tabs .admin-filter-button:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .admin-dashboard-shell .admin-subnav > .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-dashboard-shell .admin-user-filters {
+        align-items: stretch !important;
+    }
+
+    .admin-dashboard-shell .admin-user-filters > .patient-search-input {
+        flex: 1 1 100% !important;
+        width: 100%;
+        min-width: 0 !important;
+    }
+
+    .admin-dashboard-shell .admin-user-filters > div:nth-child(2) {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px !important;
+    }
+
+    .admin-dashboard-shell .admin-user-filters select {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .admin-dashboard-shell .admin-user-filters button {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-dashboard-shell .content section.nurse-card {
+        padding: 16px !important;
+    }
+
+    .admin-dashboard-shell .content section.nurse-card > div:first-child {
+        flex-wrap: wrap;
+        align-items: stretch !important;
+        gap: 10px;
+    }
+
+    .admin-dashboard-shell .content section.nurse-card > div:first-child > .patient-search-input {
+        width: 100% !important;
+    }
+
+    .admin-dashboard-shell .content .table-wrapper {
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+    }
+
+    .admin-dashboard-shell .clinical-table {
+        min-width: 620px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-dashboard-shell .content {
+        padding: 16px 12px 96px !important;
+    }
+
+    .admin-dashboard-shell .topbar {
+        padding: 10px 12px !important;
+    }
+
+    .admin-dashboard-shell .content section.nurse-card {
+        padding: 14px 12px !important;
+    }
+
+    .admin-dashboard-shell .admin-subnav__tabs .admin-filter-button {
+        font-size: 10.5px;
+    }
+}
+/* =========================================================
+   UTILIDADES RESPONSIVAS COMPARTIDAS
+   ========================================================= */
+
+/* Grillas con columnas fijas definidas en línea: se apilan en pantallas pequeñas */
+@media (max-width: 760px) {
+    .responsive-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Navegación de subsecciones: desplazable en horizontal cuando no cabe */
+.liquid-nav {
+    max-width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+
+.liquid-nav__item {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+@media (max-width: 980px) {
+    .liquid-nav {
+        justify-content: flex-start !important;
+        margin-inline: 0 !important;
+    }
+}
+
+/* Menú inferior en celulares: compacto para que quepan todas las opciones */
+@media (max-width: 480px) {
+    .sidebar {
+        gap: 6px !important;
+        padding: 0 6px !important;
+    }
+
+    .navigation {
+        gap: 4px !important;
+    }
+
+    .navigation__item,
+    .logout-button {
+        width: 38px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+    }
+}
+
+/* Barra de selección de reportes / matrices */
+.report-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.report-toolbar .field {
+    flex: 1;
+    min-width: 240px;
+    max-width: 620px;
+}
+
+@media (max-width: 560px) {
+    .report-toolbar .field {
+        min-width: 100%;
+    }
+
+    .report-toolbar .action-button {
+        width: 100%;
+        justify-content: center;
+    }
+}
