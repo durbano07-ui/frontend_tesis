@@ -30,6 +30,10 @@ api.interceptors.response.use(
                 window.location.href = '/login?expired=true';
             }
         }
+        // El backend bloquea las rutas protegidas hasta que el usuario cambie su contraseña temporal
+        if (error.response?.status === 403 && error.response.data?.message === 'Password change required') {
+            useAuthStore.getState().setMustChangePassword(true);
+        }
         return Promise.reject(error);
     }
 );

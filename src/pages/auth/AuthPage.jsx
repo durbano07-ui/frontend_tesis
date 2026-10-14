@@ -87,9 +87,9 @@ const AuthPage = () => {
 
         try {
             const response = await api.post('/auth/login', { email: finalEmail, password: loginPassword });
-            const { user, token } = response.data;
+            const { user, token, must_change_password } = response.data;
 
-            loginStore(user, token);
+            loginStore(user, token, must_change_password);
             if (user?.roles?.includes('enfermero')) {
                 navigate('/enfermeria');
             } else if (user?.roles?.includes('psicologo')) {
