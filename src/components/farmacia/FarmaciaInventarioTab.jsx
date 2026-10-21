@@ -1,26 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api/axios';
-import {
-    Pill,
-    Search,
-    Plus,
-    Minus,
-    History,
-    Pencil,
-    Power,
-    AlertTriangle,
-    CheckCircle2,
-    Package,
-    Boxes,
-    Filter,
-    X,
-    FileSpreadsheet,
-    Eye,
-    TrendingUp,
-    TrendingDown,
-    ChevronDown
-} from 'lucide-react';
+import { Pill, Search, Plus, Minus, History, Pencil, Power, AlertTriangle, Package, Boxes, Filter, X, FileSpreadsheet, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
 
 const FarmaciaInventarioTab = ({ showSystemToast }) => {
     const [productos, setProductos] = useState([]);
@@ -373,6 +354,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <div className="patient-search-input" style={{ width: '100%', maxWidth: '100%' }}>
                                 <Search size={16} />
                                 <input
+                                    aria-label="Buscar por código, nombre o presentación de medicamento"
                                     type="text"
                                     placeholder="Buscar por código, nombre o presentación de medicamento..."
                                     value={searchQuery}
@@ -431,7 +413,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                             height: '18px',
                                             display: 'grid',
                                             placeItems: 'center',
-                                            fontSize: '10.5px',
+                                            fontSize: '11px',
                                             fontWeight: 'bold',
                                             marginLeft: '2px'
                                         }}>
@@ -535,8 +517,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
 
                                             {/* Selector Filtro Presentación */}
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                                                <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#64748b' }}>Filtrar por Presentación:</label>
-                                                <select
+                                                <label htmlFor="farmaciainve-filtrar-por-presentacion" style={{ fontSize: '11.5px', fontWeight: '600', color: '#64748b' }}>Filtrar por Presentación:</label>
+                                                <select id="farmaciainve-filtrar-por-presentacion"
                                                     value={selectedPresentacion}
                                                     onChange={(e) => setSelectedPresentacion(e.target.value)}
                                                     style={{
@@ -614,15 +596,15 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                 </td>
                                                 <td>
                                                     {isOut ? (
-                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                             ● SIN STOCK (Agotado)
                                                         </span>
                                                     ) : (isLowCajas || isLowUnidades) ? (
-                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                             ▲ STOCK CRÍTICO
                                                         </span>
                                                     ) : (
-                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                             ✓ DISPONIBLE
                                                         </span>
                                                     )}
@@ -643,7 +625,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleOpenStockModal(prod, 'add')}
-                                                            style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                                                            style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#12823b', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
                                                             title="Ingresar Stock (Suma)"
                                                         >
                                                             <Plus size={14} />
@@ -652,7 +634,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleOpenStockModal(prod, 'subtract')}
-                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
                                                             title="Egreso / Salida de Stock (Resta)"
                                                         >
                                                             <Minus size={14} />
@@ -670,7 +652,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleToggleActive(prod)}
-                                                            style={{ background: prod.activo ? '#fff7ed' : '#f1f5f9', border: prod.activo ? '1px solid #fed7aa' : '1px solid #cbd5e1', color: prod.activo ? '#ea580c' : '#64748b', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                                                            style={{ background: prod.activo ? '#fff7ed' : '#f1f5f9', border: prod.activo ? '1px solid #fed7aa' : '1px solid #cbd5e1', color: prod.activo ? '#c2410c' : '#475569', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
                                                             title={prod.activo ? 'Deshabilitar Producto' : 'Habilitar Producto'}
                                                         >
                                                             <Power size={14} />
@@ -695,13 +677,13 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Pill size={18} /> Registrar Nuevo Producto en Farmacia
                             </h3>
-                            <button onClick={() => setIsCreateModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => setIsCreateModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <form onSubmit={handleCreateProduct} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Código *</label>
-                                    <input
+                                    <label htmlFor="farmaciainve-codigo" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Código *</label>
+                                    <input id="farmaciainve-codigo"
                                         type="text"
                                         required
                                         value={productForm.codigo}
@@ -710,8 +692,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Presentación *</label>
-                                    <select
+                                    <label htmlFor="farmaciainve-presentacion" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Presentación *</label>
+                                    <select id="farmaciainve-presentacion"
                                         required
                                         value={productForm.id_presentacion}
                                         onChange={(e) => setProductForm({ ...productForm, id_presentacion: e.target.value })}
@@ -726,8 +708,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre del Medicamento / Producto *</label>
-                                <input
+                                <label htmlFor="farmaciainve-nombre-del-medicamento-producto" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre del Medicamento / Producto *</label>
+                                <input id="farmaciainve-nombre-del-medicamento-producto"
                                     type="text"
                                     required
                                     placeholder="Ej: Paracetamol 500mg"
@@ -739,8 +721,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                                 <div>
-                                    <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Cajas)</label>
-                                    <input
+                                    <label htmlFor="farmaciainve-stock-inicial-cajas" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Cajas)</label>
+                                    <input id="farmaciainve-stock-inicial-cajas"
                                         type="number"
                                         min="0"
                                         value={productForm.stock_inicial_cajas}
@@ -749,8 +731,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Unidades)</label>
-                                    <input
+                                    <label htmlFor="farmaciainve-stock-inicial-unidades" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Unidades)</label>
+                                    <input id="farmaciainve-stock-inicial-unidades"
                                         type="number"
                                         min="0"
                                         value={productForm.stock_inicial_unidades}
@@ -761,8 +743,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Descripción u Observaciones</label>
-                                <textarea
+                                <label htmlFor="farmaciainve-descripcion-u-observaciones" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Descripción u Observaciones</label>
+                                <textarea id="farmaciainve-descripcion-u-observaciones"
                                     rows="2"
                                     placeholder="Notas opcionales..."
                                     value={productForm.descripcion}
@@ -791,12 +773,12 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Pencil size={18} /> Editar Producto de Farmacia
                             </h3>
-                            <button onClick={() => setIsEditModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => setIsEditModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <form onSubmit={handleEditProduct} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Código *</label>
-                                <input
+                                <label htmlFor="farmaciainve-codigo-2" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Código *</label>
+                                <input id="farmaciainve-codigo-2"
                                     type="text"
                                     required
                                     value={productForm.codigo}
@@ -806,8 +788,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre del Medicamento *</label>
-                                <input
+                                <label htmlFor="farmaciainve-nombre-del-medicamento" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre del Medicamento *</label>
+                                <input id="farmaciainve-nombre-del-medicamento"
                                     type="text"
                                     required
                                     value={productForm.nombre}
@@ -817,8 +799,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Presentación *</label>
-                                <select
+                                <label htmlFor="farmaciainve-presentacion-2" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Presentación *</label>
+                                <select id="farmaciainve-presentacion-2"
                                     required
                                     value={productForm.id_presentacion}
                                     onChange={(e) => setProductForm({ ...productForm, id_presentacion: e.target.value })}
@@ -851,7 +833,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 {stockForm.type === 'add' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                                 {stockForm.type === 'add' ? 'Ingreso de Stock Manual' : 'Egreso / Salida de Stock'}
                             </h3>
-                            <button onClick={() => setIsStockModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => setIsStockModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <form onSubmit={handleSaveStockChange} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12.5px' }}>
@@ -863,8 +845,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Cajas</label>
-                                    <input
+                                    <label htmlFor="farmaciainve-cantidad-cajas" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Cajas</label>
+                                    <input id="farmaciainve-cantidad-cajas"
                                         type="number"
                                         min="0"
                                         value={stockForm.cantidad_cajas}
@@ -873,8 +855,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Unidades</label>
-                                    <input
+                                    <label htmlFor="farmaciainve-cantidad-unidades" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Unidades</label>
+                                    <input id="farmaciainve-cantidad-unidades"
                                         type="number"
                                         min="0"
                                         value={stockForm.cantidad_unidades}
@@ -885,8 +867,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Motivo / Justificación *</label>
-                                <textarea
+                                <label htmlFor="farmaciainve-motivo-justificacion" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Motivo / Justificación *</label>
+                                <textarea id="farmaciainve-motivo-justificacion"
                                     required
                                     rows="2"
                                     placeholder={stockForm.type === 'add' ? 'Ej: Compra de lote nuevo / Donación' : 'Ej: Descarte por caducidad / Ajuste'}
@@ -916,7 +898,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <History size={18} /> Historial Auditable: {selectedProducto.nombre}
                             </h3>
-                            <button onClick={() => setIsHistoryModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => setIsHistoryModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <div style={{ padding: '20px', maxHeight: '420px', overflowY: 'auto' }}>
                             {historyLoading ? (
@@ -959,7 +941,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         "{log.descripcion}"
                                                     </div>
                                                 )}
-                                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                                                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                                                     Responsable: {log.usuario?.name || 'Sistema / Enfermera'}
                                                 </div>
                                             </div>
@@ -981,7 +963,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <FileSpreadsheet size={18} /> Reporte Consolidado de Inventario de Farmacia
                             </h3>
-                            <button onClick={() => setIsReportModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => setIsReportModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <div style={{ padding: '20px', maxHeight: '500px', overflowY: 'auto' }}>
                             {reportData ? (

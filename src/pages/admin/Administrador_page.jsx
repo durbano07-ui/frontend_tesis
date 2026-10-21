@@ -1,53 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { STAFF_ROLES, normalizeRoles } from '../../utils/roleModules';
 import api from '../../api/axios';
 import '../../medical.css';
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import PasswordRequirements from '../../components/PasswordRequirements';
 
-import {
-    Menu,
-    LogOut,
-    Bell,
-    Search,
-    X,
-    Save,
-    History,
-    FileText,
-    Plus,
-    Calendar,
-    ChevronRight,
-    ChevronLeft,
-    Activity,
-    ClipboardList,
-    CheckCircle,
-    AlertTriangle,
-    Stethoscope,
-    User,
-    UserPlus,
-    Shield,
-    CalendarCheck,
-    CalendarDays,
-    Info,
-    TrendingUp,
-    Users,
-    Key,
-    Power,
-    ShieldAlert,
-    Download,
-    SlidersHorizontal,
-    RefreshCw,
-    Award,
-    Building2,
-    GraduationCap,
-    School,
-    Landmark,
-    Trash2,
-    Edit3,
-    Layers
-} from 'lucide-react';
+import { Menu, LogOut, Bell, Search, X, History, Plus, Calendar, ChevronRight, ChevronLeft, CheckCircle, AlertTriangle, User, UserPlus, Shield, Users, Key, Power, ShieldAlert, RefreshCw, Building2, GraduationCap, School, Landmark, Trash2, Edit3 } from 'lucide-react';
 
 const Administrador_page = () => {
     const navigate = useNavigate();
@@ -278,30 +239,87 @@ const Administrador_page = () => {
     const [usersRoleFilter, setUsersRoleFilter] = useState('all');
     const [usersStatusFilter, setUsersStatusFilter] = useState('all');
 
-    // Options mapping Tipo de Afiliación / Rol de Usuario
-    const AFFILIATION_OPTIONS = [
-        { key: 'estudiante', label: 'Estudiante Universitario', id_tipo_usuario: 2, role: 'paciente' },
-        { key: 'docente', label: 'Docente / Profesor', id_tipo_usuario: 3, role: 'paciente' },
-        { key: 'administrativo', label: 'Personal Administrativo', id_tipo_usuario: 4, role: 'paciente' },
-        { key: 'codigo_trabajo', label: 'Servidor Público / Código de Trabajo', id_tipo_usuario: 5, role: 'paciente' },
-        { key: 'medico_general', label: 'Médico General', id_tipo_usuario: 1, role: 'medico_general' },
-        { key: 'enfermero', label: 'Enfermero / Enfermera', id_tipo_usuario: 1, role: 'enfermero' },
-        { key: 'psicologo', label: 'Psicólogo / Psicóloga', id_tipo_usuario: 1, role: 'psicologo' },
-        { key: 'odontologo', label: 'Odontólogo / Odontóloga', id_tipo_usuario: 1, role: 'odontologo' },
-        { key: 'medico_ocupacional', label: 'Médico Ocupacional', id_tipo_usuario: 1, role: 'medico_ocupacional' },
-        { key: 'medico_coordinador', label: 'Médico Coordinador', id_tipo_usuario: 1, role: 'medico_coordinador' },
-        { key: 'administrador', label: 'Administrador del Sistema', id_tipo_usuario: 1, role: 'administrador' },
+    // Tipo de usuario. Los pacientes tienen un único tipo; el personal puede tener varios roles.
+    const USER_TYPE_OPTIONS = [
+        { key: 'estudiante', label: 'Estudiante Universitario', id_tipo_usuario: 2 },
+        { key: 'docente', label: 'Docente / Profesor', id_tipo_usuario: 3 },
+        { key: 'administrativo', label: 'Personal Administrativo', id_tipo_usuario: 4 },
+        { key: 'codigo_trabajo', label: 'Servidor Público / Código de Trabajo', id_tipo_usuario: 5 },
+        { key: 'personal', label: 'Personal de Bienestar (salud, coordinación, administración)', id_tipo_usuario: 1 },
     ];
+    const PRIVILEGED_ROLES = ['administrador', 'medico_coordinador'];
+    // Solo un administrador puede asignar o quitar roles de administrador/coordinador
+    const canAssignPrivileged = normalizeRoles(user?.roles).includes('administrador');
+
+    // Arma la lista de roles a enviar al backend según el formulario
+    const buildRolesPayload = (form) => {
+        if (form.userType !== 'personal') return ['paciente'];
+        return form.keepPaciente ? [...form.staffRoles, 'paciente'] : [...form.staffRoles];
+    };
+
+    const toggleStaffRole = (form, setForm, role) => {
+        const staffRoles = form.staffRoles.includes(role)
+            ? form.staffRoles.filter(r => r !== role)
+            : [...form.staffRoles, role];
+        setForm({ ...form, staffRoles });
+    };
+
+    const renderUserTypeFields = (form, setForm) => (
+        <>
+            <label className="field">
+                <span>Tipo de Usuario *</span>
+                <select
+                    value={form.userType}
+                    onChange={(e) => setForm({ ...form, userType: e.target.value })}
+                    style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                >
+                    {USER_TYPE_OPTIONS.map(opt => (
+                        <option key={opt.key} value={opt.key}>{opt.label}</option>
+                    ))}
+                </select>
+            </label>
+
+            {form.userType === 'personal' && (
+                <fieldset style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px 12px', margin: 0 }}>
+                    <legend style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', padding: '0 4px' }}>
+                        Roles * <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>(puede marcar varios)</span>
+                    </legend>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '6px 12px' }}>
+                        {STAFF_ROLES.map(({ role, label }) => {
+                            const locked = PRIVILEGED_ROLES.includes(role) && !canAssignPrivileged;
+                            return (
+                                <label
+                                    key={role}
+                                    title={locked ? 'Solo un administrador puede cambiar este rol' : undefined}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: locked ? 'not-allowed' : 'pointer', opacity: locked ? 0.55 : 1 }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={form.staffRoles.includes(role)}
+                                        disabled={locked}
+                                        onChange={() => toggleStaffRole(form, setForm, role)}
+                                    />
+                                    {label}
+                                </label>
+                            );
+                        })}
+                    </div>
+                </fieldset>
+            )}
+        </>
+    );
 
     // Modales de Usuario
     const [selectedUser, setSelectedUser] = useState(null);
     const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
-    
-    // Formulario de edición de usuario (con Afiliación / Rol y Cambio de Contraseña)
+
+    // Formulario de edición de usuario (tipo, roles y cambio de contraseña)
     const [editUserForm, setEditUserForm] = useState({
         name: '',
         email: '',
-        affiliationKey: 'estudiante',
+        userType: 'estudiante',
+        staffRoles: [],
+        keepPaciente: false,
         password: ''
     });
     const [editUserLoading, setEditUserLoading] = useState(false);
@@ -342,31 +360,22 @@ const Administrador_page = () => {
     const handleOpenEditUserModal = (u) => {
         setSelectedUser(u);
 
-        const roles = (u.roles || []).map(r => (typeof r === 'string' ? r : r?.name || '').toLowerCase());
-        let detectedKey = 'estudiante';
-        if (roles.includes('enfermero')) detectedKey = 'enfermero';
-        else if (roles.includes('medico_general')) detectedKey = 'medico_general';
-        else if (roles.includes('psicologo')) detectedKey = 'psicologo';
-        else if (roles.includes('odontologo')) detectedKey = 'odontologo';
-        else if (roles.includes('medico_ocupacional')) detectedKey = 'medico_ocupacional';
-        else if (roles.includes('medico_coordinador')) detectedKey = 'medico_coordinador';
-        else if (roles.includes('administrador')) detectedKey = 'administrador';
-        else if (u.id_tipo_usuario === 3 || roles.includes('docente')) detectedKey = 'docente';
-        else if (u.id_tipo_usuario === 4 || roles.includes('administrativo')) detectedKey = 'administrativo';
-        else if (u.id_tipo_usuario === 5 || roles.includes('codigo_trabajo')) detectedKey = 'codigo_trabajo';
-        else if (u.id_tipo_usuario === 2 || roles.includes('estudiante')) detectedKey = 'estudiante';
-        else if (roles.includes('paciente')) {
-            if (u.id_tipo_usuario === 3) detectedKey = 'docente';
-            else if (u.id_tipo_usuario === 4) detectedKey = 'administrativo';
-            else if (u.id_tipo_usuario === 5) detectedKey = 'codigo_trabajo';
-            else detectedKey = 'estudiante';
-        }
-        else if (u.id_tipo_usuario === 1) detectedKey = 'medico_general';
+        const roles = normalizeRoles(u.roles);
+        const staffRoles = STAFF_ROLES.map(r => r.role).filter(r => roles.includes(r));
+
+        let userType = 'estudiante';
+        if (staffRoles.length > 0 || u.id_tipo_usuario === 1) userType = 'personal';
+        else if (u.id_tipo_usuario === 3 || roles.includes('docente')) userType = 'docente';
+        else if (u.id_tipo_usuario === 4 || roles.includes('administrativo')) userType = 'administrativo';
+        else if (u.id_tipo_usuario === 5 || roles.includes('codigo_trabajo')) userType = 'codigo_trabajo';
 
         setEditUserForm({
             name: u.nombre_completo || u.name || '',
             email: u.email || '',
-            affiliationKey: detectedKey,
+            userType,
+            staffRoles,
+            // Si es personal y además paciente, se conserva el rol de paciente
+            keepPaciente: staffRoles.length > 0 && roles.includes('paciente'),
             password: ''
         });
         setIsEditUserModalOpen(true);
@@ -375,15 +384,19 @@ const Administrador_page = () => {
     const handleSaveEditUser = async (e) => {
         e.preventDefault();
         if (!selectedUser) return;
+        if (editUserForm.userType === 'personal' && editUserForm.staffRoles.length === 0) {
+            showSystemToast("Seleccione al menos un rol para el personal.");
+            return;
+        }
         setEditUserLoading(true);
 
-        const selectedOpt = AFFILIATION_OPTIONS.find(o => o.key === editUserForm.affiliationKey) || AFFILIATION_OPTIONS[0];
+        const selectedType = USER_TYPE_OPTIONS.find(o => o.key === editUserForm.userType) || USER_TYPE_OPTIONS[0];
 
         const payload = {
             name: editUserForm.name,
             email: editUserForm.email,
-            id_tipo_usuario: selectedOpt.id_tipo_usuario,
-            roles: [selectedOpt.role]
+            id_tipo_usuario: selectedType.id_tipo_usuario,
+            roles: buildRolesPayload(editUserForm)
         };
 
         if (editUserForm.password && editUserForm.password.trim()) {
@@ -415,7 +428,8 @@ const Administrador_page = () => {
         nombres: '',
         apellidos: '',
         cedula: '',
-        affiliationKey: 'estudiante',
+        userType: 'estudiante',
+        staffRoles: [],
         correo: ''
     });
     const [registerLoading, setRegisterLoading] = useState(false);
@@ -423,37 +437,31 @@ const Administrador_page = () => {
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        setRegisterLoading(true);
         setRegisterError('');
+        if (registerForm.userType === 'personal' && registerForm.staffRoles.length === 0) {
+            setRegisterError('Seleccione al menos un rol para el personal.');
+            return;
+        }
+        setRegisterLoading(true);
 
         try {
-            const defaultPassword = `Ueb${registerForm.cedula}*`;
-            const selectedAff = AFFILIATION_OPTIONS.find(opt => opt.key === registerForm.affiliationKey) || AFFILIATION_OPTIONS[0];
-
-            const regResponse = await api.post('/users', {
-                email: registerForm.correo,
-                name: `${registerForm.nombres.trim()} ${registerForm.apellidos.trim()}`,
-                password: defaultPassword,
-                password_confirmation: defaultPassword,
-                id_tipo_usuario: selectedAff.id_tipo_usuario,
-                roles: [selectedAff.role]
-            });
-
-            const userToken = regResponse.data.token || '';
+            const selectedType = USER_TYPE_OPTIONS.find(opt => opt.key === registerForm.userType) || USER_TYPE_OPTIONS[0];
             const nameParts = registerForm.nombres.trim().split(/\s+/);
             const lastNameParts = registerForm.apellidos.trim().split(/\s+/);
 
-            const profilePayload = {
+            // La contraseña temporal la genera el servidor y la envía al correo del usuario
+            // (OWASP ASVS V2.3.1). La identificación se guarda en la cuenta del nuevo usuario.
+            await api.post('/users', {
+                email: registerForm.correo,
+                name: `${registerForm.nombres.trim()} ${registerForm.apellidos.trim()}`,
+                id_tipo_usuario: selectedType.id_tipo_usuario,
+                roles: buildRolesPayload(registerForm),
                 primer_nombre: nameParts[0],
                 segundo_nombre: nameParts.slice(1).join(' ') || null,
                 apellido_paterno: lastNameParts[0],
                 apellido_materno: lastNameParts.slice(1).join(' ') || null,
                 numero_cedula: registerForm.cedula
-            };
-
-            await api.post('/user-profile/identification', profilePayload, {
-                headers: userToken ? { Authorization: `Bearer ${userToken}` } : {}
-            }).catch(() => console.log("Perfil omitido temporalmente."));
+            });
 
             showSystemToast("¡Usuario registrado con éxito!");
             setIsCreateUserModalOpen(false);
@@ -461,7 +469,8 @@ const Administrador_page = () => {
                 nombres: '',
                 apellidos: '',
                 cedula: '',
-                affiliationKey: 'estudiante',
+                userType: 'estudiante',
+                staffRoles: [],
                 correo: ''
             });
             fetchUsers();
@@ -796,81 +805,6 @@ const Administrador_page = () => {
         });
     };
 
-    // Gráfico de Barras SVG Dinámico para atenciones mensuales/diarias
-    const renderSVGChart = () => {
-        if (!dashboardData?.atenciones_por_tiempo || dashboardData.atenciones_por_tiempo.length === 0) {
-            return (
-                <div style={{ height: '220px', display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>
-                    No hay atenciones registradas en este periodo.
-                </div>
-            );
-        }
-
-        const data = dashboardData.atenciones_por_tiempo;
-        const maxVal = Math.max(...data.map(d => d.total || d.cantidad || 0), 5);
-        const chartHeight = 180;
-        const barWidth = 40;
-        const gap = 16;
-        const svgWidth = data.length * (barWidth + gap) + 40;
-
-        return (
-            <div style={{ overflowX: 'auto', padding: '10px 0' }}>
-                <svg width={Math.max(svgWidth, 600)} height={chartHeight + 40} style={{ margin: '0 auto', display: 'block' }}>
-                    {data.map((item, idx) => {
-                        const val = item.total || item.cantidad || 0;
-                        const barHeight = (val / maxVal) * chartHeight;
-                        const x = idx * (barWidth + gap) + 30;
-                        const y = chartHeight - barHeight + 20;
-
-                        return (
-                            <g key={idx}>
-                                {/* Gradient definition */}
-                                <defs>
-                                    <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" stopColor="var(--accent)" />
-                                        <stop offset="100%" stopColor="var(--primary)" />
-                                    </linearGradient>
-                                </defs>
-                                {/* Bar */}
-                                <rect
-                                    x={x}
-                                    y={y}
-                                    width={barWidth}
-                                    height={barHeight}
-                                    rx={6}
-                                    fill="url(#barGrad)"
-                                    opacity={0.88}
-                                    style={{ transition: 'all 0.3s ease', cursor: 'pointer' }}
-                                />
-                                {/* Value overlay */}
-                                <text
-                                    x={x + barWidth / 2}
-                                    y={y - 6}
-                                    textAnchor="middle"
-                                    fill="var(--primary)"
-                                    fontSize="10px"
-                                    fontWeight="bold"
-                                >
-                                    {val}
-                                </text>
-                                {/* Date labels */}
-                                <text
-                                    x={x + barWidth / 2}
-                                    y={chartHeight + 34}
-                                    textAnchor="middle"
-                                    fill="var(--text-muted)"
-                                    fontSize="8.5px"
-                                >
-                                    {item.periodo || item.fecha || item.dia || item.mes || `T${idx + 1}`}
-                                </text>
-                            </g>
-                        );
-                    })}
-                </svg>
-            </div>
-        );
-    };
-
     return (
         <div className="nurse-shell admin-dashboard-shell">
             <div className="app">
@@ -886,7 +820,7 @@ const Administrador_page = () => {
                             <strong>Bienestar</strong>
                             <span>Administración</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -920,7 +854,7 @@ const Administrador_page = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={() => {
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={() => {
                             setConfirmModal({
                                 show: true,
                                 title: 'Cerrar Sesión',
@@ -943,7 +877,7 @@ const Administrador_page = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -955,7 +889,7 @@ const Administrador_page = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
+                            <button aria-label="Notificaciones" className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
                             <UserProfileMenu />
                         </div>
                     </header>
@@ -1029,6 +963,7 @@ const Administrador_page = () => {
                                             <div className="patient-search-input" style={{ width: '320px' }}>
                                                 <Search size={16} />
                                                 <input
+                                                    aria-label="Buscar campus o sede"
                                                     value={campusSearch}
                                                     onChange={(e) => setCampusSearch(e.target.value)}
                                                     placeholder="Buscar campus o sede..."
@@ -1089,6 +1024,7 @@ const Administrador_page = () => {
                                             <div className="patient-search-input" style={{ width: '320px' }}>
                                                 <Search size={16} />
                                                 <input
+                                                    aria-label="Buscar facultad"
                                                     value={facultadSearch}
                                                     onChange={(e) => setFacultadSearch(e.target.value)}
                                                     placeholder="Buscar facultad..."
@@ -1155,12 +1091,14 @@ const Administrador_page = () => {
                                             <div className="patient-search-input" style={{ flex: 1, minWidth: '240px' }}>
                                                 <Search size={16} />
                                                 <input
+                                                    aria-label="Buscar carrera universitaria"
                                                     value={carreraSearch}
                                                     onChange={(e) => setCarreraSearch(e.target.value)}
                                                     placeholder="Buscar carrera universitaria..."
                                                 />
                                             </div>
                                             <select
+                                                aria-label="Filtrar por facultad"
                                                 value={carreraFacultadFilter}
                                                 onChange={(e) => setCarreraFacultadFilter(e.target.value)}
                                                 style={{ padding: '9px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}
@@ -1254,13 +1192,14 @@ const Administrador_page = () => {
                                         <div className="patient-search-input" style={{ flex: 1, minWidth: '240px' }}>
                                             <Search size={16} />
                                             <input
+                                                aria-label="Buscar usuario por nombre, correo, cédula"
                                                 value={usersSearch}
                                                 onChange={(e) => setUsersSearch(e.target.value)}
                                                 placeholder="Buscar usuario por nombre, correo, cédula..."
                                             />
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                            <select value={usersRoleFilter} onChange={(e) => setUsersRoleFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                            <select aria-label="Filtrar por rol" value={usersRoleFilter} onChange={(e) => setUsersRoleFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
                                                 <option value="all">Todos los Roles</option>
                                                 <option value="paciente">Paciente (Estudiante/Funcionario)</option>
                                                 <option value="medico_general">Médico General</option>
@@ -1271,7 +1210,7 @@ const Administrador_page = () => {
                                                 <option value="medico_coordinador">Médico Coordinador</option>
                                                 <option value="administrador">Administrador</option>
                                             </select>
-                                            <select value={usersStatusFilter} onChange={(e) => setUsersStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                            <select aria-label="Filtrar por estado" value={usersStatusFilter} onChange={(e) => setUsersStatusFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
                                                 <option value="all">Todos los Estados</option>
                                                 <option value="active">Activos</option>
                                                 <option value="inactive">Inactivos</option>
@@ -1324,7 +1263,7 @@ const Administrador_page = () => {
                                                                             roleLabel = `Paciente (${subType})`;
                                                                         }
                                                                         return (
-                                                                            <span key={i} className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '9.5px', textTransform: 'capitalize' }}>
+                                                                            <span key={i} className="status-badge status-badge--active" style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', textTransform: 'capitalize' }}>
                                                                                 {roleLabel}
                                                                             </span>
                                                                         );
@@ -1425,6 +1364,7 @@ const Administrador_page = () => {
                                     <div className="logs-search" style={{ marginTop: '16px' }}>
                                         <Search size={16} />
                                         <input
+                                            aria-label="Buscar en registros de auditoría"
                                             value={logsSearchText}
                                             onChange={(e) => {
                                                 setLogsSearchText(e.target.value);
@@ -1455,6 +1395,7 @@ const Administrador_page = () => {
                                                         <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
                                                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
                                                         <input
+                                                            aria-label="Fecha"
                                                             type="date"
                                                             value={auditDateFilter}
                                                             onChange={(e) => {
@@ -1518,13 +1459,13 @@ const Administrador_page = () => {
                                                                         <td>
                                                                             <strong>{log.user?.nombre_completo || log.user?.name || log.user?.email || (log.user_id ? `Usuario #${log.user_id}` : 'Sistema')}</strong>
                                                                             {log.user?.email && (log.user?.name || log.user?.nombre_completo) && (
-                                                                                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{log.user.email}</div>
+                                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{log.user.email}</div>
                                                                             )}
                                                                         </td>
                                                                         <td>
                                                                             <span
                                                                                 className="status-badge"
-                                                                                style={{ background: badge.bg, color: badge.color, fontSize: '10px', textTransform: 'capitalize' }}
+                                                                                style={{ background: badge.bg, color: badge.color, fontSize: '11px', textTransform: 'capitalize' }}
                                                                             >
                                                                                 {badge.label}
                                                                             </span>
@@ -1569,6 +1510,7 @@ const Administrador_page = () => {
                                                         <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
                                                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
                                                         <input
+                                                            aria-label="Fecha"
                                                             type="date"
                                                             value={loginDateFilter}
                                                             onChange={(e) => {
@@ -1634,7 +1576,7 @@ const Administrador_page = () => {
                                                                         <td>
                                                                             <span
                                                                                 className={`status-badge ${isSuccess ? 'status-badge--active' : 'status-badge--inactive'}`}
-                                                                                style={{ fontSize: '10px' }}
+                                                                                style={{ fontSize: '11px' }}
                                                                             >
                                                                                 {isSuccess ? '✓ Autenticación Exitosa' : '✗ Intento Fallido'}
                                                                             </span>
@@ -1677,6 +1619,7 @@ const Administrador_page = () => {
                                                         <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
                                                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Fecha:</span>
                                                         <input
+                                                            aria-label="Fecha"
                                                             type="date"
                                                             value={securityDateFilter}
                                                             onChange={(e) => {
@@ -1735,7 +1678,7 @@ const Administrador_page = () => {
                                                                 <tr key={sec.id}>
                                                                     <td style={{ color: 'var(--text-muted)', fontWeight: 600 }}>#{sec.id}</td>
                                                                     <td>
-                                                                        <span className="status-badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '10px' }}>
+                                                                        <span className="status-badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '11px' }}>
                                                                             {sec.event_type || 'Alerta'}
                                                                         </span>
                                                                     </td>
@@ -1777,7 +1720,7 @@ const Administrador_page = () => {
                                     <h2>Editar Datos del Usuario</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => { setIsEditUserModalOpen(false); setSelectedUser(null); }}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => { setIsEditUserModalOpen(false); setSelectedUser(null); }}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleSaveEditUser} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <label className="field">
@@ -1800,18 +1743,7 @@ const Administrador_page = () => {
                                     required
                                 />
                             </label>
-                            <label className="field">
-                                <span>Tipo de Afiliación / Usuario *</span>
-                                <select
-                                    value={editUserForm.affiliationKey}
-                                    onChange={(e) => setEditUserForm({ ...editUserForm, affiliationKey: e.target.value })}
-                                    style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                                >
-                                    {AFFILIATION_OPTIONS.map(opt => (
-                                        <option key={opt.key} value={opt.key}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </label>
+                            {renderUserTypeFields(editUserForm, setEditUserForm)}
 
                             <label className="field">
                                 <span>Nueva Contraseña (Opcional)</span>
@@ -1820,7 +1752,7 @@ const Administrador_page = () => {
                                     value={editUserForm.password}
                                     onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
                                     placeholder="Dejar en blanco para conservar la actual"
-                                    minLength={6}
+                                    minLength={12}
                                 />
                             </label>
 
@@ -1853,7 +1785,7 @@ const Administrador_page = () => {
                                     <h2>{campusForm.id ? 'Editar Campus' : 'Registrar Nuevo Campus'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsCampusModalOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsCampusModalOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleSaveCampus} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <label className="field">
@@ -1892,7 +1824,7 @@ const Administrador_page = () => {
                                     <h2>{facultadForm.id ? 'Editar Facultad' : 'Registrar Nueva Facultad'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsFacultadModalOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsFacultadModalOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleSaveFacultad} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <label className="field">
@@ -1931,7 +1863,7 @@ const Administrador_page = () => {
                                     <h2>{carreraForm.id ? 'Editar Carrera' : 'Registrar Nueva Carrera'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsCarreraModalOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsCarreraModalOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleSaveCarrera} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <label className="field">
@@ -1983,7 +1915,7 @@ const Administrador_page = () => {
                                     <h2>Registrar Nuevo Usuario</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsCreateUserModalOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsCreateUserModalOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleCreateUser} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -2029,25 +1961,14 @@ const Administrador_page = () => {
                                 </label>
                             </div>
 
-                            <label className="field">
-                                <span>Tipo de Afiliación / Rol del Usuario *</span>
-                                <select
-                                    value={registerForm.affiliationKey}
-                                    onChange={(e) => setRegisterForm({ ...registerForm, affiliationKey: e.target.value })}
-                                    style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                                >
-                                    {AFFILIATION_OPTIONS.map(opt => (
-                                        <option key={opt.key} value={opt.key}>{opt.label}</option>
-                                    ))}
-                                </select>
-                            </label>
+                            {renderUserTypeFields(registerForm, setRegisterForm)}
 
                             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '10px 12px', fontSize: '11px', color: '#475569' }}>
-                                <strong style={{ color: 'var(--primary)' }}>Clave Inicial Temporal:</strong> Se generará automáticamente como <code>Ueb{registerForm.cedula || 'CEDULA'}*</code>. El usuario la cambiará en su primer inicio de sesión.
+                                <strong style={{ color: 'var(--primary)' }}>Clave Inicial Temporal:</strong> El sistema generará una contraseña temporal segura y la enviará al correo del usuario. Deberá cambiarla en su primer inicio de sesión.
                             </div>
 
                             {registerError && (
-                                <div style={{ color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#fff5f5', borderRadius: '10px', border: '1px solid #fecdd3' }}>
+                                <div role="alert" style={{ color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#fff5f5', borderRadius: '10px', border: '1px solid #fecdd3' }}>
                                     <AlertTriangle size={14} /> {registerError}
                                 </div>
                             )}
@@ -2064,7 +1985,7 @@ const Administrador_page = () => {
             )}
 
             {/* TOAST SYSTEM */}
-            <div className={`toast ${toast.show ? 'show' : ''}`}>
+            <div role="status" aria-live="polite" className={`toast ${toast.show ? 'show' : ''}`}>
                 <CheckCircle size={16} />
                 <span>{toast.message}</span>
             </div>

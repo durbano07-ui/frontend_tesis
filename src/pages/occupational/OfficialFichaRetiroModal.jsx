@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 /**
  * Función que extrae y normaliza de forma exhaustiva todos los campos clínicos,
@@ -372,7 +373,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
     <html lang="es">
     <head>
         <meta charset="UTF-8" />
-        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO - ${pac}</title>
+        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO - ${escapeHtml(pac)}</title>
         <style>
             @page {
                 size: portrait;
@@ -460,8 +461,8 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 <tr>
                     <td style="width: 32%; padding: 4px 8px; border: 1.5px solid #000;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <img src="${logoBienestar}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
-                            ${uebBannerLogo ? `<img src="${uebBannerLogo}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
+                            <img src="${escapeHtml(logoBienestar)}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
+                            ${uebBannerLogo ? `<img src="${escapeHtml(uebBannerLogo)}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
                             <div>
                                 <div style="font-weight: 900; font-size: 11px; color: #002060;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                                 <div style="font-size: 7.5px; font-weight: bold; color: #002060;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
@@ -490,11 +491,11 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 </tr>
                 <tr class="text-center font-bold">
                     <td>UNIVERSIDAD ESTATAL DE BOLIVAR</td>
-                    <td>${ruc}</td>
+                    <td>${escapeHtml(ruc)}</td>
                     <td>-</td>
-                    <td>${estSalud}</td>
-                    <td>${numHC}</td>
-                    <td>${numArch}</td>
+                    <td>${escapeHtml(estSalud)}</td>
+                    <td>${escapeHtml(numHC)}</td>
+                    <td>${escapeHtml(numArch)}</td>
                 </tr>
             </table>
 
@@ -512,15 +513,15 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 8%;">LATERALIDAD</td>
                 </tr>
                 <tr class="text-center font-bold">
-                    <td class="uppercase">${p1Ape}</td>
-                    <td class="uppercase">${p2Ape}</td>
-                    <td class="uppercase">${p1Nom}</td>
-                    <td class="uppercase">${p2Nom}</td>
-                    <td>${sexo}</td>
-                    <td>${edad}</td>
-                    <td>${rel}</td>
-                    <td>${grpSangre}</td>
-                    <td>${lat}</td>
+                    <td class="uppercase">${escapeHtml(p1Ape)}</td>
+                    <td class="uppercase">${escapeHtml(p2Ape)}</td>
+                    <td class="uppercase">${escapeHtml(p1Nom)}</td>
+                    <td class="uppercase">${escapeHtml(p2Nom)}</td>
+                    <td>${escapeHtml(sexo)}</td>
+                    <td>${escapeHtml(edad)}</td>
+                    <td>${escapeHtml(rel)}</td>
+                    <td>${escapeHtml(grpSangre)}</td>
+                    <td>${escapeHtml(lat)}</td>
                 </tr>
             </table>
 
@@ -536,17 +537,17 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 22%;">PUESTO QUE DESEMPEÑÓ</td>
                 </tr>
                 <tr class="text-center font-bold">
-                    <td>${orientacion}</td>
-                    <td>${idGen}</td>
-                    <td>${disc.tiene ? `SÍ (${disc.tipo} ${disc.porcentaje}%)` : 'NO'}</td>
-                    <td>${fecIngreso}</td>
-                    <td style="color: #dc2626;">${fecRetiro}</td>
-                    <td>${tiempoServicio}</td>
-                    <td class="uppercase" style="font-size: 7.5px;">${cargo} (CIUO: ${ciuo})</td>
+                    <td>${escapeHtml(orientacion)}</td>
+                    <td>${escapeHtml(idGen)}</td>
+                    <td>${disc.tiene ? `SÍ (${escapeHtml(disc.tipo)} ${escapeHtml(disc.porcentaje)}%)` : 'NO'}</td>
+                    <td>${escapeHtml(fecIngreso)}</td>
+                    <td style="color: #dc2626;">${escapeHtml(fecRetiro)}</td>
+                    <td>${escapeHtml(tiempoServicio)}</td>
+                    <td class="uppercase" style="font-size: 7.5px;">${escapeHtml(cargo)} (CIUO: ${escapeHtml(ciuo)})</td>
                 </tr>
                 <tr>
                     <td colspan="7" style="background: #f8fafc; padding: 3px 6px;">
-                        <strong>ACTIVIDADES DESARROLLADAS EN LA INSTITUCIÓN:</strong> <span class="uppercase font-bold">${actividades}</span> · <strong>TELÉFONO POST-LABORAL:</strong> ${tel}
+                        <strong>ACTIVIDADES DESARROLLADAS EN LA INSTITUCIÓN:</strong> <span class="uppercase font-bold">${escapeHtml(actividades)}</span> · <strong>TELÉFONO POST-LABORAL:</strong> ${escapeHtml(tel)}
                     </td>
                 </tr>
             </table>
@@ -558,8 +559,8 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 </tr>
                 <tr>
                     <td style="padding: 5px 8px; font-weight: bold; background: #fafafa;">
-                        CAUSA DE SALIDA: <span style="color: #002060;">${causaRetiro}</span><br />
-                        <span style="font-weight: normal; font-size: 8px;">DETALLE: ${motivo}</span>
+                        CAUSA DE SALIDA: <span style="color: #002060;">${escapeHtml(causaRetiro)}</span><br />
+                        <span style="font-weight: normal; font-size: 8px;">DETALLE: ${escapeHtml(motivo)}</span>
                     </td>
                 </tr>
             </table>
@@ -574,8 +575,8 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 </tr>
                 <tr>
                     <td colspan="4" style="padding: 4px 8px;">
-                        <div><strong>Clínicos:</strong> ${antClin}</div>
-                        <div><strong>Quirúrgicos:</strong> ${antQuir}</div>
+                        <div><strong>Clínicos:</strong> ${escapeHtml(antClin)}</div>
+                        <div><strong>Quirúrgicos:</strong> ${escapeHtml(antQuir)}</div>
                     </td>
                 </tr>
                 <tr class="bg-green">
@@ -597,21 +598,21 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                                 <td>PLANIFICACIÓN</td>
                             </tr>
                             <tr class="text-center font-bold">
-                                <td>${gin.menarquia || '-'}</td>
-                                <td>${gin.ciclos || '-'}</td>
-                                <td>${gin.fum || '-'}</td>
-                                <td>${gin.gestas ?? 0}</td>
-                                <td>${gin.partos ?? 0}</td>
-                                <td>${gin.cesareas ?? 0}</td>
-                                <td>${gin.abortos ?? 0}</td>
-                                <td>${gin.hijosVivos ?? 0}</td>
-                                <td>${gin.vidaSexualActiva ? 'SÍ' : 'NO'}</td>
-                                <td>${gin.planificacionFamiliar ? 'SÍ' : 'NO'}</td>
+                                <td>${escapeHtml(gin.menarquia || '-')}</td>
+                                <td>${escapeHtml(gin.ciclos || '-')}</td>
+                                <td>${escapeHtml(gin.fum || '-')}</td>
+                                <td>${escapeHtml(gin.gestas ?? 0)}</td>
+                                <td>${escapeHtml(gin.partos ?? 0)}</td>
+                                <td>${escapeHtml(gin.cesareas ?? 0)}</td>
+                                <td>${escapeHtml(gin.abortos ?? 0)}</td>
+                                <td>${escapeHtml(gin.hijosVivos ?? 0)}</td>
+                                <td>${escapeHtml(gin.vidaSexualActiva ? 'SÍ' : 'NO')}</td>
+                                <td>${escapeHtml(gin.planificacionFamiliar ? 'SÍ' : 'NO')}</td>
                             </tr>
                         </table>
                         <div style="padding: 2px 6px; font-size: 7.5px; background: #fafafa;">
-                            <strong>Papanicolaou:</strong> ${gin.papanicolaou?.realizada ? `SÍ (${gin.papanicolaou.tiempo} - ${gin.papanicolaou.resultado})` : 'NO'} | 
-                            <strong>Mamografía:</strong> ${gin.mamografia?.resultado || 'NO APLICA'}
+                            <strong>Papanicolaou:</strong> ${gin.papanicolaou?.realizada ? `SÍ (${escapeHtml(gin.papanicolaou.tiempo)} - ${escapeHtml(gin.papanicolaou.resultado)})` : 'NO'} | 
+                            <strong>Mamografía:</strong> ${escapeHtml(gin.mamografia?.resultado || 'NO APLICA')}
                         </div>
                     </td>
                 </tr>
@@ -619,10 +620,10 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td colspan="4">3. HÁBITOS TÓXICOS Y ESTILO DE VIDA</td>
                 </tr>
                 <tr class="text-center font-bold">
-                    <td style="width: 25%;">TABACO: ${hab.tabaco ? 'SÍ' : 'NO'}</td>
-                    <td style="width: 25%;">ALCOHOL: ${hab.alcohol ? 'SÍ' : 'NO'}</td>
-                    <td style="width: 25%;">ACTIVIDAD FÍSICA: ${hab.actividadFisica?.tiene ? `SÍ (${hab.actividadFisica.cual})` : 'NO'}</td>
-                    <td style="width: 25%;">MEDICACIÓN HABITUAL: ${hab.medicacionHabitual?.tiene ? `SÍ (${hab.medicacionHabitual.cual})` : 'NO'}</td>
+                    <td style="width: 25%;">TABACO: ${escapeHtml(hab.tabaco ? 'SÍ' : 'NO')}</td>
+                    <td style="width: 25%;">ALCOHOL: ${escapeHtml(hab.alcohol ? 'SÍ' : 'NO')}</td>
+                    <td style="width: 25%;">ACTIVIDAD FÍSICA: ${hab.actividadFisica?.tiene ? `SÍ (${escapeHtml(hab.actividadFisica.cual)})` : 'NO'}</td>
+                    <td style="width: 25%;">MEDICACIÓN HABITUAL: ${hab.medicacionHabitual?.tiene ? `SÍ (${escapeHtml(hab.medicacionHabitual.cual)})` : 'NO'}</td>
                 </tr>
             </table>
 
@@ -640,19 +641,19 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 14%;">OBSERVACIONES</td>
                 </tr>
                 ${empAnt.map((item, idx) => `
-                    <tr key="${idx}" class="text-center font-bold">
-                        <td class="text-left">${item.empresa}</td>
-                        <td>${item.puesto}</td>
-                        <td>${item.actividades}</td>
-                        <td>${item.tiempo}</td>
-                        <td style="font-size: 7px;">${item.riesgos?.fisico ? '[FÍSICO] ' : ''}${item.riesgos?.mecanico ? '[MECÁNICO] ' : ''}${item.riesgos?.ergonomico ? '[ERGONÓMICO]' : ''}</td>
-                        <td>${item.observaciones || 'NINGUNA'}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center font-bold">
+                        <td class="text-left">${escapeHtml(item.empresa)}</td>
+                        <td>${escapeHtml(item.puesto)}</td>
+                        <td>${escapeHtml(item.actividades)}</td>
+                        <td>${escapeHtml(item.tiempo)}</td>
+                        <td style="font-size: 7px;">${escapeHtml(item.riesgos?.fisico ? '[FÍSICO] ' : '')}${escapeHtml(item.riesgos?.mecanico ? '[MECÁNICO] ' : '')}${escapeHtml(item.riesgos?.ergonomico ? '[ERGONÓMICO]' : '')}</td>
+                        <td>${escapeHtml(item.observaciones || 'NINGUNA')}</td>
                     </tr>
                 `).join('')}
                 <tr>
                     <td colspan="6" style="padding: 4px 6px; background: #fafafa; font-size: 8px;">
-                        <div><strong>ACCIDENTES DE TRABAJO REGISTRADOS EN LA UEB:</strong> ${accTrab.calificado ? `SÍ (${accTrab.especificaciones})` : 'NO REGISTRA ACCIDENTES LABORALES EN EL PERÍODO DE SERVICIO'}</div>
-                        <div style="margin-top: 2px;"><strong>ENFERMEDADES PROFESIONALES CALIFICADAS POR IESS:</strong> ${enfProf.calificado ? `SÍ (${enfProf.especificaciones})` : 'NO REGISTRA ENFERMEDADES PROFESIONALES'}</div>
+                        <div><strong>ACCIDENTES DE TRABAJO REGISTRADOS EN LA UEB:</strong> ${accTrab.calificado ? `SÍ (${escapeHtml(accTrab.especificaciones)})` : 'NO REGISTRA ACCIDENTES LABORALES EN EL PERÍODO DE SERVICIO'}</div>
+                        <div style="margin-top: 2px;"><strong>ENFERMEDADES PROFESIONALES CALIFICADAS POR IESS:</strong> ${enfProf.calificado ? `SÍ (${escapeHtml(enfProf.especificaciones)})` : 'NO REGISTRA ENFERMEDADES PROFESIONALES'}</div>
                     </td>
                 </tr>
             </table>
@@ -685,7 +686,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td>[X] 1. CARDIO-VASCULAR | [ ] 2. METABÓLICA | [ ] 3. NEUROLÓGICA | [ ] 4. ONCOLÓGICA | [ ] 5. OTRAS</td>
                 </tr>
                 <tr>
-                    <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">${antFam.descripcion || 'FAMILIARES DIRECTOS CON ANTECEDENTE CARDIOVASCULAR CONTROLADO.'}</td>
+                    <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">${escapeHtml(antFam.descripcion || 'FAMILIARES DIRECTOS CON ANTECEDENTE CARDIOVASCULAR CONTROLADO.')}</td>
                 </tr>
             </table>
 
@@ -702,18 +703,18 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 20%;">ERGONÓMICO / PSICOSOCIAL</td>
                 </tr>
                 <tr style="font-size: 7.5px;">
-                    <td class="font-bold uppercase">${factRiesgo.puesto || cargo}</td>
-                    <td class="font-bold uppercase">${factRiesgo.actividades || actividades}</td>
-                    <td>${(factRiesgo.fisico || []).map(f => `• ${f}`).join('<br>') || 'Ninguno'}</td>
-                    <td>${(factRiesgo.mecanico || []).map(m => `• ${m}`).join('<br>') || 'Ninguno'}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.puesto || cargo)}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.actividades || actividades)}</td>
+                    <td>${(factRiesgo.fisico || []).map(f => `• ${escapeHtml(f)}`).join('<br>') || 'Ninguno'}</td>
+                    <td>${(factRiesgo.mecanico || []).map(m => `• ${escapeHtml(m)}`).join('<br>') || 'Ninguno'}</td>
                     <td>
-                        <strong>Ergonómico:</strong><br>${(factRiesgo.ergonomico || []).map(e => `• ${e}`).join('<br>') || 'Ninguno'}<br>
-                        <strong>Psicosocial:</strong><br>${(factRiesgo.psicosocial || []).map(p => `• ${p}`).join('<br>') || 'Ninguno'}
+                        <strong>Ergonómico:</strong><br>${(factRiesgo.ergonomico || []).map(e => `• ${escapeHtml(e)}`).join('<br>') || 'Ninguno'}<br>
+                        <strong>Psicosocial:</strong><br>${(factRiesgo.psicosocial || []).map(p => `• ${escapeHtml(p)}`).join('<br>') || 'Ninguno'}
                     </td>
                 </tr>
                 <tr>
                     <td colspan="5" style="padding: 3px 6px; font-size: 7.5px; background: #fafafa;">
-                        <strong>MEDIDAS DE PROTECCIÓN Y CONTROL APLICADAS DURANTE SU GESTIÓN:</strong> ${factRiesgo.medidasPreventivas}
+                        <strong>MEDIDAS DE PROTECCIÓN Y CONTROL APLICADAS DURANTE SU GESTIÓN:</strong> ${escapeHtml(factRiesgo.medidasPreventivas)}
                     </td>
                 </tr>
             </table>
@@ -724,7 +725,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td class="bg-purple">G. ACTIVIDADES EXTRA LABORALES</td>
                 </tr>
                 <tr>
-                    <td style="padding: 4px 8px; font-weight: bold;">${actExtra}</td>
+                    <td style="padding: 4px 8px; font-weight: bold;">${escapeHtml(actExtra)}</td>
                 </tr>
             </table>
 
@@ -734,7 +735,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td class="bg-purple">H. SINTOMATOLOGÍA ACTUAL AL MOMENTO DEL CESE / EGRESO LABORAL</td>
                 </tr>
                 <tr>
-                    <td style="padding: 5px 8px; font-weight: bold; background: #fafafa;">${enfAct}</td>
+                    <td style="padding: 5px 8px; font-weight: bold; background: #fafafa;">${escapeHtml(enfAct)}</td>
                 </tr>
             </table>
 
@@ -759,7 +760,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 </tr>
                 <tr>
                     <td colspan="5" style="padding: 3px 6px; background: #fafafa; font-size: 8px;">
-                        <strong>DESCRIPCIÓN:</strong> ${orgSist.descripcion || 'Aparatos y sistemas evaluados sin sintomatología clínica activa.'}
+                        <strong>DESCRIPCIÓN:</strong> ${escapeHtml(orgSist.descripcion || 'Aparatos y sistemas evaluados sin sintomatología clínica activa.')}
                     </td>
                 </tr>
             </table>
@@ -781,15 +782,15 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td>PERÍMETRO ABD.</td>
                 </tr>
                 <tr class="text-center font-bold">
-                    <td style="color: #0284c7;">${constantes.pa} mmHg</td>
-                    <td>${constantes.temp} °C</td>
-                    <td>${constantes.fc} lpm</td>
-                    <td>${constantes.satO2}%</td>
-                    <td>${constantes.fr} rpm</td>
-                    <td>${constantes.peso} Kg</td>
-                    <td>${constantes.talla} m</td>
-                    <td style="background: #f0fdf4; color: #166534;">${constantes.imc}</td>
-                    <td>${constantes.perimetroAbd} cm</td>
+                    <td style="color: #0284c7;">${escapeHtml(constantes.pa)} mmHg</td>
+                    <td>${escapeHtml(constantes.temp)} °C</td>
+                    <td>${escapeHtml(constantes.fc)} lpm</td>
+                    <td>${escapeHtml(constantes.satO2)}%</td>
+                    <td>${escapeHtml(constantes.fr)} rpm</td>
+                    <td>${escapeHtml(constantes.peso)} Kg</td>
+                    <td>${escapeHtml(constantes.talla)} m</td>
+                    <td style="background: #f0fdf4; color: #166534;">${escapeHtml(constantes.imc)}</td>
+                    <td>${escapeHtml(constantes.perimetroAbd)} cm</td>
                 </tr>
             </table>
         </div>
@@ -833,7 +834,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 </tr>
                 <tr>
                     <td colspan="5" style="padding: 4px 8px; font-weight: bold; background: #fafafa;">
-                        HALLAZGOS CLÍNICOS AL CESE: ${exFisico}
+                        HALLAZGOS CLÍNICOS AL CESE: ${escapeHtml(exFisico)}
                     </td>
                 </tr>
             </table>
@@ -849,10 +850,10 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 45%;">RESULTADOS DE CONTROL</td>
                 </tr>
                 ${exLab.map((item, idx) => `
-                    <tr key="${idx}" class="text-center font-bold">
-                        <td class="text-left">${item.examen}</td>
-                        <td>${item.fecha || fecRetiro}</td>
-                        <td style="color: #0284c7;">${item.resultado}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center font-bold">
+                        <td class="text-left">${escapeHtml(item.examen)}</td>
+                        <td>${escapeHtml(item.fecha || fecRetiro)}</td>
+                        <td style="color: #0284c7;">${escapeHtml(item.resultado)}</td>
                     </tr>
                 `).join('')}
             </table>
@@ -873,12 +874,12 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td style="width: 8%;">DEF</td>
                 </tr>
                 ${diags.map((d, idx) => `
-                    <tr key="${idx}" class="text-center font-bold">
-                        <td>${d.num || idx + 1}</td>
-                        <td class="text-left">${d.desc}</td>
-                        <td>${d.cie}</td>
-                        <td>${d.pre ? 'X' : ''}</td>
-                        <td>${d.def ? 'X' : ''}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center font-bold">
+                        <td>${escapeHtml(d.num || idx + 1)}</td>
+                        <td class="text-left">${escapeHtml(d.desc)}</td>
+                        <td>${escapeHtml(d.cie)}</td>
+                        <td>${escapeHtml(d.pre ? 'X' : '')}</td>
+                        <td>${escapeHtml(d.def ? 'X' : '')}</td>
                     </tr>
                 `).join('')}
             </table>
@@ -889,20 +890,20 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                     <td colspan="3" class="bg-purple">N. DICTAMEN DE LA CONDICIÓN DE SALUD AL RETIRO / CESE LABORAL</td>
                 </tr>
                 <tr class="text-center font-bold" style="font-size: 9px;">
-                    <td style="width: 33%; padding: 6px; background: ${condSalida.satisfactorio ? '#dcfce7' : '#ffffff'}; color: ${condSalida.satisfactorio ? '#15803d' : '#000000'};">
-                        ${condSalida.satisfactorio ? '☑' : '☐'} SATISFACTORIO (SIN SECUELAS LABORALES)
+                    <td style="width: 33%; padding: 6px; background: ${escapeHtml(condSalida.satisfactorio ? '#dcfce7' : '#ffffff')}; color: ${escapeHtml(condSalida.satisfactorio ? '#15803d' : '#000000')};">
+                        ${escapeHtml(condSalida.satisfactorio ? '☑' : '☐')} SATISFACTORIO (SIN SECUELAS LABORALES)
                     </td>
-                    <td style="width: 33%; padding: 6px; background: ${condSalida.conPatologiaComun ? '#fffbeb' : '#ffffff'}; color: ${condSalida.conPatologiaComun ? '#b45309' : '#000000'};">
-                        ${condSalida.conPatologiaComun ? '☑' : '☐'} CON PATOLOGÍA COMÚN NO LABORAL
+                    <td style="width: 33%; padding: 6px; background: ${escapeHtml(condSalida.conPatologiaComun ? '#fffbeb' : '#ffffff')}; color: ${escapeHtml(condSalida.conPatologiaComun ? '#b45309' : '#000000')};">
+                        ${escapeHtml(condSalida.conPatologiaComun ? '☑' : '☐')} CON PATOLOGÍA COMÚN NO LABORAL
                     </td>
-                    <td style="width: 34%; padding: 6px; background: ${condSalida.conSecuelaLaboral ? '#fef2f2' : '#ffffff'}; color: ${condSalida.conSecuelaLaboral ? '#dc2626' : '#000000'};">
-                        ${condSalida.conSecuelaLaboral ? '☑' : '☐'} CON SECUELA O ENFERMEDAD LABORAL
+                    <td style="width: 34%; padding: 6px; background: ${escapeHtml(condSalida.conSecuelaLaboral ? '#fef2f2' : '#ffffff')}; color: ${escapeHtml(condSalida.conSecuelaLaboral ? '#dc2626' : '#000000')};">
+                        ${escapeHtml(condSalida.conSecuelaLaboral ? '☑' : '☐')} CON SECUELA O ENFERMEDAD LABORAL
                     </td>
                 </tr>
                 <tr>
                     <td colspan="3" style="padding: 5px 8px; font-size: 8px;">
-                        <div><strong>Observaciones de Salida:</strong> ${condSalida.observacion}</div>
-                        <div style="margin-top: 2px;"><strong>Criterio Médico-Legal:</strong> ${condSalida.recomendacionLegal}</div>
+                        <div><strong>Observaciones de Salida:</strong> ${escapeHtml(condSalida.observacion)}</div>
+                        <div style="margin-top: 2px;"><strong>Criterio Médico-Legal:</strong> ${escapeHtml(condSalida.recomendacionLegal)}</div>
                     </td>
                 </tr>
             </table>
@@ -915,7 +916,7 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 <tr>
                     <td style="padding: 4px 8px; font-size: 8px;">
                         <ol style="margin: 0; padding-left: 16px;">
-                            ${recs.map((rec, i) => `<li key="${i}"><strong>${rec}</strong></li>`).join('')}
+                            ${recs.map((rec, i) => `<li key="${escapeHtml(i)}"><strong>${escapeHtml(rec)}</strong></li>`).join('')}
                         </ol>
                     </td>
                 </tr>
@@ -935,19 +936,19 @@ export const compileOfficialRetiroFormHtml = (record = {}, uebBannerLogo = '', f
                 <tr>
                     <td style="padding: 6px; vertical-align: top;">
                         <div style="display: flex; gap: 14px; margin-bottom: 4px; font-size: 8px;">
-                            <div><strong>FECHA:</strong> ${prof.fecha}</div>
-                            <div><strong>HORA:</strong> ${prof.hora}</div>
-                            <div><strong>CÓDIGO:</strong> ${prof.codigo}</div>
+                            <div><strong>FECHA:</strong> ${escapeHtml(prof.fecha)}</div>
+                            <div><strong>HORA:</strong> ${escapeHtml(prof.hora)}</div>
+                            <div><strong>CÓDIGO:</strong> ${escapeHtml(prof.codigo)}</div>
                         </div>
                         <div style="font-size: 8.5px;">
-                            <strong>MÉDICO OCUPACIONAL:</strong> <span class="uppercase font-bold">${prof.nombre}</span><br />
+                            <strong>MÉDICO OCUPACIONAL:</strong> <span class="uppercase font-bold">${escapeHtml(prof.nombre)}</span><br />
                             <span style="font-size: 7.5px; color: #555;">Unidad de Seguridad y Salud en el Trabajo · UEB</span>
                         </div>
                     </td>
                     <td style="text-align: center; padding: 10px 6px; vertical-align: bottom;">
                         <div style="border-top: 1px solid #000; width: 80%; margin: 28px auto 2px auto;"></div>
                         <div style="font-weight: bold; font-size: 8px;">FIRMA DEL TRABAJADOR</div>
-                        <div style="font-size: 7.5px; color: #555;">C.I.: ${ced}</div>
+                        <div style="font-size: 7.5px; color: #555;">C.I.: ${escapeHtml(ced)}</div>
                     </td>
                 </tr>
             </table>
@@ -1052,7 +1053,7 @@ export default function OfficialFichaRetiroModal({
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                background: '#0284c7',
+                                background: '#0369a1',
                                 color: '#ffffff',
                                 fontWeight: '700',
                                 padding: '7px 14px',
@@ -1064,7 +1065,7 @@ export default function OfficialFichaRetiroModal({
                         >
                             <Printer size={15} /> Imprimir Formulario Retiro (A4)
                         </button>
-                        <button
+                        <button aria-label="Cerrar"
                             type="button"
                             className="clinical-modal__close"
                             onClick={onClose}

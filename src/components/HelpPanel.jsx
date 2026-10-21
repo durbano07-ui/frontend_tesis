@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { HelpCircle, X, ChevronDown, ChevronRight, BookOpen, Phone, Mail, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { HelpCircle, X, ChevronDown, ChevronRight, BookOpen, Mail, Shield } from 'lucide-react';
 import '../help-panel.css';
 
 /**
@@ -48,7 +48,7 @@ const HelpPanel = ({
                         <h3>Centro de Ayuda</h3>
                         <p>Guía rápida del sistema</p>
                     </div>
-                    <button className="sys-help-panel__close" onClick={() => setIsOpen(false)}>
+                    <button aria-label="Cerrar" className="sys-help-panel__close" onClick={() => setIsOpen(false)}>
                         <X size={16} />
                     </button>
                 </div>

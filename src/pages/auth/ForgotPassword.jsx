@@ -5,7 +5,7 @@ import AuthFlipCard from '../../components/AuthFlipCard';
 import '../../auth.css';
 
 // Importación de recursos
-import UEBLogo from '../../assets/leftUEB.png';
+import UEBLogo from '../../assets/leftUEB.webp';
 
 // Iconos de Lucide
 import {

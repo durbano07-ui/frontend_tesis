@@ -1,25 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api/axios';
 import './VitalSignsHistogram.css';
-import {
-    Activity,
-    HeartPulse,
-    Thermometer,
-    Wind,
-    Scale,
-    BarChart3,
-    TrendingUp,
-    Filter,
-    X,
-    User,
-    Calendar,
-    Search,
-    RefreshCw,
-    UserCheck,
-    AlertCircle,
-    Info,
-    LineChart as LineIcon
-} from 'lucide-react';
+import { Activity, HeartPulse, Thermometer, Wind, Scale, BarChart3, Filter, X, Calendar, Search, RefreshCw, UserCheck, Info, LineChart as LineIcon } from 'lucide-react';
+import { onKeyActivate } from '../a11y/keyboard';
 
 const VITAL_CONFIGS = {
     pas: {
@@ -486,6 +469,7 @@ const VitalSignsHistogram = ({
                     <div className="vitals-search-input-group">
                         <Search size={18} />
                         <input
+                            aria-label="Ingrese nombre completo o número de cédula del paciente"
                             type="text"
                             placeholder="Ingrese nombre completo o número de cédula del paciente..."
                             value={searchQuery}
@@ -505,6 +489,7 @@ const VitalSignsHistogram = ({
                         <div className="vitals-search-results">
                             {searchResults.map((p) => (
                                 <div
+                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                     key={p.id_usuario || p.id}
                                     className="vitals-search-item"
                                     onClick={() => handleSelectPatient(p)}
@@ -576,6 +561,7 @@ const VitalSignsHistogram = ({
                     <Filter size={15} style={{ color: '#2563eb' }} />
                     <span style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>Signo Vital:</span>
                     <select
+                        aria-label="Signo Vital"
                         value={selectedMetric}
                         onChange={(e) => setSelectedMetric(e.target.value)}
                         style={{
@@ -608,7 +594,7 @@ const VitalSignsHistogram = ({
                             borderRadius: '8px',
                             border: 'none',
                             background: viewMode === 'line' ? '#ffffff' : 'transparent',
-                            color: viewMode === 'line' ? '#0f172a' : '#64748b',
+                            color: viewMode === 'line' ? '#0f172a' : '#475569',
                             fontWeight: 700,
                             fontSize: '12.5px',
                             cursor: 'pointer',
@@ -628,7 +614,7 @@ const VitalSignsHistogram = ({
                             borderRadius: '8px',
                             border: 'none',
                             background: viewMode === 'histogram' ? '#ffffff' : 'transparent',
-                            color: viewMode === 'histogram' ? '#0f172a' : '#64748b',
+                            color: viewMode === 'histogram' ? '#0f172a' : '#475569',
                             fontWeight: 700,
                             fontSize: '12.5px',
                             cursor: 'pointer',
@@ -682,7 +668,7 @@ const VitalSignsHistogram = ({
                 </div>
             ) : !activePatient ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fafafa', borderRadius: '16px', border: '2px dashed #cbd5e1' }}>
-                    <Search size={36} style={{ color: '#94a3b8', marginBottom: '10px' }} />
+                    <Search size={36} style={{ color: '#64748b', marginBottom: '10px' }} />
                     <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: 700 }}>Busca a un paciente para generar su evolución</h4>
                     <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
                         Ingresa la cédula o nombre en el buscador superior para analizar su historial completo de signos vitales.
@@ -690,7 +676,7 @@ const VitalSignsHistogram = ({
                 </div>
             ) : validValues.length === 0 ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fafafa', borderRadius: '16px', border: '2px dashed #cbd5e1' }}>
-                    <Info size={36} style={{ color: '#94a3b8', marginBottom: '10px' }} />
+                    <Info size={36} style={{ color: '#64748b', marginBottom: '10px' }} />
                     <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: 700 }}>Sin mediciones en el historial</h4>
                     <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
                         El paciente <strong>{activePatient.nombre_completo || activePatient.name}</strong> aún no posee registros de <strong>{activeConfig.label}</strong> en sus consultas clínicas.
@@ -969,7 +955,7 @@ const VitalSignsHistogram = ({
                             <BarChart3 size={18} style={{ color: activeConfig.color }} />
                             Distribución de Frecuencia ({validValues.length} lecturas en el historial)
                         </h4>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', padding: '4px 10px', borderRadius: '20px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', background: '#f1f5f9', padding: '4px 10px', borderRadius: '20px' }}>
                             Rango normal: {activeConfig.normalMin} - {activeConfig.normalMax} {activeConfig.unit}
                         </span>
                     </div>
@@ -1074,13 +1060,13 @@ const VitalSignsHistogram = ({
                             <h3 style={{ margin: 0, fontSize: '16.5px', fontWeight: 700, color: '#ffffff' }}>
                                 Evolución e Historial de Signos Vitales por Paciente
                             </h3>
-                            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
                                 Seguimiento longitudinal en gráfico de líneas desde la primera cita médica.
                             </p>
                         </div>
                     </div>
                     {onClose && (
-                        <button
+                        <button aria-label="Cerrar"
                             type="button"
                             onClick={onClose}
                             style={{

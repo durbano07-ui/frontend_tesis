@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { DRAFT_PREFIX } from '../stores/authStore';
+
+// OWASP ASVS V8.2.2: los borradores contienen datos clínicos; se guardan en sessionStorage
+// (se borran al cerrar la pestaña) y se eliminan al cerrar sesión (authStore.logout).
+const draftStorage = window.sessionStorage;
 
 /**
  * Custom hook for real-time local auto-drafting and offline resilience in clinical forms.
@@ -14,7 +19,7 @@ export const useClinicalDraft = (moduleKey, doctorId, patientId) => {
     const debounceTimerRef = useRef(null);
 
     const storageKey = moduleKey && doctorId && patientId 
-        ? `bu_draft_${moduleKey}_doc${doctorId}_pat${patientId}` 
+        ? `${DRAFT_PREFIX}${moduleKey}_doc${doctorId}_pat${patientId}` 
         : null;
 
     // Monitor internet connectivity
@@ -31,7 +36,7 @@ export const useClinicalDraft = (moduleKey, doctorId, patientId) => {
         };
     }, []);
 
-    // Save draft data to localStorage
+    // Save draft data to sessionStorage
     const saveDraft = useCallback((formData) => {
         if (!storageKey || !formData) return;
 
@@ -46,7 +51,7 @@ export const useClinicalDraft = (moduleKey, doctorId, patientId) => {
                     updatedAt: timestamp,
                     formData
                 };
-                localStorage.setItem(storageKey, JSON.stringify(payload));
+                draftStorage.setItem(storageKey, JSON.stringify(payload));
                 setDraftLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
             } catch (err) {
                 console.warn('Error al guardar borrador local:', err);
@@ -54,11 +59,11 @@ export const useClinicalDraft = (moduleKey, doctorId, patientId) => {
         }, 400);
     }, [storageKey]);
 
-    // Load draft from localStorage
+    // Load draft from sessionStorage
     const loadDraft = useCallback(() => {
         if (!storageKey) return null;
         try {
-            const raw = localStorage.getItem(storageKey);
+            const raw = draftStorage.getItem(storageKey);
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             return parsed;
@@ -68,11 +73,11 @@ export const useClinicalDraft = (moduleKey, doctorId, patientId) => {
         }
     }, [storageKey]);
 
-    // Clear draft from localStorage
+    // Clear draft from sessionStorage
     const clearDraft = useCallback(() => {
         if (!storageKey) return;
         try {
-            localStorage.removeItem(storageKey);
+            draftStorage.removeItem(storageKey);
             setDraftLastSaved(null);
         } catch (err) {
             console.warn('Error al limpiar borrador local:', err);

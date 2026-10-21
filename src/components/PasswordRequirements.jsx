@@ -1,5 +1,5 @@
-import React from 'react';
 import { Check, X, ShieldCheck } from 'lucide-react';
+import './PasswordRequirements.css';
 
 export default function PasswordRequirements({ password = '' }) {
     const val = password || '';
@@ -8,30 +8,33 @@ export default function PasswordRequirements({ password = '' }) {
         return null;
     }
 
+    // Política OWASP ASVS V2.1: mínimo 12 caracteres y sin reglas de composición obligatorias.
+    // Solo la longitud es obligatoria; el resto son recomendaciones para el medidor (V2.1.8).
     const requirements = [
         {
             id: 'length',
-            label: 'Mínimo 8 caracteres',
-            met: val.length >= 8
+            label: 'Mínimo 12 caracteres (obligatorio)',
+            met: val.length >= 12
         },
         {
-            id: 'uppercase',
-            label: 'Una mayúscula (A-Z)',
-            met: /[A-Z]/.test(val)
+            id: 'long',
+            label: 'Ideal: 16 o más (una frase sirve)',
+            met: val.length >= 16
         },
         {
-            id: 'number',
-            label: 'Un número (0-9)',
-            met: /[0-9]/.test(val)
+            id: 'mix',
+            label: 'Combina letras con números o símbolos',
+            met: /[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(val) && /[^A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(val)
         },
         {
-            id: 'special',
-            label: 'Un símbolo (@, $, !, %, #, *)',
-            met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)
+            id: 'pattern',
+            label: 'Sin secuencias obvias (aaaa, 1234)',
+            met: val.length > 0 && !/(.)\1{3,}/.test(val) && !/(0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(val)
         }
     ];
 
-    const metCount = requirements.filter(r => r.met).length;
+    // Por debajo del mínimo obligatorio la contraseña siempre es débil
+    const metCount = val.length < 12 ? Math.min(1, requirements.filter(r => r.met).length) : requirements.filter(r => r.met).length;
 
     // Strength levels
     let strengthText = 'Débil';

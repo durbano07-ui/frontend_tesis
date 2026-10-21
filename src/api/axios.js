@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, getAuthToken } from '../stores/authStore';
 
 const api = axios.create({
     // Base API URL configuration
@@ -12,7 +12,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('auth_token');
+        const token = getAuthToken();
         if (token && !config.headers.Authorization) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -21,9 +21,23 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// El backend expira el token tras un tiempo sin peticiones (ExpireInactiveTokens).
+// Se guarda la hora de la última respuesta para avisar al usuario antes de que ocurra.
+export const LAST_ACTIVITY_KEY = 'auth_last_activity';
+
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        try { sessionStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now())); } catch { /* sin almacenamiento */ }
+        return response;
+    },
     (error) => {
+        // ISO/IEC 25010 — Fiabilidad: los fallos de conexión y del servidor se notifican de forma
+        // global (A11yShell). Antes algunos módulos mostraban listas vacías sin avisar.
+        if (!error.response || error.response.status >= 500) {
+            window.dispatchEvent(new CustomEvent('api:unavailable', {
+                detail: { offline: !error.response, status: error.response?.status },
+            }));
+        }
         if (error.response && error.response.status === 401) {
             if (!window.location.pathname.endsWith('/login')) {
                 useAuthStore.getState().logout();

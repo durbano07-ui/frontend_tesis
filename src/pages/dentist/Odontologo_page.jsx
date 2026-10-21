@@ -8,61 +8,16 @@ import '../../dentist.css'; // Estilos específicos de odontología
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
-import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { headerBienestar } from '../../assets/headerBienestarBase64.js';
 import { logoUebTexto } from '../../assets/logoUebTextoBase64.js';
 
-import {
-    Menu,
-    LogOut,
-    Bell,
-    Search,
-    X,
-    Filter,
-    Save,
-    History,
-    FileText,
-    FileCheck,
-    Printer,
-    Plus,
-    Minus,
-    Pencil,
-    Calendar,
-    ChevronDown,
-    ChevronUp,
-    ChevronLeft,
-    ChevronRight,
-    Activity,
-    ClipboardList,
-    CheckCircle,
-    AlertTriangle,
-    Stethoscope,
-    User,
-    UserCheck,
-    UserPlus,
-    HeartHandshake,
-    Shield,
-    CalendarCheck,
-    CalendarDays,
-    Info,
-    TrendingUp,
-    BookOpen,
-    Package,
-    Trash2,
-    RefreshCw,
-    PlusCircle,
-    Edit,
-    Hash,
-    Clock,
-    BriefcaseMedical,
-    MapPin,
-    Eye,
-    EyeOff,
-    Mail,
-    Pill
-} from 'lucide-react';
+import { Menu, LogOut, Search, X, Filter, Save, FileText, FileCheck, Printer, Plus, Minus, Pencil, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserCheck, UserPlus, HeartHandshake, Shield, CalendarCheck, CalendarDays, Info, TrendingUp, Package, Trash2, PlusCircle, Hash, Clock, BriefcaseMedical, MapPin, Mail, Pill } from 'lucide-react';
+import { onKeyActivate } from '../../a11y/keyboard';
+import { escapeHtml } from '../../utils/escapeHtml';
+import { buildGeneralReportHtml } from './reports/generalReport';
+import { buildCurativasNarrative, buildFacultyNarrative, buildGenderNarrative, buildProcedimientosMorbilidadNarrative, buildProcedimientosPreventivosNarrative, defaultFacultyCareers } from './reports/narratives';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -324,7 +279,7 @@ const Odontologo_page = () => {
                 <html lang="es">
                 <head>
                     <meta charset="UTF-8">
-                    <title>${isReposo ? 'Certificado de Reposo' : 'Certificado de Asistencia'} - ${patientName}</title>
+                    <title>${escapeHtml(isReposo ? 'Certificado de Reposo' : 'Certificado de Asistencia')} - ${escapeHtml(patientName)}</title>
                     <style>
                         @page {
                             size: A4 portrait;
@@ -449,18 +404,18 @@ const Odontologo_page = () => {
 
                         ${!isReposo ? `
                         <div class="doctor-sub-header">
-                            <strong>${doctorName}</strong>
+                            <strong>${escapeHtml(doctorName)}</strong>
                             <span>Odontóloga de Bienestar Universitario</span>
                         </div>
                         ` : ''}
 
                         <div class="cert-title">
-                            ${isReposo ? 'CERTIFICADO DE REPOSO' : 'CERTIFICADO DE ASISTENCIA'}
+                            ${escapeHtml(isReposo ? 'CERTIFICADO DE REPOSO' : 'CERTIFICADO DE ASISTENCIA')}
                         </div>
 
                         <div class="cert-body">
                             <p>
-                                Por medio de la presente certifico haber atendido al paciente <strong>${patientName}</strong>, con cédula de identidad <strong>${cedula}</strong>, es atendido en el horario de <strong>${horario}</strong>, por presentar odontalgia con Diagnóstico Definitivo <strong>${diag}${cie10Text}</strong>${isReposo ? `${piezaText}. Necesita reposo de <strong>${tiempoReposo}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.` : `, Se realiza <strong>${proc}</strong>, <strong>NO NECESITA REPOSO</strong>.`}
+                                Por medio de la presente certifico haber atendido al paciente <strong>${escapeHtml(patientName)}</strong>, con cédula de identidad <strong>${escapeHtml(cedula)}</strong>, es atendido en el horario de <strong>${escapeHtml(horario)}</strong>, por presentar odontalgia con Diagnóstico Definitivo <strong>${escapeHtml(diag)}${escapeHtml(cie10Text)}</strong>${isReposo ? `${escapeHtml(piezaText)}. Necesita reposo de <strong>${escapeHtml(tiempoReposo)}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.` : `, Se realiza <strong>${escapeHtml(proc)}</strong>, <strong>NO NECESITA REPOSO</strong>.`}
                             </p>
                             <p>
                                 Por el cual el paciente puede hacer uso de este documento para trámites académicos.
@@ -468,12 +423,12 @@ const Odontologo_page = () => {
                         </div>
 
                         <div class="cert-date">
-                            Guaranda, ${fechaEmisionTexto}
+                            Guaranda, ${escapeHtml(fechaEmisionTexto)}
                         </div>
 
                         <div class="signature-section">
                             <div class="signature-line"></div>
-                            <div class="signature-name">${doctorName}</div>
+                            <div class="signature-name">${escapeHtml(doctorName)}</div>
                             <div class="signature-role">Odontóloga de Bienestar Universitario</div>
                         </div>
                     </div>
@@ -891,9 +846,6 @@ const Odontologo_page = () => {
         setTimeout(() => setToast({ show: false, message: '' }), 3400);
     };
 
-    const toggleAccordion = (key) => {
-        setActiveAccordion(prev => (prev === key ? '' : key));
-    };
 
     // Catálogo de Procedimientos Odontológicos
     const [proceduresCatalog, setProceduresCatalog] = useState([]);
@@ -1181,6 +1133,7 @@ const Odontologo_page = () => {
     const fetchPatientFicha = async (patientId) => {
         setFichaLoading(true);
         try {
+            const today = new Date().toISOString().slice(0, 10);
             const [motivoRes, examenRes, periodontalRes, diarioRes] = await Promise.all([
                 api.get('/odontologia/motivo-consulta', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/examen', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
@@ -1255,7 +1208,7 @@ const Odontologo_page = () => {
         }
     };
 
-    // Auto-save form draft to localStorage
+    // Auto-save form draft to sessionStorage
     useEffect(() => {
         if (selectedPatient && fichaForm) {
             saveDraft(fichaForm);
@@ -1763,31 +1716,31 @@ const Odontologo_page = () => {
 
             return `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td class="left-align font-bold">${fullName}</td>
-                    <td>${cedula}</td>
-                    <td>${disability || '—'}</td>
-                    <td>${age}</td>
-                    <td>${isMale ? 'X' : ''}</td>
-                    <td>${isFemale ? 'X' : ''}</td>
-                    <td>${isLgbti ? 'X' : ''}</td>
-                    <td>${isAdministrativo ? 'X' : ''}</td>
-                    <td>${isDocente ? 'X' : ''}</td>
-                    <td>${isEstudiante ? 'X' : ''}</td>
-                    <td>${isPrimera ? 'X' : ''}</td>
-                    <td>${isSubsecuente ? 'X' : ''}</td>
-                    <td>${isEmision ? 'X' : ''}</td>
-                    <td>${isValidacion ? 'X' : ''}</td>
-                    <td class="left-align">${item.detalle_diagnostico}</td>
+                    <td>${escapeHtml(idx + 1)}</td>
+                    <td class="left-align font-bold">${escapeHtml(fullName)}</td>
+                    <td>${escapeHtml(cedula)}</td>
+                    <td>${escapeHtml(disability || '—')}</td>
+                    <td>${escapeHtml(age)}</td>
+                    <td>${escapeHtml(isMale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isFemale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isLgbti ? 'X' : '')}</td>
+                    <td>${escapeHtml(isAdministrativo ? 'X' : '')}</td>
+                    <td>${escapeHtml(isDocente ? 'X' : '')}</td>
+                    <td>${escapeHtml(isEstudiante ? 'X' : '')}</td>
+                    <td>${escapeHtml(isPrimera ? 'X' : '')}</td>
+                    <td>${escapeHtml(isSubsecuente ? 'X' : '')}</td>
+                    <td>${escapeHtml(isEmision ? 'X' : '')}</td>
+                    <td>${escapeHtml(isValidacion ? 'X' : '')}</td>
+                    <td class="left-align">${escapeHtml(item.detalle_diagnostico)}</td>
                     <td>${isProfilaxis ? 'X' : ''}</td>
-                    <td>${isFluoriz ? 'X' : ''}</td>
-                    <td>${isDestar ? 'X' : ''}</td>
-                    <td>${isRestProv ? 'X' : ''}</td>
-                    <td>${isRestRes ? 'X' : ''}</td>
-                    <td>${isDesgaste ? 'X' : ''}</td>
-                    <td>${isExo ? 'X' : ''}</td>
-                    <td>${isReceta ? 'X' : ''}</td>
-                    <td>${isRx ? 'X' : ''}</td>
+                    <td>${escapeHtml(isFluoriz ? 'X' : '')}</td>
+                    <td>${escapeHtml(isDestar ? 'X' : '')}</td>
+                    <td>${escapeHtml(isRestProv ? 'X' : '')}</td>
+                    <td>${escapeHtml(isRestRes ? 'X' : '')}</td>
+                    <td>${escapeHtml(isDesgaste ? 'X' : '')}</td>
+                    <td>${escapeHtml(isExo ? 'X' : '')}</td>
+                    <td>${escapeHtml(isReceta ? 'X' : '')}</td>
+                    <td>${escapeHtml(isRx ? 'X' : '')}</td>
                 </tr>
             `;
         }).join('');
@@ -1797,7 +1750,7 @@ const Odontologo_page = () => {
         for (let i = 0; i < emptyRowsCount; i++) {
             emptyRowsHtml += `
                 <tr>
-                    <td>${detailedList.length + i + 1}</td>
+                    <td>${escapeHtml(detailedList.length + i + 1)}</td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -1837,7 +1790,7 @@ const Odontologo_page = () => {
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Parte Diario de Odontología - ${formattedDate}</title>
+                <title>Parte Diario de Odontología - ${escapeHtml(formattedDate)}</title>
                 <style>
                     @page {
                         size: A4 landscape;
@@ -2029,7 +1982,7 @@ const Odontologo_page = () => {
                     <div>
                         <header class="header">
                             <div class="header-logo">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
@@ -2043,7 +1996,7 @@ const Odontologo_page = () => {
 
                         <div class="meta-info">
                             <div class="date-box">
-                                FECHA: <strong>${formattedDate}</strong>
+                                FECHA: <strong>${escapeHtml(formattedDate)}</strong>
                             </div>
                         </div>
 
@@ -2089,26 +2042,26 @@ const Odontologo_page = () => {
                                 ${emptyRowsHtml}
                                 <tr class="bg-totals">
                                     <td colspan="5" class="left-align font-bold">TOTAL</td>
-                                    <td>${sumHombre}</td>
-                                    <td>${sumMujer}</td>
-                                    <td>${sumLgbti}</td>
-                                    <td>${sumAdministrativo}</td>
-                                    <td>${sumDocente}</td>
-                                    <td>${sumEstudiante}</td>
-                                    <td>${sumPrimera}</td>
-                                    <td>${sumSubsecuente}</td>
-                                    <td>${sumEmision}</td>
-                                    <td>${sumValidacion}</td>
+                                    <td>${escapeHtml(sumHombre)}</td>
+                                    <td>${escapeHtml(sumMujer)}</td>
+                                    <td>${escapeHtml(sumLgbti)}</td>
+                                    <td>${escapeHtml(sumAdministrativo)}</td>
+                                    <td>${escapeHtml(sumDocente)}</td>
+                                    <td>${escapeHtml(sumEstudiante)}</td>
+                                    <td>${escapeHtml(sumPrimera)}</td>
+                                    <td>${escapeHtml(sumSubsecuente)}</td>
+                                    <td>${escapeHtml(sumEmision)}</td>
+                                    <td>${escapeHtml(sumValidacion)}</td>
                                     <td></td>
                                     <td>${sumProfilaxis}</td>
-                                    <td>${sumFluor}</td>
-                                    <td>${sumDestar}</td>
-                                    <td>${sumRestProv}</td>
-                                    <td>${sumRestRes}</td>
-                                    <td>${sumDesgaste}</td>
-                                    <td>${sumExo}</td>
-                                    <td>${sumReceta}</td>
-                                    <td>${sumRx}</td>
+                                    <td>${escapeHtml(sumFluor)}</td>
+                                    <td>${escapeHtml(sumDestar)}</td>
+                                    <td>${escapeHtml(sumRestProv)}</td>
+                                    <td>${escapeHtml(sumRestRes)}</td>
+                                    <td>${escapeHtml(sumDesgaste)}</td>
+                                    <td>${escapeHtml(sumExo)}</td>
+                                    <td>${escapeHtml(sumReceta)}</td>
+                                    <td>${escapeHtml(sumRx)}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2117,7 +2070,7 @@ const Odontologo_page = () => {
                     <div class="signatures-container">
                         <div class="signature-box">
                             <div class="signature-line"></div>
-                            <strong>Odontólogo/a: ${user?.name || 'Profesional Responsable'}</strong><br>
+                            <strong>Odontólogo/a: ${escapeHtml(user?.name || 'Profesional Responsable')}</strong><br>
                             <span>Responsable de Bienestar Universitario</span>
                         </div>
                     </div>
@@ -2151,6 +2104,10 @@ const Odontologo_page = () => {
         if (getFallbackHtml) {
             try {
                 const hiddenFrame = document.createElement('iframe');
+                // Marco oculto solo para imprimir: con título (WCAG 4.1.2) y fuera del orden de tabulación
+                hiddenFrame.title = 'Documento para impresión';
+                hiddenFrame.setAttribute('aria-hidden', 'true');
+                hiddenFrame.tabIndex = -1;
                 hiddenFrame.style.position = 'fixed';
                 hiddenFrame.style.right = '0';
                 hiddenFrame.style.bottom = '0';
@@ -2328,7 +2285,7 @@ const Odontologo_page = () => {
         if (rows.length === 0) {
             tableRowsHtml = `
                 <tr>
-                    <td colspan="${insumosCatalogo.length + 3}" style="border: 1px solid #000; padding: 15px; text-align: center; color: #666; font-size: 11px;">
+                    <td colspan="${escapeHtml(insumosCatalogo.length + 3)}" style="border: 1px solid #000; padding: 15px; text-align: center; color: #666; font-size: 11px;">
                         No se registraron consumos de insumos en el periodo seleccionado.
                     </td>
                 </tr>
@@ -2342,22 +2299,22 @@ const Odontologo_page = () => {
 
                 const supplyCells = insumosCatalogo.map(insumo => {
                     const val = row.consumos[insumo.id];
-                    return `<td style="border: 1px solid #000; padding: 5px; text-align: center; font-weight: bold; background: ${val ? '#f9fafb' : 'transparent'};">${val ? val : ''}</td>`;
+                    return `<td style="border: 1px solid #000; padding: 5px; text-align: center; font-weight: bold; background: ${escapeHtml(val ? '#f9fafb' : 'transparent')};">${escapeHtml(val ? val : '')}</td>`;
                 }).join('');
 
                 return `
                     <tr>
-                        <td style="border: 1px solid #000; padding: 5px; text-align: center;">${idx + 1}</td>
-                        <td style="border: 1px solid #000; padding: 5px; font-weight: 500;">${pacienteNombre.toUpperCase()}</td>
+                        <td style="border: 1px solid #000; padding: 5px; text-align: center;">${escapeHtml(idx + 1)}</td>
+                        <td style="border: 1px solid #000; padding: 5px; font-weight: 500;">${escapeHtml(pacienteNombre.toUpperCase())}</td>
                         ${supplyCells}
-                        <td style="border: 1px solid #000; padding: 5px;">${row.diagnostico}</td>
+                        <td style="border: 1px solid #000; padding: 5px;">${escapeHtml(row.diagnostico)}</td>
                     </tr>
                 `;
             }).join('');
 
             // Agregar fila de total porciones
             const totalPorcionesCells = insumosCatalogo.map(insumo => {
-                return `<td style="border: 1px solid #000; padding: 5px; text-align: center; color: #1e3a8a;">${totalPorciones[insumo.id] || '0'}</td>`;
+                return `<td style="border: 1px solid #000; padding: 5px; text-align: center; color: #1e3a8a;">${escapeHtml(totalPorciones[insumo.id] || '0')}</td>`;
             }).join('');
 
             tableRowsHtml += `
@@ -2388,16 +2345,16 @@ const Odontologo_page = () => {
         const insumoHeaders = insumosCatalogo.map(insumo => {
             return `<th style="border: 1px solid #000; padding: 4px 2px; width: 30px; text-align: center; vertical-align: bottom; height: 110px;">
                 <div style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 8px; font-weight: bold; display: inline-block; width: 100%; text-align: left;">
-                    ${insumo.nombre.toUpperCase()}
+                    ${escapeHtml(insumo.nombre.toUpperCase())}
                 </div>
             </th>`;
         }).join('');
 
         return `
             <!DOCTYPE html>
-            <html>
+            <html lang="es">
             <head>
-                <title>Reporte de Insumos - ${selectedMonthText} ${reportYear}</title>
+                <title>Reporte de Insumos - ${escapeHtml(selectedMonthText)} ${escapeHtml(reportYear)}</title>
                 <style>
                     @page { size: landscape; margin: 10mm; }
                     body { font-family: Arial, sans-serif; font-size: 10px; color: #000; margin: 0; padding: 20px; }
@@ -2408,7 +2365,7 @@ const Odontologo_page = () => {
             <body>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
                     <div style="width: 140px; display: flex; align-items: center;">
-                        <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                        <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                     </div>
                     <div style="text-align: center; flex: 1;">
                         <h2 style="margin: 0 0 4px 0; font-size: 15px; font-weight: bold; text-transform: uppercase;">Universidad Estatal de Bolívar</h2>
@@ -2423,10 +2380,10 @@ const Odontologo_page = () => {
                 <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 15px;">
                     <div>
                         <div><strong>UNIDAD:</strong> BIENESTAR UNIVERSITARIO</div>
-                        <div><strong>ODONTÓLOGO/A:</strong> ${doctorNameText}</div>
+                        <div><strong>ODONTÓLOGO/A:</strong> ${escapeHtml(doctorNameText)}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div><strong>MES/AÑO:</strong> ${selectedMonthText.toUpperCase()} ${reportYear}</div>
+                        <div><strong>MES/AÑO:</strong> ${escapeHtml(selectedMonthText.toUpperCase())} ${escapeHtml(reportYear)}</div>
                     </div>
                 </div>
 
@@ -2498,154 +2455,9 @@ const Odontologo_page = () => {
         return 'Caries de Dentina';
     };
 
-    const getFacultyNarrativeTitle = (facName) => {
-        const fUpper = (facName || '').toUpperCase();
-        if (fUpper.includes('SALUD')) return 'Facultad de la Salud';
-        if (fUpper.includes('JURISPRUDENCIA')) return 'Facultad de Jurisprudencia';
-        if (fUpper.includes('ADMINISTRATIVAS')) return 'Facultad Ciencias Administrativas';
-        if (fUpper.includes('AGROPECUARIAS')) return 'Facultad Ciencias Agropecuarias';
-        if (fUpper.includes('EDUCACIÓN') || fUpper.includes('EDUCACION')) return 'Facultad Ciencias de la Educación';
-        return `Facultad de ${facName}`;
-    };
 
-    const buildFacultyNarrative = (facName, careersObj) => {
-        const careers = careersObj || {};
-        const title = getFacultyNarrativeTitle(facName);
-        let facH = 0;
-        let facM = 0;
-        let facL = 0;
-        let facTotal = 0;
-        const careerSentences = [];
 
-        Object.entries(careers).forEach(([cName, stats]) => {
-            facH += stats.hombres || 0;
-            facM += stats.mujeres || 0;
-            facL += stats.lgbti || 0;
-            facTotal += stats.total || 0;
 
-            if ((stats.total || 0) > 0) {
-                let part = '';
-                if (stats.hombres > 0 && stats.mujeres > 0) {
-                    part = `${stats.hombres} hombre${stats.hombres > 1 ? 's' : ''} y ${stats.mujeres} mujer${stats.mujeres > 1 ? 'es' : ''}`;
-                } else if (stats.hombres > 0) {
-                    part = `${stats.hombres} hombre${stats.hombres > 1 ? 's' : ''}`;
-                } else if (stats.mujeres > 0) {
-                    part = `${stats.mujeres} mujer${stats.mujeres > 1 ? 'es' : ''}`;
-                }
-                if (stats.lgbti > 0) {
-                    part += (part ? `, ` : '') + `${stats.lgbti} LGBTI`;
-                }
-                const cLower = cName.toLowerCase();
-                let prefix = 'En la Carrera de';
-                if (cLower.startsWith('centro')) {
-                    prefix = 'En el';
-                } else if (cLower.startsWith('carrera')) {
-                    prefix = 'En la';
-                } else if (cLower.startsWith('educación') || cLower.startsWith('educacion') || cLower.startsWith('pedagogía') || cLower.startsWith('pedagogia') || cLower.startsWith('fisicomatemático') || cLower.startsWith('fisicomatematico')) {
-                    prefix = 'En la Carrera';
-                }
-                careerSentences.push(`${prefix} ${cName} ${part}.`);
-            }
-        });
-
-        if (facTotal === 0) {
-            return `${title}, no se registraron atenciones a estudiantes durante este período.`;
-        }
-
-        const fUpper = facName.toUpperCase();
-        let verbClause = 'la atención fue a';
-        if (fUpper.includes('JURISPRUDENCIA')) verbClause = 'se atendió a';
-
-        const hasComma = fUpper.includes('SALUD') || fUpper.includes('JURISPRUDENCIA');
-        let intro = `${title}${hasComma ? ',' : ''} ${verbClause} ${facTotal} estudiantes, ${facH} hombres y ${facM} mujeres`;
-        if (facL > 0) intro += `, ${facL} LGBTI`;
-        intro += '.';
-
-        return `${intro} ${careerSentences.join(' ')}`;
-    };
-
-    const buildPreventivasNarrative = (pStats) => {
-        const exam = pStats?.['Examen Odontológico'] || {
-            estudiantes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-            administrativos: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-            docentes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 }
-        };
-
-        const parts = [];
-        const estH = exam.estudiantes?.hombres || 0;
-        const estM = exam.estudiantes?.mujeres || 0;
-        const estT = exam.estudiantes?.total || 0;
-        let detEst = '';
-        if (estH > 0 && estM > 0) detEst = `a ${estH} hombres y ${estM} mujeres`;
-        else if (estH > 0) detEst = `a ${estH} hombre${estH > 1 ? 's' : ''}`;
-        else if (estM > 0) detEst = `a ${estM} mujer${estM > 1 ? 'es' : ''}`;
-        else detEst = `a 0 personas`;
-        parts.push(`<strong>Estudiantes:</strong> Examen Odontológicos ${detEst}.`);
-
-        const admH = exam.administrativos?.hombres || 0;
-        const admM = exam.administrativos?.mujeres || 0;
-        const admT = exam.administrativos?.total || 0;
-        if (admT > 0) {
-            let detAdm = '';
-            if (admH > 0 && admM > 0) detAdm = `a ${admH} hombres y ${admM} mujeres`;
-            else if (admH > 0) detAdm = `a ${admH} hombre${admH > 1 ? 's' : ''}`;
-            else if (admM > 0) detAdm = `a ${admM} mujer${admM > 1 ? 'es' : ''}`;
-            parts.push(`<strong>Administrativos:</strong> Examen Odontológico ${detAdm}.`);
-        }
-
-        const docH = exam.docentes?.hombres || 0;
-        const docM = exam.docentes?.mujeres || 0;
-        const docT = exam.docentes?.total || 0;
-        if (docT > 0) {
-            let detDoc = '';
-            if (docH > 0 && docM > 0) detDoc = `a ${docH} hombres y ${docM} mujeres`;
-            else if (docH > 0) detDoc = `a ${docH} hombre${docH > 1 ? 's' : ''}`;
-            else if (docM > 0) detDoc = `a ${docM} mujer${docM > 1 ? 'es' : ''}`;
-            parts.push(`<strong>Docentes:</strong> Examen Odontológico ${detDoc}.`);
-        }
-
-        return parts.join(' ');
-    };
-
-    const defaultFacultyCareers = {
-        'CIENCIAS DE LA SALUD': [
-            'Enfermería',
-            'Gestión de Riesgos',
-            'Psicología',
-            'Terapia Física'
-        ],
-        'JURISPRUDENCIA': [
-            'Criminalística',
-            'Derecho',
-            'Sociología'
-        ],
-        'CIENCIAS ADMINISTRATIVAS': [
-            'Ad. Empresas',
-            'Comunicación',
-            'Cont. Auditoría',
-            'Emprendimiento e Innovación',
-            'Gestión del Talento Humano',
-            'Marketing Digital',
-            'Mercadotecnia',
-            'Software',
-            'Tecnología de la Informática',
-            'Turismo'
-        ],
-        'CIENCIAS AGROPECUARIAS': [
-            'Agroindustria',
-            'Agronomía',
-            'Med. Veterinaria'
-        ],
-        'CIENCIAS DE LA EDUCACIÓN': [
-            'Educación Básica',
-            'Educación Inicial',
-            'Educación Intercultural',
-            'Fisicomatemático',
-            'Pedagogía Idiomas Nacionales',
-            'Pedagogía de la Informática',
-            'Centro de Desarrollo Infantil'
-        ]
-    };
 
     const mapToCanonicalCareer = (rawCareerName) => {
         if (!rawCareerName) return '';
@@ -2680,175 +2492,9 @@ const Odontologo_page = () => {
         return rawCareerName;
     };
 
-    const buildCurativasNarrative = (curativoStats, curDiagnosesList) => {
-        const stats = curativoStats || {};
-        const diagList = curDiagnosesList || [];
-        const groups = [
-            { key: 'estudiantes', label: 'Estudiantes' },
-            { key: 'administrativos', label: 'Administrativos' },
-            { key: 'docentes', label: 'Docentes' }
-        ];
 
-        const parts = [];
 
-        groups.forEach(g => {
-            const diagsFound = [];
-            diagList.forEach(diag => {
-                const r = stats[diag]?.[g.key];
-                if ((r?.total || 0) > 0) {
-                    diagsFound.push({ diag, h: r.hombres || 0, m: r.mujeres || 0 });
-                }
-            });
 
-            if (diagsFound.length > 0) {
-                const sentences = diagsFound.map((item, idx) => {
-                    let det = '';
-                    if (item.h > 0 && item.m > 0) det = `${item.h} hombre${item.h > 1 ? 's' : ''} y ${item.m} mujer${item.m > 1 ? 'es' : ''}`;
-                    else if (item.h > 0) det = `${item.h} hombre${item.h > 1 ? 's' : ''}`;
-                    else if (item.m > 0) det = `${item.m} mujer${item.m > 1 ? 'es' : ''}`;
-
-                    if (idx === 0) {
-                        return `${item.diag} a ${det}`;
-                    }
-                    return `${item.diag} ${det}`;
-                });
-                parts.push(`<strong>${g.label}:</strong> ${sentences.join('. ')}.`);
-            }
-        });
-
-        return parts.length > 0 ? parts.join('<br/><br/>') : 'Sin atenciones curativas registradas.';
-    };
-
-    const buildProcedimientosPreventivosNarrative = (procPreventivos) => {
-        const p = procPreventivos || {};
-        const groups = [
-            { key: 'estudiantes', label: 'Estudiantes:' },
-            { key: 'administrativos', label: 'Administrativos:' },
-            { key: 'docentes', label: 'Docente:' }
-        ];
-
-        const parts = [];
-
-        groups.forEach(g => {
-            const items = [];
-            const prof = p['PROFILAXIS']?.[g.key];
-            const fluor = p['FLUORIZACIÓN']?.[g.key];
-
-            const profTotal = (prof?.hombres || 0) + (prof?.mujeres || 0);
-            if (profTotal > 0) {
-                let det = '';
-                if ((prof.hombres || 0) > 0 && (prof.mujeres || 0) > 0) {
-                    det = `${prof.hombres} hombres y ${prof.mujeres} mujeres`;
-                } else if ((prof.hombres || 0) > 0) {
-                    det = `${prof.hombres} hombre${prof.hombres > 1 ? 's' : ''}`;
-                } else if ((prof.mujeres || 0) > 0) {
-                    det = `${prof.mujeres} mujer${prof.mujeres > 1 ? 'es' : ''}`;
-                }
-                items.push(`Profilaxis a ${det}`);
-            }
-
-            const fluorTotal = (fluor?.hombres || 0) + (fluor?.mujeres || 0);
-            if (fluorTotal > 0) {
-                let det = '';
-                if ((fluor.hombres || 0) > 0 && (fluor.mujeres || 0) > 0) {
-                    det = `${fluor.hombres} hombres y ${fluor.mujeres} mujeres`;
-                } else if ((fluor.hombres || 0) > 0) {
-                    det = `${fluor.hombres} hombre${fluor.hombres > 1 ? 's' : ''}`;
-                } else if ((fluor.mujeres || 0) > 0) {
-                    det = `${fluor.mujeres} mujer${fluor.mujeres > 1 ? 'es' : ''}`;
-                }
-                items.push(`Fluorización a ${det}`);
-            }
-
-            if (items.length > 0) {
-                parts.push(`<strong>${g.label}</strong> ${items.join('. ')}.`);
-            }
-        });
-
-        return parts.length > 0 ? parts.join('<br/><br/>') : 'Sin procedimientos preventivos registrados.';
-    };
-
-    const buildProcedimientosMorbilidadNarrative = (procMorbilidad) => {
-        const p = procMorbilidad || {};
-        const procList = [
-            { key: 'DESTARTRAJE', label: 'Destartraje' },
-            { key: 'RESTAURACIÓN PROVISIONAL', label: 'Restauración Provisional' },
-            { key: 'RESTAURACIÓN CON RESINA', label: 'Restauración con Resina' },
-            { key: 'DESGASTE DE PAREDES', label: 'Desgaste de Paredes', altLabel: { administrativos: 'Desgaste' } },
-            { key: 'EXODONCIA', label: 'Exodoncias' },
-            { key: 'RECETAS', label: 'Recetas' },
-            { key: 'ORDEN DE RX', label: 'Orden de Rx' },
-            { key: 'RETIRO DE PUNTOS', label: 'Retiro de Puntos' }
-        ];
-
-        const groups = [
-            { key: 'estudiantes', label: 'Estudiantes:' },
-            { key: 'administrativos', label: 'Administrativos:' },
-            { key: 'docentes', label: 'Docente:' }
-        ];
-
-        const parts = [];
-
-        groups.forEach(g => {
-            const items = [];
-            procList.forEach(proc => {
-                const r = p[proc.key]?.[g.key];
-                const h = r?.hombres || 0;
-                const m = r?.mujeres || 0;
-                const total = h + m;
-
-                if (total > 0) {
-                    let det = '';
-                    if (h > 0 && m > 0) {
-                        det = `${h} hombres y ${m} mujeres`;
-                    } else if (h > 0) {
-                        det = `${h} hombre${h > 1 ? 's' : ''}`;
-                    } else if (m > 0) {
-                        det = `${m} mujer${m > 1 ? 'es' : ''}`;
-                    }
-
-                    const procName = proc.altLabel?.[g.key] || proc.label;
-                    if (proc.key.includes('RESTAURACIÓN') && (h > 1 || m > 1 || (h + m > 2))) {
-                        items.push(`${procName} a ${det}`);
-                    } else {
-                        items.push(`${procName} ${det}`);
-                    }
-                }
-            });
-
-            if (items.length > 0) {
-                parts.push(`<strong>${g.label}</strong> ${items.join('. ')}.`);
-            }
-        });
-
-        return parts.length > 0 ? parts.join('<br/><br/>') : 'Sin procedimientos de morbilidad registrados.';
-    };
-
-    const buildGenderNarrative = (totalPacientes, totalEstudiantes, totalAdministrativos, totalDocentes, genderCounts) => {
-        const totalH = (genderCounts?.estudiantes?.hombres || 0) + (genderCounts?.administrativos?.hombres || 0) + (genderCounts?.docentes?.hombres || 0);
-        const totalM = (genderCounts?.estudiantes?.mujeres || 0) + (genderCounts?.administrativos?.mujeres || 0) + (genderCounts?.docentes?.mujeres || 0);
-        const totalL = (genderCounts?.estudiantes?.lgbti || 0) + (genderCounts?.administrativos?.lgbti || 0) + (genderCounts?.docentes?.lgbti || 0);
-
-        const estH = genderCounts?.estudiantes?.hombres || 0;
-        const estM = genderCounts?.estudiantes?.mujeres || 0;
-        const admH = genderCounts?.administrativos?.hombres || 0;
-        const admM = genderCounts?.administrativos?.mujeres || 0;
-        const docH = genderCounts?.docentes?.hombres || 0;
-        const docM = genderCounts?.docentes?.mujeres || 0;
-
-        let docText = 'Docente ';
-        if (docH > 0 && docM > 0) {
-            docText += `${docH} hombres y ${docM} mujeres`;
-        } else if (docH > 0) {
-            docText += `${docH} hombre${docH > 1 ? 's' : ''}`;
-        } else if (docM > 0) {
-            docText += `${docM} mujer${docM > 1 ? 'es' : ''}`;
-        } else {
-            docText += '0 docentes';
-        }
-
-        return `El total de la población atendida fue a ${totalPacientes} pacientes ${totalH} hombres y ${totalM} mujeres${totalL > 0 ? `, ${totalL} LGBTI` : ''}, estudiantes ${totalEstudiantes} de los cuales son ${estH} hombres y ${estM} mujeres, ${totalAdministrativos} Administrativos ${admH} hombres y ${admM} mujeres, ${docText}.`;
-    };
 
     const renderFacultyTableJsx = (facName, careersObj) => {
         let careers = careersObj;
@@ -2867,9 +2513,9 @@ const Odontologo_page = () => {
         let facTotal = 0;
 
         return (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Arial, sans-serif', border: '1px solid #4b5563', marginBottom: '5px', fontSize: '8px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Arial, sans-serif', border: '1px solid #4b5563', marginBottom: '5px', fontSize: '11px' }}>
                 <thead>
-                    <tr style={{ backgroundColor: '#cbd5e1', fontWeight: 'bold', fontSize: '8px', textAlign: 'center' }}>
+                    <tr style={{ backgroundColor: '#cbd5e1', fontWeight: 'bold', fontSize: '11px', textAlign: 'center' }}>
                         <th style={{ border: '1px solid #4b5563', padding: '2px 4px', width: '26%' }}>FACULTAD</th>
                         <th style={{ border: '1px solid #4b5563', padding: '2px 4px', width: '38%' }}>CARRERA</th>
                         <th style={{ border: '1px solid #4b5563', padding: '2px 4px', width: '9%' }}>HOMBRES</th>
@@ -2886,7 +2532,7 @@ const Odontologo_page = () => {
                         facL += s.lgbti || 0;
                         facTotal += s.total || 0;
                         return (
-                            <tr key={`${facName}-${cName}`} style={{ fontSize: '8px' }}>
+                            <tr key={`${facName}-${cName}`} style={{ fontSize: '11px' }}>
                                 {idx === 0 && (
                                     <td
                                         rowSpan={careerNames.length}
@@ -2911,7 +2557,7 @@ const Odontologo_page = () => {
                             </tr>
                         );
                     })}
-                    <tr style={{ backgroundColor: '#cbd5e1', fontWeight: 'bold', fontSize: '8px' }}>
+                    <tr style={{ backgroundColor: '#cbd5e1', fontWeight: 'bold', fontSize: '11px' }}>
                         <td colSpan={2} style={{ border: '1px solid #4b5563', padding: '2px 6px', textAlign: 'left' }}>TOTAL</td>
                         <td style={{ border: '1px solid #4b5563', padding: '2px 4px', textAlign: 'center' }}>{facH}</td>
                         <td style={{ border: '1px solid #4b5563', padding: '2px 4px', textAlign: 'center' }}>{facM}</td>
@@ -3282,1833 +2928,9 @@ const Odontologo_page = () => {
         }
     };
 
-    const compileGeneralReportHtmlString = (data, forPrint = false) => {
-        if (!data) return '';
-        try {
-            const monthsText = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            const selectedMonthText = monthsText[genReportMonth - 1] || 'Abril';
-
-            const doctorNameText = user?.name || 'Andrea García León';
-            const doctorEmail = user?.email || 'angarcia@ueb.edu.ec';
-            const reportNo = `006-OD-${genReportYear}`;
-
-            const lastDayOfMonth = new Date(genReportYear, genReportMonth, 0).getDate();
-            const reportDateFormatted = `${String(lastDayOfMonth).padStart(2, '0')}/${String(genReportMonth).padStart(2, '0')}/${genReportYear}`;
-
-            const allCanonicalCareersOrdered = Object.values(defaultFacultyCareers).flat();
-            const getCareerSortIndex = (careerName) => {
-                const idx = allCanonicalCareersOrdered.findIndex(c => c.toLowerCase() === (careerName || '').toLowerCase());
-                return idx >= 0 ? idx : 999;
-            };
-            const activeCareers = Object.keys(data.careerIndividualStats || {}).sort((a, b) => getCareerSortIndex(a) - getCareerSortIndex(b));
-            const remainingCareers = activeCareers.slice(1);
-            const extraCareerPages = Math.ceil(remainingCareers.length / 2);
-            const totalPages = 8 + 1 + extraCareerPages;
-
-            let totalEstCareersCount = 0;
-            (data.reportingFaculties || []).forEach(f => {
-                totalEstCareersCount += Object.keys(data.statsByFacultyAndCareer?.[f] || {}).length;
-            });
-
-        const totalH = (data.genderCounts?.estudiantes?.hombres || 0) + (data.genderCounts?.administrativos?.hombres || 0) + (data.genderCounts?.docentes?.hombres || 0);
-        const totalM = (data.genderCounts?.estudiantes?.mujeres || 0) + (data.genderCounts?.administrativos?.mujeres || 0) + (data.genderCounts?.docentes?.mujeres || 0);
-        const totalL = (data.genderCounts?.estudiantes?.lgbti || 0) + (data.genderCounts?.administrativos?.lgbti || 0) + (data.genderCounts?.docentes?.lgbti || 0);
-        const grandTotal = data.totalPacientes || 0;
-
-        const genderNarrative = buildGenderNarrative(data.totalPacientes, data.totalEstudiantes, data.totalAdministrativos, data.totalDocentes, data.genderCounts);
-        const prevExamen = data.consolidadoStats?.preventivo?.['Examen Odontológico'] || {
-            estudiantes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-            administrativos: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-            docentes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 }
-        };
-        const prevTotal = (prevExamen.estudiantes?.total || 0) + (prevExamen.administrativos?.total || 0) + (prevExamen.docentes?.total || 0);
-        const preventivasNarrative = buildPreventivasNarrative(data.consolidadoStats?.preventivo);
-
-        // Variables para Página 4: Curativos y Procedimientos
-        let totEstCurH = 0, totEstCurM = 0, totEstCurL = 0, totEstCurT = 0;
-        let totAdmCurH = 0, totAdmCurM = 0, totAdmCurL = 0, totAdmCurT = 0;
-        let totDocCurH = 0, totDocCurM = 0, totDocCurL = 0, totDocCurT = 0;
-        let totGrandCurT = 0;
-
-        const curativosRowsHtml = (data.curativosDiagnoses || []).map(diag => {
-            const cur = data.consolidadoStats?.curativo?.[diag] || {
-                estudiantes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                administrativos: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                docentes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 }
-            };
-            const e = cur.estudiantes || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-            const a = cur.administrativos || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-            const d = cur.docentes || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-            const rowTotal = (e.total || 0) + (a.total || 0) + (d.total || 0);
-
-            totEstCurH += e.hombres || 0; totEstCurM += e.mujeres || 0; totEstCurL += e.lgbti || 0; totEstCurT += e.total || 0;
-            totAdmCurH += a.hombres || 0; totAdmCurM += a.mujeres || 0; totAdmCurL += a.lgbti || 0; totAdmCurT += a.total || 0;
-            totDocCurH += d.hombres || 0; totDocCurM += d.mujeres || 0; totDocCurL += d.lgbti || 0; totDocCurT += d.total || 0;
-            totGrandCurT += rowTotal;
-
-            return `
-                <tr style="font-size: 7px;">
-                    <td style="border: 1px solid #000; padding: 1.5px 3px; text-align: left;">${diag}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${e.hombres > 0 ? e.hombres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${e.mujeres > 0 ? e.mujeres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${e.lgbti || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${e.total || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${a.hombres > 0 ? a.hombres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${a.mujeres > 0 ? a.mujeres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${a.lgbti || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${a.total || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${d.hombres > 0 ? d.hombres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${d.mujeres > 0 ? d.mujeres : ''}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${d.lgbti || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${d.total || 0}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${rowTotal}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const curativasNarrativeHtml = buildCurativasNarrative(data.consolidadoStats?.curativo, data.curativosDiagnoses);
-
-        const procPrev = data.procPreventivos || {};
-        const profE = procPrev['PROFILAXIS']?.estudiantes || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const profA = procPrev['PROFILAXIS']?.administrativos || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const profD = procPrev['PROFILAXIS']?.docentes || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const profET = (profE.hombres || 0) + (profE.mujeres || 0) + (profE.lgbti || 0);
-        const profAT = (profA.hombres || 0) + (profA.mujeres || 0) + (profA.lgbti || 0);
-        const profDT = (profD.hombres || 0) + (profD.mujeres || 0) + (profD.lgbti || 0);
-        const profTotal = profET + profAT + profDT;
-
-        const fluoE = procPrev['FLUORIZACIÓN']?.estudiantes || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const fluoA = procPrev['FLUORIZACIÓN']?.administrativos || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const fluoD = procPrev['FLUORIZACIÓN']?.docentes || { hombres: 0, mujeres: 0, lgbti: 0 };
-        const fluoET = (fluoE.hombres || 0) + (fluoE.mujeres || 0) + (fluoE.lgbti || 0);
-        const fluoAT = (fluoA.hombres || 0) + (fluoA.mujeres || 0) + (fluoA.lgbti || 0);
-        const fluoDT = (fluoD.hombres || 0) + (fluoD.mujeres || 0) + (fluoD.lgbti || 0);
-        const fluoTotal = fluoET + fluoAT + fluoDT;
-
-        const totProcH_E = (profE.hombres || 0) + (fluoE.hombres || 0);
-        const totProcM_E = (profE.mujeres || 0) + (fluoE.mujeres || 0);
-        const totProcL_E = (profE.lgbti || 0) + (fluoE.lgbti || 0);
-        const totProcT_E = profET + fluoET;
-
-        const totProcH_A = (profA.hombres || 0) + (fluoA.hombres || 0);
-        const totProcM_A = (profA.mujeres || 0) + (fluoA.mujeres || 0);
-        const totProcL_A = (profA.lgbti || 0) + (fluoA.lgbti || 0);
-        const totProcT_A = profAT + fluoAT;
-
-        const totProcH_D = (profD.hombres || 0) + (fluoD.hombres || 0);
-        const totProcM_D = (profD.mujeres || 0) + (fluoD.mujeres || 0);
-        const totProcL_D = (profD.lgbti || 0) + (fluoD.lgbti || 0);
-        const totProcT_D = profDT + fluoDT;
-
-        const totProcGrand = totProcT_E + totProcT_A + totProcT_D;
-
-        const procPrevNarrativeHtml = buildProcedimientosPreventivosNarrative(data.procPreventivos);
-
-        // Variables para Página 5: Procedimientos de Morbilidad
-        const pMor = data.procMorbilidad || {};
-        const morbilidadProcs = [
-            'DESTARTRAJE',
-            'RESTAURACIÓN PROVISIONAL',
-            'RESTAURACIÓN CON RESINA',
-            'DESGASTE DE PAREDES',
-            'EXODONCIA',
-            'RECETAS',
-            'ORDEN DE RX',
-            'RETIRO DE PUNTOS'
-        ];
-
-        let totEstMorH = 0, totEstMorM = 0, totEstMorL = 0, totEstMorT = 0;
-        let totAdmMorH = 0, totAdmMorM = 0, totAdmMorL = 0, totAdmMorT = 0;
-        let totDocMorH = 0, totDocMorM = 0, totDocMorL = 0, totDocMorT = 0;
-        let totGrandMorT = 0;
-
-        const morbilidadRowsHtml = morbilidadProcs.map(proc => {
-            const est = pMor[proc]?.estudiantes || { hombres: 0, mujeres: 0, lgbti: 0 };
-            const adm = pMor[proc]?.administrativos || { hombres: 0, mujeres: 0, lgbti: 0 };
-            const doc = pMor[proc]?.docentes || { hombres: 0, mujeres: 0, lgbti: 0 };
-
-            const estH = est.hombres || 0;
-            const estM = est.mujeres || 0;
-            const estL = est.lgbti || 0;
-            const estT = estH + estM + estL;
-
-            const admH = adm.hombres || 0;
-            const admM = adm.mujeres || 0;
-            const admL = adm.lgbti || 0;
-            const admT = admH + admM + admL;
-
-            const docH = doc.hombres || 0;
-            const docM = doc.mujeres || 0;
-            const docL = doc.lgbti || 0;
-            const docT = docH + docM + docL;
-
-            const rowTotal = estT + admT + docT;
-
-            totEstMorH += estH;
-            totEstMorM += estM;
-            totEstMorL += estL;
-            totEstMorT += estT;
-
-            totAdmMorH += admH;
-            totAdmMorM += admM;
-            totAdmMorL += admL;
-            totAdmMorT += admT;
-
-            totDocMorH += docH;
-            totDocMorM += docM;
-            totDocMorL += docL;
-            totDocMorT += docT;
-
-            totGrandMorT += rowTotal;
-
-            return `
-                <tr style="font-size: 7px;">
-                    <td style="border: 1px solid #000; padding: 1.5px 4px; text-align: left; width: 18%;">${proc}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${estH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${estM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${estL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold; background-color: #f2dcdb; width: 6%;">${estT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${admH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${admM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${admL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold; background-color: #f2dcdb; width: 6%;">${admT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${docH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${docM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${docL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold; background-color: #f2dcdb; width: 6%;">${docT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold; background-color: #f2dcdb; width: 8%;">${rowTotal}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const procMorbilidadNarrativeHtml = buildProcedimientosMorbilidadNarrative(data.procMorbilidad);
-
-        const renderFacultyNarrativeText = (facName, careersObj) => {
-            return buildFacultyNarrative(facName, careersObj);
-        };
-
-        const renderFacultyTableHtml = (facName, careersObj) => {
-            let careers = careersObj;
-            if (!careers || Object.keys(careers).length === 0) {
-                careers = {};
-                (defaultFacultyCareers[facName] || []).forEach(cName => {
-                    careers[cName] = { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-                });
-            }
-            const careerNames = Object.keys(careers);
-            if (careerNames.length === 0) return '';
-
-            let facH = 0;
-            let facM = 0;
-            let facL = 0;
-            let facTotal = 0;
-
-            let rowsHtml = '';
-            careerNames.forEach((cName, idx) => {
-                const s = careers[cName];
-                facH += s.hombres || 0;
-                facM += s.mujeres || 0;
-                facL += s.lgbti || 0;
-                facTotal += s.total || 0;
-
-                rowsHtml += `
-                    <tr style="font-size: 8px;">
-                        ${idx === 0 ? `
-                            <td rowspan="${careerNames.length}" style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; vertical-align: middle; font-weight: bold; background-color: #cbd5e1; width: 26%;">
-                                ${facName}
-                            </td>
-                        ` : ''}
-                        <td style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left; width: 38%;">${cName}</td>
-                        <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; width: 9%;">${s.hombres}</td>
-                        <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; width: 9%;">${s.mujeres}</td>
-                        <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; width: 9%;">${s.lgbti}</td>
-                        <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; width: 9%; font-weight: bold;">${s.total}</td>
-                    </tr>
-                `;
-            });
-
-            rowsHtml += `
-                <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 8px;">
-                    <td colspan="2" style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left;">TOTAL</td>
-                    <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${facH}</td>
-                    <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${facM}</td>
-                    <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${facL}</td>
-                    <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${facTotal}</td>
-                </tr>
-            `;
-
-            return `
-                <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #4b5563; margin-bottom: 5px;">
-                    <thead>
-                        <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 8px; text-align: center;">
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 26%;">FACULTAD</th>
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 38%;">CARRERA</th>
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 9%;">HOMBRES</th>
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 9%;">MUJERES</th>
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 9%;">LGBTI</th>
-                            <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 9%;">TOTAL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-            `;
-        };
-
-        const renderAnexoTableRowsHtml = () => {
-            const anexoFaculties = [
-                {
-                    faculty: 'CIENCIAS DE LA SALUD',
-                    careers: ['Enfermería', 'Gestión de Riesgos', 'Psicología', 'Terapia Física']
-                },
-                {
-                    faculty: 'JURISPRUDENCIA',
-                    careers: ['Criminalística', 'Derecho', 'Sociología']
-                },
-                {
-                    faculty: 'CIENCIAS ADMINISTRATIVAS',
-                    careers: [
-                        'Ad. Empresas',
-                        'Comunicación',
-                        'Cont. Auditoría',
-                        'Emprendimiento e Innovación',
-                        'Gestión del Talento Humano',
-                        'Marketing Digital',
-                        'Mercadotecnia',
-                        'Software',
-                        'Tecnología de la Informática',
-                        'Turismo'
-                    ]
-                },
-                {
-                    faculty: 'CIENCIAS AGROPECUARIAS',
-                    careers: ['Agroindustria', 'Agronomía', 'Med. Veterinaria']
-                },
-                {
-                    faculty: 'CIENCIAS DE LA EDUCACIÓN',
-                    careers: [
-                        'Educación Básica',
-                        'Educación Inicial',
-                        'Educación Intercultural',
-                        'Fisicomatemático',
-                        'Pedagogía Idiomas Nacionales',
-                        'Pedagogía de la Informática',
-                        'Centro de Desarrollo Infantil'
-                    ]
-                }
-            ];
-
-            let html = '';
-            let isFirstEver = true;
-
-            anexoFaculties.forEach(facGroup => {
-                const facName = facGroup.faculty;
-                const careers = facGroup.careers;
-                const facRowspan = careers.length;
-
-                careers.forEach((careerName, idx) => {
-                    const stats = data.statsByFacultyAndCareer?.[facName]?.[careerName] || {
-                        hombres: 0,
-                        mujeres: 0,
-                        lgbti: 0,
-                        total: 0
-                    };
-
-                    html += '<tr style="font-size: 7.5px;">';
-
-                    if (isFirstEver) {
-                        html += `
-                            <td rowspan="27" style="border: 1px solid #000; background-color: #d9d9d9; width: 3.5%; text-align: center; vertical-align: middle; font-weight: bold; font-size: 7.5px; line-height: 1.15; padding: 2px 0;">
-                                E<br/>S<br/>T<br/>U<br/>D<br/>I<br/>A<br/>N<br/>T<br/>E<br/>S
-                            </td>
-                        `;
-                        isFirstEver = false;
-                    }
-
-                    if (idx === 0) {
-                        html += `
-                            <td rowspan="${facRowspan}" style="border: 1px solid #000; background-color: #d9d9d9; font-weight: bold; text-align: center; vertical-align: middle; padding: 2px 3px; font-size: 7.5px; width: 22%;">
-                                ${facName}
-                            </td>
-                        `;
-                    }
-
-                    html += `
-                        <td style="border: 1px solid #000; padding: 1.5px 4px; text-align: left; width: 34.5%;">${careerName}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 10%;">${stats.hombres || 0}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 10%;">${stats.mujeres || 0}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 10%;">${stats.lgbti || 0}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 10%; font-weight: bold;">${stats.total || 0}</td>
-                    </tr>`;
-                });
-            });
-
-            // 4 Filas de Resumen
-            const estH = data.genderCounts?.estudiantes?.hombres || 0;
-            const estM = data.genderCounts?.estudiantes?.mujeres || 0;
-            const estL = data.genderCounts?.estudiantes?.lgbti || 0;
-            const estT = data.totalEstudiantes || (estH + estM + estL);
-
-            const admH = data.genderCounts?.administrativos?.hombres || 0;
-            const admM = data.genderCounts?.administrativos?.mujeres || 0;
-            const admL = data.genderCounts?.administrativos?.lgbti || 0;
-            const admT = data.totalAdministrativos || (admH + admM + admL);
-
-            const docH = data.genderCounts?.docentes?.hombres || 0;
-            const docM = data.genderCounts?.docentes?.mujeres || 0;
-            const docL = data.genderCounts?.docentes?.lgbti || 0;
-            const docT = data.totalDocentes || (docH + docM + docL);
-
-            const totH = estH + admH + docH;
-            const totM = estM + admM + docM;
-            const totL = estL + admL + docL;
-            const grandTotalAnexo = estT + admT + docT;
-
-            html += `
-                <tr style="font-weight: bold; font-size: 7.5px;">
-                    <td colspan="3" style="border: 1px solid #000; background-color: #d9d9d9; padding: 2px 4px; text-align: left;">ESTUDIANTES</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${estH}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${estM}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${estL}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${estT}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7.5px;">
-                    <td colspan="3" style="border: 1px solid #000; background-color: #d9d9d9; padding: 2px 4px; text-align: left;">ADMINISTRATIVOS</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${admH}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${admM}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${admL}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${admT}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7.5px;">
-                    <td colspan="3" style="border: 1px solid #000; background-color: #d9d9d9; padding: 2px 4px; text-align: left;">DOCENTES</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${docH}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${docM}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${docL}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center; background-color: #fff;">${docT}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7.5px; background-color: #d9d9d9;">
-                    <td colspan="3" style="border: 1px solid #000; padding: 2px 4px; text-align: left;">TOTAL</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center;">${totH}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center;">${totM}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center;">${totL}</td>
-                    <td style="border: 1px solid #000; padding: 2px; text-align: center;">${grandTotalAnexo}</td>
-                </tr>
-            `;
-
-            return html;
-        };
-
-        const renderAnexo2TableRowsHtml = () => {
-            const facConfigs = [
-                {
-                    shortName: 'F.C. SALUD',
-                    fullName: 'CIENCIAS DE LA SALUD',
-                    careers: ['Enfermería', 'Gestión de Riesgos', 'Psicología', 'Terapia Física']
-                },
-                {
-                    shortName: 'F.C. JURISPRUDENCIA',
-                    fullName: 'JURISPRUDENCIA',
-                    careers: ['Criminalística', 'Derecho', 'Sociología']
-                },
-                {
-                    shortName: 'F.C. ADMINISTRATIVAS',
-                    fullName: 'CIENCIAS ADMINISTRATIVAS',
-                    careers: [
-                        'Ad. Empresas',
-                        'Comunicación',
-                        'Cont. Auditoría',
-                        'Emprendimiento e Innovación',
-                        'Gestión del Talento Humano',
-                        'Marketing Digital',
-                        'Mercadotecnia',
-                        'Software',
-                        'Tecnología de la Informática',
-                        'Turismo'
-                    ]
-                },
-                {
-                    shortName: 'F.C. AGROPECUARIAS',
-                    fullName: 'CIENCIAS AGROPECUARIAS',
-                    careers: ['Agroindustria', 'Agronomía', 'Med. Veterinaria']
-                },
-                {
-                    shortName: 'F.C. EDUCACIÓN',
-                    fullName: 'CIENCIAS DE LA EDUCACIÓN',
-                    careers: [
-                        'Educación Básica',
-                        'Educación Inicial',
-                        'Educación Intercultural Bilingüe',
-                        'Fisicomatemático',
-                        'Pedagogía Idiomas Nacionales',
-                        'Pedagogía de la Informática',
-                        'Centro de Desarrollo Infantil'
-                    ]
-                }
-            ];
-
-            let html = '';
-            let estPrevH = 0, estPrevM = 0, estPrevL = 0, estPrevT = 0;
-            let estCurH = 0, estCurM = 0, estCurL = 0, estCurT = 0;
-            let estGrandTotal = 0;
-
-            facConfigs.forEach(cfg => {
-                const facShort = cfg.shortName;
-                const facFull = cfg.fullName;
-                const careers = cfg.careers;
-                const facRowspan = careers.length + 1;
-
-                let fPrevH = 0, fPrevM = 0, fPrevL = 0, fPrevT = 0;
-                let fCurH = 0, fCurM = 0, fCurL = 0, fCurT = 0;
-                let fTotal = 0;
-
-                careers.forEach((careerName, idx) => {
-                    const stats = data.statsByFacultyAndCareer?.[facFull]?.[careerName] || {};
-                    const p = stats.preventiva || {};
-                    const c = stats.curativa || {};
-
-                    const pH = p.hombres || 0;
-                    const pM = p.mujeres || 0;
-                    const pL = p.lgbti || 0;
-                    const pT = p.total || (pH + pM + pL);
-
-                    const cH = c.hombres || 0;
-                    const cM = c.mujeres || 0;
-                    const cL = c.lgbti || 0;
-                    const cT = c.total || (cH + cM + cL);
-
-                    const rowTotal = stats.total || (pT + cT);
-
-                    fPrevH += pH; fPrevM += pM; fPrevL += pL; fPrevT += pT;
-                    fCurH += cH; fCurM += cM; fCurL += cL; fCurT += cT;
-                    fTotal += rowTotal;
-
-                    estPrevH += pH; estPrevM += pM; estPrevL += pL; estPrevT += pT;
-                    estCurH += cH; estCurM += cM; estCurL += cL; estCurT += cT;
-                    estGrandTotal += rowTotal;
-
-                    html += '<tr style="font-size: 7px;">';
-
-                    if (idx === 0) {
-                        html += `
-                            <td rowspan="${facRowspan}" style="border: 1px solid #000; background-color: #fde9d9; font-weight: bold; text-align: center; vertical-align: middle; padding: 2px; width: 14%; color: #000;">
-                                ${facShort}
-                            </td>
-                        `;
-                    }
-
-                    html += `
-                        <td style="border: 1px solid #000; padding: 1px 3px; text-align: left; width: 24%;">${careerName}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 6%;">${pH}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 6%;">${pM}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 5%;">${pL}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 7%; background-color: #d8e4bc; font-weight: bold;">${pT}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 6%;">${cH}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 6%;">${cM}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 5%;">${cL}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 7%; background-color: #d8e4bc; font-weight: bold;">${cT}</td>
-                        <td style="border: 1px solid #000; padding: 1px 2px; text-align: center; width: 8%; background-color: #d8e4bc; font-weight: bold;">${rowTotal}</td>
-                    </tr>`;
-                });
-
-                html += `
-                    <tr style="font-weight: bold; font-size: 7px; background-color: #fde9d9;">
-                        <td style="border: 1px solid #000; padding: 1.5px 3px; text-align: center;">TOTAL</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fPrevH}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fPrevM}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fPrevL}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${fPrevT}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fCurH}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fCurM}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fCurL}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${fCurT}</td>
-                        <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${fTotal}</td>
-                    </tr>
-                `;
-            });
-
-            // Resumen Administrativos
-            const admPrev = data.consolidadoStats?.preventivo?.['Examen Odontológico']?.administrativos || {};
-            const admPrevH = admPrev.hombres || 0;
-            const admPrevM = admPrev.mujeres || 0;
-            const admPrevL = admPrev.lgbti || 0;
-            const admPrevT = admPrev.total || (admPrevH + admPrevM + admPrevL);
-
-            let admCurH = 0, admCurM = 0, admCurL = 0, admCurT = 0;
-            (data.curativosDiagnoses || []).forEach(diag => {
-                const r = data.consolidadoStats?.curativo?.[diag]?.administrativos || {};
-                admCurH += r.hombres || 0;
-                admCurM += r.mujeres || 0;
-                admCurL += r.lgbti || 0;
-                admCurT += r.total || 0;
-            });
-            const admTotal = data.totalAdministrativos || (admPrevT + admCurT);
-
-            // Resumen Docentes
-            const docPrev = data.consolidadoStats?.preventivo?.['Examen Odontológico']?.docentes || {};
-            const docPrevH = docPrev.hombres || 0;
-            const docPrevM = docPrev.mujeres || 0;
-            const docPrevL = docPrev.lgbti || 0;
-            const docPrevT = docPrev.total || (docPrevH + docPrevM + docPrevL);
-
-            let docCurH = 0, docCurM = 0, docCurL = 0, docCurT = 0;
-            (data.curativosDiagnoses || []).forEach(diag => {
-                const r = data.consolidadoStats?.curativo?.[diag]?.docentes || {};
-                docCurH += r.hombres || 0;
-                docCurM += r.mujeres || 0;
-                docCurL += r.lgbti || 0;
-                docCurT += r.total || 0;
-            });
-            const docTotal = data.totalDocentes || (docPrevT + docCurT);
-
-            // Resumen General
-            const grandPrevH = estPrevH + admPrevH + docPrevH;
-            const grandPrevM = estPrevM + admPrevM + docPrevM;
-            const grandPrevL = estPrevL + admPrevL + docPrevL;
-            const grandPrevT = estPrevT + admPrevT + docPrevT;
-
-            const grandCurH = estCurH + admCurH + docCurH;
-            const grandCurM = estCurM + admCurM + docCurM;
-            const grandCurL = estCurL + admCurL + docCurL;
-            const grandCurT = estCurT + admCurT + docCurT;
-
-            const grandTotalAll = data.totalPacientes || (grandPrevT + grandCurT);
-
-            // 4 Filas de Resumen
-            html += `
-                <tr style="font-weight: bold; font-size: 7px; background-color: #fde9d9;">
-                    <td colspan="2" style="border: 1px solid #000; padding: 2px 4px; text-align: left;">ESTUDIANTES</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estPrevH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estPrevM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estPrevL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${estPrevT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estCurH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estCurM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${estCurL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${estCurT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${estGrandTotal}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7px; background-color: #fde9d9;">
-                    <td colspan="2" style="border: 1px solid #000; padding: 2px 4px; text-align: left;">ADMINISTRATIVOS</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admPrevH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admPrevM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admPrevL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${admPrevT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admCurH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admCurM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${admCurL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${admCurT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${admTotal}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7px; background-color: #fde9d9;">
-                    <td colspan="2" style="border: 1px solid #000; padding: 2px 4px; text-align: left;">DOCENTES</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docPrevH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docPrevM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docPrevL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${docPrevT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docCurH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docCurM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${docCurL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${docCurT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${docTotal}</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 7px; background-color: #cbd5e1;">
-                    <td colspan="2" style="border: 1px solid #000; padding: 2px 4px; text-align: center;">TOTAL</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandPrevH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandPrevM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandPrevL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${grandPrevT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandCurH}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandCurM}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${grandCurL}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${grandCurT}</td>
-                    <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #d8e4bc;">${grandTotalAll}</td>
-                </tr>
-            `;
-
-            return html;
-        };
-
-        const renderConsolidadoTableHtml = () => {
-            const pExamen = data.consolidadoStats?.preventivo?.['Examen Odontológico'] || {
-                estudiantes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                administrativos: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                docentes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 }
-            };
-            const prevTotal = (pExamen.estudiantes?.total || 0) + (pExamen.administrativos?.total || 0) + (pExamen.docentes?.total || 0);
-
-            let totEstH = pExamen.estudiantes?.hombres || 0;
-            let totEstM = pExamen.estudiantes?.mujeres || 0;
-            let totEstL = pExamen.estudiantes?.lgbti || 0;
-            let totEstT = pExamen.estudiantes?.total || 0;
-
-            let totAdmH = pExamen.administrativos?.hombres || 0;
-            let totAdmM = pExamen.administrativos?.mujeres || 0;
-            let totAdmL = pExamen.administrativos?.lgbti || 0;
-            let totAdmT = pExamen.administrativos?.total || 0;
-
-            let totDocH = pExamen.docentes?.hombres || 0;
-            let totDocM = pExamen.docentes?.mujeres || 0;
-            let totDocL = pExamen.docentes?.lgbti || 0;
-            let totDocT = pExamen.docentes?.total || 0;
-
-            let totGrandT = prevTotal;
-
-            const curRowsHtml = (data.curativosDiagnoses || []).map(diag => {
-                const cur = data.consolidadoStats?.curativo?.[diag] || {
-                    estudiantes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                    administrativos: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 },
-                    docentes: { hombres: 0, mujeres: 0, lgbti: 0, total: 0 }
-                };
-                const e = cur.estudiantes || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-                const a = cur.administrativos || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-                const d = cur.docentes || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-                const rowTotal = (e.total || 0) + (a.total || 0) + (d.total || 0);
-
-                totEstH += e.hombres || 0; totEstM += e.mujeres || 0; totEstL += e.lgbti || 0; totEstT += e.total || 0;
-                totAdmH += a.hombres || 0; totAdmM += a.mujeres || 0; totAdmL += a.lgbti || 0; totAdmT += a.total || 0;
-                totDocH += d.hombres || 0; totDocM += d.mujeres || 0; totDocL += d.lgbti || 0; totDocT += d.total || 0;
-                totGrandT += rowTotal;
-
-                return `
-                    <tr style="font-size: 6.5px;">
-                        <td style="border: 1px solid #000; padding: 0.8px 3px; text-align: left;">${diag}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${e.hombres > 0 ? e.hombres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${e.mujeres > 0 ? e.mujeres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">0</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${e.total || 0}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${a.hombres > 0 ? a.hombres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${a.mujeres > 0 ? a.mujeres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">0</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${a.total || 0}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${d.hombres > 0 ? d.hombres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${d.mujeres > 0 ? d.mujeres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">0</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${d.total || 0}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 1px; text-align: center;">${rowTotal || 0}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            return `
-                <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1.5px solid #000; font-size: 6.5px; margin-bottom: 2px;">
-                    <thead>
-                        <tr>
-                            <td colspan="2" style="border: 1px solid #000; padding: 2px; text-align: center; vertical-align: middle; background-color: #fff; width: 18%;">
-                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 22px; width: auto; object-fit: contain;" />
-                            </td>
-                            <td colspan="10" style="border: 1px solid #000; padding: 2px; text-align: center; font-weight: bold; font-size: 7.5px; background-color: #fff; line-height: 1.2;">
-                                UNIVERSIDAD ESTATAL DE BOLÍVAR<br/>
-                                BIENESTAR UNIVERSITARIO<br/>
-                                ATENCIONES DE ODONTOLOGÍA - ${selectedMonthText.toUpperCase()} ${genReportYear}
-                            </td>
-                            <td colspan="2" style="border: 1px solid #000; padding: 2px; text-align: center; vertical-align: middle; background-color: #fff; width: 18%;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 22px; width: auto; object-fit: contain;" />
-                            </td>
-                        </tr>
-                        <tr style="font-weight: bold; text-align: center; font-size: 6.5px;">
-                            <th style="border: 1px solid #000; background-color: #ebf1de; padding: 2px; text-align: left; width: 22%; color: #000;">CONSOLIDADO</th>
-                            <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px; color: #000;">ESTUDIANTES</th>
-                            <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px; color: #000;">ADMINISTRATIVOS</th>
-                            <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px; color: #000;">DOCENTES</th>
-                            <th rowspan="2" style="border: 1px solid #000; background-color: #8db4e2; padding: 2px; color: #000; vertical-align: middle; width: 7%;">TOTAL</th>
-                        </tr>
-                        <tr style="font-weight: bold; text-align: center; font-size: 6px;">
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; text-align: left; color: #000;">PREVENCION</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5%;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000; width: 5.5%;">TOTAL</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5%;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000; width: 5.5%;">TOTAL</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5.5%;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000; width: 5%;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000; width: 5.5%;">TOTAL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="font-size: 6.5px;">
-                            <td style="border: 1px solid #000; padding: 1px 3px; text-align: left;">Examen Odontológico</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.estudiantes?.hombres > 0 ? pExamen.estudiantes?.hombres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.estudiantes?.mujeres > 0 ? pExamen.estudiantes?.mujeres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.estudiantes?.total || 0}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.administrativos?.hombres > 0 ? pExamen.administrativos?.hombres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.administrativos?.mujeres > 0 ? pExamen.administrativos?.mujeres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.administrativos?.total || 0}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.docentes?.hombres > 0 ? pExamen.docentes?.hombres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.docentes?.mujeres > 0 ? pExamen.docentes?.mujeres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pExamen.docentes?.total || 0}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${prevTotal}</td>
-                        </tr>
-                        <tr style="font-weight: bold; text-align: center; font-size: 6px;">
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; text-align: left; color: #000;">CURATIVO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000;">TOTAL</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000;">TOTAL</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 1px; color: #000;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 1px; color: #000;">TOTAL</th>
-                            <th style="border: 1px solid #000; background-color: #8db4e2; padding: 1.5px 1px; color: #000;">TOTAL</th>
-                        </tr>
-                        ${curRowsHtml}
-                        <tr style="font-weight: bold; font-size: 6.5px; background-color: #e4dfec;">
-                            <td style="border: 1px solid #000; padding: 1.5px 3px; text-align: center;">TOTAL</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totEstH}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totEstM}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totEstT}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totAdmH}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totAdmM}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totAdmT}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totDocH}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totDocM}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totDocT}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px 1px; text-align: center;">${totGrandT}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
-                    <div style="width: 7%; border: 1px solid #000; background-color: #fff; font-size: 6.5px; font-weight: bold; text-align: center; padding: 1px 0;">
-                        ${totGrandT}
-                    </div>
-                </div>
-            `;
-        };
-
-        const formatCareerDisplayName = (cName) => {
-            if (!cName) return '';
-            const norm = cName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-            if (norm.includes('admin') || norm.includes('empresa')) return 'ADMINISTRACIÓN DE EMPRESAS';
-            if (norm.includes('contab') || norm.includes('auditor')) return 'CONTABILIDAD';
-            if (norm.includes('veterin')) return 'MEDICINA VETERINARIA';
-            return cName.toUpperCase();
-        };
-
-        const renderSingleCareerTableHtml = (careerName) => {
-            const cStats = data.careerIndividualStats?.[careerName] || {};
-            const pVal = cStats.preventivo?.['Examen Odontológico'] || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-
-            let curH = 0, curM = 0, curL = 0, curT = 0;
-            const careerCurRowsHtml = (data.curativosDiagnoses || []).map(diag => {
-                const r = cStats.curativo?.[diag] || { hombres: 0, mujeres: 0, lgbti: 0, total: 0 };
-                curH += r.hombres || 0;
-                curM += r.mujeres || 0;
-                curL += r.lgbti || 0;
-                curT += r.total || 0;
-
-                return `
-                    <tr style="font-size: 6.5px;">
-                        <td style="border: 1px solid #000; padding: 0.8px 3px; text-align: left;">${diag}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 2px; text-align: center;">${r.hombres > 0 ? r.hombres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 2px; text-align: center;">${r.mujeres > 0 ? r.mujeres : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 2px; text-align: center;">${r.lgbti > 0 ? r.lgbti : ''}</td>
-                        <td style="border: 1px solid #000; padding: 0.8px 2px; text-align: center;">${r.total || 0}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            const cFinalH = (pVal.hombres || 0) + curH;
-            const cFinalM = (pVal.mujeres || 0) + curM;
-            const cFinalL = (pVal.lgbti || 0) + curL;
-            const cFinalT = (pVal.total || 0) + curT;
-
-            return `
-                <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1.5px solid #000; font-size: 6.5px; margin-bottom: 2px;">
-                    <thead>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 2px; text-align: center; vertical-align: middle; background-color: #fff; width: 18%;">
-                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 22px; width: auto; object-fit: contain;" />
-                            </td>
-                            <td colspan="3" style="border: 1px solid #000; padding: 2px; text-align: center; font-weight: bold; font-size: 7.5px; background-color: #fff; line-height: 1.2;">
-                                UNIVERSIDAD ESTATAL DE BOLÍVAR<br/>
-                                BIENESTAR UNIVERSITARIO<br/>
-                                ATENCIONES DE ODONTOLOGÍA - ${selectedMonthText.toUpperCase()} ${genReportYear}
-                            </td>
-                            <td style="border: 1px solid #000; padding: 2px; text-align: center; vertical-align: middle; background-color: #fff; width: 18%;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 22px; width: auto; object-fit: contain;" />
-                            </td>
-                        </tr>
-                        <tr style="font-weight: bold; font-size: 6.5px;">
-                            <th style="border: 1px solid #000; background-color: #ebf1de; padding: 2px 4px; text-align: left; color: #000; width: 50%;">
-                                ${formatCareerDisplayName(careerName)}
-                            </th>
-                            <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px; text-align: center; color: #000; width: 50%;">
-                                ESTUDIANTES
-                            </th>
-                        </tr>
-                        <tr style="font-weight: bold; font-size: 6px; text-align: center;">
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 3px; text-align: left; color: #000;">PREVENCION</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000; width: 12.5%;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000; width: 12.5%;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000; width: 11%;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 14%;">TOTAL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="font-size: 6.5px;">
-                            <td style="border: 1px solid #000; padding: 1px 3px; text-align: left;">Examen Odontológico</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pVal.hombres > 0 ? pVal.hombres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pVal.mujeres > 0 ? pVal.mujeres : ''}</td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;"></td>
-                            <td style="border: 1px solid #000; padding: 1px; text-align: center;">${pVal.total || 0}</td>
-                        </tr>
-                        <tr style="font-weight: bold; font-size: 6px; text-align: center;">
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 3px; text-align: left; color: #000;">CURATIVO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                            <th style="border: 1px solid #000; background-color: #fde9d9; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                            <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                        </tr>
-                        ${careerCurRowsHtml}
-                        <tr style="font-weight: bold; font-size: 6.5px; background-color: #e4dfec;">
-                            <td style="border: 1px solid #000; padding: 1.5px 3px; text-align: center;">TOTAL</td>
-                            <td style="border: 1px solid #000; padding: 1.5px; text-align: center;">${curH > 0 ? curH : 0}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px; text-align: center;">${curM > 0 ? curM : 0}</td>
-                            <td style="border: 1px solid #000; padding: 1.5px; text-align: center;">0</td>
-                            <td style="border: 1px solid #000; padding: 1.5px; text-align: center;">${curT || 0}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">
-                    <div style="width: 14%; border: 1px solid #000; background-color: #fff; font-size: 6.5px; font-weight: bold; text-align: center; padding: 1px 0;">
-                        ${cFinalT || 0}
-                    </div>
-                </div>
-            `;
-        };
-
-        const renderRemainingCareerPagesHtml = () => '';
-
-        const renderProceduresRows = (procObj) => {
-            const keys = Object.keys(procObj);
-            let totalEstH = 0, totalEstM = 0, totalEstL = 0;
-            let totalAdmH = 0, totalAdmM = 0, totalAdmL = 0;
-            let totalDocH = 0, totalDocM = 0, totalDocL = 0;
-
-            const rowsHtml = keys.map(k => {
-                const r = procObj[k];
-                totalEstH += r.estudiantes.hombres;
-                totalEstM += r.estudiantes.mujeres;
-                totalEstL += r.estudiantes.lgbti;
-                totalAdmH += r.administrativos.hombres;
-                totalAdmM += r.administrativos.mujeres;
-                totalAdmL += r.administrativos.lgbti;
-                totalDocH += r.docentes.hombres;
-                totalDocM += r.docentes.mujeres;
-                totalDocL += r.docentes.lgbti;
-
-                return `
-                    <tr>
-                        <td class="left-align font-bold" style="border: 1px solid #000; font-size: 8px; padding: 4px;">${k}</td>
-                        <td style="border: 1px solid #000;">${r.estudiantes.hombres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.estudiantes.mujeres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.estudiantes.lgbti || ''}</td>
-                        <td class="font-bold bg-gray" style="border: 1px solid #000;">${r.estudiantes.hombres + r.estudiantes.mujeres + r.estudiantes.lgbti}</td>
-                        <td style="border: 1px solid #000;">${r.administrativos.hombres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.administrativos.mujeres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.administrativos.lgbti || ''}</td>
-                        <td class="font-bold bg-gray" style="border: 1px solid #000;">${r.administrativos.hombres + r.administrativos.mujeres + r.administrativos.lgbti}</td>
-                        <td style="border: 1px solid #000;">${r.docentes.hombres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.docentes.mujeres || ''}</td>
-                        <td style="border: 1px solid #000;">${r.docentes.lgbti || ''}</td>
-                        <td class="font-bold bg-gray" style="border: 1px solid #000;">${r.docentes.hombres + r.docentes.mujeres + r.docentes.lgbti}</td>
-                        <td class="bg-total font-bold" style="border: 1px solid #000;">${r.estudiantes.hombres + r.estudiantes.mujeres + r.estudiantes.lgbti + r.administrativos.hombres + r.administrativos.mujeres + r.administrativos.lgbti + r.docentes.hombres + r.docentes.mujeres + r.docentes.lgbti}</td>
-                    </tr>
-                `;
-            }).join('');
-
-            const grandEstTotal = totalEstH + totalEstM + totalEstL;
-            const grandAdmTotal = totalAdmH + totalAdmM + totalAdmL;
-            const grandDocTotal = totalDocH + totalDocM + totalDocL;
-            const grandTotal = grandEstTotal + grandAdmTotal + grandDocTotal;
-
-            const footerHtml = `
-                <tr class="bg-total font-bold" style="font-size: 8.5px; background-color: #cbd5e1 !important; border: 1px solid #000;">
-                    <td class="left-align" style="border: 1px solid #000; padding: 4px;">TOTAL</td>
-                    <td style="border: 1px solid #000;">${totalEstH}</td>
-                    <td style="border: 1px solid #000;">${totalEstM}</td>
-                    <td style="border: 1px solid #000;">${totalEstL}</td>
-                    <td style="border: 1px solid #000;">${grandEstTotal}</td>
-                    <td style="border: 1px solid #000;">${totalAdmH}</td>
-                    <td style="border: 1px solid #000;">${totalAdmM}</td>
-                    <td style="border: 1px solid #000;">${totalAdmL}</td>
-                    <td style="border: 1px solid #000;">${grandAdmTotal}</td>
-                    <td style="border: 1px solid #000;">${totalDocH}</td>
-                    <td style="border: 1px solid #000;">${totalDocM}</td>
-                    <td style="border: 1px solid #000;">${totalDocL}</td>
-                    <td style="border: 1px solid #000;">${grandDocTotal}</td>
-                    <td style="background-color: #94a3b8 !important; color: #fff; border: 1px solid #000;">${grandTotal}</td>
-                </tr>
-            `;
-            return rowsHtml + footerHtml;
-        };
-
-        return `
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8">
-                <title>Informe General de Atenciones - ${selectedMonthText} ${genReportYear}</title>
-                <style>
-                    @page {
-                        size: A4 portrait;
-                        margin: 10mm 12mm 12mm 12mm;
-                    }
-                    body {
-                        font-family: Arial, sans-serif;
-                        font-size: 9.5px;
-                        line-height: 1.4;
-                        color: #000;
-                        margin: 0;
-                        padding: 20px 0;
-                        background: #e2e8f0;
-                    }
-                    .page-container {
-                        width: 100%;
-                        max-width: 210mm;
-                        min-height: auto !important;
-                        height: auto !important;
-                        padding: 12mm 16mm 14mm 16mm;
-                        margin: 0 auto 16px auto;
-                        background: #fff;
-                        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
-                        box-sizing: border-box;
-                        border-radius: 4px;
-                        position: relative;
-                    }
-                    table, .report-table, .branding-table, .general-data-table {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    tr, tbody {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    thead {
-                        display: table-header-group;
-                    }
-                    .career-card, .table-card, .signature-card, .section-card {
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    .page-footer-container {
-                        margin-top: 14px;
-                        border-top: 1px solid #cbd5e1;
-                        padding-top: 4px;
-                        font-size: 7.5px;
-                        line-height: 1.3;
-                        color: #1e3a8a;
-                        text-align: left;
-                        font-family: Arial, sans-serif;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    @media print {
-                        body {
-                            background: #fff !important;
-                            padding: 0 !important;
-                            margin: 0 !important;
-                            -webkit-print-color-adjust: exact !important;
-                            print-color-adjust: exact !important;
-                        }
-                        .page-container {
-                            width: 100% !important;
-                            max-width: 100% !important;
-                            min-height: auto !important;
-                            height: auto !important;
-                            padding: 0 !important;
-                            margin: 0 !important;
-                            box-shadow: none !important;
-                            background: #fff !important;
-                            border-radius: 0 !important;
-                        }
-                    }
-                    .branding-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-bottom: 15px;
-                    }
-                    .branding-table td {
-                        border: 1px solid #000;
-                        padding: 6px;
-                        text-align: center;
-                        vertical-align: middle;
-                    }
-                    .branding-title {
-                        font-size: 12px;
-                        font-weight: bold;
-                        color: #003366;
-                        text-transform: uppercase;
-                    }
-                    .branding-subtitle {
-                        font-size: 10px;
-                        font-weight: bold;
-                        color: #b71a34;
-                        margin-top: 3px;
-                    }
-                    .general-data-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-bottom: 20px;
-                        font-size: 9px;
-                    }
-                    .general-data-table td, .general-data-table th {
-                        border: 1px solid #000;
-                        padding: 5px 6px;
-                        vertical-align: top;
-                    }
-                    .general-data-table th {
-                        background-color: #f1f5f9;
-                        text-transform: uppercase;
-                        font-weight: bold;
-                        text-align: center;
-                    }
-                    .report-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-size: 8px;
-                        margin-bottom: 12px;
-                        border: 1px solid #000;
-                    }
-                    .report-table th, .report-table td {
-                        border: 1px solid #000;
-                        padding: 4px;
-                        text-align: center;
-                    }
-                    .report-table th {
-                        font-weight: bold;
-                        font-size: 8px;
-                    }
-                    .bg-gray {
-                        background-color: #f1f5f9 !important;
-                    }
-                    .bg-total {
-                        background-color: #cbd5e1 !important;
-                    }
-                    .left-align {
-                        text-align: left !important;
-                    }
-                    .font-bold {
-                        font-weight: bold;
-                    }
-                    .text-upper {
-                        text-transform: uppercase;
-                    }
-                    h2 {
-                        font-size: 11px;
-                        font-weight: bold;
-                        margin-top: 15px;
-                        margin-bottom: 6px;
-                        text-transform: uppercase;
-                        border-bottom: 1px solid #000;
-                        padding-bottom: 2px;
-                    }
-                    h3 {
-                        font-size: 10px;
-                        font-weight: bold;
-                        margin-top: 12px;
-                        margin-bottom: 5px;
-                        text-transform: uppercase;
-                    }
-                    p, li {
-                        font-size: 10px;
-                        text-align: justify;
-                        margin-bottom: 8px;
-                    }
-                    .footnote-address {
-                        margin-top: 30px;
-                        font-size: 7.5px;
-                        color: #64748b;
-                        border-top: 1px solid #cbd5e1;
-                        padding-top: 6px;
-                    }
-                </style>
-            </head>
-            <body>
-                <!-- CUERPO CONTINUO DEL INFORME: ANTECEDENTES, ACTIVIDADES, RESULTADOS, GÉNERO, FACULTADES, PREVENTIVAS, CURATIVAS, PROCEDIMIENTOS, CONCLUSIONES, RECOMENDACIONES, ANEXOS, FIRMAS -->
-                <div class="page-container" style="padding: 12mm 16mm 14mm 16mm; box-sizing: border-box; font-family: Arial, sans-serif;">
-                    <!-- Banner Institucional Superior -->
-                    <div style="margin-bottom: 12px; text-align: center;">
-                        <img src="${headerBienestar}" alt="UEB | Bienestar Universitario" style="width: 100%; max-height: 48px; object-fit: contain;" />
-                    </div>
-
-                    <!-- Tabla de Control y Datos Generales -->
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-family: Arial, sans-serif; border: 1px solid #4b5563;">
-                        <!-- Fila 1: Logo UEB | Nombre Institución | Versión y Página -->
-                        <tr>
-                            <td style="width: 18%; text-align: center; vertical-align: middle; padding: 6px 8px; border: 1px solid #4b5563; background: #fff;">
-                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 38px; width: auto; max-width: 95%; object-fit: contain;" />
-                            </td>
-                            <td colspan="3" style="width: 60%; text-align: center; vertical-align: middle; padding: 6px 8px; border: 1px solid #4b5563; background: #fff;">
-                                <div style="font-size: 13px; font-weight: bold; color: #1e3a8a; line-height: 1.2;">Universidad Estatal de Bolívar</div>
-                                <div style="font-size: 11px; font-weight: bold; color: #3b82f6; margin-top: 3px;">Informe General</div>
-                            </td>
-                            <td style="width: 22%; padding: 0; vertical-align: middle; border: 1px solid #4b5563; background: #fff;">
-                                <table style="width: 100%; height: 100%; border-collapse: collapse; font-size: 8px;">
-                                    <tr>
-                                        <td style="width: 50%; border-right: 1px solid #4b5563; border-bottom: 1px solid #4b5563; padding: 4px; font-weight: bold; text-align: center; color: #1e293b;">VERSIÓN:</td>
-                                        <td style="width: 50%; border-bottom: 1px solid #4b5563; padding: 4px; text-align: center;">1.0</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="width: 50%; border-right: 1px solid #4b5563; padding: 4px; font-weight: bold; text-align: center; color: #1e293b;">PÁGINA:</td>
-                                        <td style="width: 50%; padding: 4px; text-align: center;"><sup>1</sup> de ${totalPages}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Fila 2: DATOS GENERALES -->
-                        <tr>
-                            <td colspan="5" style="background-color: #cbd5e1; text-align: center; padding: 4px; font-weight: bold; font-size: 10.5px; color: #1e3a8a; border: 1px solid #4b5563; text-transform: uppercase;">
-                                DATOS GENERALES
-                            </td>
-                        </tr>
-
-                        <!-- Fila 3: Fecha de Informe & No. De Informe -->
-                        <tr style="font-size: 8.5px;">
-                            <td style="background-color: #e2e8f0; border: 1px solid #4b5563; padding: 4px 6px; font-weight: 500; width: 18%;">Fecha de Informe:</td>
-                            <td style="border: 1px solid #4b5563; padding: 4px 6px; text-align: center; width: 20%;">${reportDateFormatted}</td>
-                            <td style="background-color: #e2e8f0; border: 1px solid #4b5563; padding: 4px 6px; font-weight: 500; width: 15%;">No. De Informe</td>
-                            <td colspan="2" style="border: 1px solid #4b5563; padding: 4px 6px; text-align: center; width: 47%;">${reportNo}</td>
-                        </tr>
-
-                        <!-- Fila 4: Funcionario Responsable de Informe (Subcabecera Contacto) -->
-                        <tr style="font-size: 8.5px; background-color: #e2e8f0;">
-                            <td rowspan="3" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; font-weight: 500; width: 18%;">Funcionario Responsable de Informe</td>
-                            <td rowspan="2" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; text-align: left; font-weight: 500; width: 20%;">Nombre</td>
-                            <td colspan="2" style="border: 1px solid #4b5563; padding: 3px; text-align: center; font-weight: 500; width: 40%;">Contacto</td>
-                            <td rowspan="2" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; text-align: left; font-weight: 500; width: 22%;">Cargo</td>
-                        </tr>
-
-                        <!-- Fila 5: Extensión Telefónica y Correo Electrónico sub-headers -->
-                        <tr style="font-size: 7.5px; background-color: #e2e8f0;">
-                            <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: left; font-weight: 500; width: 15%;">Extensión Telefónica</td>
-                            <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: left; font-weight: 500; width: 25%;">Correo Electrónico</td>
-                        </tr>
-
-                        <!-- Fila 6: Datos del Funcionario -->
-                        <tr style="font-size: 8px;">
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">${doctorNameText}</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: center;">167 &nbsp; 168 &nbsp; 169</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">${doctorEmail}</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">Odontóloga de Bienestar Universitario</td>
-                        </tr>
-
-                        <!-- Fila 7: Informe dirigido a: (Subcabecera Contacto) -->
-                        <tr style="font-size: 8.5px; background-color: #e2e8f0;">
-                            <td rowspan="3" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; font-weight: 500; width: 18%;">Informe dirigido a:</td>
-                            <td rowspan="2" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; text-align: left; font-weight: 500; width: 20%;">Nombre</td>
-                            <td colspan="2" style="border: 1px solid #4b5563; padding: 3px; text-align: center; font-weight: 500; width: 40%;">Contacto</td>
-                            <td rowspan="2" style="border: 1px solid #4b5563; padding: 4px 6px; vertical-align: middle; text-align: left; font-weight: 500; width: 22%;">Cargo</td>
-                        </tr>
-
-                        <!-- Fila 8: Extensión Telefónica y Correo Electrónico sub-headers -->
-                        <tr style="font-size: 7.5px; background-color: #e2e8f0;">
-                            <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: left; font-weight: 500; width: 15%;">Extensión Telefónica</td>
-                            <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: left; font-weight: 500; width: 25%;">Correo Electrónico</td>
-                        </tr>
-
-                        <!-- Fila 9: Datos del Destinatario -->
-                        <tr style="font-size: 8px;">
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">Michel Gaibor Vásquez</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: center;">167 &nbsp; 168 &nbsp; 169</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">sgaibor@ueb.gob.ec</td>
-                            <td style="border: 1px solid #4b5563; padding: 5px; text-align: left;">Coordinadora de Bienestar Universitario</td>
-                        </tr>
-
-                        <!-- Fila 10: ASUNTO -->
-                        <tr>
-                            <td colspan="5" style="background-color: #eee9f6; border: 1px solid #4b5563; padding: 5px 8px; font-size: 8.5px; text-align: left;">
-                                <strong>ASUNTO:</strong> Informe mensual de atenciones odontológicas del mes de ${selectedMonthText.toLowerCase()}.
-                            </td>
-                        </tr>
-                    </table>
-
-                    <!-- Sección 1: ANTECEDENTES -->
-                    <div style="font-size: 10px; font-weight: bold; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; color: #000;">
-                        1. ANTECEDENTES
-                    </div>
-                    <p style="font-size: 8.5px; line-height: 1.4; text-align: justify; margin-bottom: 8px; color: #000;">
-                        Bienestar Universitario, fue creado mediante resolución del Honorable Consejo Estudiantil en el año 1990 en conjunto con los demás departamentos que conforman la estructura administrativa de la institución. Dentro de su organización interna, se la concibió como un departamento de atención médica, odontológica, psicológica y servicio social dirigido a los miembros de la comunidad universitaria.
-                    </p>
-                    <p style="font-size: 8.5px; line-height: 1.4; text-align: justify; margin-bottom: 12px; color: #000;">
-                        Bienestar Universitario, a través del área de odontología brinda atención diaria a la comunidad universitaria, conformada por estudiantes, docentes y personal administrativo, asegurando la prestación continua y eficiente en la atención preventiva y curativa a los usuarios.
-                    </p>
-
-                    <!-- Sección 2: ACTIVIDADES -->
-                    <div style="font-size: 10px; font-weight: bold; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; color: #000;">
-                        2. ACTIVIDADES
-                    </div>
-                    <div style="font-size: 8.5px; line-height: 1.45; color: #000; margin-bottom: 14px; padding-left: 5px;">
-                        <div>• Promoción de la salud buco-dental</div>
-                        <div>• Atención Preventiva.</div>
-                        <div>• Atención Curativa o Morbilidad.</div>
-                        <div>• Tratamiento y procedimientos oportuno</div>
-                        <div>• Elaboración de Historia Clínica Odontológica a los pacientes.</div>
-                        <div>• Registro de atenciones.</div>
-                        <div>• Elaboración del informe mensual de actividades.</div>
-                    </div>
-
-                    <!-- Sección 3: ANÁLISIS DE RESULTADOS -->
-                    <div style="font-size: 10px; font-weight: bold; margin-top: 14px; margin-bottom: 8px; text-transform: uppercase; color: #000;">
-                        3. ANÁLISIS DE RESULTADOS
-                    </div>
-                    <table style="width: 250px; border-collapse: collapse; margin-left: 140px; margin-bottom: 15px; border: 1px solid #4b5563; font-family: Arial, sans-serif;">
-                        <thead>
-                            <tr style="background-color: #cbd5e1; font-size: 8.5px; font-weight: bold;">
-                                <th style="border: 1px solid #4b5563; padding: 4px 8px; text-align: left; width: 65%;">COMUNIDAD UNIVERSITARIA</th>
-                                <th style="border: 1px solid #4b5563; padding: 4px 8px; text-align: center; width: 35%;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody style="font-size: 8.5px;">
-                            <tr>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: left;">ESTUDIANTES</td>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: center;">${data.totalEstudiantes}</td>
-                            </tr>
-                            <tr>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: left;">ADMINISTRATIVOS</td>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: center;">${data.totalAdministrativos}</td>
-                            </tr>
-                            <tr>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: left;">DOCENTES</td>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: center;">${data.totalDocentes}</td>
-                            </tr>
-                            <tr style="background-color: #cbd5e1; font-weight: bold;">
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: left;">TOTAL</td>
-                                <td style="border: 1px solid #4b5563; padding: 3px 8px; text-align: center;">${data.totalPacientes}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Párrafo introductorio -->
-                    <p style="font-size: 8.5px; line-height: 1.35; text-align: justify; margin: 0 0 8px 0; color: #1e293b;">
-                        Las actividades realizadas durante el mes de ${selectedMonthText.toLowerCase()} en las atenciones odontológicas a la Comunidad Universitaria dan un total de ${data.totalPacientes} pacientes, ${data.totalEstudiantes} estudiantes, ${data.totalAdministrativos} Administrativos y ${data.totalDocentes} Docentes.
-                    </p>
-
-                    <!-- DATOS POR GÉNERO -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 10px; margin-bottom: 5px; color: #000;">
-                        DATOS POR GÉNERO:
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #4b5563; margin-bottom: 6px;">
-                        <thead>
-                            <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 8px; text-align: center;">
-                                <th style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left; width: 40%;">COMUNIDAD UNIVERSITARIA</th>
-                                <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 15%;">HOMBRES</th>
-                                <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 15%;">MUJERES</th>
-                                <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 15%;">LGBTI</th>
-                                <th style="border: 1px solid #4b5563; padding: 2px 4px; width: 15%;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="font-size: 8px;">
-                                <td style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left;">ESTUDIANTES</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.estudiantes?.hombres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.estudiantes?.mujeres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.estudiantes?.lgbti || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; font-weight: bold;">${data.totalEstudiantes || 0}</td>
-                            </tr>
-                            <tr style="font-size: 8px;">
-                                <td style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left;">ADMINISTRATIVOS</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.administrativos?.hombres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.administrativos?.mujeres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.administrativos?.lgbti || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; font-weight: bold;">${data.totalAdministrativos || 0}</td>
-                            </tr>
-                            <tr style="font-size: 8px;">
-                                <td style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left;">DOCENTES</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.docentes?.hombres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.docentes?.mujeres || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.genderCounts?.docentes?.lgbti || 0}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center; font-weight: bold;">${data.totalDocentes || 0}</td>
-                            </tr>
-                            <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 8px;">
-                                <td style="border: 1px solid #4b5563; padding: 2px 6px; text-align: left;">TOTAL</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${totalH}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${totalM}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${totalL}</td>
-                                <td style="border: 1px solid #4b5563; padding: 2px 4px; text-align: center;">${data.totalPacientes || 0}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Narrativa Género -->
-                    <p style="font-size: 8.5px; line-height: 1.35; text-align: justify; margin: 0 0 10px 0; color: #1e293b;">
-                        ${genderNarrative}
-                    </p>
-
-                    <!-- POR FACULTADES -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 10px; margin-bottom: 5px; color: #000;">
-                        POR FACULTADES:
-                    </div>
-
-                    <!-- Facultad 1: CIENCIAS DE LA SALUD -->
-                    ${renderFacultyTableHtml('CIENCIAS DE LA SALUD', data.statsByFacultyAndCareer?.['CIENCIAS DE LA SALUD'] || {})}
-                    <p style="font-size: 8px; line-height: 1.35; text-align: justify; margin: 0 0 6px 0; color: #1e293b;">
-                        ${renderFacultyNarrativeText('CIENCIAS DE LA SALUD', data.statsByFacultyAndCareer?.['CIENCIAS DE LA SALUD'] || {})}
-                    </p>
-
-                    <!-- Facultad 2: JURISPRUDENCIA -->
-                    ${renderFacultyTableHtml('JURISPRUDENCIA', data.statsByFacultyAndCareer?.['JURISPRUDENCIA'] || {})}
-                    <p style="font-size: 8px; line-height: 1.35; text-align: justify; margin: 0 0 6px 0; color: #1e293b;">
-                        ${renderFacultyNarrativeText('JURISPRUDENCIA', data.statsByFacultyAndCareer?.['JURISPRUDENCIA'] || {})}
-                    </p>
-
-                    <!-- Facultad 3: CIENCIAS ADMINISTRATIVAS -->
-                    ${renderFacultyTableHtml('CIENCIAS ADMINISTRATIVAS', data.statsByFacultyAndCareer?.['CIENCIAS ADMINISTRATIVAS'] || {})}
-                    <p style="font-size: 8px; line-height: 1.35; text-align: justify; margin: 0 0 6px 0; color: #1e293b;">
-                        ${renderFacultyNarrativeText('CIENCIAS ADMINISTRATIVAS', data.statsByFacultyAndCareer?.['CIENCIAS ADMINISTRATIVAS'] || {})}
-                    </p>
-
-                    <!-- Facultad 4: CIENCIAS AGROPECUARIAS -->
-                    ${renderFacultyTableHtml('CIENCIAS AGROPECUARIAS', data.statsByFacultyAndCareer?.['CIENCIAS AGROPECUARIAS'] || {})}
-                    <p style="font-size: 8px; line-height: 1.35; text-align: justify; margin: 0 0 6px 0; color: #1e293b;">
-                        ${renderFacultyNarrativeText('CIENCIAS AGROPECUARIAS', data.statsByFacultyAndCareer?.['CIENCIAS AGROPECUARIAS'] || {})}
-                    </p>
-
-                    <!-- Facultad 5: CIENCIAS DE LA EDUCACIÓN -->
-                    ${renderFacultyTableHtml('CIENCIAS DE LA EDUCACIÓN', data.statsByFacultyAndCareer?.['CIENCIAS DE LA EDUCACIÓN'] || {})}
-                    <p style="font-size: 8px; line-height: 1.35; text-align: justify; margin: 0 0 10px 0; color: #1e293b;">
-                        ${renderFacultyNarrativeText('CIENCIAS DE LA EDUCACIÓN', data.statsByFacultyAndCareer?.['CIENCIAS DE LA EDUCACIÓN'] || {})}
-                    </p>
-
-                    <!-- Sección ATENCIONES PREVENTIVAS -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 12px; margin-bottom: 6px; color: #000; text-transform: uppercase;">
-                        ATENCIONES PREVENTIVAS
-                    </div>
-
-                    <!-- Tabla ATENCIONES PREVENTIVAS -->
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #000; margin-bottom: 6px; font-size: 7.5px;">
-                        <thead>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 16%; color: #000;">COMUNIDAD<br/>UNIVERSITARIA</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 25%; color: #000;">ESTUDIANTES</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 25%; color: #000;">ADMINISTRATIVOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 25%; color: #000;">DOCENTES</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 2px 4px; width: 9%; color: #000;">TOTAL</th>
-                            </tr>
-                            <tr style="font-weight: bold; text-align: center; font-size: 7px;">
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 4px; color: #000;">PREVENCIÓN</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 2px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 2px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 2px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 2px 2px; color: #000;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style="font-size: 7.5px;">
-                                <td style="border: 1px solid #000; padding: 2px 4px; text-align: left;">Examen<br/>Odontológico</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.estudiantes?.hombres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.estudiantes?.mujeres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.estudiantes?.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center; font-weight: bold;">${prevExamen.estudiantes?.total || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.administrativos?.hombres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.administrativos?.mujeres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.administrativos?.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center; font-weight: bold;">${prevExamen.administrativos?.total || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.docentes?.hombres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.docentes?.mujeres || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center;">${prevExamen.docentes?.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center; font-weight: bold;">${prevExamen.docentes?.total || 0}</td>
-                                <td style="border: 1px solid #000; padding: 2px 2px; text-align: center; font-weight: bold;">${prevTotal}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Narrativa ATENCIONES PREVENTIVAS -->
-                    <p style="font-size: 8px; line-height: 1.35; margin: 4px 0 10px 0; color: #000;">
-                        ${preventivasNarrative}
-                    </p>
-
-                    <!-- Sección ATENCIONES CURATIVAS (TABLA COMPLETA UNIFICADA) -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 12px; margin-bottom: 6px; color: #000; text-transform: uppercase;">
-                        ATENCIONES CURATIVAS
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #000; margin-bottom: 6px; font-size: 7px;">
-                        <thead>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 18%; color: #000;">COMUNIDAD<br/>UNIVERSITARIA</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ESTUDIANTES</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ADMINISTRATIVOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">DOCENTES</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 2px 4px; width: 8%; color: #000;">TOTAL</th>
-                            </tr>
-                            <tr style="font-weight: bold; text-align: center; font-size: 7px;">
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 2px 4px; color: #000; text-align: left; width: 18%;">CURATIVO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 5%;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 6%;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 5%;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 6%;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 6%;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000; width: 5%;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 6%;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 1.5px 2px; color: #000; width: 8%;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${curativosRowsHtml}
-                            <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 7px;">
-                                <td style="border: 1px solid #000; padding: 2px 4px; text-align: left;">TOTAL</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totEstCurH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totEstCurM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totEstCurL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totEstCurT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totAdmCurH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totAdmCurM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totAdmCurL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totAdmCurT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totDocCurH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totDocCurM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totDocCurL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totDocCurT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totGrandCurT}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Narrativa ATENCIONES CURATIVAS -->
-                    <div style="font-size: 8px; line-height: 1.35; margin: 4px 0 10px 0; color: #000; text-align: justify;">
-                        ${curativasNarrativeHtml}
-                    </div>
-
-                    <!-- Sección PROCEDIMIENTOS PREVENTIVOS -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 12px; margin-bottom: 5px; color: #000; text-transform: uppercase;">
-                        PROCEDIMIENTOS PREVENTIVOS
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #000; margin-bottom: 5px; font-size: 7px;">
-                        <thead>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 18%; color: #000; text-align: left;">PROCEDIMIENTOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ESTUDIANTES</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ADMINISTRATIVOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">DOCENTES</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 2px 4px; width: 8%; color: #000;">TOTAL</th>
-                            </tr>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 4px; color: #000; text-align: left;">PREVENCIÓN</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 1.5px 4px; text-align: left;">PROFILAXIS</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profE.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profE.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profE.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${profET}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profA.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profA.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profA.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${profAT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profD.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profD.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${profD.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${profDT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${profTotal}</td>
-                            </tr>
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 1.5px 4px; text-align: left;">FLUORIZACIÓN</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoE.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoE.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoE.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${fluoET}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoA.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoA.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoA.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${fluoAT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoD.hombres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoD.mujeres || ''}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${fluoD.lgbti || 0}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${fluoDT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; font-weight: bold;">${fluoTotal}</td>
-                            </tr>
-                            <tr style="background-color: #cbd5e1; font-weight: bold; font-size: 7px;">
-                                <td style="border: 1px solid #000; padding: 1.5px 4px; text-align: left;">TOTAL</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcH_E}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcM_E}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcL_E}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcT_E}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcH_A}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcM_A}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcL_A}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcT_A}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcH_D}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcM_D}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcL_D}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcT_D}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center;">${totProcGrand}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Narrativa PROCEDIMIENTOS PREVENTIVOS -->
-                    <div style="font-size: 8px; line-height: 1.35; margin: 4px 0 10px 0; color: #000; text-align: justify;">
-                        ${procPrevNarrativeHtml}
-                    </div>
-
-                    <!-- Sección PROCEDIMIENTOS DE MORBILIDAD (TABLA COMPLETA UNIFICADA) -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 12px; margin-bottom: 5px; color: #000; text-transform: uppercase;">
-                        PROCEDIMIENTOS DE MORBILIDAD
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1px solid #000; margin-bottom: 6px; font-size: 7px;">
-                        <thead>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 18%; color: #000; text-align: left;">PROCEDIMIENTOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ESTUDIANTES</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">ADMINISTRATIVOS</th>
-                                <th colspan="4" style="border: 1px solid #000; background-color: #fde9d9; padding: 2px 4px; width: 23%; color: #000;">DOCENTES</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 2px 4px; width: 8%; color: #000;">TOTAL</th>
-                            </tr>
-                            <tr style="font-weight: bold; text-align: center;">
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 4px; color: #000; text-align: left;">MORBILIDAD</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">MASCULINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">FEMENINO</th>
-                                <th style="border: 1px solid #000; background-color: #fcd5b4; padding: 1.5px 2px; color: #000;">LGBTI</th>
-                                <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                                <th style="border: 1px solid #000; background-color: #8db4e2; padding: 1.5px 2px; color: #000;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${morbilidadRowsHtml}
-                            <tr style="font-weight: bold; font-size: 7px;">
-                                <td style="border: 1px solid #000; padding: 2px 4px; text-align: left; width: 18%;">TOTAL</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totEstMorH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totEstMorM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${totEstMorL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #f2dcdb; width: 6%;">${totEstMorT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totAdmMorH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totAdmMorM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${totAdmMorL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #f2dcdb; width: 6%;">${totAdmMorT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totDocMorH}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 6%;">${totDocMorM}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; width: 5%;">${totDocMorL}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #f2dcdb; width: 6%;">${totDocMorT}</td>
-                                <td style="border: 1px solid #000; padding: 1.5px 2px; text-align: center; background-color: #f2dcdb; width: 8%;">${totGrandMorT}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Narrativa PROCEDIMIENTOS DE MORBILIDAD -->
-                    <div style="font-size: 8px; line-height: 1.35; margin: 6px 0 14px 0; color: #000; text-align: justify;">
-                        ${procMorbilidadNarrativeHtml}
-                    </div>
-
-                    <!-- 4. CONCLUSIONES -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; color: #000;">
-                        4. CONCLUSIONES
-                    </div>
-                    <p style="font-size: 8.5px; line-height: 1.4; text-align: justify; margin: 0 0 14px 0; color: #000;">
-                        El Servicio de Odontología contribuye a garantizar la salud Buco-Dental de los miembros de la comunidad universitaria, lograr disminuir las patologías bucales con las atenciones preventivas, curativas, campañas de prevención y socialización que realizamos con las distintas carreras de nuestra universidad.
-                    </p>
-
-                    <!-- 5. RECOMENDACIONES -->
-                    <div style="font-weight: bold; font-size: 9px; margin-top: 14px; margin-bottom: 6px; text-transform: uppercase; color: #000;">
-                        5. RECOMENDACIONES
-                    </div>
-                    <p style="font-size: 8.5px; line-height: 1.4; text-align: justify; margin: 0 0 4px 0; color: #000;">
-                        Fortalecer el Servicio de Odontológico de Bienestar Universitario con la compra oportuna de los insumos e instrumentos odontológicos solicitados por el área de odontología.
-                    </p>
-                    <p style="font-size: 8.5px; line-height: 1.4; text-align: justify; margin: 0 0 14px 0; color: #000;">
-                        Actualizar información de los servicios que brinda Bienestar Universitario en la página web de la Universidad Estatal de Bolívar.
-                    </p>
-
-                    <!-- 6. ANEXOS -->
-                    <div style="font-weight: bold; font-size: 9.5px; margin-top: 18px; margin-bottom: 8px; text-transform: uppercase; color: #000; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
-                        6. ANEXOS
-                    </div>
-
-                    <!-- TABLA GENERAL DE ATENCIONES (ANEXO 1) -->
-                    <div class="table-card" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 14px;">
-                        <div style="font-weight: bold; font-size: 9px; text-align: center; margin-bottom: 6px; color: #000; text-transform: uppercase;">
-                            ATENCIONES DE ODONTOLOGÍA - ${selectedMonthText.toUpperCase()} ${genReportYear}
-                        </div>
-                        <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1.5px solid #000; font-size: 7.5px; margin-bottom: 4px;">
-                            <thead>
-                                <tr style="font-weight: bold; text-align: center; background-color: #d9d9d9;">
-                                    <th colspan="2" style="border: 1px solid #000; padding: 2.5px 2px; width: 25.5%; color: #000;">FACULTAD</th>
-                                    <th style="border: 1px solid #000; padding: 2.5px 2px; width: 34.5%; color: #000;">CARRERA</th>
-                                    <th style="border: 1px solid #000; padding: 2.5px 2px; width: 10%; color: #000;">HOMBRES</th>
-                                    <th style="border: 1px solid #000; padding: 2.5px 2px; width: 10%; color: #000;">MUJERES</th>
-                                    <th style="border: 1px solid #000; padding: 2.5px 2px; width: 10%; color: #000;">LGBTI</th>
-                                    <th style="border: 1px solid #000; padding: 2.5px 2px; width: 10%; color: #000;">TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${renderAnexoTableRowsHtml()}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- TABLA PREVENTIVA VS CURATIVA (ANEXO 2) -->
-                    <div class="table-card" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 14px;">
-                        <div style="font-weight: bold; font-size: 9px; text-align: center; margin-bottom: 6px; color: #000; text-transform: uppercase;">
-                            ATENCIONES DE ODONTOLOGÍA - ${selectedMonthText.toUpperCase()} ${genReportYear}
-                        </div>
-                        <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; border: 1.5px solid #000; font-size: 7px; margin-bottom: 4px;">
-                            <thead>
-                                <tr style="font-weight: bold; text-align: center;">
-                                    <th colspan="2" style="border: 1px solid #000; background-color: #8db4e2; padding: 2px; color: #000; width: 38%;">COMUNIDAD UNIVERSITARIA</th>
-                                    <th colspan="4" style="border: 1px solid #000; background-color: #8db4e2; padding: 2px; color: #000; width: 24%;">ODONTOLOGÍA PREVENTIVA</th>
-                                    <th colspan="4" style="border: 1px solid #000; background-color: #8db4e2; padding: 2px; color: #000; width: 24%;">ODONTOLOGÍA CURATIVA</th>
-                                    <th rowspan="2" style="border: 1px solid #000; background-color: #d8e4bc; padding: 2px; color: #000; width: 8%; vertical-align: middle;">TOTAL</th>
-                                </tr>
-                                <tr style="font-weight: bold; text-align: center; background-color: #fde9d9;">
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 14%;">FACULTAD</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 24%;">CARRERA</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 6%;">MASCULINO</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 6%;">FEMENINO</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 5%;">LGBTI</th>
-                                    <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 7%;">TOTAL</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 6%;">MASCULINO</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 6%;">FEMENINO</th>
-                                    <th style="border: 1px solid #000; padding: 1.5px 2px; color: #000; width: 5%;">LGBTI</th>
-                                    <th style="border: 1px solid #000; background-color: #d8e4bc; padding: 1.5px 2px; color: #000; width: 7%;">TOTAL</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${renderAnexo2TableRowsHtml()}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- TABLA CONSOLIDADO -->
-                    <div class="table-card" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 14px;">
-                        ${renderConsolidadoTableHtml()}
-                    </div>
-
-                    <!-- TABLAS INDIVIDUALES POR CARRERA -->
-                    ${(activeCareers && activeCareers.length > 0) ? activeCareers.map(cName => `
-                        <div class="career-card" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 10px;">
-                            ${renderSingleCareerTableHtml(cName)}
-                        </div>
-                    `).join('') : `
-                        <div style="text-align: center; color: #64748b; font-style: italic; font-size: 8px; margin: 15px 0;">
-                            No se registraron atenciones a estudiantes de carreras específicas este mes.
-                        </div>
-                    `}
-
-                    <!-- LEGALIZACIÓN Y FIRMAS -->
-                    <div class="signature-card" style="page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 18px; margin-bottom: 14px;">
-                        <div style="font-size: 8.5px; font-family: Arial, sans-serif; margin-bottom: 8px; color: #000; text-align: left;">
-                            Adjunto ${data.totalFojas || 18} fojas, copias a color partes diarios.
-                        </div>
-
-                        <table style="width: 85%; border-collapse: collapse; margin-top: 6px; border: 1px solid #000; font-family: Arial, sans-serif; font-size: 7.5px;">
-                            <thead>
-                                <tr style="background-color: #e4dfec; font-weight: bold;">
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; width: 22%; font-weight: bold; color: #000;">Datos</td>
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; width: 39%; font-weight: bold; color: #000;">Elaborado por:</td>
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; width: 39%; font-weight: bold; color: #000;">Revisado y Aprobado por:</td>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; background-color: #e4dfec; height: 50px; vertical-align: top; color: #000;">Firmas</td>
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; height: 50px; background-color: #fff;"></td>
-                                    <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; height: 50px; background-color: #fff;"></td>
-                                </tr>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: left; font-weight: bold; background-color: #e4dfec; color: #000;">Nombre y Apellido</td>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; color: #000; background-color: #fff;">${doctorNameText}</td>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; color: #000; background-color: #fff;">Michel Gaibor Vásquez</td>
-                                </tr>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: left; font-weight: bold; background-color: #e4dfec; color: #000;">Cargo</td>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; color: #000; background-color: #fff;">Odontóloga de Bienestar Universitario</td>
-                                    <td style="border: 1px solid #000; padding: 3px 6px; text-align: center; color: #000; background-color: #fff;">Coordinadora de Bienestar Universitario</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pie de Página Institucional -->
-                    <div class="page-footer-container" style="margin-top: 18px; border-top: 1px solid #cbd5e1; padding-top: 5px; font-size: 7.5px; line-height: 1.3; color: #1e3a8a; text-align: left; font-family: Arial, sans-serif; page-break-inside: avoid !important; break-inside: avoid !important;">
-                        <div>Dirección: &nbsp;Av. Ernesto Che Guevara y Gabriel Secaira</div>
-                        <div>Guaranda-Ecuador</div>
-                        <div>Teléfono: (593) 3220-6010 &nbsp;<strong>EXT 1168</strong></div>
-                        <div><strong>www.ueb.edu.ec</strong></div>
-                    </div>
-                </div>
-
-                ${forPrint ? `
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                            }, 300);
-                        };
-                    </script>
-                ` : ''}
-            </body>
-            </html>
-        `;
-        } catch (err) {
-            console.error("Error al compilar informe general HTML:", err);
-            return `
-                <!DOCTYPE html>
-                <html>
-                <body style="font-family: Arial, sans-serif; padding: 30px; text-align: center;">
-                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px;">
-                        <h4 style="color: #1e3a8a; margin: 0 0 8px 0;">Cargando informe mensual...</h4>
-                        <p style="color: #64748b; font-size: 12px; margin: 0;">Los datos se están procesando correctamente.</p>
-                    </div>
-                </body>
-                </html>
-            `;
-        }
-    };
+    // Reporte General Mensual: ver ./reports/generalReport.js (ISO/IEC 25010, modularidad)
+    const compileGeneralReportHtmlString = (data, forPrint = false) =>
+        buildGeneralReportHtml(data, forPrint, { genReportMonth, genReportYear, user });
 
     const handlePrintGeneralReport = () => {
         if (!genReportData) return;
@@ -5623,13 +3445,13 @@ const Odontologo_page = () => {
 
             return `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td class="left-align font-bold">${fullName}</td>
-                    <td>${cedula}</td>
-                    <td>${cita.fecha}</td>
-                    <td>${cita.hora_inicio} - ${cita.hora_fin}</td>
-                    <td class="left-align">${cita.motivo || '—'}</td>
-                    <td class="font-bold status-${cita.estado}">${statusUpper}</td>
+                    <td>${escapeHtml(idx + 1)}</td>
+                    <td class="left-align font-bold">${escapeHtml(fullName)}</td>
+                    <td>${escapeHtml(cedula)}</td>
+                    <td>${escapeHtml(cita.fecha)}</td>
+                    <td>${escapeHtml(cita.hora_inicio)} - ${escapeHtml(cita.hora_fin)}</td>
+                    <td class="left-align">${escapeHtml(cita.motivo || '—')}</td>
+                    <td class="font-bold status-${escapeHtml(cita.estado)}">${escapeHtml(statusUpper)}</td>
                 </tr>
             `;
         }).join('');
@@ -5639,7 +3461,7 @@ const Odontologo_page = () => {
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Reporte de Citas de Odontología - ${formattedFecha}</title>
+                <title>Reporte de Citas de Odontología - ${escapeHtml(formattedFecha)}</title>
                 <style>
                     @page {
                         size: A4 portrait;
@@ -5815,7 +3637,7 @@ const Odontologo_page = () => {
                     <div>
                         <header class="header">
                             <div style="width: 140px; display: flex; align-items: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
@@ -5823,30 +3645,30 @@ const Odontologo_page = () => {
                                 <h3>Reporte de Citas de Odontología</h3>
                             </div>
                             <div class="date-box">
-                                FECHA:<br>${formattedFecha}
+                                FECHA:<br>${escapeHtml(formattedFecha)}
                             </div>
                         </header>
 
                         <div class="summary-section">
                             <div class="summary-card">
                                 <span>Total Citas</span>
-                                <strong>${total}</strong>
+                                <strong>${escapeHtml(total)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Completadas</span>
-                                <strong class="status-completada">${completadas}</strong>
+                                <strong class="status-completada">${escapeHtml(completadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Confirmadas</span>
-                                <strong class="status-confirmada">${confirmadas}</strong>
+                                <strong class="status-confirmada">${escapeHtml(confirmadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Programadas</span>
-                                <strong class="status-programada">${programadas}</strong>
+                                <strong class="status-programada">${escapeHtml(programadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Canceladas</span>
-                                <strong class="status-cancelada">${canceladas}</strong>
+                                <strong class="status-cancelada">${escapeHtml(canceladas)}</strong>
                             </div>
                         </div>
 
@@ -6033,13 +3855,13 @@ const Odontologo_page = () => {
 
                 return `
                     <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td style="text-align: center;">${fechaCita}</td>
-                        <td style="text-align: center;">${horario}</td>
-                        <td>${patientName}</td>
-                        <td style="text-align: center;">${cedula}</td>
-                        <td>${motivo}</td>
-                        <td style="text-align: center; font-weight: bold; color: ${estadoBadgeColor};">${estado}</td>
+                        <td style="text-align: center;">${escapeHtml(index + 1)}</td>
+                        <td style="text-align: center;">${escapeHtml(fechaCita)}</td>
+                        <td style="text-align: center;">${escapeHtml(horario)}</td>
+                        <td>${escapeHtml(patientName)}</td>
+                        <td style="text-align: center;">${escapeHtml(cedula)}</td>
+                        <td>${escapeHtml(motivo)}</td>
+                        <td style="text-align: center; font-weight: bold; color: ${escapeHtml(estadoBadgeColor)};">${escapeHtml(estado)}</td>
                     </tr>
                 `;
             }).join('');
@@ -6137,7 +3959,7 @@ const Odontologo_page = () => {
                     <div class="page-sheet">
                         <div class="header-container">
                             <div class="header-logo" style="width: 140px; display: flex; align-items: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-center">
                                 <h1>UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
@@ -6145,35 +3967,35 @@ const Odontologo_page = () => {
                                 <h3 style="margin: 2px 0 0; font-size: 10px; font-weight: bold; color: #b71a34;">REPORTE DE CITAS Y CONSULTAS - ODONTOLOGÍA</h3>
                             </div>
                             <div style="text-align: right; font-size: 9px;">
-                                <strong>FECHA FILTRO:</strong><br/>${formattedDate}
+                                <strong>FECHA FILTRO:</strong><br/>${escapeHtml(formattedDate)}
                             </div>
                         </div>
 
                         <div class="meta-info">
-                            <div><strong>Odontólogo/a Responsable:</strong> ${doctorNameText}</div>
-                            <div><strong>Total de Citas en Registro:</strong> ${totalCitas}</div>
+                            <div><strong>Odontólogo/a Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
+                            <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
                         </div>
 
                         <div class="totals-grid">
                             <div class="stat-box" style="border-left: 4px solid #3b82f6;">
                                 <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${countProgramadas}</strong>
+                                <strong>${escapeHtml(countProgramadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #10b981;">
                                 <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${countConfirmadas}</strong>
+                                <strong>${escapeHtml(countConfirmadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #64748b;">
                                 <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${countCompletadas}</strong>
+                                <strong>${escapeHtml(countCompletadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #ef4444;">
                                 <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${countCanceladas}</strong>
+                                <strong>${escapeHtml(countCanceladas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #0b2240;">
                                 <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${totalCitas}</strong>
+                                <strong>${escapeHtml(totalCitas)}</strong>
                             </div>
                         </div>
 
@@ -6198,7 +4020,7 @@ const Odontologo_page = () => {
                         <div style="margin-top: 50px; display: flex; justify-content: space-around; font-size: 9px;">
                             <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
                                 <strong>Odontólogo/a Responsable</strong><br/>
-                                <span>${doctorNameText}</span>
+                                <span>${escapeHtml(doctorNameText)}</span>
                             </div>
                         </div>
 
@@ -6313,7 +4135,7 @@ const Odontologo_page = () => {
                     />
                 </svg>
                 {tState.ausente && (
-                    <div style={{ fontSize: '8px', color: '#ef4444', fontWeight: 'bold', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: 'bold', marginTop: '2px' }}>
                         AUSENTE
                     </div>
                 )}
@@ -6491,15 +4313,15 @@ const Odontologo_page = () => {
 
                 return `
                     <div style="display: inline-flex; flex-direction: column; align-items: center; width: 23px; margin: 0 1px;">
-                        <span style="font-size: 7.5px; font-weight: bold; margin-bottom: 1px; color: #1e293b;">${num}</span>
+                        <span style="font-size: 7.5px; font-weight: bold; margin-bottom: 1px; color: #1e293b;">${escapeHtml(num)}</span>
                         <div style="position: relative; width: 21px; height: 21px;">
                             <svg viewBox="0 0 40 40" style="width: 21px; height: 21px; overflow: visible;">
                                 <circle cx="20" cy="20" r="19" fill="#ffffff" stroke="#334155" stroke-width="1.2" />
-                                <path d="M 6.57,6.57 A 19,19 0 0,1 33.43,6.57 L 26.36,13.64 A 9,9 0 0,0 13.64,13.64 Z" fill="${topVal}" stroke="#334155" stroke-width="0.8" />
-                                <path d="M 33.43,6.57 A 19,19 0 0,1 33.43,33.43 L 26.36,26.36 A 9,9 0 0,0 26.36,13.64 Z" fill="${rightVal}" stroke="#334155" stroke-width="0.8" />
-                                <path d="M 33.43,33.43 A 19,19 0 0,1 6.57,33.43 L 13.64,26.36 A 9,9 0 0,0 26.36,26.36 Z" fill="${bottomVal}" stroke="#334155" stroke-width="0.8" />
-                                <path d="M 6.57,33.43 A 19,19 0 0,1 6.57,6.57 L 13.64,13.64 A 9,9 0 0,0 13.64,26.36 Z" fill="${leftVal}" stroke="#334155" stroke-width="0.8" />
-                                <circle cx="20" cy="20" r="9" fill="${centerVal}" stroke="#334155" stroke-width="0.8" />
+                                <path d="M 6.57,6.57 A 19,19 0 0,1 33.43,6.57 L 26.36,13.64 A 9,9 0 0,0 13.64,13.64 Z" fill="${escapeHtml(topVal)}" stroke="#334155" stroke-width="0.8" />
+                                <path d="M 33.43,6.57 A 19,19 0 0,1 33.43,33.43 L 26.36,26.36 A 9,9 0 0,0 26.36,13.64 Z" fill="${escapeHtml(rightVal)}" stroke="#334155" stroke-width="0.8" />
+                                <path d="M 33.43,33.43 A 19,19 0 0,1 6.57,33.43 L 13.64,26.36 A 9,9 0 0,0 26.36,26.36 Z" fill="${escapeHtml(bottomVal)}" stroke="#334155" stroke-width="0.8" />
+                                <path d="M 6.57,33.43 A 19,19 0 0,1 6.57,6.57 L 13.64,13.64 A 9,9 0 0,0 13.64,26.36 Z" fill="${escapeHtml(leftVal)}" stroke="#334155" stroke-width="0.8" />
+                                <circle cx="20" cy="20" r="9" fill="${escapeHtml(centerVal)}" stroke="#334155" stroke-width="0.8" />
                                 ${isAus ? '<line x1="2" y1="2" x2="38" y2="38" stroke="#ef4444" stroke-width="2.5" /><line x1="38" y1="2" x2="2" y2="38" stroke="#ef4444" stroke-width="2.5" />' : ''}
                             </svg>
                         </div>
@@ -6598,16 +4420,16 @@ const Odontologo_page = () => {
                     return `
                         <tr style="vertical-align: top; font-size: 8.5px;">
                             <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; width: 14%;">
-                                ${fDate}
+                                ${escapeHtml(fDate)}
                             </td>
                             <td style="border: 1px solid #000; padding: 6px 8px; width: 56%; line-height: 1.35;">
-                                ${diag ? `<div><strong>Diagnóstico:</strong> ${diag}</div>` : ''}
-                                ${trat ? `<div><strong>Tratamiento:</strong> ${trat}</div>` : ''}
-                                ${proc ? `<div><strong>Procedimiento:</strong> ${proc}</div>` : ''}
+                                ${diag ? `<div><strong>Diagnóstico:</strong> ${escapeHtml(diag)}</div>` : ''}
+                                ${trat ? `<div><strong>Tratamiento:</strong> ${escapeHtml(trat)}</div>` : ''}
+                                ${proc ? `<div><strong>Procedimiento:</strong> ${escapeHtml(proc)}</div>` : ''}
                                 ${!diag && !trat && !proc ? '<div>Consulta y Evaluación Odontológica</div>' : ''}
                             </td>
                             <td style="border: 1px solid #000; padding: 6px 8px; width: 30%; line-height: 1.35;">
-                                ${presc}
+                                ${escapeHtml(presc)}
                             </td>
                         </tr>
                     `;
@@ -6617,23 +4439,22 @@ const Odontologo_page = () => {
                 const currentDiag = fichaForm.detalle_diagnostico || fichaForm.cie10_nombre || fichaForm.detalle_motivo || '';
                 const currentTrat = fichaForm.detalle_tratamiento || '';
                 const currentProc = fichaForm.procedimiento || '';
-                const currentPresc = (recetaList && recetaList.length > 0)
-                    ? recetaList.map(r => `${r.detalle_medicamento} (${r.detalle_dosis || ''})`).join(', ')
-                    : 'Sin prescripción.';
+                // Odontología no maneja una lista de recetas en la ficha (antes: variable inexistente)
+                const currentPresc = 'Sin prescripción.';
 
                 evolutionsRows = `
                     <tr style="vertical-align: top; font-size: 8.5px;">
                         <td style="border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; width: 14%;">
-                            ${printDate}
+                            ${escapeHtml(printDate)}
                         </td>
                         <td style="border: 1px solid #000; padding: 6px 8px; width: 56%; line-height: 1.35;">
-                            ${currentDiag ? `<div><strong>Diagnóstico:</strong> ${currentDiag}</div>` : ''}
-                            ${currentTrat ? `<div><strong>Tratamiento:</strong> ${currentTrat}</div>` : ''}
-                            ${currentProc ? `<div><strong>Procedimiento:</strong> ${currentProc}</div>` : ''}
+                            ${currentDiag ? `<div><strong>Diagnóstico:</strong> ${escapeHtml(currentDiag)}</div>` : ''}
+                            ${currentTrat ? `<div><strong>Tratamiento:</strong> ${escapeHtml(currentTrat)}</div>` : ''}
+                            ${currentProc ? `<div><strong>Procedimiento:</strong> ${escapeHtml(currentProc)}</div>` : ''}
                             ${!currentDiag && !currentTrat && !currentProc ? '<div>Consulta Odontológica Primaria</div>' : ''}
                         </td>
                         <td style="border: 1px solid #000; padding: 6px 8px; width: 30%; line-height: 1.35;">
-                            ${currentPresc}
+                            ${escapeHtml(currentPresc)}
                         </td>
                     </tr>
                 `;
@@ -6743,16 +4564,16 @@ const Odontologo_page = () => {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9px; border: 1px solid #000;">
             <tr style="background: #f8fafc;">
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 50%;">
-                    <strong>PACIENTE:</strong> ${patientName}
+                    <strong>PACIENTE:</strong> ${escapeHtml(patientName)}
                 </td>
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 25%;">
-                    <strong>CÉDULA:</strong> ${patientCedula}
+                    <strong>CÉDULA:</strong> ${escapeHtml(patientCedula)}
                 </td>
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 12%;">
-                    <strong>EDAD:</strong> ${patientAge}
+                    <strong>EDAD:</strong> ${escapeHtml(patientAge)}
                 </td>
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 13%;">
-                    <strong>FECHA:</strong> ${printDate}
+                    <strong>FECHA:</strong> ${escapeHtml(printDate)}
                 </td>
             </tr>
         </table>
@@ -6769,11 +4590,11 @@ const Odontologo_page = () => {
             <tbody>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">Motivo de la consulta:</td>
-                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${activeMotivo.detalle_motivo || ''}</td>
+                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(activeMotivo.detalle_motivo || '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Cuándo fue su última visita el odontólogo?</td>
-                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${activeMotivo.ultima_visita_fecha || ''}</td>
+                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(activeMotivo.ultima_visita_fecha || '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Esta Ud. en algún tratamiento?</td>
@@ -6781,11 +4602,11 @@ const Odontologo_page = () => {
                         <table style="width: 100%; border-collapse: collapse; margin: 0; font-size: 8.5px;">
                             <tr>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 28px; background: #e0e0e0; font-weight: bold; text-align: center;">SI</td>
-                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${activeMotivo.algun_tratamiento === 'si' ? 'X' : ''}</td>
+                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${escapeHtml(activeMotivo.algun_tratamiento === 'si' ? 'X' : '')}</td>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 28px; background: #e0e0e0; font-weight: bold; text-align: center;">NO</td>
-                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${activeMotivo.algun_tratamiento !== 'si' && activeMotivo.algun_tratamiento ? 'X' : ''}</td>
+                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${escapeHtml(activeMotivo.algun_tratamiento !== 'si' && activeMotivo.algun_tratamiento ? 'X' : '')}</td>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px 6px; width: 165px; background: #e0e0e0; font-weight: bold;">¿Especifique el tratamiento?</td>
-                                <td style="border: none; padding: 3px 6px;">${activeMotivo.algun_tratamiento === 'si' ? (activeMotivo.detalle_tratamiento || '') : ''}</td>
+                                <td style="border: none; padding: 3px 6px;">${escapeHtml(activeMotivo.algun_tratamiento === 'si' ? (activeMotivo.detalle_tratamiento || '') : '')}</td>
                             </tr>
                         </table>
                     </td>
@@ -6796,11 +4617,11 @@ const Odontologo_page = () => {
                         <table style="width: 100%; border-collapse: collapse; margin: 0; font-size: 8.5px;">
                             <tr>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 28px; background: #e0e0e0; font-weight: bold; text-align: center;">SI</td>
-                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${activeMotivo.algun_medicamento === 'si' ? 'X' : ''}</td>
+                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${escapeHtml(activeMotivo.algun_medicamento === 'si' ? 'X' : '')}</td>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 28px; background: #e0e0e0; font-weight: bold; text-align: center;">NO</td>
-                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${activeMotivo.algun_medicamento !== 'si' && activeMotivo.algun_medicamento ? 'X' : ''}</td>
+                                <td style="border: none; border-right: 1px solid #000; padding: 3px; width: 32px; text-align: center; font-weight: bold;">${escapeHtml(activeMotivo.algun_medicamento !== 'si' && activeMotivo.algun_medicamento ? 'X' : '')}</td>
                                 <td style="border: none; border-right: 1px solid #000; padding: 3px 6px; width: 165px; background: #e0e0e0; font-weight: bold;">¿Especifique el medicamento?</td>
-                                <td style="border: none; padding: 3px 6px;">${activeMotivo.algun_medicamento === 'si' ? (activeMotivo.detalle_medicamento || '') : ''}</td>
+                                <td style="border: none; padding: 3px 6px;">${escapeHtml(activeMotivo.algun_medicamento === 'si' ? (activeMotivo.detalle_medicamento || '') : '')}</td>
                             </tr>
                         </table>
                     </td>
@@ -6810,11 +4631,11 @@ const Odontologo_page = () => {
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Antecedentes personales?</td>
-                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${antecedentesPersonales}</td>
+                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(antecedentesPersonales)}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Antecedentes Familiares?</td>
-                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${antecedentesFamiliares}</td>
+                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(antecedentesFamiliares)}</td>
                 </tr>
             </tbody>
         </table>
@@ -6837,55 +4658,55 @@ const Odontologo_page = () => {
             <tbody>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">PIEL</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.piel === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.piel === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.piel === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.piel === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">GLÁNDULAS SALIVALES</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen['glándulas_salivales'] === 'normal' || activeExamen.glandulas_salivales === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen['glándulas_salivales'] === 'anormal' || activeExamen.glandulas_salivales === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen['glándulas_salivales'] === 'normal' || activeExamen.glandulas_salivales === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen['glándulas_salivales'] === 'anormal' || activeExamen.glandulas_salivales === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">LABIOS</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.labios === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.labios === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.labios === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.labios === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">GANGLIOS</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.ganglios === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.ganglios === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.ganglios === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.ganglios === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">CARRILLOS</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.carrillos === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.carrillos === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.carrillos === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.carrillos === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">TEJIDO MUSCULAR</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.tejido_muscular === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.tejido_muscular === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.tejido_muscular === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.tejido_muscular === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">PALADAR</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.paladar === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.paladar === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.paladar === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.paladar === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">ATM</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.atm === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.atm === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.atm === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.atm === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">PISO DE LA BOCA</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.piso_de_la_boca === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.piso_de_la_boca === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.piso_de_la_boca === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.piso_de_la_boca === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">MAXILAR SUPERIOR</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.maxilar_superior === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.maxilar_superior === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.maxilar_superior === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.maxilar_superior === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">LENGUA</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.lengua === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.lengua === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.lengua === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.lengua === 'anormal' ? 'X' : '')}</td>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">MAXILAR INFERIOR</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.maxilar_inferior === 'normal' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activeExamen.maxilar_inferior === 'anormal' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.maxilar_inferior === 'normal' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activeExamen.maxilar_inferior === 'anormal' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">OBSERVACIONES:</td>
-                    <td colspan="5" style="border: 1px solid #000; padding: 2px 6px; height: 16px;">${activeExamen.observaciones || ''}</td>
+                    <td colspan="5" style="border: 1px solid #000; padding: 2px 6px; height: 16px;">${escapeHtml(activeExamen.observaciones || '')}</td>
                 </tr>
             </tbody>
         </table>
@@ -6958,23 +4779,23 @@ const Odontologo_page = () => {
             <tbody>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">Placa Bacteriana</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.placa_bacteriana === 'si' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.placa_bacteriana !== 'si' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.placa_bacteriana === 'si' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.placa_bacteriana !== 'si' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">Cálculos Dentales</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.calculos_dentales === 'si' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.calculos_dentales !== 'si' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.calculos_dentales === 'si' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.calculos_dentales !== 'si' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">Bolsa Periodontal</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.bolsa_periodontal === 'si' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.bolsa_periodontal !== 'si' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.bolsa_periodontal === 'si' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.bolsa_periodontal !== 'si' ? 'X' : '')}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 2px 6px; background: #e0e0e0; font-weight: bold;">Movilidad Dental</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.movilidad_dental === 'si' ? 'X' : ''}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${activePeriodontal.movilidad_dental !== 'si' ? 'X' : ''}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.movilidad_dental === 'si' ? 'X' : '')}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(activePeriodontal.movilidad_dental !== 'si' ? 'X' : '')}</td>
                 </tr>
             </tbody>
         </table>
@@ -7007,10 +4828,10 @@ const Odontologo_page = () => {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9px; border: 1px solid #000;">
             <tr style="background: #f8fafc;">
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 60%;">
-                    <strong>PACIENTE:</strong> ${patientName}
+                    <strong>PACIENTE:</strong> ${escapeHtml(patientName)}
                 </td>
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 40%;">
-                    <strong>CÉDULA:</strong> ${patientCedula}
+                    <strong>CÉDULA:</strong> ${escapeHtml(patientCedula)}
                 </td>
             </tr>
         </table>
@@ -7200,7 +5021,7 @@ const Odontologo_page = () => {
                             <strong>Sección</strong>
                             <span>Odontología</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -7266,7 +5087,7 @@ const Odontologo_page = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={handleLogoutClick}>
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={16} /></span>
                             <span>Cerrar sesión</span>
                         </button>
@@ -7279,7 +5100,7 @@ const Odontologo_page = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -7352,7 +5173,7 @@ const Odontologo_page = () => {
                                         }}
                                     >
                                         <span className="vitals-action-card__glow" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}></span>
-                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}><Activity size={24} /></span>
+                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#316ccc' }}><Activity size={24} /></span>
                                         <span className="vitals-action-card__content">
                                             <small>Revisar y Asignar</small>
                                             <strong>Revisar odontograma</strong>
@@ -7526,6 +5347,7 @@ const Odontologo_page = () => {
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
+                                                        aria-label="Fecha del parte diario"
                                                         type="date"
                                                         value={parteDiarioDate}
                                                         onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -7565,7 +5387,7 @@ const Odontologo_page = () => {
                                                 </div>
                                             </div>
                                             <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                                 <div className="psycho-kpi-card__info">
                                                     <span>Certificados</span>
                                                     <strong>{getParteKPIs().certificados}</strong>
@@ -7610,7 +5432,7 @@ const Odontologo_page = () => {
                                                         <span>Sesión de Evolución (Secundaria)</span>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '6px', background: '#fef3c7', color: '#d97706' }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '6px', background: '#fef3c7', color: '#a55a05' }}>
                                                             <FileCheck size={12} />
                                                         </span>
                                                         <span>Certificado Dental</span>
@@ -7657,7 +5479,7 @@ const Odontologo_page = () => {
                                                                 <strong>{patientName}</strong>
                                                                 <p>Atención: {item.tipo_atencion.toUpperCase()} · Diagnóstico: {item.detalle_diagnostico}</p>
                                                             </div>
-                                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
                                                                 {item.tipo_atencion2.toUpperCase()}
                                                             </div>
                                                         </div>
@@ -7817,6 +5639,7 @@ const Odontologo_page = () => {
                                                                         >
                                                                             {/* Header */}
                                                                             <div
+                                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                                 style={{
                                                                                     padding: '12px 16px',
                                                                                     display: 'flex',
@@ -7836,7 +5659,7 @@ const Odontologo_page = () => {
                                                                                         height: '36px',
                                                                                         borderRadius: '10px',
                                                                                         background: treatment.estado === 'en_curso' ? 'var(--primary-soft)' : '#f1f5f9',
-                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#64748b',
+                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#475569',
                                                                                         display: 'flex',
                                                                                         alignItems: 'center',
                                                                                         justifyContent: 'center',
@@ -7850,11 +5673,11 @@ const Odontologo_page = () => {
                                                                                                 Tratamiento #{treatment.numero}
                                                                                             </span>
                                                                                             {treatment.estado === 'en_curso' ? (
-                                                                                                <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                                                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span> En Curso
                                                                                                 </span>
                                                                                             ) : (
-                                                                                                <span style={{ fontSize: '10px', fontWeight: 600, background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '10px' }}>
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 600, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '10px' }}>
                                                                                                     ✓ Cerrado
                                                                                                 </span>
                                                                                             )}
@@ -7923,6 +5746,7 @@ const Odontologo_page = () => {
                                                                                             <tbody>
                                                                                                 {treatment.citas.map((cita, cIdx) => (
                                                                                                     <tr
+                                                                                                        tabIndex={0} onKeyDown={onKeyActivate}
                                                                                                         key={cita.id || cIdx}
                                                                                                         style={{
                                                                                                             borderBottom: cIdx === treatment.citas.length - 1 ? 'none' : '1px solid #f1f5f9',
@@ -7944,7 +5768,7 @@ const Odontologo_page = () => {
                                                                                                                 color: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary)' : 'var(--accent)',
                                                                                                                 padding: '2px 7px',
                                                                                                                 borderRadius: '5px',
-                                                                                                                fontSize: '10px',
+                                                                                                                fontSize: '11px',
                                                                                                                 fontWeight: 700,
                                                                                                                 display: 'inline-block',
                                                                                                                 whiteSpace: 'nowrap'
@@ -7970,7 +5794,7 @@ const Odontologo_page = () => {
                                                                                                                 type="button"
                                                                                                                 className="action-button action-button--primary"
                                                                                                                 style={{
-                                                                                                                    fontSize: '10.5px',
+                                                                                                                    fontSize: '11px',
                                                                                                                     minHeight: '26px',
                                                                                                                     padding: '0 8px',
                                                                                                                     borderRadius: '6px',
@@ -8025,6 +5849,7 @@ const Odontologo_page = () => {
                                                                             const isPrimaria = record.tipo_atencion === 'primaria';
                                                                             return (
                                                                                 <tr
+                                                                                    tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={record.id || index}
                                                                                     style={{
                                                                                         borderBottom: index === areaHistories.odontologia.length - 1 ? 'none' : '1px solid #f1f5f9',
@@ -8038,11 +5863,11 @@ const Odontologo_page = () => {
                                                                                     </td>
                                                                                     <td style={{ padding: '9px 10px' }}>
                                                                                         {record.treatment ? (
-                                                                                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
                                                                                                 Tratamiento #{record.treatment.numero}
                                                                                             </span>
                                                                                         ) : (
-                                                                                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>-</span>
+                                                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>
                                                                                         )}
                                                                                     </td>
                                                                                     <td style={{ padding: '9px 10px' }}>
@@ -8051,7 +5876,7 @@ const Odontologo_page = () => {
                                                                                             color: isPrimaria ? 'var(--primary)' : 'var(--accent)',
                                                                                             padding: '2px 7px',
                                                                                             borderRadius: '5px',
-                                                                                            fontSize: '10px',
+                                                                                            fontSize: '11px',
                                                                                             fontWeight: 700,
                                                                                             display: 'inline-block',
                                                                                             whiteSpace: 'nowrap'
@@ -8077,7 +5902,7 @@ const Odontologo_page = () => {
                                                                                             type="button"
                                                                                             className="action-button action-button--primary"
                                                                                             style={{
-                                                                                                fontSize: '10.5px',
+                                                                                                fontSize: '11px',
                                                                                                 minHeight: '26px',
                                                                                                 padding: '0 8px',
                                                                                                 borderRadius: '6px',
@@ -8123,7 +5948,7 @@ const Odontologo_page = () => {
                                                     {/* Header */}
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf2f7', paddingBottom: '12px', gap: '10px' }}>
                                                         <div style={{ minWidth: 0 }}>
-                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
                                                                 Detalle Clínico de Consulta
                                                             </span>
                                                             <h4 style={{ margin: '3px 0 0', fontSize: '14.5px', color: 'var(--primary)', fontWeight: 800 }}>
@@ -8135,10 +5960,10 @@ const Odontologo_page = () => {
                                                                 </span>
                                                                 {activeBookRecord.treatment && (
                                                                     <span style={{
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: 700,
                                                                         background: activeBookRecord.treatment.estado === 'en_curso' ? '#dcfce7' : '#f1f5f9',
-                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#64748b',
+                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#475569',
                                                                         padding: '2px 8px',
                                                                         borderRadius: '10px',
                                                                         display: 'inline-flex',
@@ -8177,7 +6002,7 @@ const Odontologo_page = () => {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                         {/* Nivel de Atención */}
                                                         <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                 Nivel de Atención
                                                             </span>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
@@ -8200,7 +6025,7 @@ const Odontologo_page = () => {
                                                         {/* Diagnóstico Clínico */}
                                                         {(activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico) && (
                                                             <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Diagnóstico Dental
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>
@@ -8212,7 +6037,7 @@ const Odontologo_page = () => {
                                                         {/* Evolución / Notas Clínicas */}
                                                         {(activeBookRecord.detalle_evolucion || activeBookRecord.detalle_tratamiento || activeBookRecord.detalle_motivo) && (
                                                             <div style={{ background: '#f5f3ff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Detalle de Evolución / Tratamiento
                                                                 </span>
                                                                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b0764', lineHeight: '1.5', fontStyle: 'italic' }}>
@@ -8224,7 +6049,7 @@ const Odontologo_page = () => {
                                                         {/* Procedimiento */}
                                                         {(activeBookRecord.procedimiento || activeBookRecord.detalle_procedimiento) && (
                                                             <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Procedimiento Odontológico Realizado
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#334155', fontWeight: 600 }}>
@@ -8236,7 +6061,7 @@ const Odontologo_page = () => {
                                                         {/* Prescripción */}
                                                         {(activeBookRecord.prescripcion_medica || activeBookRecord.prescripción_farmaceutica) && (
                                                             <div style={{ background: '#f0fdf4', padding: '10px 12px', borderRadius: '8px', border: '1px solid #99f6e4' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Prescripción / Indicación Farmacéutica
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#134e4a', lineHeight: '1.4' }}>
@@ -8393,7 +6218,7 @@ const Odontologo_page = () => {
                                                                     height: '13px',
                                                                     display: 'grid',
                                                                     placeItems: 'center',
-                                                                    fontSize: '8.5px',
+                                                                    fontSize: '11px',
                                                                     fontWeight: 'bold',
                                                                     border: '2px solid #ffffff'
                                                                 }}>
@@ -8480,6 +6305,7 @@ const Odontologo_page = () => {
                                                     <div className="patient-search-input" style={{ width: '280px', maxWidth: '100%', height: '36px', minHeight: '36px' }}>
                                                         <Search size={15} />
                                                         <input
+                                                            aria-label="Buscar por código, nombre o descripción"
                                                             type="text"
                                                             placeholder="Buscar por código, nombre o descripción..."
                                                             value={insumoSearchQuery}
@@ -8490,7 +6316,7 @@ const Odontologo_page = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setInsumoSearchQuery('')}
-                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#94a3b8' }}
+                                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#64748b' }}
                                                                 title="Limpiar búsqueda"
                                                             >
                                                                 <X size={13} />
@@ -8623,15 +6449,15 @@ const Odontologo_page = () => {
                                                                                 </td>
                                                                                 <td>
                                                                                     {stockOut ? (
-                                                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                                             ● SIN STOCK (Agotado)
                                                                                         </span>
                                                                                     ) : stockLow ? (
-                                                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                                             ▲ STOCK CRÍTICO
                                                                                         </span>
                                                                                     ) : (
-                                                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                                             ✓ DISPONIBLE
                                                                                         </span>
                                                                                     )}
@@ -8658,7 +6484,7 @@ const Odontologo_page = () => {
                                                                                             type="button"
                                                                                             title="Eliminar Insumo"
                                                                                             onClick={() => handleDeleteInsumo(insumo.id)}
-                                                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
+                                                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}
                                                                                         >
                                                                                             <Trash2 size={14} />
                                                                                         </button>
@@ -8693,7 +6519,7 @@ const Odontologo_page = () => {
                                                     {quickStockType === 'add' ? <Plus size={18} /> : <Minus size={18} />}
                                                     {quickStockType === 'add' ? 'Ingreso de Stock a Insumo' : 'Egreso / Salida de Stock'}
                                                 </h3>
-                                                <button onClick={() => setIsQuickStockModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                                                <button aria-label="Cerrar" onClick={() => setIsQuickStockModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                                             </div>
                                             <form onSubmit={handleSaveQuickStock} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                                 <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
@@ -8709,6 +6535,7 @@ const Odontologo_page = () => {
                                                         {quickStockType === 'add' ? 'Cantidad a ingresar (unidades) *' : 'Cantidad a descontar (unidades) *'}
                                                     </label>
                                                     <input
+                                                        aria-label={quickStockType === 'add' ? 'Cantidad a ingresar (unidades)' : 'Cantidad a descontar (unidades)'}
                                                         type="number"
                                                         min="1"
                                                         required
@@ -8753,7 +6580,7 @@ const Odontologo_page = () => {
                                                         <h2>{insumoForm.id ? 'Editar Insumo Odontológico' : 'Añadir Insumo Odontológico'}</h2>
                                                     </div>
                                                 </div>
-                                                <button className="clinical-modal__close" onClick={() => setIsAddInsumoModalOpen(false)}><X size={16} /></button>
+                                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsAddInsumoModalOpen(false)}><X size={16} /></button>
                                             </header>
 
                                             <div className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -8761,11 +6588,11 @@ const Odontologo_page = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Package size={15} /></span>
-                                                            <h4 className="field-header__title">Nombre del Insumo Odontológico</h4>
+                                                            <h4 id="odontologo-nombre-del-insumo-odontologico-titulo" className="field-header__title">Nombre del Insumo Odontológico</h4>
                                                         </div>
                                                         <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="odontologo-nombre-del-insumo-odontologico-titulo"
                                                         type="text"
                                                         placeholder="Ej: Guantes de nitrilo, Hilo dental, Amalgama..."
                                                         value={insumoForm.nombre}
@@ -8787,11 +6614,11 @@ const Odontologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><PlusCircle size={15} /></span>
-                                                                    <h4 className="field-header__title">Añadir Incremento al Stock (+)</h4>
+                                                                    <h4 id="odontologo-anadir-incremento-al-stock-titulo" className="field-header__title">Añadir Incremento al Stock (+)</h4>
                                                                 </div>
                                                                 <span className="field-badge-opt" style={{ background: '#dcfce7', color: '#166534' }}>Recomendado</span>
                                                             </div>
-                                                            <input
+                                                            <input aria-labelledby="odontologo-anadir-incremento-al-stock-titulo"
                                                                 type="number"
                                                                 min="0"
                                                                 placeholder="Ej: 10 (se sumará al stock actual)"
@@ -8815,11 +6642,11 @@ const Odontologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Hash size={15} /></span>
-                                                                    <h4 className="field-header__title">O Establecer Cantidad Total Directa</h4>
+                                                                    <h4 id="odontologo-o-establecer-cantidad-total-directa-titulo" className="field-header__title">O Establecer Cantidad Total Directa</h4>
                                                                 </div>
                                                                 <span className="field-badge-req">Total Directo</span>
                                                             </div>
-                                                            <input
+                                                            <input aria-labelledby="odontologo-o-establecer-cantidad-total-directa-titulo"
                                                                 type="number"
                                                                 min="0"
                                                                 placeholder="Ej: 50"
@@ -8837,11 +6664,11 @@ const Odontologo_page = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Hash size={15} /></span>
-                                                                <h4 className="field-header__title">Stock Inicial (Unidades)</h4>
+                                                                <h4 id="odontologo-stock-inicial-unidades-titulo" className="field-header__title">Stock Inicial (Unidades)</h4>
                                                             </div>
                                                             <span className="field-badge-req">Requerido</span>
                                                         </div>
-                                                        <input
+                                                        <input aria-labelledby="odontologo-stock-inicial-unidades-titulo"
                                                             type="number"
                                                             min="0"
                                                             placeholder="Ej: 50"
@@ -8877,7 +6704,7 @@ const Odontologo_page = () => {
                                                         <h2>Registrar Consumo de Insumo</h2>
                                                     </div>
                                                 </div>
-                                                <button className="clinical-modal__close" onClick={() => setIsAssignInsumoModalOpen(false)}><X size={16} /></button>
+                                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsAssignInsumoModalOpen(false)}><X size={16} /></button>
                                             </header>
 
                                             <div className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -8906,6 +6733,7 @@ const Odontologo_page = () => {
                                                             <div className="patient-search-input" style={{ flex: 1, minHeight: '44px', margin: 0 }}>
                                                                 <Search size={16} />
                                                                 <input
+                                                                    aria-label="Buscar por cédula o nombre"
                                                                     type="text"
                                                                     placeholder="Buscar por cédula o nombre..."
                                                                     value={insumoPatientSearch}
@@ -8923,6 +6751,7 @@ const Odontologo_page = () => {
                                                         <div style={{ marginTop: '6px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: '12px', maxHeight: '160px', overflowY: 'auto', boxShadow: 'var(--shadow-sm)' }}>
                                                             {insumoPatientResults.map(p => (
                                                                 <div
+                                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                     key={p.id || p.id_usuario}
                                                                     onClick={() => {
                                                                         setInsumoSelectedPatient(p);
@@ -8945,11 +6774,11 @@ const Odontologo_page = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Package size={15} /></span>
-                                                            <h4 className="field-header__title">Insumo Utilizado</h4>
+                                                            <h4 id="odontologo-insumo-utilizado-titulo" className="field-header__title">Insumo Utilizado</h4>
                                                         </div>
                                                         <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <select
+                                                    <select aria-labelledby="odontologo-insumo-utilizado-titulo"
                                                         value={consumoForm.id_insumo}
                                                         onChange={e => setConsumoForm(f => ({ ...f, id_insumo: e.target.value }))}
                                                         required
@@ -8966,18 +6795,18 @@ const Odontologo_page = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Hash size={15} /></span>
-                                                            <h4 className="field-header__title">Cantidad Gastada</h4>
+                                                            <h4 id="odontologo-cantidad-gastada-titulo" className="field-header__title">Cantidad Gastada</h4>
                                                         </div>
                                                         <span className="field-badge-req">Requerido</span>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="odontologo-cantidad-gastada-titulo"
                                                         type="text"
                                                         placeholder="Ej: 1, 2, 1/2x, 1 unidad..."
                                                         value={consumoForm.cantidad_gastada}
                                                         onChange={e => setConsumoForm(f => ({ ...f, cantidad_gastada: e.target.value }))}
                                                         required
                                                     />
-                                                    <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.4 }}>
+                                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.4 }}>
                                                         El inventario se reducirá automáticamente según la cifra indicada (ej: "2" descontará 2 del stock).
                                                     </p>
                                                 </div>
@@ -9042,6 +6871,7 @@ const Odontologo_page = () => {
                                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                     {/* Filtro de Mes */}
                                                     <select
+                                                        aria-label="Mes"
                                                         value={reportMonth}
                                                         onChange={e => setReportMonth(parseInt(e.target.value))}
                                                         style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}
@@ -9061,6 +6891,7 @@ const Odontologo_page = () => {
                                                     </select>
                                                     {/* Filtro de Año */}
                                                     <select
+                                                        aria-label="Año"
                                                         value={reportYear}
                                                         onChange={e => setReportYear(parseInt(e.target.value))}
                                                         style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px' }}
@@ -9072,7 +6903,7 @@ const Odontologo_page = () => {
                                                     <button className="action-button action-button--primary" onClick={handlePrintInsumosReport} style={{ minHeight: '34px', fontSize: '12px' }}>
                                                         Imprimir
                                                     </button>
-                                                    <button className="clinical-modal__close" onClick={() => setIsReportModalOpen(false)} style={{ color: '#fff' }}><X size={16} /></button>
+                                                    <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsReportModalOpen(false)} style={{ color: '#fff' }}><X size={16} /></button>
                                                 </div>
                                             </header>
 
@@ -9353,6 +7184,7 @@ const Odontologo_page = () => {
                                                 <div className="patient-search-input" style={{ width: '280px', maxWidth: '100%', height: '36px', minHeight: '36px' }}>
                                                     <Search size={15} />
                                                     <input
+                                                        aria-label="Buscar procedimiento"
                                                         type="text"
                                                         value={procedureSearchQuery}
                                                         onChange={(e) => setProcedureSearchQuery(e.target.value)}
@@ -9363,7 +7195,7 @@ const Odontologo_page = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => setProcedureSearchQuery('')}
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#94a3b8' }}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#64748b' }}
                                                             title="Limpiar búsqueda"
                                                         >
                                                             <X size={13} />
@@ -9372,10 +7204,11 @@ const Odontologo_page = () => {
                                                 </div>
 
                                                 {/* FORMULARIO PARA AGREGAR NUEVO PROCEDIMIENTO */}
-                                                <form onSubmit={handleAddProcedure} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <form onSubmit={handleAddProcedure} style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                     <div className="patient-search-input" style={{ width: '280px', maxWidth: '100%', height: '36px', minHeight: '36px' }}>
                                                         <BriefcaseMedical size={15} />
                                                         <input
+                                                            aria-label="Nuevo procedimiento (ej. Carillas)"
                                                             type="text"
                                                             value={newProcedureName}
                                                             onChange={(e) => setNewProcedureName(e.target.value)}
@@ -9446,7 +7279,7 @@ const Odontologo_page = () => {
                                                                                 </div>
                                                                             </td>
                                                                             <td>
-                                                                                <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--success)', background: 'var(--success-soft)', padding: '3px 8px', borderRadius: '12px' }}>
+                                                                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--success)', background: 'var(--success-soft)', padding: '3px 8px', borderRadius: '12px' }}>
                                                                                     Activo en Catálogo
                                                                                 </span>
                                                                             </td>
@@ -9457,7 +7290,7 @@ const Odontologo_page = () => {
                                                                                     style={{
                                                                                         background: '#fef2f2',
                                                                                         border: '1px solid #fca5a5',
-                                                                                        color: '#dc2626',
+                                                                                        color: '#d52525',
                                                                                         borderRadius: '6px',
                                                                                         width: '28px',
                                                                                         height: '28px',
@@ -9560,6 +7393,7 @@ const Odontologo_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del parte diario"
                                                             type="date"
                                                             value={parteDiarioDate}
                                                             onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -9589,7 +7423,7 @@ const Odontologo_page = () => {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div style={{
-                                                        background: '#ef4444',
+                                                        background: '#dc2626',
                                                         color: '#fff',
                                                         width: '28px',
                                                         height: '28px',
@@ -9602,7 +7436,7 @@ const Odontologo_page = () => {
                                                     }}>PDF</div>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                         <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Parte_Diario_Odontologia_{parteDiarioDate}.pdf</span>
-                                                        <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                     </div>
                                                 </div>
                                                 <button
@@ -9654,6 +7488,7 @@ const Odontologo_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del reporte de insumos"
                                                             type="date"
                                                             value={reportInsumosFecha}
                                                             onChange={(e) => setReportInsumosFecha(e.target.value)}
@@ -9683,7 +7518,7 @@ const Odontologo_page = () => {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div style={{
-                                                        background: '#ef4444',
+                                                        background: '#dc2626',
                                                         color: '#fff',
                                                         width: '28px',
                                                         height: '28px',
@@ -9696,7 +7531,7 @@ const Odontologo_page = () => {
                                                     }}>PDF</div>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                         <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Consumo_Insumos_{reportInsumosFecha}.pdf</span>
-                                                        <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                     </div>
                                                 </div>
                                                 <button
@@ -9748,6 +7583,7 @@ const Odontologo_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del reporte de citas"
                                                             type="date"
                                                             value={reportCitasFecha}
                                                             onChange={(e) => setReportCitasFecha(e.target.value)}
@@ -9755,6 +7591,7 @@ const Odontologo_page = () => {
                                                         />
                                                     </label>
                                                     <select
+                                                        aria-label="Filtrar por estado"
                                                         value={reportCitasEstado}
                                                         onChange={(e) => setReportCitasEstado(e.target.value)}
                                                         style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11.5px', outline: 0, background: 'white' }}
@@ -9788,7 +7625,7 @@ const Odontologo_page = () => {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div style={{
-                                                        background: '#ef4444',
+                                                        background: '#dc2626',
                                                         color: '#fff',
                                                         width: '28px',
                                                         height: '28px',
@@ -9801,7 +7638,7 @@ const Odontologo_page = () => {
                                                     }}>PDF</div>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                         <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Odontologia_{reportCitasFecha}.pdf</span>
-                                                        <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                     </div>
                                                 </div>
                                                 <button
@@ -9862,6 +7699,7 @@ const Odontologo_page = () => {
                                                     }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <select
+                                                            aria-label="Mes"
                                                             value={genReportMonth}
                                                             onChange={(e) => {
                                                                 const m = parseInt(e.target.value);
@@ -9885,6 +7723,7 @@ const Odontologo_page = () => {
                                                         </select>
                                                         <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '11.5px', fontWeight: 500 }}>de</span>
                                                         <select
+                                                            aria-label="Año"
                                                             value={genReportYear}
                                                             onChange={(e) => {
                                                                 const y = parseInt(e.target.value);
@@ -9930,7 +7769,7 @@ const Odontologo_page = () => {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div style={{
-                                                        background: '#ef4444',
+                                                        background: '#dc2626',
                                                         color: '#fff',
                                                         width: '28px',
                                                         height: '28px',
@@ -9943,7 +7782,7 @@ const Odontologo_page = () => {
                                                     }}>PDF</div>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                         <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Informe_Estadistico_Mensual_{["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][genReportMonth - 1]}_{genReportYear}.pdf</span>
-                                                        <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                     </div>
                                                 </div>
                                                 <button
@@ -9962,7 +7801,7 @@ const Odontologo_page = () => {
                                                         <span>Compilando informe...</span>
                                                     </div>
                                                 ) : !genReportData ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '500px', color: '#94a3b8' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '500px', color: '#64748b' }}>
                                                         No hay datos disponibles para la fecha seleccionada.
                                                     </div>
                                                 ) : (
@@ -10010,6 +7849,7 @@ const Odontologo_page = () => {
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                             <CalendarDays size={16} color="var(--accent)" />
                                             <input
+                                                aria-label="Fecha de las citas"
                                                 type="date"
                                                 value={citasDate}
                                                 onChange={(e) => setCitasDate(e.target.value)}
@@ -10074,7 +7914,7 @@ const Odontologo_page = () => {
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
+                                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -10085,14 +7925,14 @@ const Odontologo_page = () => {
                                                                 <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                     {cita.motivo || 'Consulta general'}
                                                                     {cita.notas_doctor && (
-                                                                        <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
+                                                                        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
                                                                             <strong>Mis Notas:</strong> {cita.notas_doctor}
                                                                         </div>
                                                                     )}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <span style={{
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: '700',
                                                                         textTransform: 'uppercase',
                                                                         color: statusColors.text,
@@ -10105,7 +7945,7 @@ const Odontologo_page = () => {
                                                                         {cita.estado}
                                                                     </span>
                                                                     {cita.confirmada_por_paciente && (
-                                                                        <div style={{ marginTop: '4px', fontSize: '10px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                                             <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
                                                                         </div>
                                                                     )}
@@ -10202,7 +8042,7 @@ const Odontologo_page = () => {
                                     <h2>Buscar Paciente por Cédula</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
@@ -10210,6 +8050,7 @@ const Odontologo_page = () => {
                                 <div className="patient-search-input" style={{ flex: 1 }}>
                                     <Search size={16} />
                                     <input
+                                        aria-label="Ingrese número de cédula o nombre del paciente"
                                         value={modalSearchCedula}
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         placeholder="Ingrese número de cédula o nombre del paciente..."
@@ -10258,7 +8099,7 @@ const Odontologo_page = () => {
                                     <h2>Nuevo Paciente</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleQuickRegisterPatient} className="clinical-modal__body">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -10266,11 +8107,11 @@ const Odontologo_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><User size={15} /></span>
-                                            <h4 className="field-header__title">Nombres y Apellidos Completos</h4>
+                                            <h4 id="odontologo-nombres-y-apellidos-completos-titulo" className="field-header__title">Nombres y Apellidos Completos</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <input
+                                    <input aria-labelledby="odontologo-nombres-y-apellidos-completos-titulo"
                                         value={newPatientForm.nombre_completo}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre_completo: e.target.value })}
                                         placeholder="Ingrese nombres y apellidos de acuerdo a la cédula o pasaporte"
@@ -10284,11 +8125,11 @@ const Odontologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Documento</h4>
+                                                <h4 id="odontologo-tipo-de-documento-titulo" className="field-header__title">Tipo de Documento</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="odontologo-tipo-de-documento-titulo"
                                             value={newPatientForm.tipo_documento}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_documento: e.target.value, cedula: '', pais_origen: '' })}
                                             required
@@ -10309,6 +8150,7 @@ const Odontologo_page = () => {
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <input
+                                            aria-label={newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
                                             value={newPatientForm.cedula}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, cedula: e.target.value })}
                                             placeholder={newPatientForm.tipo_documento === 'pasaporte' ? 'Ej. AB123456' : 'Ej. 0201234567'}
@@ -10323,11 +8165,11 @@ const Odontologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Paciente</h4>
+                                                <h4 id="odontologo-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="odontologo-tipo-de-paciente-titulo"
                                             value={newPatientForm.id_tipo_usuario || 2}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
                                             required
@@ -10344,11 +8186,11 @@ const Odontologo_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                    <h4 className="field-header__title">País de Origen</h4>
+                                                    <h4 id="odontologo-pais-de-origen-titulo" className="field-header__title">País de Origen</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="odontologo-pais-de-origen-titulo"
                                                 value={newPatientForm.pais_origen}
                                                 onChange={(e) => setNewPatientForm({ ...newPatientForm, pais_origen: e.target.value })}
                                                 required
@@ -10370,6 +8212,7 @@ const Odontologo_page = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', border: !newPatientForm.correo ? '1.5px solid #b71a34' : '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#ffffff', minHeight: '46px', boxSizing: 'border-box' }}>
                                         <input
+                                            aria-label="nombre.apellido"
                                             type="text"
                                             className="email-addon-input"
                                             value={newPatientForm.correo}
@@ -10408,7 +8251,7 @@ const Odontologo_page = () => {
                             </div>
 
                             {registerError && (
-                                <div style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div role="alert" style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <AlertTriangle size={14} /> {registerError}
                                 </div>
                             )}
@@ -10445,7 +8288,7 @@ const Odontologo_page = () => {
                                         <CheckCircle size={13} color="#f87171" /> Guardado {draftLastSaved}
                                     </span>
                                 )}
-                                <button className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
                             </div>
                         </header>
                         <div className="clinical-modal__body">
@@ -10464,6 +8307,7 @@ const Odontologo_page = () => {
                                         {steps.map((step, idx) => (
                                             <React.Fragment key={step.key}>
                                                 <div
+                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
                                                     onClick={() => setCurrentStepIndex(idx)}
                                                 >
@@ -10484,6 +8328,7 @@ const Odontologo_page = () => {
                                                     <div className="field field--full">
                                                         <span>Motivo de Consulta *</span>
                                                         <textarea
+                                                            aria-label="Motivo de Consulta"
                                                             value={fichaForm.detalle_motivo}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_motivo: e.target.value })}
                                                             placeholder="Escriba el motivo principal de la consulta dental..."
@@ -10495,6 +8340,7 @@ const Odontologo_page = () => {
                                                         <div className="field">
                                                             <span>Última visita al dentista</span>
                                                             <input
+                                                                aria-label="Última visita al dentista"
                                                                 type="date"
                                                                 max={getLocalDateString()}
                                                                 value={fichaForm.ultima_visita_fecha}
@@ -10513,6 +8359,7 @@ const Odontologo_page = () => {
                                                         <div className="field">
                                                             <span>¿Ha recibido algún tratamiento médico?</span>
                                                             <select
+                                                                aria-label="¿Ha recibido algún tratamiento médico?"
                                                                 value={fichaForm.algun_tratamiento}
                                                                 onChange={(e) => setFichaForm({ ...fichaForm, algun_tratamiento: e.target.value })}
                                                             >
@@ -10525,6 +8372,7 @@ const Odontologo_page = () => {
                                                         <div className="field field--full" style={{ marginTop: '12px' }}>
                                                             <span>Detalle del tratamiento médico</span>
                                                             <textarea
+                                                                aria-label="Detalle del tratamiento médico"
                                                                 value={fichaForm.detalle_tratamiento}
                                                                 onChange={(e) => setFichaForm({ ...fichaForm, detalle_tratamiento: e.target.value })}
                                                                 placeholder="Describa el tratamiento médico recibido..."
@@ -10536,6 +8384,7 @@ const Odontologo_page = () => {
                                                         <div className="field">
                                                             <span>¿Toma algún medicamento actualmente?</span>
                                                             <select
+                                                                aria-label="¿Toma algún medicamento actualmente?"
                                                                 value={fichaForm.algun_medicamento}
                                                                 onChange={(e) => setFichaForm({ ...fichaForm, algun_medicamento: e.target.value })}
                                                             >
@@ -10547,6 +8396,7 @@ const Odontologo_page = () => {
                                                             <div className="field">
                                                                 <span>Detalle del medicamento</span>
                                                                 <input
+                                                                    aria-label="Detalle del medicamento"
                                                                     type="text"
                                                                     value={fichaForm.detalle_medicamento}
                                                                     onChange={(e) => setFichaForm({ ...fichaForm, detalle_medicamento: e.target.value })}
@@ -10608,42 +8458,42 @@ const Odontologo_page = () => {
                                                         <div className="mental-status-grid" style={{ marginBottom: '16px', background: '#ffffff', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                                                             <div className="field">
                                                                 <span>Piel</span>
-                                                                <select value={fichaForm.piel} onChange={(e) => setFichaForm({ ...fichaForm, piel: e.target.value })}>
+                                                                <select aria-label="Piel" value={fichaForm.piel} onChange={(e) => setFichaForm({ ...fichaForm, piel: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado / Lesión</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Labios</span>
-                                                                <select value={fichaForm.labios} onChange={(e) => setFichaForm({ ...fichaForm, labios: e.target.value })}>
+                                                                <select aria-label="Labios" value={fichaForm.labios} onChange={(e) => setFichaForm({ ...fichaForm, labios: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado / Lesión</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Carrillos / Mejillas</span>
-                                                                <select value={fichaForm.carrillos} onChange={(e) => setFichaForm({ ...fichaForm, carrillos: e.target.value })}>
+                                                                <select aria-label="Carrillos / Mejillas" value={fichaForm.carrillos} onChange={(e) => setFichaForm({ ...fichaForm, carrillos: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Paladar</span>
-                                                                <select value={fichaForm.paladar} onChange={(e) => setFichaForm({ ...fichaForm, paladar: e.target.value })}>
+                                                                <select aria-label="Paladar" value={fichaForm.paladar} onChange={(e) => setFichaForm({ ...fichaForm, paladar: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado / Lesión</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Piso de la Boca</span>
-                                                                <select value={fichaForm.piso_de_la_boca} onChange={(e) => setFichaForm({ ...fichaForm, piso_de_la_boca: e.target.value })}>
+                                                                <select aria-label="Piso de la Boca" value={fichaForm.piso_de_la_boca} onChange={(e) => setFichaForm({ ...fichaForm, piso_de_la_boca: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Lengua</span>
-                                                                <select value={fichaForm.lengua} onChange={(e) => setFichaForm({ ...fichaForm, lengua: e.target.value })}>
+                                                                <select aria-label="Lengua" value={fichaForm.lengua} onChange={(e) => setFichaForm({ ...fichaForm, lengua: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="saburral">Saburral</option>
                                                                     <option value="lesion">Lesión</option>
@@ -10651,42 +8501,42 @@ const Odontologo_page = () => {
                                                             </div>
                                                             <div className="field">
                                                                 <span>Glándulas Salivales</span>
-                                                                <select value={fichaForm.glándulas_salivales} onChange={(e) => setFichaForm({ ...fichaForm, glándulas_salivales: e.target.value })}>
+                                                                <select aria-label="Glándulas Salivales" value={fichaForm.glándulas_salivales} onChange={(e) => setFichaForm({ ...fichaForm, glándulas_salivales: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Ganglios</span>
-                                                                <select value={fichaForm.ganglios} onChange={(e) => setFichaForm({ ...fichaForm, ganglios: e.target.value })}>
+                                                                <select aria-label="Ganglios" value={fichaForm.ganglios} onChange={(e) => setFichaForm({ ...fichaForm, ganglios: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Tejido Muscular</span>
-                                                                <select value={fichaForm.tejido_muscular} onChange={(e) => setFichaForm({ ...fichaForm, tejido_muscular: e.target.value })}>
+                                                                <select aria-label="Tejido Muscular" value={fichaForm.tejido_muscular} onChange={(e) => setFichaForm({ ...fichaForm, tejido_muscular: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>ATM</span>
-                                                                <select value={fichaForm.atm} onChange={(e) => setFichaForm({ ...fichaForm, atm: e.target.value })}>
+                                                                <select aria-label="ATM" value={fichaForm.atm} onChange={(e) => setFichaForm({ ...fichaForm, atm: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Maxilar Superior</span>
-                                                                <select value={fichaForm.maxilar_superior} onChange={(e) => setFichaForm({ ...fichaForm, maxilar_superior: e.target.value })}>
+                                                                <select aria-label="Maxilar Superior" value={fichaForm.maxilar_superior} onChange={(e) => setFichaForm({ ...fichaForm, maxilar_superior: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Maxilar Inferior</span>
-                                                                <select value={fichaForm.maxilar_inferior} onChange={(e) => setFichaForm({ ...fichaForm, maxilar_inferior: e.target.value })}>
+                                                                <select aria-label="Maxilar Inferior" value={fichaForm.maxilar_inferior} onChange={(e) => setFichaForm({ ...fichaForm, maxilar_inferior: e.target.value })}>
                                                                     <option value="normal">Normal</option>
                                                                     <option value="alterado">Alterado</option>
                                                                 </select>
@@ -10697,6 +8547,7 @@ const Odontologo_page = () => {
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Observaciones del Examen</span>
                                                         <textarea
+                                                            aria-label="Observaciones del Examen"
                                                             value={fichaForm.observaciones}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, observaciones: e.target.value })}
                                                             placeholder="Detalle cualquier hallazgo clínico relevante o nota sobre el examen..."
@@ -10712,7 +8563,7 @@ const Odontologo_page = () => {
                                                     <div className="clinical-fields-grid">
                                                         <div className="field">
                                                             <span>Placa Bacteriana</span>
-                                                            <select value={fichaForm.placa_bacteriana} onChange={(e) => setFichaForm({ ...fichaForm, placa_bacteriana: e.target.value })}>
+                                                            <select aria-label="Placa Bacteriana" value={fichaForm.placa_bacteriana} onChange={(e) => setFichaForm({ ...fichaForm, placa_bacteriana: e.target.value })}>
                                                                 <option value="no">No detectable</option>
                                                                 <option value="leve">Leve</option>
                                                                 <option value="moderada">Moderada</option>
@@ -10721,7 +8572,7 @@ const Odontologo_page = () => {
                                                         </div>
                                                         <div className="field">
                                                             <span>Cálculos Dentales</span>
-                                                            <select value={fichaForm.calculos_dentales} onChange={(e) => setFichaForm({ ...fichaForm, calculos_dentales: e.target.value })}>
+                                                            <select aria-label="Cálculos Dentales" value={fichaForm.calculos_dentales} onChange={(e) => setFichaForm({ ...fichaForm, calculos_dentales: e.target.value })}>
                                                                 <option value="no">No presenta</option>
                                                                 <option value="supragingivales">Supragingivales</option>
                                                                 <option value="subgingivales">Subgingivales</option>
@@ -10732,7 +8583,7 @@ const Odontologo_page = () => {
                                                     <div className="clinical-fields-grid" style={{ marginTop: '12px' }}>
                                                         <div className="field">
                                                             <span>Bolsa Periodontal</span>
-                                                            <select value={fichaForm.bolsa_periodontal} onChange={(e) => setFichaForm({ ...fichaForm, bolsa_periodontal: e.target.value })}>
+                                                            <select aria-label="Bolsa Periodontal" value={fichaForm.bolsa_periodontal} onChange={(e) => setFichaForm({ ...fichaForm, bolsa_periodontal: e.target.value })}>
                                                                 <option value="no">No presenta</option>
                                                                 <option value="leve">Leve (3-4 mm)</option>
                                                                 <option value="moderada">Moderada (5-6 mm)</option>
@@ -10741,7 +8592,7 @@ const Odontologo_page = () => {
                                                         </div>
                                                         <div className="field">
                                                             <span>Movilidad Dental</span>
-                                                            <select value={fichaForm.movilidad_dental} onChange={(e) => setFichaForm({ ...fichaForm, movilidad_dental: e.target.value })}>
+                                                            <select aria-label="Movilidad Dental" value={fichaForm.movilidad_dental} onChange={(e) => setFichaForm({ ...fichaForm, movilidad_dental: e.target.value })}>
                                                                 <option value="no">No presenta</option>
                                                                 <option value="grado_1">Grado 1</option>
                                                                 <option value="grado_2">Grado 2</option>
@@ -10758,6 +8609,7 @@ const Odontologo_page = () => {
                                                     <div className="field field--full">
                                                         <span>Diagnóstico Odontológico *</span>
                                                         <textarea
+                                                            aria-label="Diagnóstico Odontológico"
                                                             value={fichaForm.detalle_diagnostico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_diagnostico: e.target.value })}
                                                             placeholder="Describa el diagnóstico clínico completo del paciente (Caries, Pulpitis, Gingivitis, etc.)...."
@@ -10771,20 +8623,20 @@ const Odontologo_page = () => {
                                                             <ClipboardList size={22} style={{ padding: '4px', background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: '6px' }} />
                                                             <div>
                                                                 <h3 style={{ fontSize: '11px', margin: 0 }}>Estadística de Jornada y Tratamiento</h3>
-                                                                <p style={{ fontSize: '9px', margin: '2px 0 0', color: 'var(--text-muted)' }}>Asocia esta consulta al control de consulta diaria.</p>
+                                                                <p style={{ fontSize: '11px', margin: '2px 0 0', color: 'var(--text-muted)' }}>Asocia esta consulta al control de consulta diaria.</p>
                                                             </div>
                                                         </div>
                                                         <div className="clinical-fields-grid">
                                                             <div className="field">
                                                                 <span>Tipo de Atención *</span>
-                                                                <select value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
+                                                                <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
                                                                     <option value="primaria">Primaria (Consulta Inicial)</option>
                                                                     <option value="secundaria">Secundaria (Seguimiento)</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Subtipo de Atención *</span>
-                                                                <select value={fichaForm.tipo_atencion2} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion2: e.target.value })}>
+                                                                <select aria-label="Subtipo de Atención" value={fichaForm.tipo_atencion2} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion2: e.target.value })}>
                                                                     <option value="curativo">Curativo</option>
                                                                     <option value="preventivo">Preventivo</option>
                                                                 </select>
@@ -10792,7 +8644,7 @@ const Odontologo_page = () => {
                                                         </div>
                                                         <div className="field" style={{ marginTop: '10px' }}>
                                                             <span>Procedimiento Dental Realizado *</span>
-                                                            <select value={fichaForm.procedimiento} onChange={(e) => setFichaForm({ ...fichaForm, procedimiento: e.target.value })}>
+                                                            <select aria-label="Procedimiento Dental Realizado" value={fichaForm.procedimiento} onChange={(e) => setFichaForm({ ...fichaForm, procedimiento: e.target.value })}>
                                                                 <option value="Profilaxis">Profilaxis</option>
                                                                 <option value="Fluorizacion">Fluorización</option>
                                                                 <option value="Destartraje">Destartraje (Limpieza profunda)</option>
@@ -10946,6 +8798,7 @@ const Odontologo_page = () => {
                                                             <div className="field">
                                                                 <span>Insumo del Inventario *</span>
                                                                 <select
+                                                                    aria-label="Insumo del Inventario"
                                                                     value={inlineInsumoForm.id_insumo}
                                                                     onChange={(e) => setInlineInsumoForm({ ...inlineInsumoForm, id_insumo: e.target.value })}
                                                                     required
@@ -10961,6 +8814,7 @@ const Odontologo_page = () => {
                                                             <div className="field">
                                                                 <span>Cantidad Consumida *</span>
                                                                 <input
+                                                                    aria-label="Cantidad Consumida"
                                                                     type="text"
                                                                     value={inlineInsumoForm.cantidad_gastada}
                                                                     onChange={(e) => setInlineInsumoForm({ ...inlineInsumoForm, cantidad_gastada: e.target.value })}
@@ -11009,7 +8863,7 @@ const Odontologo_page = () => {
                                                                 </div>
 
                                                                 {patientConsumos.length === 0 ? (
-                                                                    <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '12px' }}>
+                                                                    <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#475569', fontSize: '12px' }}>
                                                                         <Package size={22} color="#94a3b8" style={{ marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
                                                                         No se han agregado insumos en esta cita aún. Selecciona un insumo arriba y haz clic en el botón <strong>+</strong> para añadirlo.
                                                                     </div>
@@ -11054,7 +8908,7 @@ const Odontologo_page = () => {
                                                                                                     style={{
                                                                                                         background: '#fef2f2',
                                                                                                         border: '1px solid #fca5a5',
-                                                                                                        color: '#dc2626',
+                                                                                                        color: '#d52525',
                                                                                                         borderRadius: '6px',
                                                                                                         padding: '4px 10px',
                                                                                                         fontSize: '11px',
@@ -11138,6 +8992,7 @@ const Odontologo_page = () => {
                                                         </label>
                                                         <div style={{ position: 'relative' }}>
                                                             <input
+                                                                aria-label="Buscar Medicamento en Catálogo de Farmacia"
                                                                 type="text"
                                                                 value={farmaciaSearchQuery}
                                                                 onChange={(e) => handleSearchFarmacia(e.target.value)}
@@ -11151,6 +9006,7 @@ const Odontologo_page = () => {
                                                                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
                                                                     {farmaciaSearchResults.map((prod) => (
                                                                         <div
+                                                                            role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                             key={prod.id}
                                                                             onClick={() => handleSelectFarmaciaProduct(prod)}
                                                                             style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px' }}
@@ -11180,6 +9036,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Medicamento Prescrito *</span>
                                                                 <input
+                                                                    aria-label="Medicamento Prescrito"
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_medicamento}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_medicamento: e.target.value })}
@@ -11189,6 +9046,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Dosis *</span>
                                                                 <input
+                                                                    aria-label="Dosis"
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_dosis}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_dosis: e.target.value })}
@@ -11198,6 +9056,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Vía de Adm. *</span>
                                                                 <input
+                                                                    aria-label="Vía de Adm."
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_via_administracion}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_via_administracion: e.target.value })}
@@ -11210,6 +9069,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cada (Horas) *</span>
                                                                 <input
+                                                                    aria-label="Cada (Horas)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.frecuencia_horas}
@@ -11219,6 +9079,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Durante (Días) *</span>
                                                                 <input
+                                                                    aria-label="Durante (Días)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
@@ -11228,6 +9089,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cant. Cajas</span>
                                                                 <input
+                                                                    aria-label="Cant. Cajas"
                                                                     type="number"
                                                                     min="0"
                                                                     value={prescripcionLineForm.cantidad_cajas}
@@ -11237,6 +9099,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cant. Unidades</span>
                                                                 <input
+                                                                    aria-label="Cant. Unidades"
                                                                     type="number"
                                                                     min="0"
                                                                     value={prescripcionLineForm.cantidad_unidades}
@@ -11249,6 +9112,7 @@ const Odontologo_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Indicaciones Adicionales / Observaciones</span>
                                                                 <input
+                                                                    aria-label="Indicaciones Adicionales / Observaciones"
                                                                     type="text"
                                                                     value={prescripcionLineForm.observaciones}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, observaciones: e.target.value })}
@@ -11279,7 +9143,7 @@ const Odontologo_page = () => {
                                                         </div>
 
                                                         {(!fichaForm.prescripcion_lineas || fichaForm.prescripcion_lineas.length === 0) ? (
-                                                            <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '12px' }}>
+                                                            <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#475569', fontSize: '12px' }}>
                                                                 <Pill size={22} color="#94a3b8" style={{ marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
                                                                 No ha agregado medicamentos a la receta. Use el buscador o el formulario para añadir prescripciones.
                                                             </div>
@@ -11301,7 +9165,7 @@ const Odontologo_page = () => {
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleRemovePrescripcionLine(item.id_temp)}
-                                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}
+                                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}
                                                                         >
                                                                             <Trash2 size={13} /> Quitar
                                                                         </button>
@@ -11349,7 +9213,7 @@ const Odontologo_page = () => {
             )}
 
             {/* TOAST DE SISTEMA */}
-            <div className={`toast ${toast.show ? 'show' : ''}`}>
+            <div role="status" aria-live="polite" className={`toast ${toast.show ? 'show' : ''}`}>
                 <CheckCircle size={16} /> <span>{toast.message}</span>
             </div>
 
@@ -11367,7 +9231,7 @@ const Odontologo_page = () => {
                                     <h2 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>{saveFeedback.title}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={(e) => { e.stopPropagation(); setSaveFeedback(prev => ({ ...prev, show: false })); }} style={{ color: '#fff' }}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={(e) => { e.stopPropagation(); setSaveFeedback(prev => ({ ...prev, show: false })); }} style={{ color: '#fff' }}><X size={15} /></button>
                         </header>
                         <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
                             <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 20px' }}>
@@ -11428,7 +9292,7 @@ const Odontologo_page = () => {
                                     </p>
                                 </div>
                             </div>
-                            <button type="button" onClick={() => !fichaSaving && setCertModal(prev => ({ ...prev, isOpen: false }))} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '6px' }}>
+                            <button aria-label="Cerrar" type="button" onClick={() => !fichaSaving && setCertModal(prev => ({ ...prev, isOpen: false }))} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '6px' }}>
                                 <X size={18} />
                             </button>
                         </header>
@@ -11441,6 +9305,7 @@ const Odontologo_page = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
                                 {/* OPCIÓN 1: REPOSO */}
                                 <div
+                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                     onClick={() => setCertModal(prev => ({ ...prev, tipo: 'reposo' }))}
                                     style={{
                                         border: `2px solid ${certModal.tipo === 'reposo' ? 'var(--primary)' : '#e2e8f0'}`,
@@ -11454,7 +9319,7 @@ const Odontologo_page = () => {
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Clock size={18} color={certModal.tipo === 'reposo' ? 'var(--primary)' : '#64748b'} />
+                                            <Clock size={18} color={certModal.tipo === 'reposo' ? 'var(--primary)' : '#475569'} />
                                             <strong style={{ fontSize: '13.5px', color: certModal.tipo === 'reposo' ? 'var(--primary)' : '#1e293b' }}>
                                                 Certificado de Reposo
                                             </strong>
@@ -11474,6 +9339,7 @@ const Odontologo_page = () => {
 
                                 {/* OPCIÓN 2: ASISTENCIA */}
                                 <div
+                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                     onClick={() => setCertModal(prev => ({ ...prev, tipo: 'asistencia' }))}
                                     style={{
                                         border: `2px solid ${certModal.tipo === 'asistencia' ? 'var(--primary)' : '#e2e8f0'}`,
@@ -11487,7 +9353,7 @@ const Odontologo_page = () => {
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <CheckCircle size={18} color={certModal.tipo === 'asistencia' ? 'var(--primary)' : '#64748b'} />
+                                            <CheckCircle size={18} color={certModal.tipo === 'asistencia' ? 'var(--primary)' : '#475569'} />
                                             <strong style={{ fontSize: '13.5px', color: certModal.tipo === 'asistencia' ? 'var(--primary)' : '#1e293b' }}>
                                                 Certificado de Asistencia
                                             </strong>
@@ -11517,6 +9383,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Paciente</span>
                                         <input
+                                            aria-label="Paciente"
                                             type="text"
                                             value={selectedPatient?.nombre_completo || ''}
                                             disabled
@@ -11526,6 +9393,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Hora Inicio</span>
                                         <input
+                                            aria-label="Hora Inicio"
                                             type="text"
                                             value={certModal.horarioInicio}
                                             onChange={(e) => setCertModal(prev => ({ ...prev, horarioInicio: e.target.value }))}
@@ -11536,6 +9404,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Hora Fin</span>
                                         <input
+                                            aria-label="Hora Fin"
                                             type="text"
                                             value={certModal.horarioFin}
                                             onChange={(e) => setCertModal(prev => ({ ...prev, horarioFin: e.target.value }))}
@@ -11550,6 +9419,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Diagnóstico Definitivo *</span>
                                         <input
+                                            aria-label="Diagnóstico Definitivo"
                                             type="text"
                                             value={certModal.diagnostico}
                                             onChange={(e) => setCertModal(prev => ({ ...prev, diagnostico: e.target.value }))}
@@ -11560,6 +9430,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Código CIE-10 (Opcional)</span>
                                         <input
+                                            aria-label="Código CIE-10 (Opcional)"
                                             type="text"
                                             value={certModal.cie10}
                                             onChange={(e) => setCertModal(prev => ({ ...prev, cie10: e.target.value }))}
@@ -11575,6 +9446,7 @@ const Odontologo_page = () => {
                                         <div>
                                             <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Pieza Dental (Opcional)</span>
                                             <input
+                                                aria-label="Pieza Dental (Opcional)"
                                                 type="text"
                                                 value={certModal.piezaDental}
                                                 onChange={(e) => setCertModal(prev => ({ ...prev, piezaDental: e.target.value }))}
@@ -11586,6 +9458,7 @@ const Odontologo_page = () => {
                                             <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Tiempo de Reposo *</span>
                                             <div style={{ display: 'flex', gap: '6px' }}>
                                                 <input
+                                                    aria-label="Tiempo de Reposo"
                                                     type="text"
                                                     value={certModal.tiempoReposo}
                                                     onChange={(e) => setCertModal(prev => ({ ...prev, tiempoReposo: e.target.value }))}
@@ -11617,6 +9490,7 @@ const Odontologo_page = () => {
                                     <div>
                                         <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Procedimiento Realizado *</span>
                                         <input
+                                            aria-label="Procedimiento Realizado"
                                             type="text"
                                             value={certModal.procedimiento}
                                             onChange={(e) => setCertModal(prev => ({ ...prev, procedimiento: e.target.value }))}
@@ -11674,6 +9548,7 @@ const Odontologo_page = () => {
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                 {/* Selector de Mes */}
                                 <select
+                                    aria-label="Mes"
                                     value={genReportMonth}
                                     onChange={e => {
                                         const m = parseInt(e.target.value);
@@ -11688,6 +9563,7 @@ const Odontologo_page = () => {
                                 </select>
                                 {/* Selector de Año */}
                                 <select
+                                    aria-label="Año"
                                     value={genReportYear}
                                     onChange={e => {
                                         const y = parseInt(e.target.value);
@@ -11703,7 +9579,7 @@ const Odontologo_page = () => {
                                 <button className="action-button action-button--primary" onClick={handlePrintGeneralReport} disabled={genReportLoading || !genReportData} style={{ minHeight: '34px', fontSize: '12px' }}>
                                     Imprimir
                                 </button>
-                                <button className="clinical-modal__close" onClick={() => setIsGeneralReportModalOpen(false)} style={{ color: '#fff' }}><X size={16} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsGeneralReportModalOpen(false)} style={{ color: '#fff' }}><X size={16} /></button>
                             </div>
                         </header>
 
@@ -13214,18 +11090,18 @@ const Odontologo_page = () => {
                                         : completingCita.paciente?.name || 'Paciente'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleCompletarCitaSubmit} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="premium-field-card">
                                 <div className="field-header">
                                     <div className="field-header__left">
                                         <span className="field-header__icon"><FileText size={15} /></span>
-                                        <h4 className="field-header__title">Notas Médicas y Recomendaciones</h4>
+                                        <h4 id="odontologo-notas-medicas-y-recomendaciones-titulo" className="field-header__title">Notas Médicas y Recomendaciones</h4>
                                     </div>
                                     <span className="field-badge-req">Requerido</span>
                                 </div>
-                                <textarea
+                                <textarea aria-labelledby="odontologo-notas-medicas-y-recomendaciones-titulo"
                                     required
                                     value={notasDoctor}
                                     onChange={(e) => setNotasDoctor(e.target.value)}
@@ -13262,17 +11138,17 @@ const Odontologo_page = () => {
                                     <h2>{selectedPatient.nombre_completo || selectedPatient.name}</h2>
                                 </div>
                             </div>
-                            <button type="button" className="clinical-modal__close" onClick={() => setIsEvolucionModalOpen(false)}>
+                            <button aria-label="Cerrar" type="button" className="clinical-modal__close" onClick={() => setIsEvolucionModalOpen(false)}>
                                 <X size={15} />
                             </button>
                         </header>
                         <form onSubmit={handleSaveEvolucion} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div className="premium-field-card" style={{ margin: 0 }}>
-                                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
+                                    <label htmlFor="odontologo-fecha-de-atencion" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                                         Fecha de Atención
                                     </label>
-                                    <input
+                                    <input id="odontologo-fecha-de-atencion"
                                         type="date"
                                         required
                                         value={evolucionForm.fecha}
@@ -13281,10 +11157,10 @@ const Odontologo_page = () => {
                                     />
                                 </div>
                                 <div className="premium-field-card" style={{ margin: 0 }}>
-                                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
+                                    <label htmlFor="odontologo-procedimiento-dental" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                                         Procedimiento Dental
                                     </label>
-                                    <input
+                                    <input id="odontologo-procedimiento-dental"
                                         type="text"
                                         value={evolucionForm.detalle_procedimiento}
                                         onChange={(e) => setEvolucionForm(prev => ({ ...prev, detalle_procedimiento: e.target.value }))}
@@ -13303,6 +11179,7 @@ const Odontologo_page = () => {
                                     <span className="field-badge-req">Requerido</span>
                                 </div>
                                 <textarea
+                                    aria-label="Describa el avance clínico, piezas tratadas, anestesia utilizada, respuesta del paciente"
                                     required
                                     value={evolucionForm.detalle_tratamiento}
                                     onChange={(e) => setEvolucionForm(prev => ({ ...prev, detalle_tratamiento: e.target.value }))}
@@ -13313,10 +11190,10 @@ const Odontologo_page = () => {
                             </div>
 
                             <div className="premium-field-card" style={{ margin: 0 }}>
-                                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
+                                <label htmlFor="odontologo-prescripcion-indicaciones-farmaceuticas" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                                     Prescripción / Indicaciones Farmacéuticas
                                 </label>
-                                <input
+                                <input id="odontologo-prescripcion-indicaciones-farmaceuticas"
                                     type="text"
                                     value={evolucionForm.prescripción_farmaceutica}
                                     onChange={(e) => setEvolucionForm(prev => ({ ...prev, prescripción_farmaceutica: e.target.value }))}

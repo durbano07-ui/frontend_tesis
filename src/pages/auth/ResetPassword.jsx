@@ -6,22 +6,10 @@ import '../../auth.css';
 import PasswordRequirements from '../../components/PasswordRequirements';
 
 // Importación de recursos
-import UEBLogo from '../../assets/leftUEB.png';
+import UEBLogo from '../../assets/leftUEB.webp';
 
 // Iconos de Lucide
-import {
-    ShieldCheck,
-    BadgeCheck,
-    LockKeyhole,
-    ChartNoAxesCombined,
-    ArrowLeft,
-    Eye,
-    EyeOff,
-    Send,
-    ArrowRight,
-    KeyRound,
-    Info
-} from 'lucide-react';
+import { ShieldCheck, BadgeCheck, LockKeyhole, ChartNoAxesCombined, ArrowLeft, Eye, EyeOff, Send, ArrowRight } from 'lucide-react';
 
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
@@ -45,7 +33,7 @@ const ResetPassword = () => {
     const getPasswordStrength = () => {
         if (!password) return { level: 0, text: 'Sin evaluar' };
         let score = 0;
-        if (password.length >= 8) score++;
+        if (password.length >= 12) score++;
         if (/[A-Z]/.test(password)) score++;
         if (/[0-9]/.test(password)) score++;
         if (/[^A-Za-z0-9]/.test(password)) score++;
@@ -70,8 +58,8 @@ const ResetPassword = () => {
             return;
         }
 
-        if (password.length < 8) {
-            setError('La contraseña debe tener al menos 8 caracteres.');
+        if (password.length < 12) {
+            setError('La contraseña debe tener al menos 12 caracteres.');
             return;
         }
 
@@ -120,7 +108,7 @@ const ResetPassword = () => {
                             Restablecimiento de credenciales
                         </span>
                         <h1>Define una nueva <span>contraseña segura.</span></h1>
-                        <p>Asegúrate de ingresar una combinación fuerte que combine letras, números y símbolos para resguardar la confidencialidad de tu cuenta institucional.</p>
+                        <p>Usa al menos 12 caracteres; una frase larga y fácil de recordar es más segura que una clave corta y compleja, para resguardar la confidencialidad de tu cuenta institucional.</p>
                         <div className="auth-benefits">
                             <div className="auth-benefit">
                                 <BadgeCheck size={18} style={{ color: '#b71a34' }} />
@@ -164,7 +152,7 @@ const ResetPassword = () => {
                                 </div>
 
                                 {error && (
-                                    <div className="alert alert-danger" style={{ marginTop: '20px' }}>
+                                    <div role="alert" className="alert alert-danger" style={{ marginTop: '20px' }}>
                                         {error}
                                     </div>
                                 )}
@@ -178,7 +166,7 @@ const ResetPassword = () => {
                                             <input
                                                 id="password"
                                                 type={showPassword ? 'text' : 'password'}
-                                                placeholder="Mínimo 8 caracteres"
+                                                placeholder="Mínimo 12 caracteres"
                                                 value={password}
                                                 onChange={(e) => {
                                                     setPassword(e.target.value);

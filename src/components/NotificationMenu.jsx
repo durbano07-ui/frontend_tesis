@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Bell,
     CheckCheck,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuthStore } from '../stores/authStore';
+import { onKeyActivate } from '../a11y/keyboard';
 
 const NotificationMenu = ({ onNavigateToCitas }) => {
     const { user } = useAuthStore();
@@ -348,7 +349,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: '#ffffff',
-                            fontSize: '10px',
+                            fontSize: '11px',
                             fontWeight: '800',
                             padding: unreadCount > 9 ? '0 4px' : '0',
                             top: unreadCount > 9 ? '4px' : '8px',
@@ -410,7 +411,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                                 <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: 'var(--primary, #002040)' }}>
                                     {isPatient ? 'Mis Citas y Notificaciones' : 'Notificaciones de Agenda'}
                                 </h3>
-                                <p style={{ margin: 0, fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                                <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>
                                     {unreadCount > 0
                                         ? `${unreadCount} alertas sin revisar`
                                         : (isPatient ? 'Todo al día con tus citas' : 'Todo al día en tu agenda')}
@@ -519,6 +520,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                                 const badge = getNotificationBadge(notif.tipo);
                                 return (
                                     <div
+                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                         key={notif.id}
                                         onClick={() => handleNotificationClick(notif)}
                                         style={{
@@ -557,7 +559,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                                 <span
                                                     style={{
-                                                        fontSize: '9.5px',
+                                                        fontSize: '11px',
                                                         fontWeight: '800',
                                                         textTransform: 'uppercase',
                                                         color: badge.badgeColor,
@@ -566,7 +568,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                                                 >
                                                     {badge.badgeText}
                                                 </span>
-                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                                                     {notif.creada_en}
                                                 </span>
                                             </div>
@@ -599,7 +601,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                                                         display: 'inline-flex',
                                                         alignItems: 'center',
                                                         gap: '4px',
-                                                        fontSize: '10.5px',
+                                                        fontSize: '11px',
                                                         color: 'var(--primary)',
                                                         fontWeight: '700',
                                                         marginTop: '6px',

@@ -142,7 +142,7 @@ const CampusSetupModal = () => {
                 </label>
 
                 {error && (
-                    <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px', textAlign: 'center' }}>
+                    <p role="alert" style={{ color: '#dc2626', fontSize: '13px', marginBottom: '12px', textAlign: 'center' }}>
                         {error}
                     </p>
                 )}

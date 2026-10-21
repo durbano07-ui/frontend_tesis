@@ -5,9 +5,9 @@ import AuthFlipCard from '../../components/AuthFlipCard';
 import '../../auth.css';
 
 // Importación de recursos/imágenes
-import logoUeb from '../../assets/ueb.png';
-import UEBLogo from '../../assets/leftUEB.png';
-import UEBpet from '../../assets/UEBpet.png';
+import logoUeb from '../../assets/ueb.webp';
+import UEBLogo from '../../assets/leftUEB.webp';
+import UEBpet from '../../assets/UEBpet.webp';
 
 // Iconos de Lucide
 import {
@@ -57,7 +57,7 @@ const Registro = () => {
         const pass = formData.password;
         if (!pass) return { level: 0, text: 'Sin evaluar' };
         let score = 0;
-        if (pass.length >= 8) score++;
+        if (pass.length >= 12) score++;
         if (/[A-Z]/.test(pass)) score++;
         if (/[0-9]/.test(pass)) score++;
         if (/[^A-Za-z0-9]/.test(pass)) score++;
@@ -89,7 +89,10 @@ const Registro = () => {
             return 'Las contraseñas ingresadas no coinciden.';
         }
         if (lowerMsg.includes('password must be at least')) {
-            return 'La contraseña debe tener al menos 8 caracteres.';
+            return 'La contraseña debe tener al menos 12 caracteres.';
+        }
+        if (lowerMsg.includes('data leak')) {
+            return 'Esta contraseña aparece en filtraciones de datos conocidas. Elige otra diferente.';
         }
         if (lowerMsg.includes('email field is required')) {
             return 'El correo electrónico es obligatorio.';
@@ -121,8 +124,8 @@ const Registro = () => {
             return;
         }
 
-        if (formData.password.length < 8) {
-            setError('La contraseña debe tener al menos 8 caracteres.');
+        if (formData.password.length < 12) {
+            setError('La contraseña debe tener al menos 12 caracteres.');
             setShowErrorModal(true);
             return;
         }
@@ -249,7 +252,7 @@ const Registro = () => {
                                                 id="registerPassword"
                                                 type={showPassword ? 'text' : 'password'}
                                                 name="password"
-                                                placeholder="Mínimo 8 caracteres"
+                                                placeholder="Mínimo 12 caracteres"
                                                 value={formData.password}
                                                 onChange={handleChange}
                                                 required

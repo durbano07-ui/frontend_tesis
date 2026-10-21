@@ -1,17 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../api/axios';
-import {
-    PackageCheck,
-    Search,
-    CheckCircle2,
-    Clock,
-    Stethoscope,
-    Pill,
-    FileText,
-    Boxes,
-    Check,
-    AlertCircle
-} from 'lucide-react';
+import { PackageCheck, Search, CheckCircle2, Clock, Stethoscope, Pill, FileText, Boxes, Check } from 'lucide-react';
 
 const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
     const [recetasPendientes, setRecetasPendientes] = useState([]);
@@ -177,6 +166,7 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
                             <div className="patient-search-input" style={{ width: '100%', maxWidth: '100%' }}>
                                 <Search size={16} />
                                 <input
+                                    aria-label="Buscar por nombre de paciente, cédula o medicamento prescrito"
                                     type="text"
                                     placeholder="Buscar por nombre de paciente, cédula o medicamento prescrito..."
                                     value={searchQuery}
@@ -254,17 +244,17 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
                                                         <small style={{ color: 'var(--text-muted)' }}>Cada {linea.frecuencia_horas}h por {linea.duracion_tratamiento_dias} días</small>
                                                     </td>
                                                     <td>
-                                                        <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                             ✓ AUTOMÁTICO
                                                         </span>
                                                     </td>
                                                     <td>
                                                         {isEntregado ? (
-                                                            <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                            <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                 ✓ ENTREGADO
                                                             </span>
                                                         ) : (
-                                                            <span style={{ fontSize: '10.5px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                            <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                 ● PENDIENTE
                                                             </span>
                                                         )}
@@ -286,7 +276,7 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
                                                                 type="button"
                                                                 className="action-button"
                                                                 disabled
-                                                                style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', minHeight: '32px', opacity: 0.6, background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1' }}
+                                                                style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '8px', minHeight: '32px', opacity: 0.6, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1' }}
                                                             >
                                                                 <Check size={14} />
                                                                 <span>Entregado</span>

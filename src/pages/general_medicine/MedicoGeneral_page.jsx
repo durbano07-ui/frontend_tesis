@@ -6,59 +6,13 @@ import '../../medical.css'; // Estilos unificados médicos y psicológicos
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
-import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 
-import {
-    Menu,
-    LogOut,
-    Bell,
-    Search,
-    X,
-    Save,
-    History,
-    FileText,
-    Plus,
-    Calendar,
-    ChevronDown,
-    ChevronUp,
-    ChevronRight,
-    Activity,
-    ClipboardList,
-    CheckCircle,
-    AlertTriangle,
-    Stethoscope,
-    User,
-    UserPlus,
-    Shield,
-    ShieldAlert,
-    CalendarCheck,
-    CalendarDays,
-    Info,
-    TrendingUp,
-    Heart,
-    HeartHandshake,
-    Thermometer,
-    HeartPulse,
-    Brain,
-    BookOpen,
-    Printer,
-    FileCheck,
-    FileSpreadsheet,
-    MapPin,
-    Clock,
-    UserCheck,
-    Mail,
-    Eye,
-    EyeOff,
-    BarChart3,
-    Pill,
-    Package,
-    Filter,
-    Trash2
-} from 'lucide-react';
+import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, MapPin, Clock, UserCheck, Mail, BarChart3, Pill, Package, Trash2 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioTab';
+import { onKeyActivate } from '../../a11y/keyboard';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -401,9 +355,6 @@ const MedicoGeneral_page = () => {
         setTimeout(() => setToast({ show: false, message: '' }), 3400);
     };
 
-    const toggleAccordion = (key) => {
-        setActiveAccordion(prev => (prev === key ? '' : key));
-    };
 
     // ==========================================
     // BÚSQUEDA Y REGISTRO DE PACIENTES
@@ -625,7 +576,7 @@ const MedicoGeneral_page = () => {
         setFarmaciaSearchResults([]);
     };
 
-    // Auto-save form draft to localStorage
+    // Auto-save form draft to sessionStorage
     useEffect(() => {
         if (selectedPatient && fichaForm) {
             saveDraft(fichaForm);
@@ -649,7 +600,8 @@ const MedicoGeneral_page = () => {
                 examenRes,
                 diagRes,
                 planRes,
-                dailyRes
+                dailyRes,
+                bloodTypeRes
             ] = await Promise.all([
                 api.get('/medicina-general/signos-vitales', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/motivo-consulta', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
@@ -667,16 +619,16 @@ const MedicoGeneral_page = () => {
             const latestSignos = getArrayData(signosRes)[0] || null;
             const motivo = getArrayData(motivoRes)[0] || null;
             const enfermedad = getArrayData(enfermedadRes)[0] || null;
-            const antecedenteList = getArrayData(antecedenteRes);
+            const antecedenteList = getArrayData(antecedentesRes);
             const antecedentePersonal = antecedenteList.find(item => item.tipo && String(item.tipo).toLowerCase() === 'personal') || null;
             const antecedenteFamiliar = antecedenteList.find(item => item.tipo && String(item.tipo).toLowerCase() === 'familiar') || null;
             const organos = getArrayData(organosRes)[0] || null;
             const examen_fisico = getArrayData(examenRes)[0] || null;
-            const diagnostico = getArrayData(diagnosticoRes)[0] || null;
+            const diagnostico = getArrayData(diagRes)[0] || null;
             const plan = getArrayData(planRes)[0] || null;
             const bloodTypeData = bloodTypeRes?.data?.data;
             const bloodType = bloodTypeData ? (bloodTypeData.tipoSangre || bloodTypeData.tipo_sangre) : null;
-            const parte_diario = parteDiarioList.find(item => (item.fecha ? item.fecha.slice(0, 10) : '') === today) || null;
+            const parte_diario = getArrayData(dailyRes).find(item => (item.fecha ? item.fecha.slice(0, 10) : '') === today) || null;
 
             const isSignosFromToday = latestSignos && (
                 latestSignos.fecha === today ||
@@ -748,7 +700,7 @@ const MedicoGeneral_page = () => {
         }
     };
 
-    // Auto-save form draft to localStorage
+    // Auto-save form draft to sessionStorage
     useEffect(() => {
         if (selectedPatient && fichaForm) {
             saveDraft(fichaForm);
@@ -1256,22 +1208,22 @@ const MedicoGeneral_page = () => {
 
                         <div class="certificate-body">
                             Por medio de la presente, se hace constar y se certifica que el/la paciente 
-                            <span class="bold-text">${selectedPatient.nombre_completo || selectedPatient.name || '—'}</span>, con cédula de identidad número 
-                            <span class="bold-text">${selectedPatient.cedula || selectedPatient.numero_cedula || selectedPatient.datosIdentificacion?.numero_cedula || '—'}</span>, fue atendido/a en el consultorio de Medicina General el día 
-                            <span class="bold-text">${record.fecha || (record.created_at ? record.created_at.slice(0, 10) : '—')}</span>, presentando el diagnóstico / motivo de consulta de: 
-                            <span class="bold-text">${diagnosis}</span>.
+                            <span class="bold-text">${escapeHtml(selectedPatient.nombre_completo || selectedPatient.name || '—')}</span>, con cédula de identidad número 
+                            <span class="bold-text">${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || selectedPatient.datosIdentificacion?.numero_cedula || '—')}</span>, fue atendido/a en el consultorio de Medicina General el día 
+                            <span class="bold-text">${escapeHtml(record.fecha || (record.created_at ? record.created_at.slice(0, 10) : '—'))}</span>, presentando el diagnóstico / motivo de consulta de: 
+                            <span class="bold-text">${escapeHtml(diagnosis)}</span>.
                             <br/><br/>
                             Se expide la presente certificación a petición de la parte interesada para los fines pertinentes que se estimen convenientes.
                         </div>
 
                         <div class="footer-date">
-                            Guaranda, ${dayNum} de ${monthName} de ${year}
+                            Guaranda, ${escapeHtml(dayNum)} de ${escapeHtml(monthName)} de ${escapeHtml(year)}
                         </div>
 
                         <div class="signatures-container">
                             <div class="signature-box">
                                 <div class="signature-line"></div>
-                                <div class="bold-text" style="font-size: 12px;">${userProfile?.name || 'Médico General'}</div>
+                                <div class="bold-text" style="font-size: 12px;">${escapeHtml(user?.name || 'Médico General')}</div>
                                 <div class="credentials">Medicina General - Bienestar Universitario</div>
                                 <div class="credentials">Universidad Estatal de Bolívar</div>
                             </div>
@@ -1502,12 +1454,12 @@ const MedicoGeneral_page = () => {
             <td class="form-label" style="width: 8%;">Edad</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${ident.apellido_paterno || '—'}</td>
-            <td class="form-value text-center">${ident.apellido_materno || '—'}</td>
-            <td class="form-value text-center">${ident.primer_nombre || '—'}</td>
-            <td class="form-value text-center">${ident.segundo_nombre || '—'}</td>
-            <td class="form-value text-center">${ident.numero_cedula || '—'}</td>
-            <td class="form-value text-center">${age}</td>
+            <td class="form-value text-center">${escapeHtml(ident.apellido_paterno || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.apellido_materno || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.primer_nombre || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.segundo_nombre || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.numero_cedula || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(age)}</td>
         </tr>
     </table>
 
@@ -1521,23 +1473,23 @@ const MedicoGeneral_page = () => {
                 <table style="width:100%; border-collapse:collapse;">
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold; width:30%;">Provincia:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.provincia?.nombre_provincia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.provincia?.nombre_provincia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Cantón:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.canton?.nombre_canton || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.canton?.nombre_canton || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Dirección:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.direccion_referencia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.direccion_referencia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Teléfono:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.telefono_convencional || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.telefono_convencional || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Nacionalidad:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.nacionalidad || 'Ecuatoriana'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.nacionalidad || 'Ecuatoriana')}</td>
                     </tr>
                 </table>
             </td>
@@ -1545,23 +1497,23 @@ const MedicoGeneral_page = () => {
                 <table style="width:100%; border-collapse:collapse;">
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold; width:30%;">Provincia:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.provincia?.nombre_provincia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.provincia?.nombre_provincia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Cantón:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.canton?.nombre_canton || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.canton?.nombre_canton || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Dirección:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.direccion_referencia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.direccion_referencia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Teléfono:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.telefono_convencional || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.telefono_convencional || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Nacionalidad:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.nacionalidad || 'Ecuatoriana'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.nacionalidad || 'Ecuatoriana')}</td>
                     </tr>
                 </table>
             </td>
@@ -1577,15 +1529,15 @@ const MedicoGeneral_page = () => {
             <td class="form-label" style="width: 15%;">Nro. Hijos</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${dirResidencia.nacionalidad || '—'}</td>
-            <td class="form-value text-center">${ident.fecha_nacimiento || '—'}</td>
+            <td class="form-value text-center">${escapeHtml(dirResidencia.nacionalidad || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.fecha_nacimiento || '—')}</td>
             <td class="form-value text-center checkbox-container">
-                M (${(patient.autopercepcion?.genero?.nombre_genero === 'Masculino') ? 'X' : ' '}) &nbsp;
-                F (${(patient.autopercepcion?.genero?.nombre_genero === 'Femenino') ? 'X' : ' '}) &nbsp;
-                LGBTI (${(patient.autopercepcion?.genero?.nombre_genero === 'LGBTI') ? 'X' : ' '})
+                M (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'Masculino') ? 'X' : ' ')}) &nbsp;
+                F (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'Femenino') ? 'X' : ' ')}) &nbsp;
+                LGBTI (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'LGBTI') ? 'X' : ' ')})
             </td>
-            <td class="form-value text-center">${patient.autopercepcion?.estado_civil?.nombre_estado_civil || '—'}</td>
-            <td class="form-value text-center">${patient.hijos?.length || 0}</td>
+            <td class="form-value text-center">${escapeHtml(patient.autopercepcion?.estado_civil?.nombre_estado_civil || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.hijos?.length || 0)}</td>
         </tr>
     </table>
 
@@ -1593,12 +1545,12 @@ const MedicoGeneral_page = () => {
         <tr>
             <td class="form-label" style="width: 20%;">Autoidentificación Étnica</td>
             <td class="form-value checkbox-container">
-                Blanco (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Blanco') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Mestizo (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Mestizo') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Afrodescendiente (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Afrodescendiente') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Indígena (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Indígena') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Montubio (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Montubio') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Otros (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Otros') ? 'X' : ' '} )
+                Blanco (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Blanco') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Mestizo (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Mestizo') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Afrodescendiente (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Afrodescendiente') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Indígena (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Indígena') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Montubio (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Montubio') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Otros (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Otros') ? 'X' : ' ')} )
             </td>
         </tr>
     </table>
@@ -1610,9 +1562,9 @@ const MedicoGeneral_page = () => {
             <td class="form-label" style="width: 15%;">Ciclo</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${patient.estudio_carrera?.facultad?.nombre_facultad || '—'}</td>
-            <td class="form-value text-center">${patient.estudio_carrera?.carrera?.nombre_carrera || '—'}</td>
-            <td class="form-value text-center">${patient.estudio_carrera?.ciclo?.nombre_ciclo || '—'}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.facultad?.nombre_facultad || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.carrera?.nombre_carrera || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.ciclo?.nombre_ciclo || '—')}</td>
         </tr>
     </table>
 
@@ -1628,9 +1580,9 @@ const MedicoGeneral_page = () => {
         ${patient.contactos_emergencia && patient.contactos_emergencia.length > 0 ?
                     patient.contactos_emergencia.map(c => `
                 <tr>
-                    <td class="form-value text-center">${c.parentesco} - ${c.nombre_completo}</td>
-                    <td class="form-value text-center">${c.telefono || '—'}</td>
-                    <td class="form-value text-center">${c.celular || '—'}</td>
+                    <td class="form-value text-center">${escapeHtml(c.parentesco)} - ${escapeHtml(c.nombre_completo)}</td>
+                    <td class="form-value text-center">${escapeHtml(c.telefono || '—')}</td>
+                    <td class="form-value text-center">${escapeHtml(c.celular || '—')}</td>
                 </tr>
             `).join('') : `
                 <tr>
@@ -1657,27 +1609,27 @@ const MedicoGeneral_page = () => {
 
     <div class="clinical-history-section-header">1 Motivo de Consulta</div>
     <div class="clinical-history-section-content">
-        ${motivos.length > 0 ? motivos.map(m => `<div>• ${m.detalle_motivo} <span style="color:#666; font-size:8px;">(${m.fecha})</span></div>`).join('') : 'Sin registros.'}
+        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)} <span style="color:#666; font-size:8px;">(${escapeHtml(m.fecha)})</span></div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">2 Antecedentes Personales</div>
     <div class="clinical-history-section-content">
-        ${antecedentesPersonales.length > 0 ? antecedentesPersonales.map(a => `<div>• ${a.detalle_antecedente}</div>`).join('') : 'Sin registros.'}
+        ${antecedentesPersonales.length > 0 ? antecedentesPersonales.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">3 Antecedentes Familiares</div>
     <div class="clinical-history-section-content">
-        ${antecedentesFamiliares.length > 0 ? antecedentesFamiliares.map(a => `<div>• ${a.detalle_antecedente}</div>`).join('') : 'Sin registros.'}
+        ${antecedentesFamiliares.length > 0 ? antecedentesFamiliares.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">4 Enfermedad Actual</div>
     <div class="clinical-history-section-content">
-        ${enfermedades.length > 0 ? enfermedades.map(e => `<div>• ${e.detalle_enfermedad_actual}</div>`).join('') : 'Sin registros.'}
+        ${enfermedades.length > 0 ? enfermedades.map(e => `<div>• ${escapeHtml(e.detalle_enfermedad_actual)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">5 Revisión Actual de Órganos y Sistemas</div>
     <div class="clinical-history-section-content">
-        ${revisiones.length > 0 ? revisiones.map(r => `<div>• ${r.detalle_revision_organos}</div>`).join('') : 'Sin registros.'}
+        ${revisiones.length > 0 ? revisiones.map(r => `<div>• ${escapeHtml(r.detalle_revision_organos)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">6 Signos Vitales</div>
@@ -1696,13 +1648,13 @@ const MedicoGeneral_page = () => {
         <tbody>
             ${signos.length > 0 ? signos.map(sv => `
                 <tr class="text-center" style="font-size: 10px;">
-                    <td>${sv.fecha}</td>
-                    <td>${sv.presion_arterial_sistolica || '—'}/${sv.presion_arterial_diastolica || '—'} mmHg</td>
-                    <td>${sv.frecuencia_cardiaca || '—'} lpm</td>
-                    <td>${sv.frecuencia_respiratoria || '—'} rpm</td>
-                    <td>${sv.temperatura || '—'} ºC</td>
-                    <td>${sv.talla || '—'} cm</td>
-                    <td>${sv.peso || '—'} kg</td>
+                    <td>${escapeHtml(sv.fecha)}</td>
+                    <td>${escapeHtml(sv.presion_arterial_sistolica || '—')}/${escapeHtml(sv.presion_arterial_diastolica || '—')} mmHg</td>
+                    <td>${escapeHtml(sv.frecuencia_cardiaca || '—')} lpm</td>
+                    <td>${escapeHtml(sv.frecuencia_respiratoria || '—')} rpm</td>
+                    <td>${escapeHtml(sv.temperatura || '—')} ºC</td>
+                    <td>${escapeHtml(sv.talla || '—')} cm</td>
+                    <td>${escapeHtml(sv.peso || '—')} kg</td>
                 </tr>
             `).join('') : '<tr><td colspan="7" class="text-center">Sin registros.</td></tr>'}
         </tbody>
@@ -1710,7 +1662,7 @@ const MedicoGeneral_page = () => {
 
     <div class="clinical-history-section-header">7 Examen Físico</div>
     <div class="clinical-history-section-content">
-        ${examenFisico.length > 0 ? examenFisico.map(ex => `<div>• ${ex.altura_x !== null && ex.altura_y !== null ? `<strong>[Localización: ${getAnatomicalRegion(ex.altura_x, ex.altura_y)}]</strong> ` : ''}${ex.detalle_examen_fisico}</div>`).join('') : 'Sin registros.'}
+        ${examenFisico.length > 0 ? examenFisico.map(ex => `<div>• ${ex.altura_x !== null && ex.altura_y !== null ? `<strong>[Localización: ${escapeHtml(getAnatomicalRegion(ex.altura_x, ex.altura_y))}]</strong> ` : ''}${escapeHtml(ex.detalle_examen_fisico)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">8 Diagnósticos</div>
@@ -1727,11 +1679,11 @@ const MedicoGeneral_page = () => {
         <tbody>
             ${diagnosticos.length > 0 ? diagnosticos.map((d, idx) => `
                 <tr style="font-size: 10px;">
-                    <td class="text-center">${idx + 1}</td>
-                    <td>${d.detalle_diagnostico}</td>
-                    <td class="text-center">${d.cie10 || '—'}</td>
-                    <td class="text-center">${d.presuntivo ? 'X' : ''}</td>
-                    <td class="text-center">${d.definitivo ? 'X' : ''}</td>
+                    <td class="text-center">${escapeHtml(idx + 1)}</td>
+                    <td>${escapeHtml(d.detalle_diagnostico)}</td>
+                    <td class="text-center">${escapeHtml(d.cie10 || '—')}</td>
+                    <td class="text-center">${escapeHtml(d.presuntivo ? 'X' : '')}</td>
+                    <td class="text-center">${escapeHtml(d.definitivo ? 'X' : '')}</td>
                 </tr>
             `).join('') : '<tr><td colspan="5" class="text-center">Sin registros.</td></tr>'}
         </tbody>
@@ -1739,7 +1691,7 @@ const MedicoGeneral_page = () => {
 
     <div class="clinical-history-section-header">9 Planes Terapéuticos</div>
     <div class="clinical-history-section-content">
-        ${planes.length > 0 ? planes.map(p => `<div>• ${p.detalle_plan_terapeutico}</div>`).join('') : 'Sin registros.'}
+        ${planes.length > 0 ? planes.map(p => `<div>• ${escapeHtml(p.detalle_plan_terapeutico)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     </div>
@@ -1768,9 +1720,9 @@ const MedicoGeneral_page = () => {
         <tbody>
             ${evoluciones.length > 0 ? evoluciones.map(ev => `
                 <tr style="font-size: 10px; vertical-align: top;">
-                    <td class="text-center" style="padding: 10px 5px;">${ev.fecha}</td>
-                    <td style="padding: 10px;">${ev.detalle_evolucion}</td>
-                    <td style="padding: 10px;">${ev.prescripcion_medica || 'Sin prescripciones.'}</td>
+                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.prescripcion_medica || 'Sin prescripciones.')}</td>
                 </tr>
             `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
         </tbody>
@@ -2019,7 +1971,7 @@ const MedicoGeneral_page = () => {
 
                     if (isFirstRow) {
                         html += `
-                            <td rowspan="${totalEstCareersCount}" style="writing-mode: vertical-lr; transform: rotate(180deg); font-weight: bold; text-align: center; vertical-align: middle; background-color: #f1f5f9; width: 25px; border: 1px solid #000; font-size: 10px;">
+                            <td rowspan="${escapeHtml(totalEstCareersCount)}" style="writing-mode: vertical-lr; transform: rotate(180deg); font-weight: bold; text-align: center; vertical-align: middle; background-color: #f1f5f9; width: 25px; border: 1px solid #000; font-size: 10px;">
                                 ESTUDIANTES
                             </td>
                         `;
@@ -2028,19 +1980,19 @@ const MedicoGeneral_page = () => {
 
                     if (isFirstCareerInFac) {
                         html += `
-                            <td rowspan="${facCareersCount}" style="background-color: #f8fafc; border: 1px solid #000; vertical-align: middle; font-size: 8px; width: 140px; font-weight: bold; text-align: left;">
-                                ${f}
+                            <td rowspan="${escapeHtml(facCareersCount)}" style="background-color: #f8fafc; border: 1px solid #000; vertical-align: middle; font-size: 8px; width: 140px; font-weight: bold; text-align: left;">
+                                ${escapeHtml(f)}
                             </td>
                         `;
                         isFirstCareerInFac = false;
                     }
 
                     html += `
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: left;">${cName}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.hombres}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.mujeres}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.lgbti}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${stats.total}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: left;">${escapeHtml(cName)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.hombres)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.mujeres)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.lgbti)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${escapeHtml(stats.total)}</td>
                     </tr>
                     `;
                 });
@@ -2049,30 +2001,30 @@ const MedicoGeneral_page = () => {
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ESTUDIANTES</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.estudiantes.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.estudiantes.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.estudiantes.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalEstudiantes}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.estudiantes.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.estudiantes.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.estudiantes.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalEstudiantes)}</td>
                 </tr>
             `;
 
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ADMINISTRATIVOS</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.administrativos.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.administrativos.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.administrativos.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalAdministrativos}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.administrativos.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.administrativos.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.administrativos.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalAdministrativos)}</td>
                 </tr>
             `;
 
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">DOCENTES</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.docentes.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.docentes.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${data.genderCounts.docentes.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalDocentes}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.docentes.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.docentes.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(data.genderCounts.docentes.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalDocentes)}</td>
                 </tr>
             `;
 
@@ -2084,10 +2036,10 @@ const MedicoGeneral_page = () => {
             html += `
                 <tr style="font-size: 9px; background-color: #0f172a !important; color: #fff; font-weight: bold;">
                     <td colspan="3" style="padding: 5px; border: 1px solid #000; text-align: left;">TOTAL ATENCIONES</td>
-                    <td style="border: 1px solid #000; text-align: center;">${totalH}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${totalM}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${totalL}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${grandTotal}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(totalH)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(totalM)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(totalL)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">${escapeHtml(grandTotal)}</td>
                 </tr>
             `;
 
@@ -2122,8 +2074,8 @@ const MedicoGeneral_page = () => {
 
                 <div class="meta-grid">
                     <div><strong>UNIDAD OPERATIVA:</strong> MEDICINA GENERAL</div>
-                    <div><strong>RESPONSABLE:</strong> ${doctorNameText}</div>
-                    <div><strong>PERIODO:</strong> ${selectedMonthText.toUpperCase()} ${yearNum}</div>
+                    <div><strong>RESPONSABLE:</strong> ${escapeHtml(doctorNameText)}</div>
+                    <div><strong>PERIODO:</strong> ${escapeHtml(selectedMonthText.toUpperCase())} ${escapeHtml(yearNum)}</div>
                 </div>
 
                 <table class="report-table">
@@ -2144,7 +2096,7 @@ const MedicoGeneral_page = () => {
                 <div style="margin-top: 40px; display: flex; justify-content: space-around; font-size: 9px;">
                     <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
                         <strong>Médico/a General Responsable</strong><br/>
-                        <span>${doctorNameText}</span>
+                        <span>${escapeHtml(doctorNameText)}</span>
                     </div>
                 </div>
 
@@ -2273,21 +2225,21 @@ const MedicoGeneral_page = () => {
 
                 return `
                     <tr>
-                        <td class="text-center">${index + 1}</td>
-                        <td>${nombres}</td>
-                        <td class="text-center">${cedula}</td>
-                        <td>${tipoDiscapacidad || '-'}</td>
-                        <td class="text-center">${edad}</td>
-                        <td class="text-center">${esHombre ? 'X' : ''}</td>
-                        <td class="text-center">${esMujer ? 'X' : ''}</td>
-                        <td class="text-center">${esLgbti ? 'X' : ''}</td>
-                        <td>${areaDocenteCarrera}</td>
-                        <td>${areaAdministrativo}</td>
-                        <td class="text-center">${esPrimera ? 'X' : ''}</td>
-                        <td class="text-center">${esSubsecuente ? 'X' : ''}</td>
-                        <td class="text-center">${esCertificado ? 'X' : ''}</td>
-                        <td class="text-center">${esValidacion ? 'X' : ''}</td>
-                        <td>${item.detalle_diagnostico || 'Evaluación general'}</td>
+                        <td class="text-center">${escapeHtml(index + 1)}</td>
+                        <td>${escapeHtml(nombres)}</td>
+                        <td class="text-center">${escapeHtml(cedula)}</td>
+                        <td>${escapeHtml(tipoDiscapacidad || '-')}</td>
+                        <td class="text-center">${escapeHtml(edad)}</td>
+                        <td class="text-center">${escapeHtml(esHombre ? 'X' : '')}</td>
+                        <td class="text-center">${escapeHtml(esMujer ? 'X' : '')}</td>
+                        <td class="text-center">${escapeHtml(esLgbti ? 'X' : '')}</td>
+                        <td>${escapeHtml(areaDocenteCarrera)}</td>
+                        <td>${escapeHtml(areaAdministrativo)}</td>
+                        <td class="text-center">${escapeHtml(esPrimera ? 'X' : '')}</td>
+                        <td class="text-center">${escapeHtml(esSubsecuente ? 'X' : '')}</td>
+                        <td class="text-center">${escapeHtml(esCertificado ? 'X' : '')}</td>
+                        <td class="text-center">${escapeHtml(esValidacion ? 'X' : '')}</td>
+                        <td>${escapeHtml(item.detalle_diagnostico || 'Evaluación general')}</td>
                     </tr>
                 `;
             }).join('');
@@ -2299,7 +2251,7 @@ const MedicoGeneral_page = () => {
                 for (let i = parteDiarioList.length; i < minRows; i++) {
                     emptyRowsHtml += `
                         <tr class="empty-row">
-                            <td class="text-center">${i + 1}</td>
+                            <td class="text-center">${escapeHtml(i + 1)}</td>
                             <td></td>
                             <td></td>
                             <td></td>
@@ -2420,7 +2372,7 @@ const MedicoGeneral_page = () => {
                     </div>
 
                     <div class="meta-info">
-                        <div class="meta-date">FECHA: ${parteDiarioDate}</div>
+                        <div class="meta-date">FECHA: ${escapeHtml(parteDiarioDate)}</div>
                         <div class="meta-tag">MEDICINA</div>
                     </div>
 
@@ -2457,15 +2409,15 @@ const MedicoGeneral_page = () => {
                                 <td colspan="3" style="text-align: right; padding-right: 15px;">TOTAL</td>
                                 <td></td>
                                 <td></td>
-                                <td class="text-center">${totalHombres}</td>
-                                <td class="text-center">${totalMujeres}</td>
-                                <td class="text-center">${totalLgbti}</td>
-                                <td class="text-center">${totalDocenteCarrera}</td>
-                                <td class="text-center">${totalAdministrativo}</td>
-                                <td class="text-center">${totalPrimera}</td>
-                                <td class="text-center">${totalSubsecuente}</td>
-                                <td class="text-center">${totalCertificado}</td>
-                                <td class="text-center">${totalValidacion}</td>
+                                <td class="text-center">${escapeHtml(totalHombres)}</td>
+                                <td class="text-center">${escapeHtml(totalMujeres)}</td>
+                                <td class="text-center">${escapeHtml(totalLgbti)}</td>
+                                <td class="text-center">${escapeHtml(totalDocenteCarrera)}</td>
+                                <td class="text-center">${escapeHtml(totalAdministrativo)}</td>
+                                <td class="text-center">${escapeHtml(totalPrimera)}</td>
+                                <td class="text-center">${escapeHtml(totalSubsecuente)}</td>
+                                <td class="text-center">${escapeHtml(totalCertificado)}</td>
+                                <td class="text-center">${escapeHtml(totalValidacion)}</td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -2562,7 +2514,7 @@ const MedicoGeneral_page = () => {
         try {
             await api.patch(`/citas-medicas/${citaId}/confirmar`);
             fetchCitasDoctor();
-            showToast("Cita confirmada exitosamente");
+            showSystemToast("Cita confirmada exitosamente");
         } catch (err) {
             alert(err.response?.data?.message || "Error al confirmar la cita");
         }
@@ -2573,7 +2525,7 @@ const MedicoGeneral_page = () => {
         try {
             await api.patch(`/citas-medicas/${citaId}/cancelar`);
             fetchCitasDoctor();
-            showToast("Cita cancelada exitosamente");
+            showSystemToast("Cita cancelada exitosamente");
         } catch (err) {
             alert(err.response?.data?.message || "Error al cancelar la cita");
         }
@@ -2590,7 +2542,7 @@ const MedicoGeneral_page = () => {
             setCompletingCita(null);
             setNotasDoctor('');
             fetchCitasDoctor();
-            showToast("Cita completada y notas guardadas");
+            showSystemToast("Cita completada y notas guardadas");
         } catch (err) {
             alert(err.response?.data?.message || "Error al completar la cita");
         } finally {
@@ -2602,7 +2554,7 @@ const MedicoGeneral_page = () => {
         try {
             const printWindow = window.open('', '_blank');
             if (!printWindow) {
-                showToast("El bloqueador de popups impidió abrir el reporte. Permita los popups.");
+                showSystemToast("El bloqueador de popups impidió abrir el reporte. Permita los popups.");
                 return;
             }
 
@@ -2633,13 +2585,13 @@ const MedicoGeneral_page = () => {
 
                 return `
                     <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td style="text-align: center;">${fechaCita}</td>
-                        <td style="text-align: center;">${horario}</td>
-                        <td>${patientName}</td>
-                        <td style="text-align: center;">${cedula}</td>
-                        <td>${motivo}</td>
-                        <td style="text-align: center; font-weight: bold; color: ${estadoBadgeColor};">${estado}</td>
+                        <td style="text-align: center;">${escapeHtml(index + 1)}</td>
+                        <td style="text-align: center;">${escapeHtml(fechaCita)}</td>
+                        <td style="text-align: center;">${escapeHtml(horario)}</td>
+                        <td>${escapeHtml(patientName)}</td>
+                        <td style="text-align: center;">${escapeHtml(cedula)}</td>
+                        <td>${escapeHtml(motivo)}</td>
+                        <td style="text-align: center; font-weight: bold; color: ${escapeHtml(estadoBadgeColor)};">${escapeHtml(estado)}</td>
                     </tr>
                 `;
             }).join('');
@@ -2745,35 +2697,35 @@ const MedicoGeneral_page = () => {
                                 <h3 style="margin: 2px 0 0; font-size: 10px; font-weight: bold; color: #b71a34;">REPORTE DE CITAS Y CONSULTAS - MEDICINA GENERAL</h3>
                             </div>
                             <div style="text-align: right; font-size: 9px;">
-                                <strong>FECHA FILTRO:</strong><br/>${formattedDate}
+                                <strong>FECHA FILTRO:</strong><br/>${escapeHtml(formattedDate)}
                             </div>
                         </div>
 
                         <div class="meta-info">
-                            <div><strong>Médico/a General Responsable:</strong> ${doctorNameText}</div>
-                            <div><strong>Total de Citas en Registro:</strong> ${totalCitas}</div>
+                            <div><strong>Médico/a General Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
+                            <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
                         </div>
 
                         <div class="totals-grid">
                             <div class="stat-box" style="border-left: 4px solid #3b82f6;">
                                 <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${countProgramadas}</strong>
+                                <strong>${escapeHtml(countProgramadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #10b981;">
                                 <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${countConfirmadas}</strong>
+                                <strong>${escapeHtml(countConfirmadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #64748b;">
                                 <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${countCompletadas}</strong>
+                                <strong>${escapeHtml(countCompletadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #ef4444;">
                                 <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${countCanceladas}</strong>
+                                <strong>${escapeHtml(countCanceladas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #0b2240;">
                                 <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${totalCitas}</strong>
+                                <strong>${escapeHtml(totalCitas)}</strong>
                             </div>
                         </div>
 
@@ -2798,7 +2750,7 @@ const MedicoGeneral_page = () => {
                         <div style="margin-top: 50px; display: flex; justify-content: space-around; font-size: 9px;">
                             <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
                                 <strong>Médico/a General Responsable</strong><br/>
-                                <span>${doctorNameText}</span>
+                                <span>${escapeHtml(doctorNameText)}</span>
                             </div>
                         </div>
 
@@ -2866,7 +2818,7 @@ const MedicoGeneral_page = () => {
                             <strong>Bienestar</strong>
                             <span>Medicina General</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -2924,7 +2876,7 @@ const MedicoGeneral_page = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={handleLogoutClick}>
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={16} /></span>
                             <span>Cerrar sesión</span>
                         </button>
@@ -2937,7 +2889,7 @@ const MedicoGeneral_page = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -3006,7 +2958,7 @@ const MedicoGeneral_page = () => {
                                         onClick={() => setIsHistogramModalOpen(true)}
                                     >
                                         <span className="vitals-action-card__glow" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}></span>
-                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}><BarChart3 size={24} /></span>
+                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#316ccc' }}><BarChart3 size={24} /></span>
                                         <span className="vitals-action-card__content">
                                             <small>Análisis Clínico</small>
                                             <strong>Histograma de Signos</strong>
@@ -3112,6 +3064,7 @@ const MedicoGeneral_page = () => {
                                                                             const isActive = activeBookRecord?.id === record.id;
                                                                             return (
                                                                                 <tr
+                                                                                    tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={record.id || index}
                                                                                     style={{
                                                                                         borderBottom: '1px solid var(--border)',
@@ -3207,7 +3160,7 @@ const MedicoGeneral_page = () => {
                                                                     <FileText size={14} /> PDF
                                                                 </button>
                                                             )}
-                                                            <button
+                                                            <button aria-label="Cerrar detalle"
                                                                 className="action-button action-button--light"
                                                                 style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                                 onClick={() => setActiveBookRecord(null)}
@@ -3536,6 +3489,7 @@ const MedicoGeneral_page = () => {
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
+                                                        aria-label="Fecha del parte diario"
                                                         type="date"
                                                         value={parteDiarioDate}
                                                         onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -3575,7 +3529,7 @@ const MedicoGeneral_page = () => {
                                                 </div>
                                             </div>
                                             <div className="psycho-kpi-card">
-                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                                <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                                 <div className="psycho-kpi-card__info">
                                                     <span>Certificados</span>
                                                     <strong>{getParteKPIs().certificados}</strong>
@@ -3673,6 +3627,7 @@ const MedicoGeneral_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del parte diario"
                                                             type="date"
                                                             value={parteDiarioDate}
                                                             onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -3712,7 +3667,7 @@ const MedicoGeneral_page = () => {
                                                     </div>
                                                 </div>
                                                 <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                                     <div className="psycho-kpi-card__info">
                                                         <span>Certificados</span>
                                                         <strong>{getParteKPIs().certificados}</strong>
@@ -3805,7 +3760,7 @@ const MedicoGeneral_page = () => {
                                                 <div className="date-navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
-                                                        <input
+                                                        <input aria-label="Mes del reporte"
                                                             type="month"
                                                             value={reportMensualFecha}
                                                             onChange={(e) => setReportMensualFecha(e.target.value)}
@@ -3934,6 +3889,7 @@ const MedicoGeneral_page = () => {
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                             <CalendarDays size={16} color="var(--accent)" />
                                             <input
+                                                aria-label="Fecha de las citas"
                                                 type="date"
                                                 value={citasDate}
                                                 onChange={(e) => setCitasDate(e.target.value)}
@@ -3998,7 +3954,7 @@ const MedicoGeneral_page = () => {
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
+                                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -4009,14 +3965,14 @@ const MedicoGeneral_page = () => {
                                                                 <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                     {cita.motivo || 'Consulta general'}
                                                                     {cita.notas_doctor && (
-                                                                        <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
+                                                                        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
                                                                             <strong>Mis Notas:</strong> {cita.notas_doctor}
                                                                         </div>
                                                                     )}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <span style={{
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: '700',
                                                                         textTransform: 'uppercase',
                                                                         color: statusColors.text,
@@ -4029,7 +3985,7 @@ const MedicoGeneral_page = () => {
                                                                         {cita.estado}
                                                                     </span>
                                                                     {cita.confirmada_por_paciente && (
-                                                                        <div style={{ marginTop: '4px', fontSize: '10px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                                             <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
                                                                         </div>
                                                                     )}
@@ -4148,7 +4104,7 @@ const MedicoGeneral_page = () => {
                                     <h2>Buscar Paciente por Cédula</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
@@ -4156,6 +4112,7 @@ const MedicoGeneral_page = () => {
                                 <div className="patient-search-input" style={{ flex: 1 }}>
                                     <Search size={16} />
                                     <input
+                                        aria-label="Ingrese número de cédula o nombre del paciente"
                                         value={modalSearchCedula}
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         placeholder="Ingrese número de cédula o nombre del paciente..."
@@ -4207,7 +4164,7 @@ const MedicoGeneral_page = () => {
                                     <h2>Nuevo Paciente</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleQuickRegisterPatient} className="clinical-modal__body">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -4215,11 +4172,11 @@ const MedicoGeneral_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><User size={15} /></span>
-                                            <h4 className="field-header__title">Nombres y Apellidos Completos</h4>
+                                            <h4 id="medicogenera-nombres-y-apellidos-completos-titulo" className="field-header__title">Nombres y Apellidos Completos</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <input
+                                    <input aria-labelledby="medicogenera-nombres-y-apellidos-completos-titulo"
                                         value={newPatientForm.nombre_completo}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre_completo: e.target.value })}
                                         placeholder="Ingrese nombres y apellidos de acuerdo a la cédula o pasaporte"
@@ -4233,11 +4190,11 @@ const MedicoGeneral_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Documento</h4>
+                                                <h4 id="medicogenera-tipo-de-documento-titulo" className="field-header__title">Tipo de Documento</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicogenera-tipo-de-documento-titulo"
                                             value={newPatientForm.tipo_documento}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_documento: e.target.value, cedula: '', pais_origen: '' })}
                                             required
@@ -4258,6 +4215,7 @@ const MedicoGeneral_page = () => {
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <input
+                                            aria-label={newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
                                             value={newPatientForm.cedula}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, cedula: e.target.value })}
                                             placeholder={newPatientForm.tipo_documento === 'pasaporte' ? 'Ej. AB123456' : 'Ej. 0201234567'}
@@ -4272,11 +4230,11 @@ const MedicoGeneral_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Paciente</h4>
+                                                <h4 id="medicogenera-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicogenera-tipo-de-paciente-titulo"
                                             value={newPatientForm.id_tipo_usuario || 2}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
                                             required
@@ -4293,11 +4251,11 @@ const MedicoGeneral_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                    <h4 className="field-header__title">País de Origen</h4>
+                                                    <h4 id="medicogenera-pais-de-origen-titulo" className="field-header__title">País de Origen</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="medicogenera-pais-de-origen-titulo"
                                                 value={newPatientForm.pais_origen}
                                                 onChange={(e) => setNewPatientForm({ ...newPatientForm, pais_origen: e.target.value })}
                                                 required
@@ -4319,6 +4277,7 @@ const MedicoGeneral_page = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', border: !newPatientForm.correo ? '1.5px solid #b71a34' : '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#ffffff', minHeight: '46px', boxSizing: 'border-box' }}>
                                         <input
+                                            aria-label="nombre.apellido"
                                             type="text"
                                             value={newPatientForm.correo}
                                             onChange={(e) => {
@@ -4358,7 +4317,7 @@ const MedicoGeneral_page = () => {
                             </div>
 
                             {registerError && (
-                                <div style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div role="alert" style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <AlertTriangle size={14} /> {registerError}
                                 </div>
                             )}
@@ -4394,7 +4353,7 @@ const MedicoGeneral_page = () => {
                                         <CheckCircle size={13} color="#f87171" /> Guardado {draftLastSaved}
                                     </span>
                                 )}
-                                <button className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
                             </div>
                         </header>
                         <div className="clinical-modal__body">
@@ -4413,6 +4372,7 @@ const MedicoGeneral_page = () => {
                                         {steps.map((step, idx) => (
                                             <React.Fragment key={step.key}>
                                                 <div
+                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
                                                     onClick={() => setCurrentStepIndex(idx)}
                                                 >
@@ -4463,11 +4423,11 @@ const MedicoGeneral_page = () => {
                                                             <div className="field-header" style={{ marginBottom: '8px' }}>
                                                                 <div className="field-header__left" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span className="field-header__icon"><ShieldAlert size={14} color="var(--accent)" /></span>
-                                                                    <h4 className="field-header__title" style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Tipo de Sangre</h4>
+                                                                    <h4 id="medicogenera-tipo-de-sangre-titulo" className="field-header__title" style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Tipo de Sangre</h4>
                                                                 </div>
-                                                                <span className="field-badge-opt" style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Opcional</span>
+                                                                <span className="field-badge-opt" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Opcional</span>
                                                             </div>
-                                                            <select
+                                                            <select aria-labelledby="medicogenera-tipo-de-sangre-titulo"
                                                                 value={fichaForm.id_tipo_sangre || ''}
                                                                 onChange={(e) => setFichaForm({ ...fichaForm, id_tipo_sangre: e.target.value })}
                                                                 style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1.5px solid var(--border)' }}
@@ -4493,6 +4453,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full">
                                                         <span>Motivo de Consulta *</span>
                                                         <textarea
+                                                            aria-label="Motivo de Consulta"
                                                             value={fichaForm.detalle_motivo}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_motivo: e.target.value })}
                                                             placeholder="Describa el motivo de ingreso del paciente..."
@@ -4503,6 +4464,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Historia de la Enfermedad Actual *</span>
                                                         <textarea
+                                                            aria-label="Historia de la Enfermedad Actual"
                                                             value={fichaForm.detalle_enfermedad_actual}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_enfermedad_actual: e.target.value })}
                                                             placeholder="Cronología y sintomatología reportada..."
@@ -4519,6 +4481,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full">
                                                         <span>Antecedentes Personales (Patológicos, Quirúrgicos, Alergias, etc.)</span>
                                                         <textarea
+                                                            aria-label="Antecedentes Personales (Patológicos, Quirúrgicos, Alergias, etc.)"
                                                             value={fichaForm.detalle_antecedente_personal}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_antecedente_personal: e.target.value })}
                                                             placeholder="Describa alergias, cirugías previas, patologías de importancia..."
@@ -4528,6 +4491,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full" style={{ marginTop: '16px' }}>
                                                         <span>Antecedentes Familiares (Diabetes, Hipertensión, Cáncer, etc.)</span>
                                                         <textarea
+                                                            aria-label="Antecedentes Familiares (Diabetes, Hipertensión, Cáncer, etc.)"
                                                             value={fichaForm.detalle_antecedente_familiar}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_antecedente_familiar: e.target.value })}
                                                             placeholder="Describa patologías crónicas presentes en familiares directos..."
@@ -4543,6 +4507,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full">
                                                         <span>Hallazgos de la Revisión *</span>
                                                         <textarea
+                                                            aria-label="Hallazgos de la Revisión"
                                                             value={fichaForm.detalle_revision_organos}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_revision_organos: e.target.value })}
                                                             placeholder="Detalle alteraciones en sistemas (Respiratorio, Digestivo, Cardio, etc.)..."
@@ -4561,6 +4526,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field field--full" style={{ margin: 0 }}>
                                                                 <span>Descripción del Examen Físico *</span>
                                                                 <textarea
+                                                                    aria-label="Descripción del Examen Físico"
                                                                     value={fichaForm.detalle_examen_fisico}
                                                                     onChange={(e) => setFichaForm({ ...fichaForm, detalle_examen_fisico: e.target.value })}
                                                                     placeholder="Detalle exploración física (Cabeza, Cuello, Tórax, Abdomen)..."
@@ -4592,6 +4558,7 @@ const MedicoGeneral_page = () => {
                                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                                                             <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Esquema Corporal Referencial</span>
                                                             <svg
+                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                 viewBox="0 0 200 230"
                                                                 onClick={(e) => {
                                                                     const svg = e.currentTarget;
@@ -4766,6 +4733,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Descripción Diagnóstica *</span>
                                                         <textarea
+                                                            aria-label="Descripción Diagnóstica"
                                                             value={fichaForm.detalle_diagnostico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_diagnostico: e.target.value })}
                                                             placeholder="Detalle clínico del diagnóstico..."
@@ -4776,6 +4744,7 @@ const MedicoGeneral_page = () => {
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Plan Terapéutico / Tratamiento Indicado *</span>
                                                         <textarea
+                                                            aria-label="Plan Terapéutico / Tratamiento Indicado"
                                                             value={fichaForm.detalle_plan_terapeutico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_plan_terapeutico: e.target.value })}
                                                             placeholder="Medicamentos indicados, dosis y frecuencia..."
@@ -4788,14 +4757,14 @@ const MedicoGeneral_page = () => {
                                                         <div className="clinical-fields-grid">
                                                             <div className="field">
                                                                 <span>Tipo de Atención *</span>
-                                                                <select value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
+                                                                <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
                                                                     <option value="primaria">Primaria (Consulta Inicial)</option>
                                                                     <option value="secundaria">Secundaria (Seguimiento)</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
                                                                 <span>Clasificación de Consulta *</span>
-                                                                <select value={fichaForm.tipo} onChange={(e) => setFichaForm({ ...fichaForm, tipo: e.target.value })}>
+                                                                <select aria-label="Clasificación de Consulta" value={fichaForm.tipo} onChange={(e) => setFichaForm({ ...fichaForm, tipo: e.target.value })}>
                                                                     <option value="curativo">Curativo</option>
                                                                     <option value="preventivo">Preventivo</option>
                                                                 </select>
@@ -4824,11 +4793,11 @@ const MedicoGeneral_page = () => {
 
                                                     {/* BUSCADOR DE PRODUCTOS DE FARMACIA */}
                                                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                                                        <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
+                                                        <label htmlFor="medicogenera-buscar-medicamento-en-catalogo-de-farmac" style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
                                                             🔍 Buscar Medicamento en Catálogo de Farmacia
                                                         </label>
                                                         <div style={{ position: 'relative' }}>
-                                                            <input
+                                                            <input id="medicogenera-buscar-medicamento-en-catalogo-de-farmac"
                                                                 type="text"
                                                                 value={farmaciaSearchQuery}
                                                                 onChange={(e) => handleSearchFarmacia(e.target.value)}
@@ -4842,6 +4811,7 @@ const MedicoGeneral_page = () => {
                                                                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
                                                                     {farmaciaSearchResults.map((prod) => (
                                                                         <div
+                                                                            role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                             key={prod.id}
                                                                             onClick={() => handleSelectFarmaciaProduct(prod)}
                                                                             style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px' }}
@@ -4871,6 +4841,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Medicamento Prescrito *</span>
                                                                 <input
+                                                                    aria-label="Medicamento Prescrito"
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_medicamento}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_medicamento: e.target.value })}
@@ -4880,6 +4851,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Dosis Indicada</span>
                                                                 <input
+                                                                    aria-label="Dosis Indicada"
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_dosis}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_dosis: e.target.value })}
@@ -4889,6 +4861,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Vía de Administración</span>
                                                                 <select
+                                                                    aria-label="Vía de Administración"
                                                                     value={prescripcionLineForm.detalle_via_administracion}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_via_administracion: e.target.value })}
                                                                 >
@@ -4907,6 +4880,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Frecuencia (Horas)</span>
                                                                 <input
+                                                                    aria-label="Frecuencia (Horas)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.frecuencia_horas}
@@ -4916,6 +4890,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Duración (Días)</span>
                                                                 <input
+                                                                    aria-label="Duración (Días)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
@@ -4925,6 +4900,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cant. Cajas</span>
                                                                 <input
+                                                                    aria-label="Cant. Cajas"
                                                                     type="number"
                                                                     min="0"
                                                                     value={prescripcionLineForm.cantidad_cajas}
@@ -4934,6 +4910,7 @@ const MedicoGeneral_page = () => {
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cant. Unidades</span>
                                                                 <input
+                                                                    aria-label="Cant. Unidades"
                                                                     type="number"
                                                                     min="0"
                                                                     value={prescripcionLineForm.cantidad_unidades}
@@ -4945,6 +4922,7 @@ const MedicoGeneral_page = () => {
                                                         <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                                                             <div style={{ flex: 1 }}>
                                                                 <input
+                                                                    aria-label="Observaciones / Indicaciones especiales"
                                                                     type="text"
                                                                     value={prescripcionLineForm.observaciones}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, observaciones: e.target.value })}
@@ -4966,7 +4944,7 @@ const MedicoGeneral_page = () => {
                                                     <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
                                                         <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <strong style={{ fontSize: '13px', color: '#0f172a' }}>📋 Medicamentos en la Receta</strong>
-                                                            <span style={{ fontSize: '12px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
+                                                            <span style={{ fontSize: '12px', color: '#475569', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
                                                                 {(fichaForm.prescripcion_lineas || []).length} ítem(s)
                                                             </span>
                                                         </div>
@@ -4992,7 +4970,7 @@ const MedicoGeneral_page = () => {
                                                                             <td style={{ padding: '10px 14px', fontWeight: '600', color: '#0f172a' }}>
                                                                                 {item.detalle_medicamento}
                                                                                 {item.id_producto_farmacia && (
-                                                                                    <span style={{ display: 'block', fontSize: '10.5px', color: '#0284c7', fontWeight: '700' }}>✓ Vinculado a Inventario Farmacia</span>
+                                                                                    <span style={{ display: 'block', fontSize: '11px', color: '#0284c7', fontWeight: '700' }}>✓ Vinculado a Inventario Farmacia</span>
                                                                                 )}
                                                                             </td>
                                                                             <td style={{ padding: '10px 14px', color: '#475569' }}>
@@ -5008,7 +4986,7 @@ const MedicoGeneral_page = () => {
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => handleRemovePrescripcionLine(item.id_temp)}
-                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                                                                 >
                                                                                     <Trash2 size={13} /> Eliminar
                                                                                 </button>
@@ -5067,7 +5045,7 @@ const MedicoGeneral_page = () => {
             )}
 
             {/* TOAST DE SISTEMA */}
-            <div className={`toast ${toast.show ? 'show' : ''}`}>
+            <div role="status" aria-live="polite" className={`toast ${toast.show ? 'show' : ''}`}>
                 <CheckCircle size={16} /> <span>{toast.message}</span>
             </div>
 
@@ -5097,7 +5075,7 @@ const MedicoGeneral_page = () => {
                         <p style={{ margin: 0, fontSize: '12px', fontWeight: '700' }}>{saveFeedback.title}</p>
                         {saveFeedback.message && <p style={{ margin: '2px 0 0', fontSize: '11px', opacity: 0.85 }}>{saveFeedback.message}</p>}
                     </div>
-                    <button
+                    <button aria-label="Cerrar"
                         onClick={() => setSaveFeedback(prev => ({ ...prev, show: false }))}
                         style={{ background: 'none', border: 0, color: '#fff', cursor: 'pointer', padding: '2px', opacity: 0.8, flexShrink: 0 }}
                     >
@@ -5145,12 +5123,13 @@ const MedicoGeneral_page = () => {
                                         : completingCita.paciente?.name || 'Paciente'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleCompletarCitaSubmit} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="field">
                                 <span>Notas Médicas de la Consulta *</span>
                                 <textarea
+                                    aria-label="Notas Médicas de la Consulta"
                                     required
                                     value={notasDoctor}
                                     onChange={(e) => setNotasDoctor(e.target.value)}

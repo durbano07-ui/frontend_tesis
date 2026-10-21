@@ -1,17 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api/axios';
-import {
-    Boxes,
-    Plus,
-    Pencil,
-    Trash2,
-    X,
-    Search,
-    CheckCircle2,
-    FileText,
-    Package
-} from 'lucide-react';
+import { Boxes, Plus, Pencil, Trash2, X, Search, CheckCircle2, Package } from 'lucide-react';
 
 const FarmaciaPresentacionesTab = ({ showSystemToast }) => {
     const [presentaciones, setPresentaciones] = useState([]);
@@ -203,6 +193,7 @@ const FarmaciaPresentacionesTab = ({ showSystemToast }) => {
                             <div className="patient-search-input" style={{ width: '100%', maxWidth: '100%' }}>
                                 <Search size={16} />
                                 <input
+                                    aria-label="Buscar por nombre o descripción de la presentación"
                                     type="text"
                                     placeholder="Buscar por nombre o descripción de la presentación..."
                                     value={searchQuery}
@@ -266,7 +257,7 @@ const FarmaciaPresentacionesTab = ({ showSystemToast }) => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDelete(p)}
-                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '8px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '8px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
                                                             title="Eliminar"
                                                         >
                                                             <Trash2 size={14} />
@@ -333,12 +324,12 @@ const FarmaciaPresentacionesTab = ({ showSystemToast }) => {
                             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Boxes size={18} /> {isCreateModalOpen ? 'Nueva Presentación' : 'Editar Presentación'}
                             </h3>
-                            <button onClick={() => { setIsCreateModalOpen(false); setIsEditModalOpen(false); }} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
+                            <button aria-label="Cerrar" onClick={() => { setIsCreateModalOpen(false); setIsEditModalOpen(false); }} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
                         </div>
                         <form onSubmit={isCreateModalOpen ? handleCreate : handleEdit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre *</label>
-                                <input
+                                <label htmlFor="farmaciapres-nombre" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre *</label>
+                                <input id="farmaciapres-nombre"
                                     type="text"
                                     required
                                     placeholder="Ej: Ampolla, Frasco, Blíster, Comprimido, etc."
@@ -349,8 +340,8 @@ const FarmaciaPresentacionesTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Descripción</label>
-                                <textarea
+                                <label htmlFor="farmaciapres-descripcion" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Descripción</label>
+                                <textarea id="farmaciapres-descripcion"
                                     rows="3"
                                     placeholder="Descripción breve..."
                                     value={form.descripcion}

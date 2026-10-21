@@ -1,0 +1,79 @@
+/*
+ * Estilos de accesibilidad globales (NTE INEN-ISO/IEC 40500 / WCAG 2.0).
+ * Se carga después del resto de hojas para prevalecer sobre los "outline: none".
+ */
+
+/* 2.4.7 Foco visible: indicador claro en cualquier control usado con teclado.
+   :focus-visible no se activa con el ratón, así que no cambia el aspecto al hacer clic. */
+:focus-visible {
+    outline: 3px solid #b71a34 !important;
+    outline-offset: 2px !important;
+}
+
+/* Sobre fondos oscuros (barra lateral) el contorno rojo no contrasta: se usa blanco */
+.sidebar :focus-visible,
+.navigation :focus-visible {
+    outline-color: #ffffff !important;
+}
+
+/* 2.4.1 Evitar bloques: enlace de salto, visible solo al recibir el foco */
+.skip-link {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200000;
+    padding: 10px 16px;
+    background: #002040;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+main:focus {
+    outline: none;
+}
+
+/* 4.1.2 Nombre, función, valor: la barra lateral muestra solo iconos y el texto aparece
+   como etiqueta flotante. Se oculta con opacidad (no con visibility: hidden) para que
+   los lectores de pantalla sigan leyendo el nombre de cada botón. */
+.navigation .navigation__item .navigation__text,
+.navigation__item .navigation__text {
+    visibility: visible !important;
+}
+
+/* 2.4.7: la etiqueta flotante también aparece al navegar con teclado, no solo con el ratón */
+nav .navigation__item:focus-visible .navigation__text {
+    opacity: 1 !important;
+}
+
+@media (min-width: 981px) {
+    nav .navigation__item:focus-visible .navigation__text {
+        transform: translateY(-50%) translateX(0) scale(1) !important;
+    }
+}
+
+@media (max-width: 980px) {
+    nav .navigation__item:focus-visible .navigation__text {
+        transform: translateX(-50%) translateY(0) scale(1) !important;
+    }
+}
+
+/* 2.3.1 / buena práctica: respetar la preferencia del sistema de reducir animaciones */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Lock, X, Key, CheckCircle, AlertTriangle, Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, X, Key, CheckCircle, AlertTriangle, Eye, EyeOff, Camera, Loader2, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { getUserModules, normalizeRoles } from '../utils/roleModules';
 import api from '../api/axios';
 import { useBackButtonModal } from '../hooks/useBackButtonModal';
+import { onKeyActivate } from '../a11y/keyboard';
 
 const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPhoto = false }) => {
     const { user, logout } = useAuthStore();
+    const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isModalOpen, openModal, closeModal] = useBackButtonModal();
     const [imgError, setImgError] = useState(false);
@@ -43,19 +47,22 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Get role friendly name
-    const getRoleLabel = () => {
-        if (!user?.roles) return 'Personal de Salud';
-        if (user.roles.includes('administrador')) return 'Administrador';
-        if (user.roles.includes('medico_coordinador')) return 'Coordinador Médico';
-        if (user.roles.includes('medico_general')) return 'Médico General';
-        if (user.roles.includes('enfermero')) return 'Enfermero/a';
-        if (user.roles.includes('odontologo')) return 'Odontólogo/a';
-        if (user.roles.includes('psicologo')) return 'Psicólogo/a';
-        if (user.roles.includes('medico_ocupacional')) return 'Médico Ocupacional';
-        if (user.roles.includes('paciente')) return 'Estudiante / Paciente';
-        return 'Personal de Salud';
+    // Get role friendly names (un usuario puede tener varios roles)
+    const ROLE_SHORT_LABELS = {
+        administrador: 'Administrador',
+        medico_coordinador: 'Coordinador Médico',
+        medico_general: 'Médico General',
+        enfermero: 'Enfermero/a',
+        odontologo: 'Odontólogo/a',
+        psicologo: 'Psicólogo/a',
+        medico_ocupacional: 'Médico Ocupacional',
+        paciente: 'Estudiante / Paciente',
     };
+    const getRoleLabels = () => {
+        const labels = normalizeRoles(user?.roles).map(r => ROLE_SHORT_LABELS[r]).filter(Boolean);
+        return labels.length > 0 ? labels : ['Personal de Salud'];
+    };
+    const hasMultipleModules = getUserModules(user).length > 1;
 
     // Get initials for avatar
     const getInitials = () => {
@@ -75,8 +82,8 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
         setError('');
         setSuccess('');
 
-        if (newPassword.length < 8) {
-            setError('La nueva contraseña debe tener al menos 8 caracteres.');
+        if (newPassword.length < 12) {
+            setError('La nueva contraseña debe tener al menos 12 caracteres.');
             return;
         }
 
@@ -200,17 +207,20 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                             <div style={{ fontSize: '11px', color: 'var(--text-muted, #98a2b3)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user?.email}>
                                 {user?.email}
                             </div>
-                            <div style={{ 
-                                display: 'inline-block',
-                                marginTop: '4px',
-                                padding: '2px 8px',
-                                backgroundColor: 'var(--primary-soft, #eaf0f5)',
-                                color: 'var(--primary, #002040)',
-                                borderRadius: '20px',
-                                fontSize: '9.5px',
-                                fontWeight: '700'
-                            }}>
-                                {getRoleLabel()}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                {getRoleLabels().map(label => (
+                                    <div key={label} style={{
+                                        display: 'inline-block',
+                                        padding: '2px 8px',
+                                        backgroundColor: 'var(--primary-soft, #eaf0f5)',
+                                        color: 'var(--primary, #002040)',
+                                        borderRadius: '20px',
+                                        fontSize: '11px',
+                                        fontWeight: '700'
+                                    }}>
+                                        {label}
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -238,6 +248,32 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                         <User size={14} style={{ color: 'var(--primary, #002040)' }} />
                         <span>Ver Perfil</span>
                     </button>
+
+                    {hasMultipleModules && (
+                        <button
+                            onClick={() => { setIsDropdownOpen(false); navigate('/dashboard'); }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '10px 12px',
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                fontSize: '11.5px',
+                                fontWeight: '650',
+                                color: 'var(--text-primary, #17212b)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                        >
+                            <LayoutGrid size={14} style={{ color: 'var(--primary, #002040)' }} />
+                            <span>Cambiar de módulo</span>
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -252,7 +288,8 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                     padding: '20px'
                 }}>
                     {/* Backdrop */}
-                    <div 
+                    <div
+                        role="button" tabIndex={0} onKeyDown={onKeyActivate} 
                         onClick={closeModal} 
                         style={{ 
                             position: 'absolute', 
@@ -298,10 +335,10 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 </div>
                                 <div>
                                     <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: '700' }}>Perfil de Usuario</h3>
-                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>Gestión de cuenta de salud</span>
+                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>Gestión de cuenta de salud</span>
                                 </div>
                             </div>
-                            <button 
+                            <button aria-label="Cerrar" 
                                 onClick={closeModal}
                                 style={{ 
                                     background: 'transparent', 
@@ -403,7 +440,7 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                                 background: '#dcfce7',
                                                 color: '#166534',
                                                 borderRadius: '20px',
-                                                fontSize: '10px',
+                                                fontSize: '11px',
                                                 fontWeight: '700'
                                             }}>
                                                 <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#15803d' }}></span>
@@ -414,10 +451,10 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                                 background: 'var(--primary-soft, #eaf0f5)',
                                                 color: 'var(--primary, #002040)',
                                                 borderRadius: '20px',
-                                                fontSize: '10px',
+                                                fontSize: '11px',
                                                 fontWeight: '700'
                                             }}>
-                                                {getRoleLabel()}
+                                                {getRoleLabels().join(' · ')}
                                             </span>
                                         </div>
                                     </div>
@@ -442,7 +479,8 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 <div className="field">
                                     <span>Contraseña Actual *</span>
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                        <input 
+                                        <input
+                                            aria-label="Contraseña Actual" 
                                             type={showCurrentPassword ? "text" : "password"} 
                                             value={currentPassword} 
                                             onChange={(e) => setCurrentPassword(e.target.value)} 
@@ -473,11 +511,12 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 <div className="field">
                                     <span>Nueva Contraseña *</span>
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                        <input 
+                                        <input
+                                            aria-label="Nueva Contraseña" 
                                             type={showNewPassword ? "text" : "password"} 
                                             value={newPassword} 
                                             onChange={(e) => setNewPassword(e.target.value)} 
-                                            placeholder="Mínimo 8 caracteres..." 
+                                            placeholder="Mínimo 12 caracteres..." 
                                             required 
                                             style={{ width: '100%', paddingRight: '40px' }}
                                         />
@@ -504,7 +543,8 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 <div className="field">
                                     <span>Confirmar Nueva Contraseña *</span>
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                        <input 
+                                        <input
+                                            aria-label="Confirmar Nueva Contraseña" 
                                             type={showConfirmPassword ? "text" : "password"} 
                                             value={confirmPassword} 
                                             onChange={(e) => setConfirmPassword(e.target.value)} 
@@ -533,7 +573,7 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
                                 </div>
 
                                 {error && (
-                                    <div style={{ 
+                                    <div role="alert" style={{ 
                                         padding: '10px 12px', 
                                         backgroundColor: '#fef2f2', 
                                         color: '#991b1b', 

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserModules } from '../../utils/roleModules';
 import api from '../../api/axios';
 import PasswordRequirements from '../../components/PasswordRequirements';
 import '../../auth.css';
 
 // Importación de recursos
-import logoUeb from '../../assets/ueb.png';
-import UEBLogo from '../../assets/leftUEB.png';
-import UEBpet from '../../assets/UEBpet.png';
+import logoUeb from '../../assets/ueb.webp';
+import UEBLogo from '../../assets/leftUEB.webp';
+import UEBpet from '../../assets/UEBpet.webp';
 
 // Iconos de Lucide
 import {
@@ -90,21 +91,9 @@ const AuthPage = () => {
             const { user, token, must_change_password } = response.data;
 
             loginStore(user, token, must_change_password);
-            if (user?.roles?.includes('enfermero')) {
-                navigate('/enfermeria');
-            } else if (user?.roles?.includes('psicologo')) {
-                navigate('/psicologia');
-            } else if (user?.roles?.includes('odontologo')) {
-                navigate('/odontologia');
-            } else if (user?.roles?.includes('medico_ocupacional')) {
-                navigate('/medicina-ocupacional');
-            } else if (user?.roles?.includes('medico_general')) {
-                navigate('/medicina-general');
-            } else if (user?.roles?.includes('administrador') || user?.roles?.includes('medico_coordinador')) {
-                navigate('/administrador');
-            } else {
-                navigate('/dashboard');
-            }
+            // Un solo módulo: entra directo. Varios (multirol): /dashboard muestra el selector
+            const modules = getUserModules(user);
+            navigate(modules.length === 1 ? modules[0].path : '/dashboard');
         } catch (err) {
             console.error('Login error:', err.response?.status, err.response?.data);
             const responseData = err.response?.data;
@@ -153,7 +142,7 @@ const AuthPage = () => {
         const pass = regForm.password;
         if (!pass) return { level: 0, text: 'Sin evaluar' };
         let score = 0;
-        if (pass.length >= 8) score++;
+        if (pass.length >= 12) score++;
         if (/[A-Z]/.test(pass)) score++;
         if (/[0-9]/.test(pass)) score++;
         if (/[^A-Za-z0-9]/.test(pass)) score++;
@@ -174,7 +163,8 @@ const AuthPage = () => {
         if (lowerMsg.includes('only institutional emails')) return 'Solo se permiten correos institucionales (@ueb.edu.ec).';
         if (lowerMsg.includes('already been taken')) return 'Este correo electrónico ya se encuentra registrado.';
         if (lowerMsg.includes('password confirmation does not match')) return 'Las contraseñas ingresadas no coinciden.';
-        if (lowerMsg.includes('password must be at least')) return 'La contraseña debe tener al menos 8 caracteres.';
+        if (lowerMsg.includes('password must be at least')) return 'La contraseña debe tener al menos 12 caracteres.';
+        if (lowerMsg.includes('data leak')) return 'Esta contraseña aparece en filtraciones de datos conocidas. Elige otra diferente.';
         return msg;
     };
 
@@ -190,8 +180,8 @@ const AuthPage = () => {
             return;
         }
 
-        if (regForm.password.length < 8) {
-            setRegError('La contraseña debe tener al menos 8 caracteres.');
+        if (regForm.password.length < 12) {
+            setRegError('La contraseña debe tener al menos 12 caracteres.');
             setShowRegErrorModal(true);
             return;
         }
@@ -478,7 +468,7 @@ const AuthPage = () => {
                                                                 id="registerPassword"
                                                                 type={showRegPassword ? 'text' : 'password'}
                                                                 name="password"
-                                                                placeholder="Mínimo 8 caracteres"
+                                                                placeholder="Mínimo 12 caracteres"
                                                                 value={regForm.password}
                                                                 onChange={handleRegChange}
                                                                 required

@@ -7,11 +7,10 @@ import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
-import { LAB_EXAM_CATEGORIES, LAB_EXAM_PRESETS } from '../../data/labExamsData';
-import logoUeb from '../../assets/ueb.png';
+import { LAB_EXAM_CATEGORIES } from '../../data/labExamsData';
+import logoUeb from '../../assets/ueb.webp';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { logoUebTexto } from '../../assets/logoUebTextoBase64.js';
-import { headerBienestar } from '../../assets/headerBienestarBase64.js';
 import OfficialFichaIngresoModal, { printOfficialIngresoForm, compileOfficialIngresoFormHtml } from './OfficialFichaIngresoModal';
 import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetiroFormHtml } from './OfficialFichaRetiroModal';
 import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
@@ -26,72 +25,11 @@ const localDateStr = (d = new Date()) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-import {
-    Menu,
-    LogOut,
-    Bell,
-    Search,
-    X,
-    Save,
-    History,
-    FileText,
-    Plus,
-    PlusCircle,
-    Calendar,
-    ChevronDown,
-    ChevronUp,
-    ChevronRight,
-    Activity,
-    ClipboardList,
-    CheckCircle,
-    AlertTriangle,
-    Stethoscope,
-    User,
-    UserPlus,
-    Shield,
-    ShieldAlert,
-    CalendarCheck,
-    CalendarDays,
-    Info,
-    TrendingUp,
-    Heart,
-    HeartHandshake,
-    Thermometer,
-    HeartPulse,
-    Brain,
-    Sparkles,
-    BookOpen,
-    Printer,
-    FileCheck,
-    FileSpreadsheet,
-    MapPin,
-    Clock,
-    UserCheck,
-    UserX,
-    Baby,
-    Mail,
-    Eye,
-    EyeOff,
-    BarChart3,
-    Accessibility,
-    Pill,
-    Package,
-    Filter,
-    Trash2,
-    Briefcase,
-    RefreshCw,
-    FilePlus,
-    Award,
-    Upload,
-    Download,
-    AlertOctagon,
-    Zap,
-    Building2,
-    Loader2,
-    Edit2,
-    ExternalLink
-} from 'lucide-react';
+import { Menu, LogOut, Search, X, Save, History, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
+import { onKeyActivate } from '../../a11y/keyboard';
+import { escapeHtml } from '../../utils/escapeHtml';
+import { compileRecetaFormHtmlString } from './reports/recetaTemplate';
 
 const COUNTRIES = [
     'Ecuador', 'Colombia', 'Perú', 'Venezuela', 'Argentina', 'Chile', 'Bolivia', 'Brasil',
@@ -179,6 +117,10 @@ export default function MedicoOcupacionalPage() {
             if (!iframe) {
                 iframe = document.createElement('iframe');
                 iframe.id = 'printable-hidden-frame';
+                // Marco oculto solo para imprimir: con título (WCAG 4.1.2) y fuera del orden de tabulación
+                iframe.title = 'Documento para impresión';
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.tabIndex = -1;
                 iframe.style.position = 'fixed';
                 iframe.style.right = '0';
                 iframe.style.bottom = '0';
@@ -2221,8 +2163,8 @@ export default function MedicoOcupacionalPage() {
     const fetchParteDiario = async () => {
         setParteDiarioLoading(true);
         try {
-            const response = await api.get('/medicina-ocupacional/parte-diario')
-                .catch(() => api.get('/medicina-general/parte-diario'))
+            // Los partes de Medicina Ocupacional se registran en medicina-general/parte-diario
+            const response = await api.get('/medicina-general/parte-diario')
                 .catch(() => ({ data: { data: [] } }));
             const data = response.data?.data || [];
             const filtered = data.filter(item => {
@@ -2298,8 +2240,8 @@ export default function MedicoOcupacionalPage() {
                 const isChecked = activeExams.includes(examItem);
                 itemsGridHtml += `
                     <div style="display: flex; align-items: center; gap: 4px; font-size: 8.5px; padding: 1px 0;">
-                        <span style="font-weight: bold; font-family: monospace; font-size: 10px;">${isChecked ? '( X )' : '(   )'}</span>
-                        <span style="${isChecked ? 'font-weight: bold; color: #0b3c5d;' : 'color: #334155;'}">${examItem}</span>
+                        <span style="font-weight: bold; font-family: monospace; font-size: 10px;">${escapeHtml(isChecked ? '( X )' : '(   )')}</span>
+                        <span style="${escapeHtml(isChecked ? 'font-weight: bold; color: #0b3c5d;' : 'color: #334155;')}">${escapeHtml(examItem)}</span>
                     </div>
                 `;
             });
@@ -2307,7 +2249,7 @@ export default function MedicoOcupacionalPage() {
             categoriesHtml += `
                 <div style="border: 1px solid #000; margin-bottom: 6px; page-break-inside: avoid;">
                     <div style="background-color: #000; color: #fff; font-weight: bold; font-size: 9px; padding: 2px 6px; text-transform: uppercase;">
-                        ${category.title}
+                        ${escapeHtml(category.title)}
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; padding: 4px 6px; background: #fff;">
                         ${itemsGridHtml}
@@ -2342,7 +2284,7 @@ export default function MedicoOcupacionalPage() {
                     <table class="header-table">
                         <tr>
                             <td style="width: 140px; text-align: center; vertical-align: middle;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
                             </td>
                             <td class="order-title">
                                 UNIVERSIDAD ESTATAL DE BOLÍVAR<br/>
@@ -2350,7 +2292,7 @@ export default function MedicoOcupacionalPage() {
                                 <span style="font-size: 11px; color: #0b3c5d;">ORDEN DE EXAMEN DE LABORATORIO CLÍNICO</span>
                             </td>
                             <td style="width: 140px; text-align: center; vertical-align: middle;">
-                                <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                                <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
                             </td>
                         </tr>
                     </table>
@@ -2358,21 +2300,21 @@ export default function MedicoOcupacionalPage() {
                     <table class="patient-card">
                         <tr>
                             <td class="patient-label">PACIENTE:</td>
-                            <td style="font-weight: bold; width: 45%;">${patientName}</td>
+                            <td style="font-weight: bold; width: 45%;">${escapeHtml(patientName)}</td>
                             <td class="patient-label">CÉDULA:</td>
-                            <td style="font-weight: bold;">${cedula}</td>
+                            <td style="font-weight: bold;">${escapeHtml(cedula)}</td>
                         </tr>
                         <tr>
                             <td class="patient-label">FECHA:</td>
-                            <td>${fechaStr}</td>
+                            <td>${escapeHtml(fechaStr)}</td>
                             <td class="patient-label">EDAD / SEXO:</td>
-                            <td>${edad} / M-F</td>
+                            <td>${escapeHtml(edad)} / M-F</td>
                         </tr>
                         <tr>
                             <td class="patient-label">MÉDICO:</td>
                             <td>Dr. Jorge Morales Torres (Salud Ocupacional)</td>
                             <td class="patient-label">LABORATORIO:</td>
-                            <td>${item.laboratorio || 'Laboratorio Central Universitario UEB'}</td>
+                            <td>${escapeHtml(item.laboratorio || 'Laboratorio Central Universitario UEB')}</td>
                         </tr>
                     </table>
 
@@ -2383,7 +2325,7 @@ export default function MedicoOcupacionalPage() {
                     ${categoriesHtml}
 
                     <div style="margin-top: 6px; border: 1px solid #000; padding: 4px 6px; font-size: 8.5px; background: #fafafa;">
-                        <strong>OBSERVACIONES / OTROS EXÁMENES:</strong> ${notes}
+                        <strong>OBSERVACIONES / OTROS EXÁMENES:</strong> ${escapeHtml(notes)}
                     </div>
 
                     <div style="margin-top: 25px; display: flex; justify-content: space-around; text-align: center;">
@@ -2394,7 +2336,7 @@ export default function MedicoOcupacionalPage() {
                         </div>
                         <div style="width: 220px; border-top: 1px solid #000; padding-top: 4px; font-size: 8.5px;">
                             <strong>Firma del Paciente / Funcionario</strong><br/>
-                            C.I.: ${cedula}
+                            C.I.: ${escapeHtml(cedula)}
                         </div>
                     </div>
                 </div>
@@ -2415,17 +2357,17 @@ export default function MedicoOcupacionalPage() {
 
         const rows = filteredExamOrders.map((ord, idx) => `
             <tr>
-                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
-                <td style="padding: 6px; border: 1px solid #000; font-weight: bold;">${ord.paciente}<br/><small>C.I: ${ord.cedula}</small></td>
-                <td style="padding: 6px; border: 1px solid #000;">${ord.examen}</td>
-                <td style="padding: 6px; border: 1px solid #000;">${ord.motivo}</td>
-                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${ord.estado}</td>
+                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${escapeHtml(idx + 1)}</td>
+                <td style="padding: 6px; border: 1px solid #000; font-weight: bold;">${escapeHtml(ord.paciente)}<br/><small>C.I: ${escapeHtml(ord.cedula)}</small></td>
+                <td style="padding: 6px; border: 1px solid #000;">${escapeHtml(ord.examen)}</td>
+                <td style="padding: 6px; border: 1px solid #000;">${escapeHtml(ord.motivo)}</td>
+                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${escapeHtml(ord.estado)}</td>
             </tr>
         `).join('');
 
         printWindow.document.write(`
             <!DOCTYPE html>
-            <html>
+            <html lang="es">
             <head>
                 <title>Reporte Diario de Exámenes UEB</title>
                 <style>
@@ -2436,15 +2378,15 @@ export default function MedicoOcupacionalPage() {
             </head>
             <body>
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0b3c5d; padding-bottom: 8px; margin-bottom: 12px;">
-                    <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
+                    <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
                     <div style="text-align: center;">
                         <h2 style="margin: 0; font-size: 13px; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h2>
                         <h3 style="margin: 2px 0; font-size: 11px; color: #0b3c5d;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</h3>
                         <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: bold; color: #0284c7;">REPORTE DE ÓRDENES DE EXÁMENES DE LABORATORIO</p>
                     </div>
-                    <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
+                    <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
                 </div>
-                <p><strong>Fecha de Reporte:</strong> ${useExamDateFilter ? examReportDate : 'Todas las Fechas (Histórico)'} | <strong>Total Registros:</strong> ${filteredExamOrders.length}</p>
+                <p><strong>Fecha de Reporte:</strong> ${escapeHtml(useExamDateFilter ? examReportDate : 'Todas las Fechas (Histórico)')} | <strong>Total Registros:</strong> ${escapeHtml(filteredExamOrders.length)}</p>
                 <table>
                     <thead>
                         <tr>
@@ -2517,7 +2459,6 @@ export default function MedicoOcupacionalPage() {
         setEnfermedadesNuevasSearchTerm(val);
         setPeriodicosSearchTerm(val);
         setPersonalNuevoSearchTerm(val);
-        setVulnerablesPatologiasSearchTerm(val);
         setDiscapacidadSearchTerm(val);
     };
 
@@ -2546,14 +2487,14 @@ export default function MedicoOcupacionalPage() {
     const compileCatastroficasMatrixHtml = (itemsList = filteredCatastroficas, currentTabLabel = 'ENFERMEDADES CATASTRÓFICAS O HUÉRFANAS', forPrint = false) => {
         const list = itemsList || filteredCatastroficas;
         const rowsHtml = list.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color: #64748b; font-weight: normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 700; font-size: 9.5px; color: #0f172a;">${(item.tipoEnfermedad || '').toUpperCase()}</td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${item.fechaDiagnostico || 'N/D'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: ${item.recibioTratamiento === 'SI' ? '#0284c7' : '#64748b'};">${item.recibioTratamiento || 'SI'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${(item.novedades || '').toUpperCase()}</td>
+            <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${escapeHtml(idx + 1)}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color: #64748b; font-weight: normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-weight: 700; font-size: 9.5px; color: #0f172a;">${escapeHtml((item.tipoEnfermedad || '').toUpperCase())}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${escapeHtml(item.fechaDiagnostico || 'N/D')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${escapeHtml((item.cargo || '').toUpperCase())}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: ${escapeHtml(item.recibioTratamiento === 'SI' ? '#0284c7' : '#475569')};">${escapeHtml(item.recibioTratamiento || 'SI')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${escapeHtml((item.novedades || '').toUpperCase())}</td>
             </tr>
         `).join('');
 
@@ -2580,18 +2521,18 @@ export default function MedicoOcupacionalPage() {
                 <table class="header-table">
                     <tr>
                         <td style="width: 140px; vertical-align: middle; text-align: left;">
-                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
                         </td>
                         <td class="matrix-title">
                             <div style="font-size: 11px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 9px; font-weight: 800; color: #0284c7; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
                             <div style="font-size: 10px; font-weight: 900; color: #0b3c5d; margin-top: 2px;">
                                 MATRIZ SOBRE ENFERMEDADES CATALOGADAS COMO CATASTRÓFICAS, CONFORME A LO ESTIPULADO POR EL MINISTERIO DE SALUD PÚBLICA DEL ECUADOR UEB 2026<br/>
-                                <span style="font-size: 9px; font-weight: 700; color: #0284c7;">(${currentTabLabel})</span>
+                                <span style="font-size: 9px; font-weight: 700; color: #0284c7;">(${escapeHtml(currentTabLabel)})</span>
                             </div>
                         </td>
                         <td style="width: 140px; vertical-align: middle; text-align: right;">
-                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
                         </td>
                     </tr>
                 </table>
@@ -2698,20 +2639,20 @@ export default function MedicoOcupacionalPage() {
     const compileAccidentesMatrixHtml = (dataToPrint = filteredAccidentes, filterLabel = 'TODOS LOS REGISTROS', forPrint = false) => {
         const list = dataToPrint || filteredAccidentes;
         const rowsHtml = list.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
+            <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${escapeHtml(idx + 1)}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">
-                    ${(item.paciente || '').toUpperCase()}<br/>
-                    <small style="color: #64748b; font-weight: normal;">C.I: ${item.cedula || 'N/D'}</small>
+                    ${escapeHtml((item.paciente || '').toUpperCase())}<br/>
+                    <small style="color: #64748b; font-weight: normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small>
                 </td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${item.fechaAccidente || 'N/D'}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${(item.lugar || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #b45309;">${(item.tipoAccidente || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #0f172a;">${(item.diagnostico || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #d97706;">${item.diasIncapacidad || 'N/D'}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${(item.gravedad || '').includes('LEVE') ? '#0284c7' : '#dc2626'};">${item.gravedad || 'LEVE'}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${(item.novedades || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${escapeHtml((item.cargo || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${escapeHtml(item.fechaAccidente || 'N/D')}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${escapeHtml((item.lugar || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #b45309;">${escapeHtml((item.tipoAccidente || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #0f172a;">${escapeHtml((item.diagnostico || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #d97706;">${escapeHtml(item.diasIncapacidad || 'N/D')}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${escapeHtml((item.gravedad || '').includes('LEVE') ? '#0284c7' : '#dc2626')};">${escapeHtml(item.gravedad || 'LEVE')}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; font-weight: 600; color: #1e293b;">${escapeHtml((item.novedades || '').toUpperCase())}</td>
             </tr>
         `).join('');
 
@@ -2738,18 +2679,18 @@ export default function MedicoOcupacionalPage() {
                 <table class="header-table">
                     <tr>
                         <td style="width: 140px; vertical-align: middle; text-align: left;">
-                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
                         </td>
                         <td class="matrix-title">
                             <div style="font-size: 11px; font-weight: 900; color: #002040; text-transform: uppercase;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 9px; font-weight: 800; color: #b45309; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
                             <div style="font-size: 10px; font-weight: 900; color: #0b3c5d; margin-top: 2px;">
                                 MATRIZ DE REGISTRO DE ACCIDENTES DE TRABAJO Y ENFERMEDADES PROFESIONALES - UEB 2026<br/>
-                                <span style="font-size: 9px; font-weight: 700; color: #d97706;">(${String(filterLabel).toUpperCase()})</span>
+                                <span style="font-size: 9px; font-weight: 700; color: #d97706;">(${escapeHtml(String(filterLabel).toUpperCase())})</span>
                             </div>
                         </td>
                         <td style="width: 140px; vertical-align: middle; text-align: right;">
-                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
                         </td>
                     </tr>
                 </table>
@@ -2855,13 +2796,13 @@ export default function MedicoOcupacionalPage() {
     const compileDiscapacidadMatrixHtml = (dataToPrint = filteredDiscapacidad, forPrint = false) => {
         const list = dataToPrint || filteredDiscapacidad;
         const rowsHtml = list.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d; text-align: center;">${(item.tipoDiscapacidad || '').toUpperCase()}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${item.porcentaje || 'N/D'}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #334155;">${(item.cargo || '').toUpperCase()}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #1e293b;">${(item.dependencia || '').toUpperCase()}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #a16207;">${(item.condicionLaboral || '').toUpperCase()}</td>
+            <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d; text-align: center;">${escapeHtml((item.tipoDiscapacidad || '').toUpperCase())}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${escapeHtml(item.porcentaje || 'N/D')}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #334155;">${escapeHtml((item.cargo || '').toUpperCase())}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-size: 9.5px; color: #1e293b;">${escapeHtml((item.dependencia || '').toUpperCase())}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #a16207;">${escapeHtml((item.condicionLaboral || '').toUpperCase())}</td>
             </tr>
         `).join('');
 
@@ -2889,14 +2830,14 @@ export default function MedicoOcupacionalPage() {
                 <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
                     <tr>
                         <td style="width: 140px; vertical-align: middle; text-align: left;">
-                            <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; width: auto; object-fit: contain;" />
                         </td>
                         <td style="text-align: center; vertical-align: middle;">
                             <div class="blue-banner" style="margin: 0; padding: 5px 10px; font-size: 11.5px;">UNIVERSIDAD ESTATAL DE BOLÍVAR · BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
                             <div class="orange-banner" style="margin: 0; padding: 6px 10px; font-size: 13px;">GRUPO VULNERABLE UNIVERSIDAD ESTATAL DE BOLÍVAR - 2026</div>
                         </td>
                         <td style="width: 140px; vertical-align: middle; text-align: right;">
-                            <img src="${logoUebTexto}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
+                            <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; width: auto; object-fit: contain;" />
                         </td>
                     </tr>
                 </table>
@@ -2965,38 +2906,38 @@ export default function MedicoOcupacionalPage() {
         const filtered = getFilteredVulnerablesPatologias();
         const diabeticosHtml = (filtered.diabeticos || []).map((item, idx) => `
             <tr>
-                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
-                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre}</td>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(idx + 1)}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(item.nombre)}</td>
             </tr>
         `).join('');
 
         const hipertensosHtml = (filtered.hipertensos || []).map((item, idx) => `
             <tr>
-                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
-                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre}</td>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(idx + 1)}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(item.nombre)}</td>
             </tr>
         `).join('');
 
         const adultoMayorHtml = (filtered.adultoMayor || []).map((item, idx) => `
             <tr>
-                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
-                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${item.nombre} ${item.edad ? '<b>(' + item.edad + ')</b>' : ''}</td>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(idx + 1)}</td>
+                <td style="font-size: 11px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(item.nombre)} ${item.edad ? '<b>(' + escapeHtml(item.edad) + ')</b>' : ''}</td>
             </tr>
         `).join('');
 
         const otrasHtml = (filtered.otras || []).map((item, idx) => `
             <tr>
-                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${idx + 1}</td>
+                <td style="text-align: center; font-weight: bold; width: 35px; padding: 5px; border: 1px solid #cbd5e1;">${escapeHtml(idx + 1)}</td>
                 <td style="font-size: 10px; padding: 5px; border: 1px solid #cbd5e1;">
-                    <div><b>${item.nombre}</b></div>
-                    <div style="color: #c0392b; font-weight: 600;">${item.patologia}</div>
+                    <div><b>${escapeHtml(item.nombre)}</b></div>
+                    <div style="color: #c0392b; font-weight: 600;">${escapeHtml(item.patologia)}</div>
                 </td>
             </tr>
         `).join('');
 
         return `
             <!DOCTYPE html>
-            <html>
+            <html lang="es">
             <head>
                 <title>Matriz Grupo Vulnerable UEB</title>
                 <style>
@@ -3020,13 +2961,13 @@ export default function MedicoOcupacionalPage() {
             </head>
             <body>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                    <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                    <img src="${escapeHtml(logoBienestar)}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
                     <div style="text-align: center;">
                         <div style="font-size: 12px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                         <div style="font-size: 10px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
                         <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-top: 2px;">GRUPO VULNERABLE UNIVERSIDAD ESTATAL DE BOLIVAR</div>
                     </div>
-                    <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB Logo" />
+                    <img src="${escapeHtml(logoUebTexto)}" style="height: 38px; object-fit: contain;" alt="UEB Logo" />
                 </div>
 
                 <table class="grid-table">
@@ -3181,18 +3122,18 @@ export default function MedicoOcupacionalPage() {
         const rowsHtml = list.map((item, idx) => `
             <tr>
                 <td style="text-align: center; font-weight: bold; width: 35px; padding: 7px; border: 1px solid #cbd5e1;">${idx + 1}</td>
-                <td style="font-weight: bold; color: #1e293b; padding: 7px; border: 1px solid #cbd5e1;">${item.paciente}</td>
-                <td style="text-align: center; font-family: monospace; font-size: 11px; padding: 7px; border: 1px solid #cbd5e1;">${item.cedula}</td>
-                <td style="text-align: center; font-weight: bold; color: #15803d; padding: 7px; border: 1px solid #cbd5e1;">${item.fechaIngreso}</td>
-                <td style="font-weight: bold; color: #334155; padding: 7px; border: 1px solid #cbd5e1;">${item.cargo}</td>
+                <td style="font-weight: bold; color: #1e293b; padding: 7px; border: 1px solid #cbd5e1;">${escapeHtml(item.paciente)}</td>
+                <td style="text-align: center; font-family: monospace; font-size: 11px; padding: 7px; border: 1px solid #cbd5e1;">${escapeHtml(item.cedula)}</td>
+                <td style="text-align: center; font-weight: bold; color: #15803d; padding: 7px; border: 1px solid #cbd5e1;">${escapeHtml(item.fechaIngreso)}</td>
+                <td style="font-weight: bold; color: #334155; padding: 7px; border: 1px solid #cbd5e1;">${escapeHtml(item.cargo)}</td>
             </tr>
         `).join('');
 
         return `
             <!DOCTYPE html>
-            <html>
+            <html lang="es">
             <head>
-                <title>Matriz de Personal Nuevo UEB ${anioStr}</title>
+                <title>Matriz de Personal Nuevo UEB ${escapeHtml(anioStr)}</title>
                 <style>
                     @page { size: landscape; margin: 10mm; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 12px; color: #1e293b; background: #fff; }
@@ -3215,7 +3156,7 @@ export default function MedicoOcupacionalPage() {
                     <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB Logo" />
                 </div>
                 <div class="header-banner">
-                    Personal Nuevo que Ingresó en el Año ${anioStr}
+                    Personal Nuevo que Ingresó en el Año ${escapeHtml(anioStr)}
                 </div>
                 <table class="data-table">
                     <thead>
@@ -3353,9 +3294,9 @@ export default function MedicoOcupacionalPage() {
 
         const rowsHtml = dataToPrint.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 7px 12px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.mes || '').toUpperCase()}</td>
-                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #334155;">${item.cantidad || 0}</td>
-                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0284c7;">${item.cantidad || 0}</td>
+                <td style="padding: 7px 12px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.mes || '').toUpperCase())}</td>
+                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #334155;">${escapeHtml(item.cantidad || 0)}</td>
+                <td style="padding: 7px 12px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0284c7;">${escapeHtml(item.cantidad || 0)}</td>
             </tr>
         `).join('');
 
@@ -3364,7 +3305,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8"/>
-                <title>MATRIZ DE EXÁMENES MÉDICOS Y FICHAS PERIÓDICAS - UEB ${anioStr}</title>
+                <title>MATRIZ DE EXÁMENES MÉDICOS Y FICHAS PERIÓDICAS - UEB ${escapeHtml(anioStr)}</title>
                 <style>
                     @page { size: A4 landscape; margin: 8mm 10mm; }
                     * { box-sizing: border-box; }
@@ -3378,7 +3319,7 @@ export default function MedicoOcupacionalPage() {
             </head>
             <body>
                 <div class="no-print" style="padding: 10px; background: #ffedd5; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Exámenes Periódicos por Mes (${anioStr})</span>
+                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Exámenes Periódicos por Mes (${escapeHtml(anioStr)})</span>
                     <button onclick="window.print()" style="background: #ea580c; color: #ffffff; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                         Imprimir Matriz Oficial (A4 Landscape)
                     </button>
@@ -3388,7 +3329,7 @@ export default function MedicoOcupacionalPage() {
                     <div class="orange-banner">
                         <div style="display: flex; align-items: center; justify-content: space-between;">
                             <strong style="font-size: 18px; color: #ffffff;">UEB</strong>
-                            <h1 class="banner-title">Matriz de EXAMENES Medicos y Fichas Periodicos ${anioStr}</h1>
+                            <h1 class="banner-title">Matriz de EXAMENES Medicos y Fichas Periodicos ${escapeHtml(anioStr)}</h1>
                             <span style="font-size: 9px; font-weight: bold; background: #ffffff; color: #ea580c; padding: 2px 8px; borderRadius: 4px;">SALUD OCUPACIONAL</span>
                         </div>
                     </div>
@@ -3407,8 +3348,8 @@ export default function MedicoOcupacionalPage() {
                         <tfoot>
                             <tr style="background: #e0f2fe; font-weight: 900; border-top: 2px solid #000000;">
                                 <td style="padding: 8px 12px; border: 1px solid #000000; text-align: right; text-transform: uppercase;">TOTAL ACUMULADO:</td>
-                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 11px; color: #0b3c5d;">${totalSum} EVALUACIONES</td>
-                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 12px; color: #0b3c5d;">${totalSum}</td>
+                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 11px; color: #0b3c5d;">${escapeHtml(totalSum)} EVALUACIONES</td>
+                                <td style="padding: 8px 12px; border: 1px solid #000000; text-align: center; font-size: 12px; color: #0b3c5d;">${escapeHtml(totalSum)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -3480,9 +3421,9 @@ export default function MedicoOcupacionalPage() {
 
         const rowsHtml = dataToPrint.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${(item.patologiaNueva || '').toUpperCase()}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ca8a04;">${item.fechaAparecimiento || 'N/D'}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${escapeHtml((item.patologiaNueva || '').toUpperCase())}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ca8a04;">${escapeHtml(item.fechaAparecimiento || 'N/D')}</td>
             </tr>
         `).join('');
 
@@ -3491,7 +3432,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8"/>
-                <title>MATRIZ DE ENFERMEDADES NUEVAS - UEB ${anioStr}</title>
+                <title>MATRIZ DE ENFERMEDADES NUEVAS - UEB ${escapeHtml(anioStr)}</title>
                 <style>
                     @page { size: A4 landscape; margin: 8mm 10mm; }
                     * { box-sizing: border-box; }
@@ -3508,7 +3449,7 @@ export default function MedicoOcupacionalPage() {
             </head>
             <body>
                 <div class="no-print" style="padding: 10px; background: #ffedd5; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Enfermedades Nuevas (Incidencia ${anioStr})</span>
+                    <span style="font-weight: bold; color: #c2410c; font-size: 12px;">Vista previa de impresión - UEB Matriz de Enfermedades Nuevas (Incidencia ${escapeHtml(anioStr)})</span>
                     <button onclick="window.print()" style="background: #ea580c; color: #ffffff; border: none; padding: 6px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                         Imprimir Matriz Oficial (A4 Landscape)
                     </button>
@@ -3518,7 +3459,7 @@ export default function MedicoOcupacionalPage() {
                     <div class="orange-banner">
                         <div style="display: flex; align-items: center; justify-content: space-between;">
                             <strong style="font-size: 18px; color: #ffffff;">UEB</strong>
-                            <h1 class="banner-title">EMFERMEDAES NUEVAS ${anioStr} (INCINDECIA)</h1>
+                            <h1 class="banner-title">EMFERMEDAES NUEVAS ${escapeHtml(anioStr)} (INCINDECIA)</h1>
                             <span style="font-size: 9px; font-weight: bold; background: #ffffff; color: #ea580c; padding: 2px 8px; borderRadius: 4px;">SALUD OCUPACIONAL</span>
                         </div>
                     </div>
@@ -3614,9 +3555,9 @@ export default function MedicoOcupacionalPage() {
         const rowsHtml = list.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                 <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${(item.tiposervidor || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #b91c1c;">${(item.diagnostico || '').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${escapeHtml((item.tiposervidor || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #b91c1c;">${escapeHtml((item.diagnostico || '').toUpperCase())}</td>
             </tr>
         `).join('');
 
@@ -3759,10 +3700,10 @@ export default function MedicoOcupacionalPage() {
     const compileEnfermedadesNuevasMatrixHtml = (dataToPrint = filteredEnfermedadesNuevas, forPrint = false) => {
         const list = dataToPrint || filteredEnfermedadesNuevas;
         const rowsHtml = list.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${(item.patologiaNueva || '').toUpperCase()}</td>
-                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${item.fechaAparecimiento || ''}</td>
+            <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #15803d;">${escapeHtml((item.patologiaNueva || '').toUpperCase())}</td>
+                <td style="padding: 7px 10px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #334155; text-align: center;">${escapeHtml(item.fechaAparecimiento || '')}</td>
             </tr>
         `).join('');
 
@@ -3786,13 +3727,13 @@ export default function MedicoOcupacionalPage() {
             <body>
                 <div class="banner" style="background: #ffffff; border: 1.5px solid #c2410c; padding: 6px 12px; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <img src="${escapeHtml(logoBienestar)}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
                         <div style="text-align: center; flex: 1; padding: 0 10px;">
                             <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 9px; font-weight: 800; color: #c2410c;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
                             <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #000;">ENFERMEDADES NUEVAS (INCIDENCIA)</h1>
                         </div>
-                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                        <img src="${escapeHtml(logoUebTexto)}" style="height: 38px; object-fit: contain;" alt="UEB" />
                     </div>
                 </div>
 
@@ -3970,9 +3911,9 @@ export default function MedicoOcupacionalPage() {
 
         const rowsHtml = displayedList.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; color: #0b3c5d; text-align: left;">${item.mes}</td>
-                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; text-align: center;">${item.examenes || 0}</td>
-                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 900; font-size: 11px; color: #000000; text-align: right;">${item.total || 0}</td>
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; color: #0b3c5d; text-align: left;">${escapeHtml(item.mes)}</td>
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 800; font-size: 11px; text-align: center;">${escapeHtml(item.examenes || 0)}</td>
+                <td style="padding: 9px 16px; border: 1px solid #000000; font-weight: 900; font-size: 11px; color: #000000; text-align: right;">${escapeHtml(item.total || 0)}</td>
             </tr>
         `).join('');
 
@@ -3981,7 +3922,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8"/>
-                <title>MATRIZ DE EXAMENES MEDICOS Y FICHAS PERIODICOS ${examenesPeriodicosSelectedYear} - UEB</title>
+                <title>MATRIZ DE EXAMENES MEDICOS Y FICHAS PERIODICOS ${escapeHtml(examenesPeriodicosSelectedYear)} - UEB</title>
                 <style>
                     @page { size: A4 landscape; margin: 10mm 12mm; }
                     * { box-sizing: border-box; }
@@ -4000,7 +3941,7 @@ export default function MedicoOcupacionalPage() {
                         <div style="text-align: center; flex: 1; padding: 0 10px;">
                             <div style="font-size: 12px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 10px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
-                            <h1 class="banner-title" style="margin: 3px 0 0 0; font-size: 13.5px; color: #000;">Matriz de Examenes Medicos y Fichas Periodicos ${examenesPeriodicosSelectedYear}</h1>
+                            <h1 class="banner-title" style="margin: 3px 0 0 0; font-size: 13.5px; color: #000;">Matriz de Examenes Medicos y Fichas Periodicos ${escapeHtml(examenesPeriodicosSelectedYear)}</h1>
                         </div>
                         <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
                     </div>
@@ -4018,8 +3959,8 @@ export default function MedicoOcupacionalPage() {
                         ${rowsHtml}
                         <tr style="background: #bdd7ee; font-weight: 900; font-size: 12px;">
                             <td style="padding: 10px 16px; border: 1px solid #000000; text-align: left; text-transform: uppercase;">TOTAL GENERAL</td>
-                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: center;">${totalExamenesPeriodicosYear}</td>
-                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: right; font-size: 13px; color: #000;">${totalExamenesPeriodicosYear}</td>
+                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: center;">${escapeHtml(totalExamenesPeriodicosYear)}</td>
+                            <td style="padding: 10px 16px; border: 1px solid #000000; text-align: right; font-size: 13px; color: #000;">${escapeHtml(totalExamenesPeriodicosYear)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -4063,13 +4004,13 @@ export default function MedicoOcupacionalPage() {
         const rowsHtml = list.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                 <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #854d0e;">${item.edad || 'N/D'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #ea580c; text-align: center;">${item.semanasGestacion || 'N/D'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #0284c7;">${item.fum || 'N/D'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: 800; font-size: 10px; color: #15803d;">${item.fechaProbableParto || 'N/D'}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #a16207;">${item.controles || 0}</td>
-                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #c2410c;">${item.telefono || 'N/D'}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #854d0e;">${escapeHtml(item.edad || 'N/D')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; font-weight: 700; font-size: 9.5px; color: #ea580c; text-align: center;">${escapeHtml(item.semanasGestacion || 'N/D')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 9.5px; color: #0284c7;">${escapeHtml(item.fum || 'N/D')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: 800; font-size: 10px; color: #15803d;">${escapeHtml(item.fechaProbableParto || 'N/D')}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #a16207;">${escapeHtml(item.controles || 0)}</td>
+                <td style="padding: 7px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #c2410c;">${escapeHtml(item.telefono || 'N/D')}</td>
             </tr>
         `).join('');
 
@@ -4272,17 +4213,17 @@ export default function MedicoOcupacionalPage() {
         const anioNombre = ausentismoSelectedYear !== 'TODOS' ? ausentismoSelectedYear : 'Todos los Años';
 
         const rowsHtml = list.map((item, idx) => `
-            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${idx + 1}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${(item.paciente || '').toUpperCase()}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${item.cedula || 'N/D'}</small></td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #15803d; font-weight: 600;">${(item.enfermedadComun || '-').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #b91c1c; font-weight: 600;">${(item.enfermedadLaboral || '-').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #c2410c; font-weight: 600;">${(item.accidenteLaboral || '-').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #a16207; font-weight: 600;">${(item.otrosMotivos || '-').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ea580c;">${item.diasPerdidos || 0}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${item.totalHorasAusentismo || 0}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0369a1;">${item.totalHorasTrabajadas || 0}</td>
-                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0b3c5d;">${item.indiceAusentismo || 0}</td>
+            <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px;">${escapeHtml(idx + 1)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}<br/><small style="color:#64748b; font-weight:normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small></td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #15803d; font-weight: 600;">${escapeHtml((item.enfermedadComun || '-').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #b91c1c; font-weight: 600;">${escapeHtml((item.enfermedadLaboral || '-').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #c2410c; font-weight: 600;">${escapeHtml((item.accidenteLaboral || '-').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; font-size: 9.5px; color: #a16207; font-weight: 600;">${escapeHtml((item.otrosMotivos || '-').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #ea580c;">${escapeHtml(item.diasPerdidos || 0)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0284c7;">${escapeHtml(item.totalHorasAusentismo || 0)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: bold; font-size: 10px; color: #0369a1;">${escapeHtml(item.totalHorasTrabajadas || 0)}</td>
+                <td style="padding: 6px 8px; border: 1px solid #000000; text-align: center; font-weight: 900; font-size: 10px; color: #0b3c5d;">${escapeHtml(item.indiceAusentismo || 0)}</td>
             </tr>
         `).join('');
 
@@ -4291,7 +4232,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8"/>
-                <title>MATRIZ DE AUSENTISMO LABORAL - UEB ${anioNombre}</title>
+                <title>MATRIZ DE AUSENTISMO LABORAL - UEB ${escapeHtml(anioNombre)}</title>
                 <style>
                     @page { size: A4 landscape; margin: 8mm 10mm; }
                     * { box-sizing: border-box; }
@@ -4313,13 +4254,13 @@ export default function MedicoOcupacionalPage() {
             <body>
                 <div class="yellow-banner" style="background: #ffffff; border: 1.5px solid #b45309; padding: 6px 12px; margin-bottom: 8px;">
                     <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <img src="${logoBienestar}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
+                        <img src="${escapeHtml(logoBienestar)}" style="height: 48px; object-fit: contain;" alt="Bienestar Universitario" />
                         <div style="text-align: center; flex: 1; padding: 0 10px;">
                             <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 9px; font-weight: 800; color: #b45309;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
-                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #0b3c5d;">Registro de Ausentismo Laboral Mes de ${mesNombre} ${anioNombre}</h1>
+                            <h1 class="banner-title" style="margin: 2px 0 0 0; font-size: 13px; color: #0b3c5d;">Registro de Ausentismo Laboral Mes de ${escapeHtml(mesNombre)} ${escapeHtml(anioNombre)}</h1>
                         </div>
-                        <img src="${logoUebTexto}" style="height: 38px; object-fit: contain;" alt="UEB" />
+                        <img src="${escapeHtml(logoUebTexto)}" style="height: 38px; object-fit: contain;" alt="UEB" />
                     </div>
                 </div>
 
@@ -4482,15 +4423,15 @@ export default function MedicoOcupacionalPage() {
         const list = dataToPrint || filteredCovidCases;
         const rowsHtml = list.map((item, idx) => `
             <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #0b3c5d;">${(item.pacienteSospechoso || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${(item.tipoTrabajador || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${(item.lugarTrabajo || '').toUpperCase()}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${item.entregaResultados === 'DESCARTADO' ? '#dc2626' : '#d97706'};">${item.entregaResultados || 'N/D'}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #dc2626;">${(item.pacienteConfirmado || '-').toUpperCase()}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #0b3c5d;">${escapeHtml((item.pacienteSospechoso || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${escapeHtml((item.tipoTrabajador || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9px; color: #334155;">${escapeHtml((item.lugarTrabajo || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5px; color: ${item.entregaResultados === 'DESCARTADO' ? '#dc2626' : '#d97706'};">${escapeHtml(item.entregaResultados || 'N/D')}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 9.5px; color: #dc2626;">${escapeHtml((item.pacienteConfirmado || '-').toUpperCase())}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.pcr ? 'X' : ''}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.pruebaRapida ? 'X' : ''}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 11px;">${item.altaMedica ? 'X' : ''}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #7030a0;">${item.diasAislamiento || 0}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px; color: #7030a0;">${escapeHtml(item.diasAislamiento || 0)}</td>
             </tr>
         `).join('');
 
@@ -4531,7 +4472,7 @@ export default function MedicoOcupacionalPage() {
                                 <div style="font-size: 9.5px; font-weight: 800; color: #c2410c; text-transform: uppercase;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · UNIDAD DE SEGURIDAD Y SALUD OCUPACIONAL</div>
                                 <div style="font-size: 11px; font-weight: 900; color: #0b3c5d; margin-top: 3px;">
                                     REGISTRO DE PACIENTES SOSPECHOSOS Y CONFIRMADOS PARA COVID-19<br/>
-                                    <span style="font-size: 9.5px; font-weight: normal; color: #64748b;">PERÍODO: ${periodLabel}</span>
+                                    <span style="font-size: 9.5px; font-weight: normal; color: #64748b;">PERÍODO: ${escapeHtml(periodLabel)}</span>
                                 </div>
                             </td>
                             <td style="width: 140px; vertical-align: middle; text-align: right;">
@@ -4895,20 +4836,20 @@ export default function MedicoOcupacionalPage() {
                 return `
                     <tr>
                         <td class="text-center">${index + 1}</td>
-                        <td>${nombres}</td>
-                        <td class="text-center">${cedula}</td>
-                        <td>${tipoDiscapacidad || '-'}</td>
-                        <td class="text-center">${edad}</td>
+                        <td>${escapeHtml(nombres)}</td>
+                        <td class="text-center">${escapeHtml(cedula)}</td>
+                        <td>${escapeHtml(tipoDiscapacidad || '-')}</td>
+                        <td class="text-center">${escapeHtml(edad)}</td>
                         <td class="text-center">${esHombre ? 'X' : ''}</td>
                         <td class="text-center">${esMujer ? 'X' : ''}</td>
                         <td class="text-center">${esLgbti ? 'X' : ''}</td>
-                        <td>${areaDocenteCarrera}</td>
-                        <td>${areaAdministrativo}</td>
+                        <td>${escapeHtml(areaDocenteCarrera)}</td>
+                        <td>${escapeHtml(areaAdministrativo)}</td>
                         <td class="text-center">${esPrimera ? 'X' : ''}</td>
                         <td class="text-center">${esSubsecuente ? 'X' : ''}</td>
                         <td class="text-center">${esCertificado ? 'X' : ''}</td>
                         <td class="text-center">${esValidacion ? 'X' : ''}</td>
-                        <td>${item.detalle_diagnostico || 'Evaluación general'}</td>
+                        <td>${escapeHtml(item.detalle_diagnostico || 'Evaluación general')}</td>
                     </tr>
                 `;
             }).join('');
@@ -5100,7 +5041,7 @@ export default function MedicoOcupacionalPage() {
                     </div>
 
                     <div class="meta-info">
-                        <div class="meta-date">FECHA: ${parteDiarioDate}</div>
+                        <div class="meta-date">FECHA: ${escapeHtml(parteDiarioDate)}</div>
                         <div class="meta-tag">MEDICINA OCUPACIONAL</div>
                     </div>
 
@@ -5137,15 +5078,15 @@ export default function MedicoOcupacionalPage() {
                                 <td colspan="3" style="text-align: right; padding-right: 15px;">TOTAL</td>
                                 <td></td>
                                 <td></td>
-                                <td class="text-center">${totalHombres}</td>
-                                <td class="text-center">${totalMujeres}</td>
-                                <td class="text-center">${totalLgbti}</td>
-                                <td class="text-center">${totalDocenteCarrera}</td>
-                                <td class="text-center">${totalAdministrativo}</td>
-                                <td class="text-center">${totalPrimera}</td>
-                                <td class="text-center">${totalSubsecuente}</td>
-                                <td class="text-center">${totalCertificado}</td>
-                                <td class="text-center">${totalValidacion}</td>
+                                <td class="text-center">${escapeHtml(totalHombres)}</td>
+                                <td class="text-center">${escapeHtml(totalMujeres)}</td>
+                                <td class="text-center">${escapeHtml(totalLgbti)}</td>
+                                <td class="text-center">${escapeHtml(totalDocenteCarrera)}</td>
+                                <td class="text-center">${escapeHtml(totalAdministrativo)}</td>
+                                <td class="text-center">${escapeHtml(totalPrimera)}</td>
+                                <td class="text-center">${escapeHtml(totalSubsecuente)}</td>
+                                <td class="text-center">${escapeHtml(totalCertificado)}</td>
+                                <td class="text-center">${escapeHtml(totalValidacion)}</td>
                                 <td></td>
                             </tr>
                         </tbody>
@@ -5178,308 +5119,7 @@ export default function MedicoOcupacionalPage() {
         printIframeDocument(diarioIframeRef, () => compileParteDiarioHtmlString(false));
     };
 
-    const compileRecetaFormHtmlString = (receta, forPrint = false) => {
-        if (!receta) return '<!DOCTYPE html><html><body><p style="padding:40px; text-align:center; color:#64748b; font-family:sans-serif;">Seleccione un paciente / expediente para visualizar su receta médica.</p></body></html>';
-
-        const patientName = receta.paciente || 'Paciente';
-        const cedula = receta.cedula || 'N/D';
-        const fechaStr = receta.fecha ? receta.fecha.split('-').reverse().join(' / ') : 'dd / mm / aaaa';
-        const numReceta = receta.numero_receta || `REC-${receta.id || '001'}`;
-
-        const lineasHtmlPart1 = (receta.lineas || []).map((l, idx) => `
-            <tr>
-                <td><strong>${idx + 1}. ${l.detalle_medicamento}</strong></td>
-                <td style="text-align:center;">${l.dosis || '-'}</td>
-                <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
-                <td style="text-align:center;">${l.duracion || '3'} días</td>
-                <td style="text-align:center;">${l.via || 'Oral'}</td>
-                <td style="text-align:center;">${l.cantidad_texto || '1 caja'}</td>
-            </tr>
-        `).join('');
-
-        const emptyRowsCountPart1 = Math.max(0, 4 - (receta.lineas || []).length);
-        let emptyRowsPart1 = '';
-        for (let i = 0; i < emptyRowsCountPart1; i++) {
-            emptyRowsPart1 += `
-                <tr style="height:22px;">
-                    <td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
-            `;
-        }
-
-        const lineasHtmlPart2 = (receta.lineas || []).map((l, idx) => `
-            <tr>
-                <td><strong>${l.detalle_medicamento}</strong></td>
-                <td style="text-align:center;">${l.dosis || '-'}</td>
-                <td style="text-align:center;">Cada ${l.frecuencia || '8'} horas</td>
-                <td style="text-align:center;">${l.duracion || '3'} días</td>
-                <td style="text-align:center;">${l.via || 'Oral'}</td>
-                <td style="text-align:center;">${l.manana ? '✓' : ''}</td>
-                <td style="text-align:center;">${l.mediodia ? '✓' : ''}</td>
-                <td style="text-align:center;">${l.tarde ? '✓' : ''}</td>
-                <td style="text-align:center;">${l.noche ? '✓' : ''}</td>
-            </tr>
-        `).join('');
-
-        const emptyRowsCountPart2 = Math.max(0, 3 - (receta.lineas || []).length);
-        let emptyRowsPart2 = '';
-        for (let i = 0; i < emptyRowsCountPart2; i++) {
-            emptyRowsPart2 += `
-                <tr style="height:20px;">
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
-            `;
-        }
-
-        return `
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <title>Recetario Médico Ocupacional - ${numReceta}</title>
-                <meta charset="utf-8" />
-                <style>
-                    @page { size: A4 portrait; margin: 8mm; }
-                    body {
-                        font-family: Arial, Helvetica, sans-serif;
-                        font-size: 9px;
-                        color: #1e293b;
-                        margin: 0;
-                        padding: 10px;
-                        background: #f8fafc;
-                        display: flex;
-                        justify-content: center;
-                    }
-                    .receta-sheet {
-                        background: #ffffff;
-                        width: 190mm;
-                        min-height: 270mm;
-                        padding: 10mm;
-                        box-sizing: border-box;
-                        border: 1px solid #cbd5e1;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                    }
-                    .header-top {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        border-bottom: 2px solid #0f172a;
-                        padding-bottom: 6px;
-                        margin-bottom: 8px;
-                    }
-                    .header-title {
-                        text-align: center;
-                    }
-                    .header-title h2 {
-                        margin: 0;
-                        font-size: 16px;
-                        color: #0f172a;
-                        font-weight: 800;
-                    }
-                    .header-title h3 {
-                        margin: 2px 0 0 0;
-                        font-size: 12px;
-                        color: #0284c7;
-                    }
-                    .section-title {
-                        background: #f1f5f9;
-                        padding: 4px 8px;
-                        font-weight: bold;
-                        font-size: 9.5px;
-                        border: 1px solid #94a3b8;
-                        margin-top: 6px;
-                        text-transform: uppercase;
-                    }
-                    table.grid-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-top: 4px;
-                    }
-                    table.grid-table th, table.grid-table td {
-                        border: 1px solid #64748b;
-                        padding: 4px 6px;
-                        font-size: 8.5px;
-                    }
-                    table.grid-table th {
-                        background: #f8fafc;
-                        font-weight: bold;
-                        text-align: center;
-                    }
-                    .vigencia-banner {
-                        border: 1px solid #0f172a;
-                        text-align: center;
-                        font-weight: bold;
-                        padding: 4px;
-                        margin: 6px 0;
-                        font-size: 9px;
-                        background: #f8fafc;
-                    }
-                    .dotted-separator {
-                        border-bottom: 2px dashed #94a3b8;
-                        margin: 12px 0;
-                        position: relative;
-                        text-align: center;
-                    }
-                    .dotted-separator span {
-                        background: #fff;
-                        padding: 0 8px;
-                        font-size: 8px;
-                        color: #64748b;
-                        position: relative;
-                        top: -7px;
-                    }
-                    @media print {
-                        body { background: white; padding: 0; }
-                        .receta-sheet { border: none; box-shadow: none; width: 100%; padding: 0; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="receta-sheet">
-                    <div>
-                        <!-- HEADER PARTE 1 -->
-                        <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px;">
-                            <div style="width: 130px; text-align: left;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario" style="max-height: 42px; width: auto; object-fit: contain;" />
-                            </div>
-                            <div class="header-title" style="text-align: center; flex: 1;">
-                                <div style="font-size: 11px; font-weight: 900; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
-                                <h2 style="margin: 0; font-size: 13px; color: #0f172a; font-weight: 900;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</h2>
-                                <h3 style="margin: 1px 0 0 0; font-size: 10.5px; color: #0284c7; font-weight: 800;">Puesto de Salud · Medicina Ocupacional</h3>
-                            </div>
-                            <div style="text-align: right; width: 130px;">
-                                <strong>RECETA N°:</strong> <span style="color:#dc2626; font-size:11px;">${numReceta}</span><br/>
-                                <span style="font-size:8.5px;">FECHA: ${fechaStr}</span>
-                            </div>
-                        </div>
-
-                        <!-- DATOS GENERALES DEL PACIENTE -->
-                        <div class="section-title">DATOS GENERALES DEL PACIENTE</div>
-                        <table class="grid-table">
-                            <tr>
-                                <td colspan="3"><strong>Apellidos y Nombres:</strong> ${patientName}</td>
-                                <td colspan="2"><strong>Documento identidad/ HCL:</strong> ${cedula}</td>
-                                <td><strong>Sexo:</strong> F [${receta.sexo === 'F' ? 'X' : ' '}] M [${receta.sexo === 'M' ? 'X' : ' '}]</td>
-                            </tr>
-                            <tr>
-                                <td colspan="6"><strong>Estado de Enfermedad:</strong> Agudo [${receta.estado_enfermedad === 'Agudo' ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; Crónico [${receta.estado_enfermedad === 'Crónico' ? 'X' : ' '}]</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Fecha nac:</strong> ${receta.fecha_nacimiento || 'N/D'}</td>
-                                <td><strong>Edad:</strong> ${receta.edad_anios || '0'} años ${receta.edad_meses || '0'} m</td>
-                                <td colspan="4"><strong>CIE:</strong> ${receta.cie || 'Z00.0'}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3"><strong>Peso (kg):</strong> ${receta.peso || '-'}</td>
-                                <td colspan="3"><strong>Talla (cm):</strong> ${receta.talla || '-'}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="6"><strong>Alergias:</strong> SI [${receta.alergias_si ? 'X' : ' '}] NO [${!receta.alergias_si ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; <strong>ESPECIFICAR:</strong> ${receta.alergias_detalle || 'Ninguna'}</td>
-                            </tr>
-                        </table>
-
-                        <!-- DATOS DEL MEDICAMENTO -->
-                        <div class="section-title">DATOS DEL MEDICAMENTO</div>
-                        <table class="grid-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:40%;">Medicamento (DCI, forma farmacéutica y concentración)</th>
-                                    <th style="width:12%;">Dosis</th>
-                                    <th style="width:12%;">Frecuencia</th>
-                                    <th style="width:10%;">Duración</th>
-                                    <th style="width:12%;">Vía</th>
-                                    <th style="width:14%;">Cantidad</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${lineasHtmlPart1}
-                                ${emptyRowsPart1}
-                            </tbody>
-                        </table>
-
-                        <!-- DATOS DEL PRESCRIPTOR PARTE 1 -->
-                        <table class="grid-table" style="margin-top:8px;">
-                            <tr>
-                                <td style="width:50%; vertical-align:top;">
-                                    <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                    <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Fernando Vaca'}<br/>
-                                    <strong>Nro. Reg. Prof ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
-                                    <strong>Firma:</strong> ___________________________________
-                                </td>
-                                <td style="width:50%; vertical-align:top;">
-                                    <strong>VÁLIDO __________ VERIFICADO __________</strong><br/>
-                                    <strong>Apellido y Nombre:</strong> ${receta.valido_verificado || 'Farmacia Bienestar'}<br/><br/><br/>
-                                    <strong>Firma:</strong> ___________________________________
-                                </td>
-                            </tr>
-                        </table>
-
-                        <div class="vigencia-banner">VIGENCIA MÁXIMA : (03) días</div>
-
-                        <!-- SEPARADOR -->
-                        <div class="dotted-separator">
-                            <span>INDICACIONES PARA EL USUARIO / PACIENTE</span>
-                        </div>
-
-                        <!-- PARTE 2: INDICACIONES -->
-                        <table class="grid-table">
-                            <tr>
-                                <td style="width:60%;"><strong>Apellidos y Nombres del usuario/paciente:</strong> ${patientName}</td>
-                                <td style="width:20%;"><strong>Nro. Receta:</strong> ${numReceta}</td>
-                                <td style="width:20%;"><strong>Fecha prescripción:</strong> ${fechaStr}</td>
-                            </tr>
-                        </table>
-
-                        <div class="section-title">INDICACIONES Y HORARIOS</div>
-                        <table class="grid-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:35%;">Medicamento (DCI, concentración)</th>
-                                    <th style="width:10%;">Dosis</th>
-                                    <th style="width:12%;">Frecuencia</th>
-                                    <th style="width:10%;">Duración</th>
-                                    <th style="width:11%;">Vía</th>
-                                    <th style="width:5.5%;">Mañana</th>
-                                    <th style="width:5.5%;">Mediodía</th>
-                                    <th style="width:5.5%;">Tarde</th>
-                                    <th style="width:5.5%;">Noche</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${lineasHtmlPart2}
-                                ${emptyRowsPart2}
-                            </tbody>
-                        </table>
-
-                        <!-- DATOS PRESCRIPTOR & RECOMENDACIONES PARTE 2 -->
-                        <table class="grid-table" style="margin-top:8px;">
-                            <tr>
-                                <td style="width:40%; vertical-align:top;">
-                                    <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                    <strong>Apellido y Nombre:</strong> ${receta.prescriptor_nombre || 'Dr. Fernando Vaca'}<br/>
-                                    <strong>Nro. Reg. Profesional ACESS:</strong> ${receta.prescriptor_acess || 'ACESS-MED-84920'}<br/><br/>
-                                    <strong>Firma:</strong> ____________________________
-                                </td>
-                                <td style="width:60%; vertical-align:top;">
-                                    <strong>SIGNOS DE ALARMA:</strong> ${receta.signos_alarma || 'Fiebre persistente, intolerancia oral o reacción alérgica.'}<br/><br/>
-                                    <strong>RECOMENDACIONES NO FARMACOLÓGICAS:</strong> ${receta.recomendaciones_no_farmacologicas || 'Reposo relativo e hidratación continua.'}
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-
-                ${forPrint ? `
-                <script>
-                    window.onload = function() { window.print(); };
-                </script>
-                ` : ''}
-            </body>
-            </html>
-        `;
-    };
+    // Plantilla de la receta: ver ./reports/recetaTemplate.js (ISO/IEC 25010, modularidad)
 
     const handlePrintRecetaForm = (receta) => {
         try {
@@ -5510,7 +5150,7 @@ export default function MedicoOcupacionalPage() {
             const tableRowsHtml = filteredReportCitas.length === 0 ? `
                 <tr>
                     <td colspan="7" style="text-align: center; padding: 24px; color: #64748b; font-style: italic;">
-                        No se registraron citas para los criterios seleccionados (${formattedDate}).
+                        No se registraron citas para los criterios seleccionados (${escapeHtml(formattedDate)}).
                     </td>
                 </tr>
             ` : filteredReportCitas.map((cita, index) => {
@@ -5532,15 +5172,15 @@ export default function MedicoOcupacionalPage() {
                     <tr>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${index + 1}</td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;">
-                            <strong>${patientName}</strong><br/>
-                            <span style="font-size: 7.5px; color: #64748b;">${puesto}</span>
+                            <strong>${escapeHtml(patientName)}</strong><br/>
+                            <span style="font-size: 7.5px; color: #64748b;">${escapeHtml(puesto)}</span>
                         </td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${cedula}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${cita.fecha || formattedDate}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px; font-weight: 600;">${horario}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;"><strong>${tipoEval}:</strong> ${motivo}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${escapeHtml(cedula)}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${escapeHtml(cita.fecha || formattedDate)}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px; font-weight: 600;">${escapeHtml(horario)}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;"><strong>${escapeHtml(tipoEval)}:</strong> ${escapeHtml(motivo)}</td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8px;">
-                            <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${estadoBadgeBg}; color: ${estadoBadgeColor};">${estado}</span>
+                            <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: ${escapeHtml(estadoBadgeBg)}; color: ${escapeHtml(estadoBadgeColor)};">${escapeHtml(estado)}</span>
                         </td>
                     </tr>
                 `;
@@ -5551,7 +5191,7 @@ export default function MedicoOcupacionalPage() {
                 <html lang="es">
                 <head>
                     <meta charset="UTF-8">
-                    <title>Reporte de Citas Ocupacionales - ${formattedDate}</title>
+                    <title>Reporte de Citas Ocupacionales - ${escapeHtml(formattedDate)}</title>
                     <style>
                         @page { size: A4 portrait; margin: 10mm; }
                         body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9px; color: #1e293b; margin: 0; padding: 15px; background: #fff; }
@@ -5588,31 +5228,31 @@ export default function MedicoOcupacionalPage() {
                         </div>
 
                         <div class="meta-bar">
-                            <div><strong>FECHA REPORTE:</strong> ${formattedDate}</div>
-                            <div><strong>ESTADO FILTRADO:</strong> ${reportCitasEstado.toUpperCase()}</div>
-                            <div><strong>MÉDICO RESPONSABLE:</strong> ${doctorNameText}</div>
+                            <div><strong>FECHA REPORTE:</strong> ${escapeHtml(formattedDate)}</div>
+                            <div><strong>ESTADO FILTRADO:</strong> ${escapeHtml(reportCitasEstado.toUpperCase())}</div>
+                            <div><strong>MÉDICO RESPONSABLE:</strong> ${escapeHtml(doctorNameText)}</div>
                         </div>
 
                         <div class="summary-grid">
                             <div class="summary-box">
                                 <span>Total Citas</span>
-                                <strong>${total}</strong>
+                                <strong>${escapeHtml(total)}</strong>
                             </div>
                             <div class="summary-box">
                                 <span>Completadas</span>
-                                <strong style="color: #15803d;">${completadas}</strong>
+                                <strong style="color: #15803d;">${escapeHtml(completadas)}</strong>
                             </div>
                             <div class="summary-box">
                                 <span>Confirmadas</span>
-                                <strong style="color: #065f46;">${confirmadas}</strong>
+                                <strong style="color: #065f46;">${escapeHtml(confirmadas)}</strong>
                             </div>
                             <div class="summary-box">
                                 <span>Programadas</span>
-                                <strong style="color: #1e40af;">${programadas}</strong>
+                                <strong style="color: #1e40af;">${escapeHtml(programadas)}</strong>
                             </div>
                             <div class="summary-box">
                                 <span>Canceladas</span>
-                                <strong style="color: #991b1b;">${canceladas}</strong>
+                                <strong style="color: #991b1b;">${escapeHtml(canceladas)}</strong>
                             </div>
                         </div>
 
@@ -5635,7 +5275,7 @@ export default function MedicoOcupacionalPage() {
 
                         <div class="signature-section">
                             <div class="signature-box">
-                                <strong>${doctorNameText}</strong><br/>
+                                <strong>${escapeHtml(doctorNameText)}</strong><br/>
                                 <span>Médico/a Ocupacional Responsable</span>
                             </div>
                         </div>
@@ -5665,8 +5305,8 @@ export default function MedicoOcupacionalPage() {
     const fetchAndCompileGeneralReport = async (monthVal = genReportMonth, yearVal = genReportYear) => {
         setGenReportLoading(true);
         try {
-            const res = await api.get('/medicina-ocupacional/parte-diario')
-                .catch(() => api.get('/medicina-general/parte-diario'))
+            // Los partes de Medicina Ocupacional se registran en medicina-general/parte-diario
+            const res = await api.get('/medicina-general/parte-diario')
                 .catch(() => ({ data: { data: [] } }));
             const list = res.data?.data || [];
 
@@ -5835,7 +5475,7 @@ export default function MedicoOcupacionalPage() {
 
         if (!data) {
             return `
-                <!DOCTYPE html><html><body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; color: #64748b;">
+                <!DOCTYPE html><html lang="es"><body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; color: #64748b;">
                     <p>Cargando información del informe estadístico mensual...</p>
                 </body></html>
             `;
@@ -5864,7 +5504,7 @@ export default function MedicoOcupacionalPage() {
 
                     if (isFirstRow) {
                         html += `
-                            <td rowspan="${totalEstCareersCount || 1}" style="writing-mode: vertical-lr; transform: rotate(180deg); font-weight: bold; text-align: center; vertical-align: middle; background-color: #f1f5f9; width: 25px; border: 1px solid #000; font-size: 9px;">
+                            <td rowspan="${escapeHtml(totalEstCareersCount || 1)}" style="writing-mode: vertical-lr; transform: rotate(180deg); font-weight: bold; text-align: center; vertical-align: middle; background-color: #f1f5f9; width: 25px; border: 1px solid #000; font-size: 9px;">
                                 ESTUDIANTES
                             </td>
                         `;
@@ -5873,19 +5513,19 @@ export default function MedicoOcupacionalPage() {
 
                     if (isFirstCareerInFac) {
                         html += `
-                            <td rowspan="${facCareersCount}" style="background-color: #f8fafc; border: 1px solid #000; vertical-align: middle; font-size: 8px; width: 140px; font-weight: bold; text-align: left;">
-                                ${f}
+                            <td rowspan="${escapeHtml(facCareersCount)}" style="background-color: #f8fafc; border: 1px solid #000; vertical-align: middle; font-size: 8px; width: 140px; font-weight: bold; text-align: left;">
+                                ${escapeHtml(f)}
                             </td>
                         `;
                         isFirstCareerInFac = false;
                     }
 
                     html += `
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: left;">${cName}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.hombres}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.mujeres}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${stats.lgbti}</td>
-                        <td style="border: 1px solid #000; font-size: 8px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${stats.total}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: left;">${escapeHtml(cName)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.hombres)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.mujeres)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center;">${escapeHtml(stats.lgbti)}</td>
+                        <td style="border: 1px solid #000; font-size: 8px; text-align: center; font-weight: bold; background-color: #f1f5f9;">${escapeHtml(stats.total)}</td>
                     </tr>
                     `;
                 });
@@ -5900,30 +5540,30 @@ export default function MedicoOcupacionalPage() {
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ESTUDIANTES</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.estudiantes.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalEstudiantes || 0}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.estudiantes.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.estudiantes.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.estudiantes.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalEstudiantes || 0)}</td>
                 </tr>
             `;
 
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">ADMINISTRATIVOS</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.administrativos.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalAdministrativos || 0}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.administrativos.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.administrativos.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.administrativos.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalAdministrativos || 0)}</td>
                 </tr>
             `;
 
             html += `
                 <tr style="font-size: 8.5px; background: #e2e8f0; font-weight: bold;">
                     <td colspan="3" style="padding: 4px; border: 1px solid #000; text-align: left;">DOCENTES</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.hombres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.mujeres}</td>
-                    <td style="border: 1px solid #000; text-align: center;">${gc.docentes.lgbti}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${data.totalDocentes || 0}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.docentes.hombres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.docentes.mujeres)}</td>
+                    <td style="border: 1px solid #000; text-align: center;">${escapeHtml(gc.docentes.lgbti)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; background: #cbd5e1;">${escapeHtml(data.totalDocentes || 0)}</td>
                 </tr>
             `;
 
@@ -5935,10 +5575,10 @@ export default function MedicoOcupacionalPage() {
             html += `
                 <tr style="font-size: 9px; background-color: #0f172a !important; color: #fff; font-weight: bold;">
                     <td colspan="3" style="padding: 5px; border: 1px solid #000; text-align: left; color: #fff;">TOTAL ATENCIONES</td>
-                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalH}</td>
-                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalM}</td>
-                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${totalL}</td>
-                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; color: #fff;">${grandTotal}</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${escapeHtml(totalH)}</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${escapeHtml(totalM)}</td>
+                    <td style="border: 1px solid #000; text-align: center; color: #fff;">${escapeHtml(totalL)}</td>
+                    <td style="border: 1px solid #000; text-align: center; font-weight: bold; color: #fff;">${escapeHtml(grandTotal)}</td>
                 </tr>
             `;
 
@@ -5981,8 +5621,8 @@ export default function MedicoOcupacionalPage() {
 
                 <div class="meta-grid">
                     <div><strong>UNIDAD OPERATIVA:</strong> SALUD OCUPACIONAL</div>
-                    <div><strong>RESPONSABLE:</strong> ${doctorNameText}</div>
-                    <div><strong>PERIODO:</strong> ${selectedMonthText.toUpperCase()} ${genReportYear}</div>
+                    <div><strong>RESPONSABLE:</strong> ${escapeHtml(doctorNameText)}</div>
+                    <div><strong>PERIODO:</strong> ${escapeHtml(selectedMonthText.toUpperCase())} ${escapeHtml(genReportYear)}</div>
                 </div>
 
                 <table class="report-table">
@@ -6003,7 +5643,7 @@ export default function MedicoOcupacionalPage() {
                 <div style="margin-top: 40px; display: flex; justify-content: space-around; font-size: 9px;">
                     <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
                         <strong>Médico/a Ocupacional Responsable</strong><br/>
-                        <span>${doctorNameText}</span>
+                        <span>${escapeHtml(doctorNameText)}</span>
                     </div>
                 </div>
 
@@ -6067,7 +5707,7 @@ export default function MedicoOcupacionalPage() {
 
     const compileCurrentFicha077Html = (record = selectedFichaRecord, forPrint = false) => {
         const target = record || selectedFichaRecord;
-        if (!target) return '<!DOCTYPE html><html><body><p>Seleccione un trabajador</p></body></html>';
+        if (!target) return '<!DOCTYPE html><html lang="es"><body><p>Seleccione un trabajador</p></body></html>';
         if (fichaSubTab === 'reintegro') {
             return compileOfficialReintegroFormHtml(target, uebBannerLogo, forPrint);
         }
@@ -6117,14 +5757,14 @@ export default function MedicoOcupacionalPage() {
             tableRowsHtml = dataToPrint.map((item, idx) => `
                 <tr>
                     <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${item.fecha}</td>
-                    <td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td>
-                    <td style="text-align: center; font-family: monospace;">${item.cedula}</td>
-                    <td style="text-transform: uppercase;">${item.puesto}</td>
-                    <td style="text-align: center; font-weight: bold; color: #0369a1;">${item.dias} días</td>
-                    <td>${item.diagnostico}</td>
-                    <td style="text-align: center;">${item.tipo}</td>
-                    <td style="text-align: center; font-weight: bold; color: ${item.estado === 'Aprobado' ? '#166534' : '#b45309'};">${item.estado}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${escapeHtml(item.fecha)}</td>
+                    <td style="font-weight: bold; text-transform: uppercase;">${escapeHtml(item.paciente)}</td>
+                    <td style="text-align: center; font-family: monospace;">${escapeHtml(item.cedula)}</td>
+                    <td style="text-transform: uppercase;">${escapeHtml(item.puesto)}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0369a1;">${escapeHtml(item.dias)} días</td>
+                    <td>${escapeHtml(item.diagnostico)}</td>
+                    <td style="text-align: center;">${escapeHtml(item.tipo)}</td>
+                    <td style="text-align: center; font-weight: bold; color: ${item.estado === 'Aprobado' ? '#166534' : '#b45309'};">${escapeHtml(item.estado)}</td>
                 </tr>
             `).join('');
         } else {
@@ -6143,13 +5783,13 @@ export default function MedicoOcupacionalPage() {
             tableRowsHtml = dataToPrint.map((item, idx) => `
                 <tr>
                     <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${item.fecha}</td>
-                    <td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td>
-                    <td style="text-align: center; font-family: monospace;">${item.cedula}</td>
-                    <td style="text-align: center; font-weight: bold; color: #334155;">${item.tipo}</td>
-                    <td style="text-transform: uppercase;">${item.puesto}</td>
-                    <td style="text-align: center; font-weight: bold; color: ${item.aptitud.includes('Restricción') || item.aptitud.includes('Adaptación') ? '#b45309' : item.aptitud.includes('No') ? '#dc2626' : '#15803d'};">${item.aptitud}</td>
-                    <td style="text-align: center; font-weight: bold; color: #166534;">${item.estado || 'Completado'}</td>
+                    <td style="text-align: center; font-weight: bold; color: #0284c7;">${escapeHtml(item.fecha)}</td>
+                    <td style="font-weight: bold; text-transform: uppercase;">${escapeHtml(item.paciente)}</td>
+                    <td style="text-align: center; font-family: monospace;">${escapeHtml(item.cedula)}</td>
+                    <td style="text-align: center; font-weight: bold; color: #334155;">${escapeHtml(item.tipo)}</td>
+                    <td style="text-transform: uppercase;">${escapeHtml(item.puesto)}</td>
+                    <td style="text-align: center; font-weight: bold; color: ${escapeHtml(item.aptitud.includes('Restricción') || item.aptitud.includes('Adaptación') ? '#b45309' : item.aptitud.includes('No') ? '#dc2626' : '#15803d')};">${escapeHtml(item.aptitud)}</td>
+                    <td style="text-align: center; font-weight: bold; color: #166534;">${escapeHtml(item.estado || 'Completado')}</td>
                 </tr>
             `).join('');
         }
@@ -6159,7 +5799,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8" />
-                <title>${title} - UEB Salud Ocupacional</title>
+                <title>${escapeHtml(title)} - UEB Salud Ocupacional</title>
                 <style>
                     @page { size: landscape; margin: 8mm; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 12px; color: #0f172a; background: #fff; }
@@ -6179,7 +5819,7 @@ export default function MedicoOcupacionalPage() {
             <body>
                 <div class="no-print" style="position: sticky; top: 0; background: #002060; color: #ffffff; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-bottom: 14px; border-radius: 6px; z-index: 9999;">
                     <div style="font-weight: 800; font-size: 13px; letter-spacing: 0.3px;">
-                        UNIVERSIDAD ESTATAL DE BOLÍVAR · ${title}
+                        UNIVERSIDAD ESTATAL DE BOLÍVAR · ${escapeHtml(title)}
                     </div>
                     <div style="display: flex; gap: 8px;">
                         <button onclick="window.print()" style="background: #0284c7; color: #ffffff; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px;">
@@ -6196,12 +5836,12 @@ export default function MedicoOcupacionalPage() {
                     <div style="text-align: center; flex: 1;">
                         <div><strong style="font-size: 13px; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</strong></div>
                         <div style="font-size: 11px; font-weight: 800; color: #0284c7;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
-                        <div style="font-size: 10px; color: #64748b;">Fecha de Emisión: ${new Date().toLocaleDateString('es-EC')}</div>
+                        <div style="font-size: 10px; color: #64748b;">Fecha de Emisión: ${escapeHtml(new Date().toLocaleDateString('es-EC'))}</div>
                     </div>
                     <img src="${logoUebTexto}" style="height: 40px; object-fit: contain;" alt="Logo UEB" />
                 </div>
                 <div class="banner">
-                    ${title}
+                    ${escapeHtml(title)}
                 </div>
                 <table>
                     <thead>
@@ -6234,7 +5874,7 @@ export default function MedicoOcupacionalPage() {
             </html>
         `;
 
-        safePrintHtml(html, title);
+        printHtmlDocument(html, title);
     };
 
     const handleExportFichasCSV = () => {
@@ -6296,7 +5936,7 @@ export default function MedicoOcupacionalPage() {
             <html lang="es">
             <head>
                 <meta charset="UTF-8" />
-                <title>Ficha Médica Ocupacional - ${item.paciente}</title>
+                <title>Ficha Médica Ocupacional - ${escapeHtml(item.paciente)}</title>
                 <style>
                     @page { size: portrait; margin: 12mm; }
                     body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 10px; color: #1e293b; background: #fff; font-size: 12px; }
@@ -6334,7 +5974,7 @@ export default function MedicoOcupacionalPage() {
                     <div style="text-align: right; font-size: 11px; color: #475569;">
                         <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>
                         Unidad de Seguridad y Salud en el Trabajo<br/>
-                        Fecha de Emisión: ${new Date().toLocaleDateString('es-EC')}
+                        Fecha de Emisión: ${escapeHtml(new Date().toLocaleDateString('es-EC'))}
                     </div>
                 </div>
 
@@ -6342,16 +5982,16 @@ export default function MedicoOcupacionalPage() {
 
                 <div class="section-title">1. DATOS DE IDENTIFICACIÓN DEL TRABAJADOR</div>
                 <table class="grid">
-                    <tr><th>Nombres y Apellidos</th><td style="font-weight: bold; text-transform: uppercase;">${item.paciente}</td></tr>
-                    <tr><th>Cédula de Identidad</th><td style="font-family: monospace; font-weight: bold;">${item.cedula}</td></tr>
-                    <tr><th>Puesto / Cargo Asignado</th><td style="text-transform: uppercase;">${item.puesto}</td></tr>
-                    <tr><th>Tipo de Evaluación</th><td style="font-weight: bold; color: #0284c7;">${item.tipo}</td></tr>
-                    <tr><th>Fecha de Evaluación</th><td>${item.fecha}</td></tr>
+                    <tr><th>Nombres y Apellidos</th><td style="font-weight: bold; text-transform: uppercase;">${escapeHtml(item.paciente)}</td></tr>
+                    <tr><th>Cédula de Identidad</th><td style="font-family: monospace; font-weight: bold;">${escapeHtml(item.cedula)}</td></tr>
+                    <tr><th>Puesto / Cargo Asignado</th><td style="text-transform: uppercase;">${escapeHtml(item.puesto)}</td></tr>
+                    <tr><th>Tipo de Evaluación</th><td style="font-weight: bold; color: #0284c7;">${escapeHtml(item.tipo)}</td></tr>
+                    <tr><th>Fecha de Evaluación</th><td>${escapeHtml(item.fecha)}</td></tr>
                 </table>
 
                 <div class="section-title">2. DICTAMEN DE APTITUD LABORAL</div>
                 <div class="aptitud-box">
-                    RESULTADO: ${item.aptitud}
+                    RESULTADO: ${escapeHtml(item.aptitud)}
                 </div>
 
                 <div class="section-title">3. CONCLUSIONES Y RECOMENDACIONES OCUPACIONALES</div>
@@ -6364,7 +6004,7 @@ export default function MedicoOcupacionalPage() {
                 <div class="footer-sig">
                     <div>
                         <div class="sig-line">FIRMA DEL TRABAJADOR EVALUADO</div>
-                        C.I.: ${item.cedula}
+                        C.I.: ${escapeHtml(item.cedula)}
                     </div>
                     <div>
                         <div class="sig-line">MÉDICO OCUPACIONAL</div>
@@ -6384,7 +6024,7 @@ export default function MedicoOcupacionalPage() {
             </html>
         `;
 
-        safePrintHtml(html, `Ficha Ocupacional - ${item.paciente}`);
+        printHtmlDocument(html, `Ficha Ocupacional - ${item.paciente}`);
     };
 
     const filteredExamenes = examenesData.filter(item => {
@@ -6833,7 +6473,7 @@ export default function MedicoOcupacionalPage() {
                         <strong>Bienestar</strong>
                         <span>Medicina Ocupacional</span>
                     </div>
-                    <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                    <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                         <X size={18} />
                     </button>
                 </div>
@@ -6913,7 +6553,7 @@ export default function MedicoOcupacionalPage() {
                 </nav>
 
                 <div className="sidebar__footer">
-                    <button className="logout-button" onClick={handleLogoutClick}>
+                    <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                         <span className="logout-button__icon"><LogOut size={16} /></span>
                         <span>Cerrar sesión</span>
                     </button>
@@ -6925,7 +6565,7 @@ export default function MedicoOcupacionalPage() {
             <main className="main-content">
                 <header className="topbar">
                     <div className="topbar__left">
-                        <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                        <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                             <Menu size={20} />
                         </button>
                         <div>
@@ -7000,7 +6640,7 @@ export default function MedicoOcupacionalPage() {
                                     onClick={() => setIsHistogramModalOpen(true)}
                                 >
                                     <span className="vitals-action-card__glow" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}></span>
-                                    <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}><BarChart3 size={24} /></span>
+                                    <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#316ccc' }}><BarChart3 size={24} /></span>
                                     <span className="vitals-action-card__content">
                                         <small>Análisis Clínico</small>
                                         <strong>Histograma de Signos</strong>
@@ -7147,6 +6787,7 @@ export default function MedicoOcupacionalPage() {
                                                                         const isActive = activeBookRecord?.id === record.id;
                                                                         return (
                                                                             <tr
+                                                                                tabIndex={0} onKeyDown={onKeyActivate}
                                                                                 key={record.id || index}
                                                                                 style={{
                                                                                     borderBottom: '1px solid var(--border)',
@@ -7232,7 +6873,7 @@ export default function MedicoOcupacionalPage() {
                                                         </p>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                        <button
+                                                        <button aria-label="Cerrar detalle"
                                                             className="action-button action-button--light"
                                                             style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                             onClick={() => setActiveBookRecord(null)}
@@ -7297,7 +6938,7 @@ export default function MedicoOcupacionalPage() {
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <strong style={{ fontSize: '13px', color: 'var(--primary)' }}>{receta.numero_receta || `REC-${receta.id}`}</strong>
                                                                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>· {receta.fecha}</span>
-                                                                    <span style={{ fontSize: '10.5px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                                                                    <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
                                                                         {receta.estado || 'Emitido'}
                                                                     </span>
                                                                 </div>
@@ -7347,6 +6988,7 @@ export default function MedicoOcupacionalPage() {
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <CalendarDays size={16} color="var(--accent)" />
                                                 <input
+                                                    aria-label="Fecha del parte diario"
                                                     type="date"
                                                     value={parteDiarioDate}
                                                     onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -7386,7 +7028,7 @@ export default function MedicoOcupacionalPage() {
                                             </div>
                                         </div>
                                         <div className="psycho-kpi-card">
-                                            <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                            <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                             <div className="psycho-kpi-card__info">
                                                 <span>Certificados</span>
                                                 <strong>{getParteKPIs().certificados}</strong>
@@ -7443,6 +7085,7 @@ export default function MedicoOcupacionalPage() {
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                         <CalendarDays size={16} color="var(--accent)" />
                                         <input
+                                            aria-label="Fecha de las citas"
                                             type="date"
                                             value={citasDate}
                                             onChange={(e) => setCitasDate(e.target.value)}
@@ -7501,7 +7144,7 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Cédula: {cedula}</div>
+                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {cedula}</div>
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -7511,13 +7154,13 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                 {cita.motivo || cita.tipo_evaluacion || 'Atención en Salud Ocupacional'}
-                                                                <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
+                                                                <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
                                                                     <strong>Mis Notas:</strong> {cita.notas_doctor || 'Atención registrada directamente por el profesional médico'}
                                                                 </div>
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <span style={{
-                                                                    fontSize: '10px',
+                                                                    fontSize: '11px',
                                                                     fontWeight: '700',
                                                                     textTransform: 'uppercase',
                                                                     color: statusColors.text,
@@ -7530,7 +7173,7 @@ export default function MedicoOcupacionalPage() {
                                                                     {cita.estado}
                                                                 </span>
                                                                 {(cita.confirmada_por_paciente || cita.estado === 'completada' || cita.estado === 'confirmada') && (
-                                                                    <div style={{ marginTop: '4px', fontSize: '10px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                                         <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
                                                                     </div>
                                                                 )}
@@ -7652,7 +7295,7 @@ export default function MedicoOcupacionalPage() {
                                 <div className="report-toolbar">
                                     <div className="field">
                                         <label>{activeTab === 'matrices' ? 'REGISTRAR EN' : 'MATRIZ'}</label>
-                                        <select value={activeReportSubTab} onChange={(e) => setActiveReportSubTab(e.target.value)}>
+                                        <select aria-label={activeTab === 'matrices' ? 'Registrar en' : 'Matriz'} value={activeReportSubTab} onChange={(e) => setActiveReportSubTab(e.target.value)}>
                                             <optgroup label="Matrices estadísticas">
                                                 <option value="catastroficas">Enfermedades Catastróficas o Huérfanas</option>
                                                 <option value="accidentes">Accidentes Laborales y Enfermedades Profesionales</option>
@@ -7701,6 +7344,7 @@ export default function MedicoOcupacionalPage() {
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
+                                                        aria-label="Fecha del parte diario"
                                                         type="date"
                                                         value={parteDiarioDate}
                                                         onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -7730,7 +7374,7 @@ export default function MedicoOcupacionalPage() {
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <div style={{
-                                                    background: '#ef4444',
+                                                    background: '#dc2626',
                                                     color: '#fff',
                                                     width: '28px',
                                                     height: '28px',
@@ -7743,7 +7387,7 @@ export default function MedicoOcupacionalPage() {
                                                 }}>PDF</div>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                     <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Parte_Diario_Ocupacional_{parteDiarioDate}.pdf</span>
-                                                    <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                 </div>
                                             </div>
                                             <button
@@ -7844,6 +7488,7 @@ export default function MedicoOcupacionalPage() {
                                                 <div style={{ position: 'relative' }}>
                                                     <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                                     <input
+                                                        aria-label="Buscar trabajador por nombre o cédula"
                                                         type="text"
                                                         placeholder="Buscar trabajador por nombre o cédula..."
                                                         value={fichaSearchTerm}
@@ -7859,10 +7504,10 @@ export default function MedicoOcupacionalPage() {
                                                         }}
                                                     />
                                                     {fichaSearchTerm && (
-                                                        <button
+                                                        <button aria-label="Limpiar búsqueda"
                                                             type="button"
                                                             onClick={() => setFichaSearchTerm('')}
-                                                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
                                                         >
                                                             <X size={14} />
                                                         </button>
@@ -7893,7 +7538,7 @@ export default function MedicoOcupacionalPage() {
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <div style={{
-                                                    background: '#ef4444',
+                                                    background: '#dc2626',
                                                     color: '#fff',
                                                     width: '28px',
                                                     height: '28px',
@@ -7908,7 +7553,7 @@ export default function MedicoOcupacionalPage() {
                                                     <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>
                                                         {`Formulario_077_${fichaSubTab.toUpperCase()}_${selectedFichaRecord?.paciente ? selectedFichaRecord.paciente.trim().replace(/\s+/g, '_') : 'EXPEDIENTE'}.pdf`}
                                                     </span>
-                                                    <span style={{ color: '#94a3b8', fontSize: '10.5px' }}>
+                                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>
                                                         Formato Oficial MSP/MDT 077 · {selectedFichaRecord?.paciente || 'Trabajador'} (C.I.: {selectedFichaRecord?.cedula || ''}) · {selectedFichaRecord?.puesto || ''}
                                                     </span>
                                                 </div>
@@ -7957,6 +7602,7 @@ export default function MedicoOcupacionalPage() {
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
+                                                        aria-label="Fecha del reporte de citas"
                                                         type="date"
                                                         value={reportCitasFecha}
                                                         onChange={(e) => setReportCitasFecha(e.target.value)}
@@ -7964,6 +7610,7 @@ export default function MedicoOcupacionalPage() {
                                                     />
                                                 </label>
                                                 <select
+                                                    aria-label="Filtrar por estado"
                                                     value={reportCitasEstado}
                                                     onChange={(e) => setReportCitasEstado(e.target.value)}
                                                     style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11.5px', outline: 0, background: 'white' }}
@@ -7997,7 +7644,7 @@ export default function MedicoOcupacionalPage() {
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <div style={{
-                                                    background: '#ef4444',
+                                                    background: '#dc2626',
                                                     color: '#fff',
                                                     width: '28px',
                                                     height: '28px',
@@ -8010,7 +7657,7 @@ export default function MedicoOcupacionalPage() {
                                                 }}>PDF</div>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                     <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Ocupacional_{reportCitasFecha}.pdf</span>
-                                                    <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                 </div>
                                             </div>
                                             <button
@@ -8105,6 +7752,7 @@ export default function MedicoOcupacionalPage() {
                                             <div className="patient-search-input" style={{ width: '100%', maxWidth: '400px' }}>
                                                 <Search size={16} />
                                                 <input
+                                                    aria-label="Buscar por paciente, cédula, examen o laboratorio"
                                                     type="text"
                                                     placeholder="Buscar por paciente, cédula, examen o laboratorio..."
                                                     value={examSearchTerm}
@@ -8254,6 +7902,7 @@ export default function MedicoOcupacionalPage() {
                                                     <div style={{ position: 'relative' }}>
                                                         <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                                         <input
+                                                            aria-label="Buscar paciente por nombre o cédula"
                                                             type="text"
                                                             placeholder="Buscar paciente por nombre o cédula..."
                                                             value={recetasSearchNombre}
@@ -8269,10 +7918,10 @@ export default function MedicoOcupacionalPage() {
                                                             }}
                                                         />
                                                         {recetasSearchNombre && (
-                                                            <button
+                                                            <button aria-label="Limpiar búsqueda"
                                                                 type="button"
                                                                 onClick={() => setRecetasSearchNombre('')}
-                                                                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                                                                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
                                                             >
                                                                 <X size={14} />
                                                             </button>
@@ -8283,6 +7932,7 @@ export default function MedicoOcupacionalPage() {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Filtrar por fecha"
                                                             type="date"
                                                             value={recetasSearchFecha}
                                                             onChange={(e) => setRecetasSearchFecha(e.target.value)}
@@ -8324,7 +7974,7 @@ export default function MedicoOcupacionalPage() {
                                             }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div style={{
-                                                        background: '#ef4444',
+                                                        background: '#dc2626',
                                                         color: '#fff',
                                                         width: '28px',
                                                         height: '28px',
@@ -8339,7 +7989,7 @@ export default function MedicoOcupacionalPage() {
                                                         <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>
                                                             {`Receta_Medica_${currentSelectedReceta?.numero_receta || '001'}_${currentSelectedReceta?.paciente ? currentSelectedReceta.paciente.trim().replace(/\s+/g, '_') : 'EXPEDIENTE'}.pdf`}
                                                         </span>
-                                                        <span style={{ color: '#94a3b8', fontSize: '10.5px' }}>
+                                                        <span style={{ color: '#94a3b8', fontSize: '11px' }}>
                                                             Formato Oficial de Recetario (Puesto de Salud UEB) · {currentSelectedReceta?.paciente || 'Paciente'} (C.I.: {currentSelectedReceta?.cedula || ''}) · Emisión: {currentSelectedReceta?.fecha || ''}
                                                         </span>
                                                     </div>
@@ -8396,6 +8046,7 @@ export default function MedicoOcupacionalPage() {
                                                 }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <select
+                                                        aria-label="Mes"
                                                         value={genReportMonth}
                                                         onChange={(e) => {
                                                             const m = parseInt(e.target.value);
@@ -8419,6 +8070,7 @@ export default function MedicoOcupacionalPage() {
                                                     </select>
                                                     <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '11.5px', fontWeight: 500 }}>de</span>
                                                     <select
+                                                        aria-label="Año"
                                                         value={genReportYear}
                                                         onChange={(e) => {
                                                             const y = parseInt(e.target.value);
@@ -8464,7 +8116,7 @@ export default function MedicoOcupacionalPage() {
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <div style={{
-                                                    background: '#ef4444',
+                                                    background: '#dc2626',
                                                     color: '#fff',
                                                     width: '28px',
                                                     height: '28px',
@@ -8477,7 +8129,7 @@ export default function MedicoOcupacionalPage() {
                                                 }}>PDF</div>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                     <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Informe_Estadistico_Mensual_Ocupacional_{["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][genReportMonth - 1]}_{genReportYear}.pdf</span>
-                                                    <span style={{ color: '#94a3b8', fontSize: '10px' }}>Vista previa del documento oficial para impresión</span>
+                                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                 </div>
                                             </div>
                                             <button
@@ -8523,7 +8175,7 @@ export default function MedicoOcupacionalPage() {
                                             <div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <span className="eyebrow" style={{ color: '#0284c7' }}>LABORATORIO CLÍNICO & VIGILANCIA</span>
-                                                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>FORMATO UEB</span>
+                                                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>FORMATO UEB</span>
                                                 </div>
                                                 <h3 style={{ margin: '4px 0', fontSize: '18px', color: '#0b3c5d' }}>Órdenes de Exámenes de Laboratorio Clínico</h3>
                                                 <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>
@@ -8556,13 +8208,14 @@ export default function MedicoOcupacionalPage() {
                                                 <div className="patient-search-input" style={{ maxWidth: '320px', margin: 0 }}>
                                                     <Search size={16} />
                                                     <input
+                                                        aria-label="Buscar por paciente, cédula o examen"
                                                         type="text"
                                                         placeholder="Buscar por paciente, cédula o examen..."
                                                         value={examSearchTerm}
                                                         onChange={(e) => setExamSearchTerm(e.target.value)}
                                                     />
                                                     {examSearchTerm && (
-                                                        <button onClick={() => setExamSearchTerm('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                                                        <button aria-label="Limpiar búsqueda" onClick={() => setExamSearchTerm('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
                                                             <X size={14} />
                                                         </button>
                                                     )}
@@ -8573,6 +8226,7 @@ export default function MedicoOcupacionalPage() {
                                                     <CalendarDays size={16} color="#0284c7" />
                                                     <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>Fecha Emisión:</span>
                                                     <input
+                                                        aria-label="Fecha Emisión"
                                                         type="date"
                                                         disabled={!useExamDateFilter}
                                                         value={examReportDate}
@@ -8593,6 +8247,7 @@ export default function MedicoOcupacionalPage() {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ fontSize: '12px', color: '#64748b' }}>Estado:</span>
                                                 <select
+                                                    aria-label="Estado"
                                                     value={examFilterStatus}
                                                     onChange={(e) => setExamFilterStatus(e.target.value)}
                                                     style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 0 }}
@@ -8639,7 +8294,7 @@ export default function MedicoOcupacionalPage() {
                                                                 <td style={{ padding: '10px 14px', color: '#334155' }}>{ord.fecha}</td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <div style={{ fontWeight: 'bold', color: '#0b3c5d' }}>{ord.paciente}</div>
-                                                                    <div style={{ fontSize: '10px', color: '#64748b' }}>C.I: {ord.cedula}</div>
+                                                                    <div style={{ fontSize: '11px', color: '#64748b' }}>C.I: {ord.cedula}</div>
                                                                 </td>
                                                                 <td style={{ padding: '10px 14px', color: '#1e293b', maxWidth: '280px' }}>
                                                                     <div style={{ fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -8651,7 +8306,7 @@ export default function MedicoOcupacionalPage() {
                                                                     <span style={{
                                                                         padding: '3px 8px',
                                                                         borderRadius: '12px',
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: 'bold',
                                                                         background: ord.estado === 'Completado' ? '#dcfce7' : '#fef3c7',
                                                                         color: ord.estado === 'Completado' ? '#15803d' : '#b45309'
@@ -8672,7 +8327,7 @@ export default function MedicoOcupacionalPage() {
                                                         ))
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                                                                 No se encontraron órdenes de examen registradas para esta fecha o criterio de búsqueda.
                                                             </td>
                                                         </tr>
@@ -8694,8 +8349,9 @@ export default function MedicoOcupacionalPage() {
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                                                 {/* BÚSQUEDA DE PACIENTE O CÉDULA */}
                                                 <div style={{ position: 'relative', flex: '1', minWidth: '260px', maxWidth: '420px' }}>
-                                                    <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                                    <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                                                     <input
+                                                        aria-label="Buscar paciente por nombre o cédula"
                                                         type="text"
                                                         placeholder="Buscar paciente por nombre o cédula..."
                                                         value={matrixSearchTerm}
@@ -8717,6 +8373,7 @@ export default function MedicoOcupacionalPage() {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                                                         <input
+                                                            aria-label="Filtrar por fecha"
                                                             type="date"
                                                             value={matrixDateFilter}
                                                             onChange={(e) => setMatrixDateFilter(e.target.value)}
@@ -8767,7 +8424,7 @@ export default function MedicoOcupacionalPage() {
                                                                 fontSize: '11.5px',
                                                                 fontWeight: meta.activeSubtab === tab.id ? '700' : '500',
                                                                 background: meta.activeSubtab === tab.id ? '#0f172a' : '#f1f5f9',
-                                                                color: meta.activeSubtab === tab.id ? '#ffffff' : '#64748b',
+                                                                color: meta.activeSubtab === tab.id ? '#ffffff' : '#475569',
                                                                 cursor: 'pointer',
                                                                 whiteSpace: 'nowrap',
                                                                 transition: 'all 0.15s'
@@ -8784,7 +8441,7 @@ export default function MedicoOcupacionalPage() {
                                         <div className="document-viewer" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
                                             <div style={{ background: '#0f172a', color: '#ffffff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <span style={{ background: '#e11d48', color: '#ffffff', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.5px' }}>PDF</span>
+                                                    <span style={{ background: '#e11d48', color: '#ffffff', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.5px' }}>PDF</span>
                                                     <div>
                                                         <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#f8fafc', letterSpacing: '0.2px' }}>{meta.filename}</h4>
                                                         <span style={{ fontSize: '11px', color: '#94a3b8' }}>
@@ -8831,6 +8488,7 @@ export default function MedicoOcupacionalPage() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         {activeReportSubTab === 'examenes_periodicos' && (
                                             <select
+                                                aria-label="Año"
                                                 value={examenesPeriodicosSelectedYear}
                                                 onChange={(e) => setExamenesPeriodicosSelectedYear(e.target.value)}
                                                 title="Año de la matriz"
@@ -8923,7 +8581,7 @@ export default function MedicoOcupacionalPage() {
                                 <span className="header-autosave-badge" title="Borrador respaldado automáticamente">
                                     <CheckCircle size={13} color="#f87171" /> Guardado {new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                 </span>
-                                <button className="clinical-modal__close" onClick={handleCancelConsulta}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelConsulta}><X size={15} /></button>
                             </div>
                         </header>
 
@@ -8934,6 +8592,7 @@ export default function MedicoOcupacionalPage() {
                                     {stepsList.map((step, idx) => (
                                         <React.Fragment key={idx}>
                                             <div
+                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                 className={`stepper-step ${consultaActiveStep === idx ? 'active' : ''} ${consultaActiveStep > idx ? 'completed' : ''}`}
                                                 onClick={() => setConsultaActiveStep(idx)}
                                             >
@@ -8991,11 +8650,11 @@ export default function MedicoOcupacionalPage() {
                                                         <div className="field-header" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <div className="field-header__left" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                 <span className="field-header__icon"><ShieldAlert size={14} color="var(--accent)" /></span>
-                                                                <h4 className="field-header__title" style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Tipo de Sangre</h4>
+                                                                <h4 id="medicoocupac-tipo-de-sangre-titulo" className="field-header__title" style={{ margin: 0, fontSize: '12px', fontWeight: 'bold' }}>Tipo de Sangre</h4>
                                                             </div>
-                                                            <span className="field-badge-opt" style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>OPCIONAL</span>
+                                                            <span className="field-badge-opt" style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>OPCIONAL</span>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="medicoocupac-tipo-de-sangre-titulo"
                                                             value={vitalSigns.tipoSangre || ''}
                                                             onChange={e => setVitalSigns({ ...vitalSigns, tipoSangre: e.target.value })}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)' }}
@@ -9210,6 +8869,7 @@ export default function MedicoOcupacionalPage() {
                                                     </label>
                                                     <div style={{ position: 'relative' }}>
                                                         <input
+                                                            aria-label="Buscar Medicamento en Catálogo de Farmacia de Enfermería"
                                                             type="text"
                                                             value={farmaciaSearchQuery}
                                                             onChange={(e) => handleSearchFarmacia(e.target.value)}
@@ -9225,6 +8885,7 @@ export default function MedicoOcupacionalPage() {
                                                                     const hasStock = (prod.stock_cajas || 0) > 0 || (prod.stock_unidades || 0) > 0;
                                                                     return (
                                                                         <div
+                                                                            role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                             key={prod.id}
                                                                             onClick={() => handleSelectFarmaciaProduct(prod)}
                                                                             style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px' }}
@@ -9358,6 +9019,7 @@ export default function MedicoOcupacionalPage() {
                                                                 <AlertTriangle size={14} /> Detalle en Caso de No Disponibilidad / Alternativa Enviada *
                                                             </span>
                                                             <textarea
+                                                                aria-label="Detalle en Caso de No Disponibilidad / Alternativa Enviada"
                                                                 rows={2}
                                                                 style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #fcd34d', background: '#fffbeb', fontSize: '12.5px', fontFamily: 'inherit' }}
                                                                 value={prescripcionForm.observacion_nodisponible}
@@ -9435,7 +9097,7 @@ export default function MedicoOcupacionalPage() {
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => handleRemovePrescripcionLine(idx)}
-                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                                                                 >
                                                                                     <Trash2 size={12} /> Eliminar
                                                                                 </button>
@@ -9743,11 +9405,11 @@ export default function MedicoOcupacionalPage() {
                             <div className="clinical-modal__patient">
                                 <div className="clinical-modal__avatar"><Search size={18} /></div>
                                 <div>
-                                    <span style={{ textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>BUSCADOR CLÍNICO</span>
+                                    <span style={{ textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>BUSCADOR CLÍNICO</span>
                                     <h2>Buscar Paciente por Cédula</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
@@ -9755,6 +9417,7 @@ export default function MedicoOcupacionalPage() {
                                 <div className="patient-search-input" style={{ flex: 1, margin: 0 }}>
                                     <Search size={16} />
                                     <input
+                                        aria-label="Ingrese número de cédula o nombre del paciente"
                                         type="text"
                                         value={searchTerm}
                                         onChange={(e) => handleSearchPatient(e.target.value)}
@@ -9775,6 +9438,7 @@ export default function MedicoOcupacionalPage() {
                                 ) : (
                                     searchResults.map((p) => (
                                         <div
+                                            role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                             key={p.id || p.cedula}
                                             className="patient-suggestion"
                                             style={{ gridTemplateColumns: 'auto 1fr auto', display: 'grid', alignItems: 'center', cursor: 'pointer', padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}
@@ -9808,11 +9472,11 @@ export default function MedicoOcupacionalPage() {
                             <div className="clinical-modal__patient">
                                 <span className="clinical-modal__avatar"><UserPlus size={18} /></span>
                                 <div>
-                                    <span style={{ textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>REGISTRO DE USUARIO</span>
+                                    <span style={{ textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>REGISTRO DE USUARIO</span>
                                     <h2>Nuevo Paciente</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" type="button" onClick={handleCancelPatientRegisterModal}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" type="button" onClick={handleCancelPatientRegisterModal}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleSavePatientRegister} className="clinical-modal__body">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -9821,11 +9485,11 @@ export default function MedicoOcupacionalPage() {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><User size={15} /></span>
-                                            <h4 className="field-header__title">Nombres y Apellidos Completos</h4>
+                                            <h4 id="medicoocupac-nombres-y-apellidos-completos-titulo" className="field-header__title">Nombres y Apellidos Completos</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <input
+                                    <input aria-labelledby="medicoocupac-nombres-y-apellidos-completos-titulo"
                                         value={newPatientForm.nombre_completo || ''}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre_completo: e.target.value })}
                                         placeholder="Ingrese nombres y apellidos de acuerdo a la cédula o pasaporte"
@@ -9840,11 +9504,11 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Documento</h4>
+                                                <h4 id="medicoocupac-tipo-de-documento-titulo" className="field-header__title">Tipo de Documento</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicoocupac-tipo-de-documento-titulo"
                                             value={newPatientForm.tipo_documento || 'cedula'}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_documento: e.target.value, cedula: '', pais_origen: '' })}
                                             required
@@ -9865,6 +9529,7 @@ export default function MedicoOcupacionalPage() {
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
                                         <input
+                                            aria-label={newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
                                             value={newPatientForm.cedula || ''}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, cedula: e.target.value })}
                                             placeholder={newPatientForm.tipo_documento === 'pasaporte' ? 'Ej. AB123456' : 'Ej. 0201234567'}
@@ -9880,11 +9545,11 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Paciente</h4>
+                                                <h4 id="medicoocupac-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicoocupac-tipo-de-paciente-titulo"
                                             value={newPatientForm.id_tipo_usuario || 4}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
                                             required
@@ -9901,11 +9566,11 @@ export default function MedicoOcupacionalPage() {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                    <h4 className="field-header__title">País de Origen</h4>
+                                                    <h4 id="medicoocupac-pais-de-origen-titulo" className="field-header__title">País de Origen</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="medicoocupac-pais-de-origen-titulo"
                                                 value={newPatientForm.pais_origen || ''}
                                                 onChange={(e) => setNewPatientForm({ ...newPatientForm, pais_origen: e.target.value })}
                                                 required
@@ -9928,6 +9593,7 @@ export default function MedicoOcupacionalPage() {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', border: !newPatientForm.correo ? '1.5px solid #b71a34' : '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#ffffff', minHeight: '46px', boxSizing: 'border-box' }}>
                                         <input
+                                            aria-label="nombre.apellido"
                                             type="text"
                                             value={newPatientForm.correo || ''}
                                             onChange={(e) => {
@@ -9968,7 +9634,7 @@ export default function MedicoOcupacionalPage() {
                             </div>
 
                             {registerError && (
-                                <div style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div role="alert" style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <AlertTriangle size={14} /> {registerError}
                                 </div>
                             )}
@@ -9997,7 +9663,7 @@ export default function MedicoOcupacionalPage() {
                                     <h2>Registrar Reintegro Laboral</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsReintegroModalOpen(false)}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsReintegroModalOpen(false)}><X size={16} /></button>
                         </header>
 
                         <form onSubmit={handleSaveReintegro} className="clinical-modal__body">
@@ -10007,11 +9673,11 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Cédula Trabajador</h4>
+                                                <h4 id="medicoocupac-cedula-trabajador-titulo" className="field-header__title">Cédula Trabajador</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <input type="text" required value={reintegroForm.pacienteCedula} onChange={e => setReintegroForm({ ...reintegroForm, pacienteCedula: e.target.value })} placeholder="1723456789" />
+                                        <input aria-labelledby="medicoocupac-cedula-trabajador-titulo" type="text" required value={reintegroForm.pacienteCedula} onChange={e => setReintegroForm({ ...reintegroForm, pacienteCedula: e.target.value })} placeholder="1723456789" />
                                     </div>
 
                                     <div className="premium-field-card">
@@ -10022,7 +9688,7 @@ export default function MedicoOcupacionalPage() {
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <input type="text" required value={reintegroForm.pacienteNombre} onChange={e => setReintegroForm({ ...reintegroForm, pacienteNombre: e.target.value })} placeholder="Nombre completo" />
+                                        <input aria-label="Nombre completo" type="text" required value={reintegroForm.pacienteNombre} onChange={e => setReintegroForm({ ...reintegroForm, pacienteNombre: e.target.value })} placeholder="Nombre completo" />
                                     </div>
                                 </div>
 
@@ -10031,22 +9697,22 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><Briefcase size={15} /></span>
-                                                <h4 className="field-header__title">Puesto de Trabajo</h4>
+                                                <h4 id="medicoocupac-puesto-de-trabajo-titulo" className="field-header__title">Puesto de Trabajo</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <input type="text" required value={reintegroForm.puesto} onChange={e => setReintegroForm({ ...reintegroForm, puesto: e.target.value })} placeholder="Ej: Operario de Bodega" />
+                                        <input aria-labelledby="medicoocupac-puesto-de-trabajo-titulo" type="text" required value={reintegroForm.puesto} onChange={e => setReintegroForm({ ...reintegroForm, puesto: e.target.value })} placeholder="Ej: Operario de Bodega" />
                                     </div>
 
                                     <div className="premium-field-card">
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><Clock size={15} /></span>
-                                                <h4 className="field-header__title">Días de Incapacidad</h4>
+                                                <h4 id="medicoocupac-dias-de-incapacidad-titulo" className="field-header__title">Días de Incapacidad</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <input type="number" required value={reintegroForm.diasIncapacidad} onChange={e => setReintegroForm({ ...reintegroForm, diasIncapacidad: e.target.value })} placeholder="15" />
+                                        <input aria-labelledby="medicoocupac-dias-de-incapacidad-titulo" type="number" required value={reintegroForm.diasIncapacidad} onChange={e => setReintegroForm({ ...reintegroForm, diasIncapacidad: e.target.value })} placeholder="15" />
                                     </div>
                                 </div>
 
@@ -10054,21 +9720,21 @@ export default function MedicoOcupacionalPage() {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><Stethoscope size={15} /></span>
-                                            <h4 className="field-header__title">Diagnóstico Origen (IESS / Certificado Médico)</h4>
+                                            <h4 id="medicoocupac-diagnostico-origen-iess-certificado-medi-titulo" className="field-header__title">Diagnóstico Origen (IESS / Certificado Médico)</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <input type="text" required value={reintegroForm.diagnosticoOrigen} onChange={e => setReintegroForm({ ...reintegroForm, diagnosticoOrigen: e.target.value })} placeholder="Ej: Hernia Discal L4-L5" />
+                                    <input aria-labelledby="medicoocupac-diagnostico-origen-iess-certificado-medi-titulo" type="text" required value={reintegroForm.diagnosticoOrigen} onChange={e => setReintegroForm({ ...reintegroForm, diagnosticoOrigen: e.target.value })} placeholder="Ej: Hernia Discal L4-L5" />
                                 </div>
 
                                 <div className="premium-field-card">
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><ClipboardList size={15} /></span>
-                                            <h4 className="field-header__title">Recomendaciones & Adaptaciones del Puesto</h4>
+                                            <h4 id="medicoocupac-recomendaciones-adaptaciones-del-puesto-titulo" className="field-header__title">Recomendaciones & Adaptaciones del Puesto</h4>
                                         </div>
                                     </div>
-                                    <textarea rows={3} value={reintegroForm.recomendaciones} onChange={e => setReintegroForm({ ...reintegroForm, recomendaciones: e.target.value })} placeholder="Ej: Reducción de jornada laboral a 6 horas por 15 días, silla ergonómica..." style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '13px' }} />
+                                    <textarea aria-labelledby="medicoocupac-recomendaciones-adaptaciones-del-puesto-titulo" rows={3} value={reintegroForm.recomendaciones} onChange={e => setReintegroForm({ ...reintegroForm, recomendaciones: e.target.value })} placeholder="Ej: Reducción de jornada laboral a 6 horas por 15 días, silla ergonómica..." style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '13px' }} />
                                 </div>
 
                                 <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
@@ -10115,7 +9781,7 @@ export default function MedicoOcupacionalPage() {
                                     <h2>Emitir Orden de Examen Médico & Laboratorio</h2>
                                 </div>
                             </div>
-                            <button type="button" className="clinical-modal__close" onClick={handleCancelExamModal}><X size={15} /></button>
+                            <button aria-label="Cerrar" type="button" className="clinical-modal__close" onClick={handleCancelExamModal}><X size={15} /></button>
                         </header>
 
                         <form onSubmit={handleSaveExamOrder} className="clinical-modal__body">
@@ -10151,11 +9817,11 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><Stethoscope size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Examen Requerido</h4>
+                                                <h4 id="medicoocupac-tipo-de-examen-requerido-titulo" className="field-header__title">Tipo de Examen Requerido</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicoocupac-tipo-de-examen-requerido-titulo"
                                             value={examForm.examenTipo}
                                             onChange={e => setExamForm({ ...examForm, examenTipo: e.target.value })}
                                             required
@@ -10177,11 +9843,11 @@ export default function MedicoOcupacionalPage() {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><Building2 size={15} /></span>
-                                                <h4 className="field-header__title">Laboratorio / Proveedor Destino</h4>
+                                                <h4 id="medicoocupac-laboratorio-proveedor-destino-titulo" className="field-header__title">Laboratorio / Proveedor Destino</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="medicoocupac-laboratorio-proveedor-destino-titulo"
                                             value={examForm.laboratorio}
                                             onChange={e => setExamForm({ ...examForm, laboratorio: e.target.value })}
                                             required
@@ -10200,11 +9866,11 @@ export default function MedicoOcupacionalPage() {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><ClipboardList size={15} /></span>
-                                            <h4 className="field-header__title">Motivo / Indicación Clínica Ocupacional</h4>
+                                            <h4 id="medicoocupac-motivo-indicacion-clinica-ocupacional-titulo" className="field-header__title">Motivo / Indicación Clínica Ocupacional</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <input
+                                    <input aria-labelledby="medicoocupac-motivo-indicacion-clinica-ocupacional-titulo"
                                         type="text"
                                         required
                                         value={examForm.motivo}
@@ -10218,10 +9884,10 @@ export default function MedicoOcupacionalPage() {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><Info size={15} /></span>
-                                            <h4 className="field-header__title">Observaciones e Indicaciones para el Trabajador</h4>
+                                            <h4 id="medicoocupac-observaciones-e-indicaciones-para-el-tra-titulo" className="field-header__title">Observaciones e Indicaciones para el Trabajador</h4>
                                         </div>
                                     </div>
-                                    <textarea
+                                    <textarea aria-labelledby="medicoocupac-observaciones-e-indicaciones-para-el-tra-titulo"
                                         rows={3}
                                         value={examForm.observaciones}
                                         onChange={e => setExamForm({ ...examForm, observaciones: e.target.value })}
@@ -10256,14 +9922,14 @@ export default function MedicoOcupacionalPage() {
                                     </p>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' })}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' })}><X size={16} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
                             <form onSubmit={handleSaveExamResult}>
                                 <div className="field" style={{ marginBottom: '14px' }}>
-                                    <label>Estado del Examen *</label>
-                                    <select
+                                    <label htmlFor="medicoocupac-estado-del-examen">Estado del Examen *</label>
+                                    <select id="medicoocupac-estado-del-examen"
                                         value={examResultModal.estado}
                                         onChange={e => setExamResultModal({ ...examResultModal, estado: e.target.value })}
                                         style={{ fontWeight: '600' }}
@@ -10273,8 +9939,8 @@ export default function MedicoOcupacionalPage() {
                                     </select>
                                 </div>
                                 <div className="field" style={{ marginBottom: '16px' }}>
-                                    <label>Resultado / Dictamen Clínico *</label>
-                                    <textarea
+                                    <label htmlFor="medicoocupac-resultado-dictamen-clinico">Resultado / Dictamen Clínico *</label>
+                                    <textarea id="medicoocupac-resultado-dictamen-clinico"
                                         rows={4}
                                         required
                                         value={examResultModal.resultadoText}
@@ -10301,42 +9967,42 @@ export default function MedicoOcupacionalPage() {
                                 <CalendarCheck size={20} color="#38bdf8" />
                                 <h3 style={{ margin: 0, fontSize: '15px', color: 'white', fontWeight: '700' }}>Agendar Nueva Cita Ocupacional</h3>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsAgendarCitaModalOpen(false)} style={{ color: 'white' }}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsAgendarCitaModalOpen(false)} style={{ color: 'white' }}><X size={15} /></button>
                         </header>
                         <div className="clinical-modal__body" style={{ padding: '20px' }}>
                             <form onSubmit={handleSaveNewCita}>
                                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                     <div className="field">
-                                        <label>Nombre del Paciente *</label>
-                                        <input type="text" required value={newCitaForm.pacienteNombre} onChange={e => setNewCitaForm({ ...newCitaForm, pacienteNombre: e.target.value })} placeholder="Ej: Juan Carlos Pérez" />
+                                        <label htmlFor="medicoocupac-nombre-del-paciente">Nombre del Paciente *</label>
+                                        <input id="medicoocupac-nombre-del-paciente" type="text" required value={newCitaForm.pacienteNombre} onChange={e => setNewCitaForm({ ...newCitaForm, pacienteNombre: e.target.value })} placeholder="Ej: Juan Carlos Pérez" />
                                     </div>
                                     <div className="field">
-                                        <label>Cédula *</label>
-                                        <input type="text" required value={newCitaForm.cedula} onChange={e => setNewCitaForm({ ...newCitaForm, cedula: e.target.value })} placeholder="Ej: 1723456789" />
+                                        <label htmlFor="medicoocupac-cedula">Cédula *</label>
+                                        <input id="medicoocupac-cedula" type="text" required value={newCitaForm.cedula} onChange={e => setNewCitaForm({ ...newCitaForm, cedula: e.target.value })} placeholder="Ej: 1723456789" />
                                     </div>
                                 </div>
                                 <div className="field" style={{ marginBottom: '14px' }}>
-                                    <label>Puesto / Área Trabajos</label>
-                                    <input type="text" value={newCitaForm.puesto} onChange={e => setNewCitaForm({ ...newCitaForm, puesto: e.target.value })} placeholder="Ej: Docente Auxiliar - Dirección de Ciencias" />
+                                    <label htmlFor="medicoocupac-puesto-area-trabajos">Puesto / Área Trabajos</label>
+                                    <input id="medicoocupac-puesto-area-trabajos" type="text" value={newCitaForm.puesto} onChange={e => setNewCitaForm({ ...newCitaForm, puesto: e.target.value })} placeholder="Ej: Docente Auxiliar - Dirección de Ciencias" />
                                 </div>
                                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                     <div className="field">
-                                        <label>Fecha *</label>
-                                        <input type="date" required value={newCitaForm.fecha} onChange={e => setNewCitaForm({ ...newCitaForm, fecha: e.target.value })} />
+                                        <label htmlFor="medicoocupac-fecha">Fecha *</label>
+                                        <input id="medicoocupac-fecha" type="date" required value={newCitaForm.fecha} onChange={e => setNewCitaForm({ ...newCitaForm, fecha: e.target.value })} />
                                     </div>
                                     <div className="field">
-                                        <label>Hora Inicio *</label>
-                                        <input type="time" required value={newCitaForm.horaInicio} onChange={e => setNewCitaForm({ ...newCitaForm, horaInicio: e.target.value })} />
+                                        <label htmlFor="medicoocupac-hora-inicio">Hora Inicio *</label>
+                                        <input id="medicoocupac-hora-inicio" type="time" required value={newCitaForm.horaInicio} onChange={e => setNewCitaForm({ ...newCitaForm, horaInicio: e.target.value })} />
                                     </div>
                                     <div className="field">
-                                        <label>Hora Fin *</label>
-                                        <input type="time" required value={newCitaForm.horaFin} onChange={e => setNewCitaForm({ ...newCitaForm, horaFin: e.target.value })} />
+                                        <label htmlFor="medicoocupac-hora-fin">Hora Fin *</label>
+                                        <input id="medicoocupac-hora-fin" type="time" required value={newCitaForm.horaFin} onChange={e => setNewCitaForm({ ...newCitaForm, horaFin: e.target.value })} />
                                     </div>
                                 </div>
                                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '14px' }}>
                                     <div className="field">
-                                        <label>Tipo de Evaluación Ocupacional *</label>
-                                        <select value={newCitaForm.tipoEvaluacion} onChange={e => setNewCitaForm({ ...newCitaForm, tipoEvaluacion: e.target.value })}>
+                                        <label htmlFor="medicoocupac-tipo-de-evaluacion-ocupacional">Tipo de Evaluación Ocupacional *</label>
+                                        <select id="medicoocupac-tipo-de-evaluacion-ocupacional" value={newCitaForm.tipoEvaluacion} onChange={e => setNewCitaForm({ ...newCitaForm, tipoEvaluacion: e.target.value })}>
                                             <option value="Evaluación Periódica">Evaluación Periódica</option>
                                             <option value="Evaluación Preocupacional">Evaluación Preocupacional / Ingreso</option>
                                             <option value="Reintegro Laboral">Reintegro Laboral</option>
@@ -10345,16 +10011,16 @@ export default function MedicoOcupacionalPage() {
                                         </select>
                                     </div>
                                     <div className="field">
-                                        <label>Prioridad</label>
-                                        <select value={newCitaForm.prioridad} onChange={e => setNewCitaForm({ ...newCitaForm, prioridad: e.target.value })}>
+                                        <label htmlFor="medicoocupac-prioridad">Prioridad</label>
+                                        <select id="medicoocupac-prioridad" value={newCitaForm.prioridad} onChange={e => setNewCitaForm({ ...newCitaForm, prioridad: e.target.value })}>
                                             <option value="Normal">Normal</option>
                                             <option value="Alta">Alta / Urgente</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div className="field" style={{ marginBottom: '16px' }}>
-                                    <label>Motivo / Observaciones</label>
-                                    <textarea rows={2} value={newCitaForm.motivo} onChange={e => setNewCitaForm({ ...newCitaForm, motivo: e.target.value })} placeholder="Detalle el motivo o requerimiento de la cita médica..." />
+                                    <label htmlFor="medicoocupac-motivo-observaciones">Motivo / Observaciones</label>
+                                    <textarea id="medicoocupac-motivo-observaciones" rows={2} value={newCitaForm.motivo} onChange={e => setNewCitaForm({ ...newCitaForm, motivo: e.target.value })} placeholder="Detalle el motivo o requerimiento de la cita médica..." />
                                 </div>
                                 <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                     <button type="button" className="action-button action-button--light" onClick={() => setIsAgendarCitaModalOpen(false)}>Cancelar</button>
@@ -10377,7 +10043,7 @@ export default function MedicoOcupacionalPage() {
                                     <Pill size={22} />
                                 </span>
                                 <div>
-                                    <span style={{ color: 'rgba(255, 255, 255, 0.75)', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.8px', display: 'block' }}>
+                                    <span style={{ color: 'rgba(255, 255, 255, 0.75)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.8px', display: 'block' }}>
                                         PUESTO DE SALUD · BIENESTAR UNIVERSITARIO
                                     </span>
                                     <h2 style={{ margin: '2px 0 0', fontSize: '16px', color: '#ffffff', fontWeight: '800' }}>
@@ -10385,7 +10051,7 @@ export default function MedicoOcupacionalPage() {
                                     </h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" type="button" onClick={() => setSelectedRecetaPreview(null)}>
+                            <button aria-label="Cerrar" className="clinical-modal__close" type="button" onClick={() => setSelectedRecetaPreview(null)}>
                                 <X size={16} />
                             </button>
                         </header>
@@ -10397,7 +10063,7 @@ export default function MedicoOcupacionalPage() {
                                 <div style={{ borderBottom: '2px solid #0f172a', paddingBottom: '10px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div>
                                         <strong style={{ fontSize: '16px', color: '#1e3a8a' }}>UEB</strong><br />
-                                        <span style={{ fontSize: '9px', color: '#475569' }}>UNIVERSIDAD ESTATAL DE BOLÍVAR</span>
+                                        <span style={{ fontSize: '11px', color: '#475569' }}>UNIVERSIDAD ESTATAL DE BOLÍVAR</span>
                                     </div>
                                     <div style={{ textAlign: 'center' }}>
                                         <h2 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>BIENESTAR UNIVERSITARIO</h2>
@@ -10405,12 +10071,12 @@ export default function MedicoOcupacionalPage() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <strong>RECETA N°:</strong> <span style={{ color: '#dc2626', fontWeight: 'bold' }}>{selectedRecetaPreview.numero_receta || `REC-${selectedRecetaPreview.id}`}</span><br />
-                                        <span style={{ fontSize: '10px' }}>FECHA: {selectedRecetaPreview.fecha}</span>
+                                        <span style={{ fontSize: '11px' }}>FECHA: {selectedRecetaPreview.fecha}</span>
                                     </div>
                                 </div>
 
                                 {/* DATOS GENERALES PACIENTE */}
-                                <div style={{ background: '#f8fafc', padding: '6px 10px', fontWeight: 'bold', fontSize: '10.5px', border: '1px solid #94a3b8', marginBottom: '6px' }}>
+                                <div style={{ background: '#f8fafc', padding: '6px 10px', fontWeight: 'bold', fontSize: '11px', border: '1px solid #94a3b8', marginBottom: '6px' }}>
                                     DATOS GENERALES DEL PACIENTE
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', border: '1px solid #cbd5e1', padding: '10px', borderRadius: '6px', marginBottom: '12px' }}>
@@ -10427,11 +10093,11 @@ export default function MedicoOcupacionalPage() {
                                 </div>
 
                                 {/* DATOS MEDICAMENTO */}
-                                <div style={{ background: '#f8fafc', padding: '6px 10px', fontWeight: 'bold', fontSize: '10.5px', border: '1px solid #94a3b8', marginBottom: '6px' }}>
+                                <div style={{ background: '#f8fafc', padding: '6px 10px', fontWeight: 'bold', fontSize: '11px', border: '1px solid #94a3b8', marginBottom: '6px' }}>
                                     DATOS DEL MEDICAMENTO
                                 </div>
                                 <div style={{ overflowX: 'auto', width: '100%', marginBottom: '12px' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                                         <thead>
                                             <tr style={{ background: '#f1f5f9', border: '1px solid #94a3b8' }}>
                                                 <th style={{ padding: '6px', textAlign: 'left' }}>Medicamento</th>
@@ -10462,25 +10128,25 @@ export default function MedicoOcupacionalPage() {
                                     <div>
                                         <strong>DATOS DEL PRESCRIPTOR:</strong><br />
                                         <span>Dr(a). {selectedRecetaPreview.prescriptor_nombre || 'Médico Ocupacional'}</span><br />
-                                        <span style={{ fontSize: '9.5px', color: '#64748b' }}>ACESS: {selectedRecetaPreview.prescriptor_acess || 'ACESS-MED-84920'}</span>
+                                        <span style={{ fontSize: '11px', color: '#64748b' }}>ACESS: {selectedRecetaPreview.prescriptor_acess || 'ACESS-MED-84920'}</span>
                                     </div>
                                     <div>
                                         <strong>VÁLIDO / VERIFICADO:</strong><br />
                                         <span>{selectedRecetaPreview.valido_verificado || 'Farmacia Institucional'}</span>
                                     </div>
                                 </div>
-                                <div style={{ textTransform: 'uppercase', fontWeight: 'bold', textAlign: 'center', background: '#f1f5f9', padding: '4px', border: '1px solid #94a3b8', fontSize: '10px', marginBottom: '16px' }}>
+                                <div style={{ textTransform: 'uppercase', fontWeight: 'bold', textAlign: 'center', background: '#f1f5f9', padding: '4px', border: '1px solid #94a3b8', fontSize: '11px', marginBottom: '16px' }}>
                                     VIGENCIA MÁXIMA : (03) DÍAS
                                 </div>
 
                                 {/* PARTE 2: INDICACIONES Y HORARIOS */}
                                 <div style={{ borderTop: '2px dashed #94a3b8', paddingTop: '12px', marginTop: '12px' }}>
-                                    <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 10px', fontWeight: 'bold', fontSize: '10.5px', borderRadius: '4px', marginBottom: '10px' }}>
+                                    <div style={{ background: '#e0f2fe', color: '#0369a1', padding: '6px 10px', fontWeight: 'bold', fontSize: '11px', borderRadius: '4px', marginBottom: '10px' }}>
                                         INDICACIONES PARA EL PACIENTE Y HORARIOS DE TOMA
                                     </div>
 
                                     <div style={{ overflowX: 'auto', width: '100%', marginBottom: '12px' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                                             <thead>
                                                 <tr style={{ background: '#f1f5f9', border: '1px solid #94a3b8' }}>
                                                     <th style={{ padding: '6px', textAlign: 'left' }}>Medicamento</th>
@@ -10575,7 +10241,7 @@ export default function MedicoOcupacionalPage() {
             />
 
             {toast.show && (
-                <div style={{
+                <div role="status" aria-live="polite" style={{
                     position: 'fixed',
                     bottom: '24px',
                     right: '24px',

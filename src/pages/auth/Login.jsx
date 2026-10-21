@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { getUserModules } from '../../utils/roleModules';
 import api from '../../api/axios';
 import AuthFlipCard from '../../components/AuthFlipCard';
-import logoUeb from '../../assets/ueb.png';
-import UEBLogo from '../../assets/leftUEB.png';
-import UEBpet from '../../assets/UEBpet.png';
+import logoUeb from '../../assets/ueb.webp';
+import UEBLogo from '../../assets/leftUEB.webp';
+import UEBpet from '../../assets/UEBpet.webp';
 
 import {
     LockKeyhole,
@@ -53,21 +54,9 @@ const Login = () => {
             const { user, token } = response.data;
 
             loginStore(user, token);
-            if (user?.roles?.includes('enfermero')) {
-                navigate('/enfermeria');
-            } else if (user?.roles?.includes('psicologo')) {
-                navigate('/psicologia');
-            } else if (user?.roles?.includes('odontologo')) {
-                navigate('/odontologia');
-            } else if (user?.roles?.includes('medico_ocupacional')) {
-                navigate('/medicina-ocupacional');
-            } else if (user?.roles?.includes('medico_general')) {
-                navigate('/medicina-general');
-            } else if (user?.roles?.includes('administrador') || user?.roles?.includes('medico_coordinador')) {
-                navigate('/administrador');
-            } else {
-                navigate('/dashboard');
-            }
+            // Un solo módulo: entra directo. Varios (multirol): /dashboard muestra el selector
+            const modules = getUserModules(user);
+            navigate(modules.length === 1 ? modules[0].path : '/dashboard');
         } catch (err) {
             console.error('Login error:', err.response?.status, err.response?.data);
             // Extraer mensaje real del backend

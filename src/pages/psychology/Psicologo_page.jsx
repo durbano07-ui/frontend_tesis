@@ -7,57 +7,12 @@ import '../../medical.css'; // Estilos unificados médicos y psicológicos
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
-import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 
-import {
-    Menu,
-    LogOut,
-    Bell,
-    Search,
-    X,
-    Save,
-    History,
-    Brain,
-    FileText,
-    TrendingUp,
-    Plus,
-    Calendar,
-    ChevronDown,
-    ChevronUp,
-    ChevronRight,
-    ChevronLeft,
-    Activity,
-    ClipboardList,
-    CheckCircle,
-    AlertTriangle,
-    Stethoscope,
-    User,
-    UserPlus,
-    CalendarCheck,
-    CalendarDays,
-    BookOpen,
-    UserCheck,
-    HeartHandshake,
-    FileCheck,
-    Printer,
-    Clock,
-    ArrowRight,
-    Briefcase,
-    Heart,
-    Eye,
-    Smile,
-    Compass,
-    MessageSquare,
-    Zap,
-    AlertCircle,
-    Mail,
-    Shield,
-    MapPin,
-    EyeOff,
-    Info
-} from 'lucide-react';
+import { Menu, LogOut, Search, X, Brain, FileText, TrendingUp, Calendar, ChevronDown, ChevronUp, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, CalendarCheck, CalendarDays, UserCheck, HeartHandshake, FileCheck, Printer, Clock, Briefcase, Heart, Eye, Smile, Compass, MessageSquare, Zap, Mail, MapPin, Info } from 'lucide-react';
+import { onKeyActivate } from '../../a11y/keyboard';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -343,13 +298,13 @@ const Psicologo_page = () => {
 
             return `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td class="left-align font-bold">${fullName}</td>
-                    <td>${cedula}</td>
-                    <td>${cita.fecha}</td>
-                    <td>${cita.hora_inicio} - ${cita.hora_fin}</td>
-                    <td class="left-align">${cita.motivo || '—'}</td>
-                    <td class="font-bold status-${cita.estado}">${statusUpper}</td>
+                    <td>${escapeHtml(idx + 1)}</td>
+                    <td class="left-align font-bold">${escapeHtml(fullName)}</td>
+                    <td>${escapeHtml(cedula)}</td>
+                    <td>${escapeHtml(cita.fecha)}</td>
+                    <td>${escapeHtml(cita.hora_inicio)} - ${escapeHtml(cita.hora_fin)}</td>
+                    <td class="left-align">${escapeHtml(cita.motivo || '—')}</td>
+                    <td class="font-bold status-${escapeHtml(cita.estado)}">${escapeHtml(statusUpper)}</td>
                 </tr>
             `;
         }).join('');
@@ -360,7 +315,7 @@ const Psicologo_page = () => {
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Reporte de Citas de Psicología - ${formattedFecha}</title>
+                <title>Reporte de Citas de Psicología - ${escapeHtml(formattedFecha)}</title>
                 <style>
                     @page {
                         size: A4 portrait;
@@ -535,7 +490,7 @@ const Psicologo_page = () => {
                     <div>
                         <header class="header">
                             <div style="width: 110px; display: flex; align-items: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
@@ -543,30 +498,30 @@ const Psicologo_page = () => {
                                 <h3>Reporte de Citas de Psicología</h3>
                             </div>
                             <div class="date-box">
-                                FECHA:<br>${formattedFecha}
+                                FECHA:<br>${escapeHtml(formattedFecha)}
                             </div>
                         </header>
 
                         <div class="summary-section">
                             <div class="summary-card">
                                 <span>Total Citas</span>
-                                <strong>${total}</strong>
+                                <strong>${escapeHtml(total)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Completadas</span>
-                                <strong class="status-completada">${completadas}</strong>
+                                <strong class="status-completada">${escapeHtml(completadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Confirmadas</span>
-                                <strong class="status-confirmada">${confirmadas}</strong>
+                                <strong class="status-confirmada">${escapeHtml(confirmadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Programadas</span>
-                                <strong class="status-programada">${programadas}</strong>
+                                <strong class="status-programada">${escapeHtml(programadas)}</strong>
                             </div>
                             <div class="summary-card">
                                 <span>Canceladas</span>
-                                <strong class="status-cancelada">${canceladas}</strong>
+                                <strong class="status-cancelada">${escapeHtml(canceladas)}</strong>
                             </div>
                         </div>
 
@@ -954,7 +909,7 @@ const Psicologo_page = () => {
         }
     };
 
-    // Auto-save form draft to localStorage
+    // Auto-save form draft to sessionStorage
     useEffect(() => {
         if (selectedPatient && fichaForm) {
             saveDraft(fichaForm);
@@ -1380,22 +1335,22 @@ const Psicologo_page = () => {
 
             return `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td class="left-align font-bold">${fullName}</td>
-                    <td>${cedula}</td>
-                    <td>${age}</td>
-                    <td>${disability || '—'}</td>
-                    <td>${isMale ? 'X' : ''}</td>
-                    <td>${isFemale ? 'X' : ''}</td>
-                    <td>${isLgbti ? 'X' : ''}</td>
-                    <td>${isEstudiante ? 'X' : ''}</td>
-                    <td class="left-align">${careerName}</td>
-                    <td>${isDocente ? 'X' : ''}</td>
-                    <td>${isAdministrativo ? 'X' : ''}</td>
-                    <td>${isPrimera ? 'X' : ''}</td>
-                    <td>${isSubsecuente ? 'X' : ''}</td>
-                    <td>${isCertificado ? 'X' : ''}</td>
-                    <td class="left-align">${item.detalle_diagnostico || '—'}</td>
+                    <td>${escapeHtml(idx + 1)}</td>
+                    <td class="left-align font-bold">${escapeHtml(fullName)}</td>
+                    <td>${escapeHtml(cedula)}</td>
+                    <td>${escapeHtml(age)}</td>
+                    <td>${escapeHtml(disability || '—')}</td>
+                    <td>${escapeHtml(isMale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isFemale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isLgbti ? 'X' : '')}</td>
+                    <td>${escapeHtml(isEstudiante ? 'X' : '')}</td>
+                    <td class="left-align">${escapeHtml(careerName)}</td>
+                    <td>${escapeHtml(isDocente ? 'X' : '')}</td>
+                    <td>${escapeHtml(isAdministrativo ? 'X' : '')}</td>
+                    <td>${escapeHtml(isPrimera ? 'X' : '')}</td>
+                    <td>${escapeHtml(isSubsecuente ? 'X' : '')}</td>
+                    <td>${escapeHtml(isCertificado ? 'X' : '')}</td>
+                    <td class="left-align">${escapeHtml(item.detalle_diagnostico || '—')}</td>
                 </tr>
             `;
         }).join('');
@@ -1406,7 +1361,7 @@ const Psicologo_page = () => {
         for (let i = 0; i < emptyRowsCount; i++) {
             emptyRowsHtml += `
                 <tr>
-                    <td>${detailedList.length + i + 1}</td>
+                    <td>${escapeHtml(detailedList.length + i + 1)}</td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -1438,7 +1393,7 @@ const Psicologo_page = () => {
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Parte Diario de Psicología - ${formattedDate}</title>
+                <title>Parte Diario de Psicología - ${escapeHtml(formattedDate)}</title>
                 <style>
                     @page {
                         size: A4 landscape;
@@ -1592,7 +1547,7 @@ const Psicologo_page = () => {
                     <div>
                         <header class="header">
                             <div style="width: 110px; display: flex; align-items: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 44px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-title">
                                 <h1>Universidad Estatal de Bolívar</h1>
@@ -1600,7 +1555,7 @@ const Psicologo_page = () => {
                                 <h3>Psicología</h3>
                             </div>
                             <div class="date-box">
-                                FECHA:<br>${formattedDate}
+                                FECHA:<br>${escapeHtml(formattedDate)}
                             </div>
                         </header>
 
@@ -1635,16 +1590,16 @@ const Psicologo_page = () => {
                                 ${emptyRowsHtml}
                                 <tr class="bg-totals">
                                     <td colspan="5" class="left-align font-bold">TOTAL</td>
-                                    <td>${sumHombre}</td>
-                                    <td>${sumMujer}</td>
-                                    <td>${sumLgbti}</td>
-                                    <td>${sumEstudiante}</td>
+                                    <td>${escapeHtml(sumHombre)}</td>
+                                    <td>${escapeHtml(sumMujer)}</td>
+                                    <td>${escapeHtml(sumLgbti)}</td>
+                                    <td>${escapeHtml(sumEstudiante)}</td>
                                     <td></td>
-                                    <td>${sumDocente}</td>
-                                    <td>${sumAdministrativo}</td>
-                                    <td>${sumPrimera}</td>
-                                    <td>${sumSubsecuente}</td>
-                                    <td>${sumCertificado}</td>
+                                    <td>${escapeHtml(sumDocente)}</td>
+                                    <td>${escapeHtml(sumAdministrativo)}</td>
+                                    <td>${escapeHtml(sumPrimera)}</td>
+                                    <td>${escapeHtml(sumSubsecuente)}</td>
+                                    <td>${escapeHtml(sumCertificado)}</td>
                                     <td></td>
                                 </tr>
                             </tbody>
@@ -1654,7 +1609,7 @@ const Psicologo_page = () => {
                     <div class="signatures-container">
                         <div class="signature-box">
                             <div class="signature-line"></div>
-                            <strong>Psicólogo/a: ${user?.name || 'Profesional Responsable'}</strong><br>
+                            <strong>Psicólogo/a: ${escapeHtml(user?.name || 'Profesional Responsable')}</strong><br>
                             <span>Responsable de Bienestar Estudiantil</span>
                         </div>
                     </div>
@@ -2035,13 +1990,13 @@ const Psicologo_page = () => {
 
                 return `
                     <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td style="text-align: center;">${fechaCita}</td>
-                        <td style="text-align: center;">${horario}</td>
-                        <td>${patientName}</td>
-                        <td style="text-align: center;">${cedula}</td>
-                        <td>${motivo}</td>
-                        <td style="text-align: center; font-weight: bold; color: ${estadoBadgeColor};">${estado}</td>
+                        <td style="text-align: center;">${escapeHtml(index + 1)}</td>
+                        <td style="text-align: center;">${escapeHtml(fechaCita)}</td>
+                        <td style="text-align: center;">${escapeHtml(horario)}</td>
+                        <td>${escapeHtml(patientName)}</td>
+                        <td style="text-align: center;">${escapeHtml(cedula)}</td>
+                        <td>${escapeHtml(motivo)}</td>
+                        <td style="text-align: center; font-weight: bold; color: ${escapeHtml(estadoBadgeColor)};">${escapeHtml(estado)}</td>
                     </tr>
                 `;
             }).join('');
@@ -2139,7 +2094,7 @@ const Psicologo_page = () => {
                     <div class="page-sheet">
                         <div class="header-container">
                             <div class="header-logo" style="display: flex; align-items: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="header-center">
                                 <h1>UNIVERSIDAD ESTATAL DE BOLÍVAR</h1>
@@ -2147,35 +2102,35 @@ const Psicologo_page = () => {
                                 <h3 style="margin: 2px 0 0; font-size: 10px; font-weight: bold; color: #b71a34;">REPORTE DE CITAS Y CONSULTAS - PSICOLOGÍA</h3>
                             </div>
                             <div style="text-align: right; font-size: 9px;">
-                                <strong>FECHA FILTRO:</strong><br/>${formattedDate}
+                                <strong>FECHA FILTRO:</strong><br/>${escapeHtml(formattedDate)}
                             </div>
                         </div>
 
                         <div class="meta-info">
-                            <div><strong>Psicólogo/a Responsable:</strong> ${doctorNameText}</div>
-                            <div><strong>Total de Citas en Registro:</strong> ${totalCitas}</div>
+                            <div><strong>Psicólogo/a Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
+                            <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
                         </div>
 
                         <div class="totals-grid">
                             <div class="stat-box" style="border-left: 4px solid #3b82f6;">
                                 <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${countProgramadas}</strong>
+                                <strong>${escapeHtml(countProgramadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #10b981;">
                                 <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${countConfirmadas}</strong>
+                                <strong>${escapeHtml(countConfirmadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #64748b;">
                                 <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${countCompletadas}</strong>
+                                <strong>${escapeHtml(countCompletadas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #ef4444;">
                                 <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${countCanceladas}</strong>
+                                <strong>${escapeHtml(countCanceladas)}</strong>
                             </div>
                             <div class="stat-box" style="border-left: 4px solid #0b2240;">
                                 <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${totalCitas}</strong>
+                                <strong>${escapeHtml(totalCitas)}</strong>
                             </div>
                         </div>
 
@@ -2200,7 +2155,7 @@ const Psicologo_page = () => {
                         <div style="margin-top: 50px; display: flex; justify-content: space-around; font-size: 9px;">
                             <div style="text-align: center; border-top: 1px solid #000; width: 220px; padding-top: 5px;">
                                 <strong>Psicólogo/a Responsable</strong><br/>
-                                <span>${doctorNameText}</span>
+                                <span>${escapeHtml(doctorNameText)}</span>
                             </div>
                         </div>
 
@@ -2511,7 +2466,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Datos de Identificación</td>
             <td class="header-logo-container">
-                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2526,12 +2481,12 @@ const Psicologo_page = () => {
             <td class="form-label" style="width: 8%;">Edad</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${ident.apellido_paterno || '—'}</td>
-            <td class="form-value text-center">${ident.apellido_materno || '—'}</td>
-            <td class="form-value text-center">${ident.primer_nombre || '—'}</td>
-            <td class="form-value text-center">${ident.segundo_nombre || '—'}</td>
-            <td class="form-value text-center">${ident.numero_cedula || '—'}</td>
-            <td class="form-value text-center">${age}</td>
+            <td class="form-value text-center">${escapeHtml(ident.apellido_paterno || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.apellido_materno || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.primer_nombre || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.segundo_nombre || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.numero_cedula || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(age)}</td>
         </tr>
     </table>
 
@@ -2545,23 +2500,23 @@ const Psicologo_page = () => {
                 <table style="width:100%; border-collapse:collapse;">
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold; width:30%;">Provincia:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.provincia?.nombre_provincia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.provincia?.nombre_provincia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Cantón:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.canton?.nombre_canton || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.canton?.nombre_canton || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Dirección:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.direccion_referencia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.direccion_referencia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Teléfono:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.telefono_convencional || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.telefono_convencional || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Nacionalidad:</td>
-                        <td style="border:none; padding:3px 0;">${dirProcedencia.nacionalidad || 'Ecuatoriana'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirProcedencia.nacionalidad || 'Ecuatoriana')}</td>
                     </tr>
                 </table>
             </td>
@@ -2569,23 +2524,23 @@ const Psicologo_page = () => {
                 <table style="width:100%; border-collapse:collapse;">
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold; width:30%;">Provincia:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.provincia?.nombre_provincia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.provincia?.nombre_provincia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Cantón:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.canton?.nombre_canton || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.canton?.nombre_canton || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Dirección:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.direccion_referencia || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.direccion_referencia || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Teléfono:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.telefono_convencional || '—'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.telefono_convencional || '—')}</td>
                     </tr>
                     <tr>
                         <td style="border:none; padding:3px 0; font-weight:bold;">Nacionalidad:</td>
-                        <td style="border:none; padding:3px 0;">${dirResidencia.nacionalidad || 'Ecuatoriana'}</td>
+                        <td style="border:none; padding:3px 0;">${escapeHtml(dirResidencia.nacionalidad || 'Ecuatoriana')}</td>
                     </tr>
                 </table>
             </td>
@@ -2601,15 +2556,15 @@ const Psicologo_page = () => {
             <td class="form-label" style="width: 15%;">Nro. Hijos</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${dirResidencia.nacionalidad || '—'}</td>
-            <td class="form-value text-center">${ident.fecha_nacimiento || '—'}</td>
+            <td class="form-value text-center">${escapeHtml(dirResidencia.nacionalidad || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(ident.fecha_nacimiento || '—')}</td>
             <td class="form-value text-center checkbox-container">
-                M (${(patient.autopercepcion?.genero?.nombre_genero === 'Masculino') ? 'X' : ' '}) &nbsp;
-                F (${(patient.autopercepcion?.genero?.nombre_genero === 'Femenino') ? 'X' : ' '}) &nbsp;
-                LGBTI (${(patient.autopercepcion?.genero?.nombre_genero === 'LGBTI') ? 'X' : ' '})
+                M (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'Masculino') ? 'X' : ' ')}) &nbsp;
+                F (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'Femenino') ? 'X' : ' ')}) &nbsp;
+                LGBTI (${escapeHtml((patient.autopercepcion?.genero?.nombre_genero === 'LGBTI') ? 'X' : ' ')})
             </td>
-            <td class="form-value text-center">${patient.autopercepcion?.estado_civil?.nombre_estado_civil || '—'}</td>
-            <td class="form-value text-center">${patient.hijos?.length || 0}</td>
+            <td class="form-value text-center">${escapeHtml(patient.autopercepcion?.estado_civil?.nombre_estado_civil || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.hijos?.length || 0)}</td>
         </tr>
     </table>
 
@@ -2617,12 +2572,12 @@ const Psicologo_page = () => {
         <tr>
             <td class="form-label" style="width: 20%;">Autoidentificación Étnica</td>
             <td class="form-value checkbox-container">
-                Blanco (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Blanco') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Mestizo (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Mestizo') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Afrodescendiente (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Afrodescendiente') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Indígena (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Indígena') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Montubio (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Montubio') ? 'X' : ' '}) &nbsp;&nbsp;&nbsp;
-                Otros (${(patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Otros') ? 'X' : ' '} )
+                Blanco (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Blanco') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Mestizo (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Mestizo') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Afrodescendiente (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Afrodescendiente') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Indígena (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Indígena') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Montubio (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Montubio') ? 'X' : ' ')}) &nbsp;&nbsp;&nbsp;
+                Otros (${escapeHtml((patient.autopercepcion?.identificacion_etnica?.nombre_etnia === 'Otros') ? 'X' : ' ')} )
             </td>
         </tr>
     </table>
@@ -2634,9 +2589,9 @@ const Psicologo_page = () => {
             <td class="form-label" style="width: 15%;">Ciclo</td>
         </tr>
         <tr>
-            <td class="form-value text-center">${patient.estudio_carrera?.facultad?.nombre_facultad || '—'}</td>
-            <td class="form-value text-center">${patient.estudio_carrera?.carrera?.nombre_carrera || '—'}</td>
-            <td class="form-value text-center">${patient.estudio_carrera?.ciclo?.nombre_ciclo || '—'}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.facultad?.nombre_facultad || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.carrera?.nombre_carrera || '—')}</td>
+            <td class="form-value text-center">${escapeHtml(patient.estudio_carrera?.ciclo?.nombre_ciclo || '—')}</td>
         </tr>
     </table>
 
@@ -2652,9 +2607,9 @@ const Psicologo_page = () => {
         ${patient.contactos_emergencia && patient.contactos_emergencia.length > 0 ?
                     patient.contactos_emergencia.map(c => `
                 <tr>
-                    <td class="form-value text-center">${c.parentesco} - ${c.nombre_completo}</td>
-                    <td class="form-value text-center">${c.telefono || '—'}</td>
-                    <td class="form-value text-center">${c.celular || '—'}</td>
+                    <td class="form-value text-center">${escapeHtml(c.parentesco)} - ${escapeHtml(c.nombre_completo)}</td>
+                    <td class="form-value text-center">${escapeHtml(c.telefono || '—')}</td>
+                    <td class="form-value text-center">${escapeHtml(c.celular || '—')}</td>
                 </tr>
             `).join('') : `
                 <tr>
@@ -2673,14 +2628,14 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Historia Clínica Psicológica</td>
             <td class="header-logo-container">
-                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
 
     <div class="clinical-history-section-header">1 Motivo de Consulta</div>
     <div class="clinical-history-section-content">
-        ${motivos.length > 0 ? motivos.map(m => `<div>• ${m.detalle_motivo}</div>`).join('') : 'Sin registros.'}
+        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">2 Fuentes de Información</div>
@@ -2690,32 +2645,32 @@ const Psicologo_page = () => {
 
     <div class="clinical-history-section-header">3 Psicoanamnesis Personal</div>
     <div class="clinical-history-section-content">
-        ${psico_personal.length > 0 ? psico_personal.map(p => `<div>• ${p.detalle_psicoanamnesis}</div>`).join('') : 'Sin registros.'}
+        ${psico_personal.length > 0 ? psico_personal.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">4 Psicoanamnesis Familiar</div>
     <div class="clinical-history-section-content">
-        ${psico_familiar.length > 0 ? psico_familiar.map(p => `<div>• ${p.detalle_psicoanamnesis}</div>`).join('') : 'Sin registros.'}
+        ${psico_familiar.length > 0 ? psico_familiar.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">5 Historia Laboral</div>
     <div class="clinical-history-section-content">
-        ${laborales.length > 0 ? laborales.map(l => `<div>• ${l.detalle_laboral}</div>`).join('') : 'Sin registros.'}
+        ${laborales.length > 0 ? laborales.map(l => `<div>• ${escapeHtml(l.detalle_laboral)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">6 Historia Social</div>
     <div class="clinical-history-section-content">
-        ${sociales.length > 0 ? sociales.map(s => `<div>• ${s.detalle_social}</div>`).join('') : 'Sin registros.'}
+        ${sociales.length > 0 ? sociales.map(s => `<div>• ${escapeHtml(s.detalle_social)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">7 Historia Sexual</div>
     <div class="clinical-history-section-content">
-        ${sexuales.length > 0 ? sexuales.map(s => `<div>• ${s.detalle_sexual}</div>`).join('') : 'Sin registros.'}
+        ${sexuales.length > 0 ? sexuales.map(s => `<div>• ${escapeHtml(s.detalle_sexual)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">8 Patologías</div>
     <div class="clinical-history-section-content">
-        ${patologias.length > 0 ? patologias.map(p => `<div>• ${p.detalle_patologia}</div>`).join('') : 'Sin registros.'}
+        ${patologias.length > 0 ? patologias.map(p => `<div>• ${escapeHtml(p.detalle_patologia)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">9 Examen Estado Mental</div>
@@ -2723,46 +2678,46 @@ const Psicologo_page = () => {
         <tbody>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">APARIENCIA</td>
-                <td style="width: 30%;">${mental.apariencia || '—'}</td>
+                <td style="width: 30%;">${escapeHtml(mental.apariencia || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">ORIENTACIÓN</td>
-                <td style="width: 30%;">${mental.orientacion || '—'}</td>
+                <td style="width: 30%;">${escapeHtml(mental.orientacion || '—')}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc;">ACTITUD</td>
-                <td>${mental.actitud || '—'}</td>
+                <td>${escapeHtml(mental.actitud || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc;">ATENCIÓN</td>
-                <td>${mental.atencion || '—'}</td>
+                <td>${escapeHtml(mental.atencion || '—')}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc;">JUICIO</td>
-                <td>${mental.juicio || '—'}</td>
+                <td>${escapeHtml(mental.juicio || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc;">MEMORIA</td>
-                <td>${mental.memoria || '—'}</td>
+                <td>${escapeHtml(mental.memoria || '—')}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc;">SUEÑO</td>
-                <td>${mental.sueno || '—'}</td>
+                <td>${escapeHtml(mental.sueno || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc;">LENGUAJE</td>
-                <td>${mental.lenguaje || '—'}</td>
+                <td>${escapeHtml(mental.lenguaje || '—')}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc;">APETITO</td>
-                <td>${mental.apetito || '—'}</td>
+                <td>${escapeHtml(mental.apetito || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc;">PENSAMIENTO</td>
-                <td>${mental.pensamiento || '—'}</td>
+                <td>${escapeHtml(mental.pensamiento || '—')}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f8fafc;">AFECTIVIDAD</td>
-                <td>${mental.afectividad || '—'}</td>
+                <td>${escapeHtml(mental.afectividad || '—')}</td>
                 <td style="font-weight: bold; background-color: #f8fafc;">CONDUCTA MOTORA</td>
-                <td>${mental.conducta_motora || '—'}</td>
+                <td>${escapeHtml(mental.conducta_motora || '—')}</td>
             </tr>
         </tbody>
     </table>
 
     <div class="clinical-history-section-header">10 Pruebas Psicológicas Aplicadas</div>
     <div class="clinical-history-section-content">
-        ${pruebas.length > 0 ? pruebas.map(p => `<div>• ${p.detalle_prueba_aplicada}</div>`).join('') : 'Sin registros.'}
+        ${pruebas.length > 0 ? pruebas.map(p => `<div>• ${escapeHtml(p.detalle_prueba_aplicada)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     </div>
@@ -2774,34 +2729,34 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Evaluación Psicológica y Resultados</td>
             <td class="header-logo-container">
-                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
 
     <div class="clinical-history-section-header">11 Análisis e Interpretación de Resultados</div>
     <div class="clinical-history-section-content">
-        ${analisis.length > 0 ? analisis.map(a => `<div>• ${a.detalle_analisis_resultados}</div>`).join('') : 'Sin registros.'}
+        ${analisis.length > 0 ? analisis.map(a => `<div>• ${escapeHtml(a.detalle_analisis_resultados)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">12 Conclusiones</div>
     <div class="clinical-history-section-content">
-        ${conclusiones.length > 0 ? conclusiones.map(c => `<div>• ${c.detalle_conclusion}</div>`).join('') : 'Sin registros.'}
+        ${conclusiones.length > 0 ? conclusiones.map(c => `<div>• ${escapeHtml(c.detalle_conclusion)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">13 Diagnóstico</div>
     <div class="clinical-history-section-content">
-        ${diagnosticos.length > 0 ? diagnosticos.map(d => `<div>• ${d.detalle_diagnostico}</div>`).join('') : 'Sin registros.'}
+        ${diagnosticos.length > 0 ? diagnosticos.map(d => `<div>• ${escapeHtml(d.detalle_diagnostico)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">14 Pronóstico</div>
     <div class="clinical-history-section-content">
-        ${pronosticos.length > 0 ? pronosticos.map(p => `<div>• ${p.detalle_pronostico}</div>`).join('') : 'Sin registros.'}
+        ${pronosticos.length > 0 ? pronosticos.map(p => `<div>• ${escapeHtml(p.detalle_pronostico)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     <div class="clinical-history-section-header">15 Recomendaciones</div>
     <div class="clinical-history-section-content">
-        ${recomendaciones.length > 0 ? recomendaciones.map(r => `<div>• ${r.detalle_recomendacion}</div>`).join('') : 'Sin registros.'}
+        ${recomendaciones.length > 0 ? recomendaciones.map(r => `<div>• ${escapeHtml(r.detalle_recomendacion)}</div>`).join('') : 'Sin registros.'}
     </div>
 
     </div>
@@ -2813,7 +2768,7 @@ const Psicologo_page = () => {
         <tr>
             <td class="header-title">Hoja de Evolución Psicología</td>
             <td class="header-logo-container">
-                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
             </td>
         </tr>
     </table>
@@ -2829,9 +2784,9 @@ const Psicologo_page = () => {
         <tbody>
             ${evoluciones.length > 0 ? evoluciones.map(ev => `
                 <tr style="font-size: 10px; vertical-align: top;">
-                    <td class="text-center" style="padding: 10px 5px;">${ev.fecha || (ev.created_at ? ev.created_at.slice(0, 10) : '')}</td>
-                    <td class="text-center" style="padding: 10px 5px; font-weight: bold;">Sesión #${ev.sesion_numero}</td>
-                    <td style="padding: 10px;">${ev.detalle_evolucion}</td>
+                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha || (ev.created_at ? ev.created_at.slice(0, 10) : ''))}</td>
+                    <td class="text-center" style="padding: 10px 5px; font-weight: bold;">Sesión #${escapeHtml(ev.sesion_numero)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
                 </tr>
             `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
         </tbody>
@@ -3022,7 +2977,7 @@ const Psicologo_page = () => {
                     <div class="certificate-border">
                         <div class="header">
                             <div style="margin-bottom: 12px; display: flex; justify-content: center;">
-                                <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 58px; width: auto; object-fit: contain;" />
+                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 58px; width: auto; object-fit: contain;" />
                             </div>
                             <div class="logo-main">Universidad Estatal de Bolívar</div>
                             <div class="logo-sub">DEPARTAMENTO DE BIENESTAR UNIVERSITARIO</div>
@@ -3032,25 +2987,25 @@ const Psicologo_page = () => {
 
                         <div class="certificate-body">
                             Por medio de la presente, se hace constar y se certifica que el/la estudiante 
-                            <span class="bold-text">${selectedPatient.nombre_completo}</span>, con cédula de identidad número 
-                            <span class="bold-text">${selectedPatient.cedula || selectedPatient.numero_cedula || '—'}</span>, asistió 
+                            <span class="bold-text">${escapeHtml(selectedPatient.nombre_completo)}</span>, con cédula de identidad número 
+                            <span class="bold-text">${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || '—')}</span>, asistió 
                             a la consulta del área de <span class="bold-text">Psicología Clínica</span> el día 
-                            <span class="bold-text">${record.fecha}</span>.
+                            <span class="bold-text">${escapeHtml(record.fecha)}</span>.
                             <br><br>
                             El paciente recibió atención y soporte psicoterapéutico individualizado, registrando en su ficha clínica el diagnóstico 
-                            de <span class="bold-text">"${diagnosis}"</span>, mostrando una respuesta favorable y cooperativa durante la sesión.
+                            de <span class="bold-text">"${escapeHtml(diagnosis)}"</span>, mostrando una respuesta favorable y cooperativa durante la sesión.
                             <br><br>
                             Se expide el presente documento a petición de la parte interesada para los fines legales, académicos o personales pertinentes.
                         </div>
 
                         <div class="footer-date">
-                            Dado y firmado en la ciudad de Guaranda, a los ${dayNum} días del mes de ${monthName} del año ${year}.
+                            Dado y firmado en la ciudad de Guaranda, a los ${escapeHtml(dayNum)} días del mes de ${escapeHtml(monthName)} del año ${escapeHtml(year)}.
                         </div>
 
                         <div class="signatures-container">
                             <div class="signature-box">
                                 <div class="signature-line"></div>
-                                <strong style="font-size: 13px; color: #0f172a;">${user?.name || 'Psicólogo/a Responsable'}</strong><br>
+                                <strong style="font-size: 13px; color: #0f172a;">${escapeHtml(user?.name || 'Psicólogo/a Responsable')}</strong><br>
                                 <span class="credentials">Responsable del Área de Psicología</span><br>
                                 <span class="credentials">Bienestar Universitario</span>
                             </div>
@@ -3087,9 +3042,6 @@ const Psicologo_page = () => {
         });
     };
 
-    const toggleAccordion = (key) => {
-        setActiveAccordion(prev => (prev === key ? '' : key));
-    };
 
     return (
         <div className="nurse-shell">
@@ -3106,7 +3058,7 @@ const Psicologo_page = () => {
                             <strong>Sección</strong>
                             <span>Psicología</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -3156,7 +3108,7 @@ const Psicologo_page = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={handleLogoutClick}>
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={16} /></span>
                             <span>Cerrar sesión</span>
                         </button>
@@ -3169,7 +3121,7 @@ const Psicologo_page = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -3259,6 +3211,7 @@ const Psicologo_page = () => {
                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <CalendarDays size={16} color="var(--accent)" />
                                                     <input
+                                                        aria-label="Fecha del parte diario"
                                                         type="date"
                                                         value={parteDiarioDate}
                                                         onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -3312,7 +3265,7 @@ const Psicologo_page = () => {
                                                         <span>Sesión de Evolución (Secundaria)</span>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '6px', background: '#fef3c7', color: '#d97706' }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '6px', background: '#fef3c7', color: '#a55a05' }}>
                                                             <FileCheck size={12} />
                                                         </span>
                                                         <span>Certificado Médico</span>
@@ -3363,7 +3316,7 @@ const Psicologo_page = () => {
                                                                 <strong>{pName}</strong>
                                                                 <p>Atención: {item.tipo_atencion.toUpperCase()} · Diagnóstico: {item.detalle_diagnostico}</p>
                                                             </div>
-                                                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
                                                                 {item.tipo_atencion2.toUpperCase()}
                                                             </div>
                                                         </div>
@@ -3512,6 +3465,7 @@ const Psicologo_page = () => {
                                                                         >
                                                                             {/* Header */}
                                                                             <div
+                                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                                 style={{
                                                                                     padding: '12px 16px',
                                                                                     display: 'flex',
@@ -3531,7 +3485,7 @@ const Psicologo_page = () => {
                                                                                         height: '36px',
                                                                                         borderRadius: '10px',
                                                                                         background: treatment.estado === 'en_curso' ? 'var(--primary-soft)' : '#f1f5f9',
-                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#64748b',
+                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#475569',
                                                                                         display: 'flex',
                                                                                         alignItems: 'center',
                                                                                         justifyContent: 'center',
@@ -3545,11 +3499,11 @@ const Psicologo_page = () => {
                                                                                                 Tratamiento #{treatment.numero}
                                                                                             </span>
                                                                                             {treatment.estado === 'en_curso' ? (
-                                                                                                <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                                                                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span> En Curso
                                                                                                 </span>
                                                                                             ) : (
-                                                                                                <span style={{ fontSize: '10px', fontWeight: 600, background: '#f1f5f9', color: '#64748b', padding: '2px 8px', borderRadius: '10px' }}>
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 600, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '10px' }}>
                                                                                                     ✓ Cerrado
                                                                                                 </span>
                                                                                             )}
@@ -3604,6 +3558,7 @@ const Psicologo_page = () => {
                                                                                             <tbody>
                                                                                                 {treatment.citas.map((cita, cIdx) => (
                                                                                                     <tr
+                                                                                                        tabIndex={0} onKeyDown={onKeyActivate}
                                                                                                         key={cita.id || cIdx}
                                                                                                         style={{
                                                                                                             borderBottom: cIdx === treatment.citas.length - 1 ? 'none' : '1px solid #f1f5f9',
@@ -3625,7 +3580,7 @@ const Psicologo_page = () => {
                                                                                                                 color: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary)' : 'var(--accent)',
                                                                                                                 padding: '2px 7px',
                                                                                                                 borderRadius: '5px',
-                                                                                                                fontSize: '10px',
+                                                                                                                fontSize: '11px',
                                                                                                                 fontWeight: 700,
                                                                                                                 display: 'inline-block',
                                                                                                                 whiteSpace: 'nowrap'
@@ -3651,7 +3606,7 @@ const Psicologo_page = () => {
                                                                                                                 type="button"
                                                                                                                 className="action-button action-button--primary"
                                                                                                                 style={{
-                                                                                                                    fontSize: '10.5px',
+                                                                                                                    fontSize: '11px',
                                                                                                                     minHeight: '26px',
                                                                                                                     padding: '0 8px',
                                                                                                                     borderRadius: '6px',
@@ -3706,6 +3661,7 @@ const Psicologo_page = () => {
                                                                             const isPrimaria = record.tipo_atencion === 'primaria';
                                                                             return (
                                                                                 <tr
+                                                                                    tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={record.id || index}
                                                                                     style={{
                                                                                         borderBottom: index === areaHistories.psicologia.length - 1 ? 'none' : '1px solid #f1f5f9',
@@ -3719,11 +3675,11 @@ const Psicologo_page = () => {
                                                                                     </td>
                                                                                     <td style={{ padding: '9px 10px' }}>
                                                                                         {record.treatment ? (
-                                                                                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
                                                                                                 Tratamiento #{record.treatment.numero}
                                                                                             </span>
                                                                                         ) : (
-                                                                                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>-</span>
+                                                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>
                                                                                         )}
                                                                                     </td>
                                                                                     <td style={{ padding: '9px 10px' }}>
@@ -3732,7 +3688,7 @@ const Psicologo_page = () => {
                                                                                             color: isPrimaria ? 'var(--primary)' : 'var(--accent)',
                                                                                             padding: '2px 7px',
                                                                                             borderRadius: '5px',
-                                                                                            fontSize: '10px',
+                                                                                            fontSize: '11px',
                                                                                             fontWeight: 700,
                                                                                             display: 'inline-block',
                                                                                             whiteSpace: 'nowrap'
@@ -3758,7 +3714,7 @@ const Psicologo_page = () => {
                                                                                             type="button"
                                                                                             className="action-button action-button--primary"
                                                                                             style={{
-                                                                                                fontSize: '10.5px',
+                                                                                                fontSize: '11px',
                                                                                                 minHeight: '26px',
                                                                                                 padding: '0 8px',
                                                                                                 borderRadius: '6px',
@@ -3804,7 +3760,7 @@ const Psicologo_page = () => {
                                                     {/* Header */}
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf2f7', paddingBottom: '12px', gap: '10px' }}>
                                                         <div style={{ minWidth: 0 }}>
-                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
                                                                 Detalle Clínico de Consulta
                                                             </span>
                                                             <h4 style={{ margin: '3px 0 0', fontSize: '14.5px', color: 'var(--primary)', fontWeight: 800 }}>
@@ -3816,10 +3772,10 @@ const Psicologo_page = () => {
                                                                 </span>
                                                                 {activeBookRecord.treatment && (
                                                                     <span style={{
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: 700,
                                                                         background: activeBookRecord.treatment.estado === 'en_curso' ? '#dcfce7' : '#f1f5f9',
-                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#64748b',
+                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#475569',
                                                                         padding: '2px 8px',
                                                                         borderRadius: '10px',
                                                                         display: 'inline-flex',
@@ -3858,7 +3814,7 @@ const Psicologo_page = () => {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                         {/* Nivel de Atención */}
                                                         <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                 Nivel de Atención
                                                             </span>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
@@ -3881,7 +3837,7 @@ const Psicologo_page = () => {
                                                         {/* Diagnóstico Clínico */}
                                                         {(activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico) && (
                                                             <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Diagnóstico Clínico
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>
@@ -3893,7 +3849,7 @@ const Psicologo_page = () => {
                                                         {/* Evolución / Notas Clínicas */}
                                                         {(activeBookRecord.detalle_evolucion || activeBookRecord.detalle_motivo) && (
                                                             <div style={{ background: '#f5f3ff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Detalle de Evolución Psicológica
                                                                 </span>
                                                                 <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b0764', lineHeight: '1.5', fontStyle: 'italic' }}>
@@ -3905,7 +3861,7 @@ const Psicologo_page = () => {
                                                         {/* Procedimiento */}
                                                         {activeBookRecord.procedimiento && (
                                                             <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Procedimiento / Terapia Aplicada
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#334155' }}>
@@ -3917,7 +3873,7 @@ const Psicologo_page = () => {
                                                         {/* Prescripción */}
                                                         {activeBookRecord.prescripcion_medica && (
                                                             <div style={{ background: '#f0fdf4', padding: '10px 12px', borderRadius: '8px', border: '1px solid #99f6e4' }}>
-                                                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
                                                                     Prescripción / Recomendaciones
                                                                 </span>
                                                                 <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#134e4a', lineHeight: '1.4' }}>
@@ -4001,6 +3957,7 @@ const Psicologo_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del parte diario"
                                                             type="date"
                                                             value={parteDiarioDate}
                                                             onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -4108,6 +4065,7 @@ const Psicologo_page = () => {
                                                         />
                                                     </label>
                                                     <select
+                                                        aria-label="Filtrar por estado"
                                                         value={reportCitasEstado}
                                                         onChange={(e) => setReportCitasEstado(e.target.value)}
                                                         style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', outline: 0, background: 'white' }}
@@ -4207,6 +4165,7 @@ const Psicologo_page = () => {
                                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                             <CalendarDays size={16} color="var(--accent)" />
                                             <input
+                                                aria-label="Fecha de las citas"
                                                 type="date"
                                                 value={citasDate}
                                                 onChange={(e) => setCitasDate(e.target.value)}
@@ -4271,7 +4230,7 @@ const Psicologo_page = () => {
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
+                                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -4282,14 +4241,14 @@ const Psicologo_page = () => {
                                                                 <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                     {cita.motivo || 'Consulta general'}
                                                                     {cita.notas_doctor && (
-                                                                        <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
+                                                                        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
                                                                             <strong>Mis Notas:</strong> {cita.notas_doctor}
                                                                         </div>
                                                                     )}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <span style={{
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: '700',
                                                                         textTransform: 'uppercase',
                                                                         color: statusColors.text,
@@ -4302,7 +4261,7 @@ const Psicologo_page = () => {
                                                                         {cita.estado}
                                                                     </span>
                                                                     {cita.confirmada_por_paciente && (
-                                                                        <div style={{ marginTop: '4px', fontSize: '10px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                                                             <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
                                                                         </div>
                                                                     )}
@@ -4399,7 +4358,7 @@ const Psicologo_page = () => {
                                     <h2>Buscar Paciente por Cédula</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientSearchOpen(false)}><X size={16} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
@@ -4407,6 +4366,7 @@ const Psicologo_page = () => {
                                 <div className="patient-search-input" style={{ flex: 1 }}>
                                     <Search size={16} />
                                     <input
+                                        aria-label="Ingrese número de cédula o nombre del paciente"
                                         value={modalSearchCedula}
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         placeholder="Ingrese número de cédula o nombre del paciente..."
@@ -4455,7 +4415,7 @@ const Psicologo_page = () => {
                                     <h2>Nuevo Paciente</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsPatientRegisterOpen(false)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleQuickRegisterPatient} className="clinical-modal__body">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -4463,10 +4423,10 @@ const Psicologo_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><User size={15} /></span>
-                                            <h4 className="field-header__title">Nombres y Apellidos Completos <span className="field-req-star">*</span></h4>
+                                            <h4 id="psicologo-nombres-y-apellidos-completos-titulo" className="field-header__title">Nombres y Apellidos Completos <span className="field-req-star">*</span></h4>
                                         </div>
                                     </div>
-                                    <input
+                                    <input aria-labelledby="psicologo-nombres-y-apellidos-completos-titulo"
                                         value={newPatientForm.nombre_completo}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre_completo: e.target.value })}
                                         placeholder="Ingrese nombres y apellidos de acuerdo a la cédula o pasaporte"
@@ -4480,10 +4440,10 @@ const Psicologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><FileText size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Documento <span className="field-req-star">*</span></h4>
+                                                <h4 id="psicologo-tipo-de-documento-titulo" className="field-header__title">Tipo de Documento <span className="field-req-star">*</span></h4>
                                             </div>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="psicologo-tipo-de-documento-titulo"
                                             value={newPatientForm.tipo_documento}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_documento: e.target.value, cedula: '', pais_origen: '' })}
                                             required
@@ -4503,6 +4463,7 @@ const Psicologo_page = () => {
                                             </div>
                                         </div>
                                         <input
+                                            aria-label={newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
                                             value={newPatientForm.cedula}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, cedula: e.target.value })}
                                             placeholder={newPatientForm.tipo_documento === 'pasaporte' ? 'Ej. AB123456' : 'Ej. 0201234567'}
@@ -4517,10 +4478,10 @@ const Psicologo_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 className="field-header__title">Tipo de Paciente <span className="field-req-star">*</span></h4>
+                                                <h4 id="psicologo-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente <span className="field-req-star">*</span></h4>
                                             </div>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="psicologo-tipo-de-paciente-titulo"
                                             value={newPatientForm.id_tipo_usuario || 2}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
                                             required
@@ -4537,10 +4498,10 @@ const Psicologo_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><MapPin size={15} /></span>
-                                                    <h4 className="field-header__title">País de Origen <span className="field-req-star">*</span></h4>
+                                                    <h4 id="psicologo-pais-de-origen-titulo" className="field-header__title">País de Origen <span className="field-req-star">*</span></h4>
                                                 </div>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="psicologo-pais-de-origen-titulo"
                                                 value={newPatientForm.pais_origen}
                                                 onChange={(e) => setNewPatientForm({ ...newPatientForm, pais_origen: e.target.value })}
                                                 required
@@ -4561,6 +4522,7 @@ const Psicologo_page = () => {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', border: !newPatientForm.correo ? '1.5px solid #b71a34' : '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#ffffff', minHeight: '46px', boxSizing: 'border-box' }}>
                                         <input
+                                            aria-label="nombre.apellido"
                                             type="text"
                                             value={newPatientForm.correo}
                                             onChange={(e) => {
@@ -4600,7 +4562,7 @@ const Psicologo_page = () => {
                             </div>
 
                             {registerError && (
-                                <div style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div role="alert" style={{ marginTop: '15px', color: '#b71a34', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <AlertTriangle size={14} /> {registerError}
                                 </div>
                             )}
@@ -4636,7 +4598,7 @@ const Psicologo_page = () => {
                                         <CheckCircle size={13} color="#f87171" /> Guardado {draftLastSaved}
                                     </span>
                                 )}
-                                <button className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelFicha}><X size={15} /></button>
                             </div>
                         </header>
                         <div className="clinical-modal__body">
@@ -4655,6 +4617,7 @@ const Psicologo_page = () => {
                                         {steps.map((step, idx) => (
                                             <React.Fragment key={step.key}>
                                                 <div
+                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
                                                     onClick={() => setCurrentStepIndex(idx)}
                                                 >
@@ -4686,6 +4649,7 @@ const Psicologo_page = () => {
                                                             </div>
                                                         </div>
                                                         <textarea
+                                                            aria-label="Describa el motivo principal manifestado por el paciente o derivación clínica"
                                                             value={fichaForm.detalle_motivo}
                                                             onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_motivo: e.target.value }))}
                                                             placeholder="Describa el motivo principal manifestado por el paciente o derivación clínica..."
@@ -4704,6 +4668,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Antecedentes psicológicos, desarrollo biopsicosocial e hitos vitales del paciente"
                                                                 value={fichaForm.psicoanamnesis_personal}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, psicoanamnesis_personal: e.target.value }))}
                                                                 placeholder="Antecedentes psicológicos, desarrollo biopsicosocial e hitos vitales del paciente..."
@@ -4719,6 +4684,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Dinámica familiar, antecedentes psiquiátricos o psicosociales en el núcleo de origen"
                                                                 value={fichaForm.psicoanamnesis_familiar}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, psicoanamnesis_familiar: e.target.value }))}
                                                                 placeholder="Dinámica familiar, antecedentes psiquiátricos o psicosociales en el núcleo de origen..."
@@ -4748,6 +4714,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Adaptabilidad académica/laboral, desempeño, nivel de estrés o sobrecarga"
                                                                 value={fichaForm.detalle_laboral}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_laboral: e.target.value }))}
                                                                 placeholder="Adaptabilidad académica/laboral, desempeño, nivel de estrés o sobrecarga..."
@@ -4763,6 +4730,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Redes de apoyo, habilidades interpersonales, actividades recreativas"
                                                                 value={fichaForm.detalle_social}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_social: e.target.value }))}
                                                                 placeholder="Redes de apoyo, habilidades interpersonales, actividades recreativas..."
@@ -4781,6 +4749,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Vida afectiva, relación de pareja, estabilidad emocional y ámbito psicosexual"
                                                                 value={fichaForm.detalle_sexual}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_sexual: e.target.value }))}
                                                                 placeholder="Vida afectiva, relación de pareja, estabilidad emocional y ámbito psicosexual..."
@@ -4796,6 +4765,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Diagnósticos médicos o psiquiátricos previos, medicación actual, consumo de sustancias"
                                                                 value={fichaForm.detalle_patologia}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_patologia: e.target.value }))}
                                                                 placeholder="Diagnósticos médicos o psiquiátricos previos, medicación actual, consumo de sustancias..."
@@ -4828,19 +4798,19 @@ const Psicologo_page = () => {
                                                         <div className="mental-status-grid">
                                                             <div className="mental-status-card">
                                                                 <label><Eye size={13} style={{ color: 'var(--accent)' }} /> Apariencia física</label>
-                                                                <input value={fichaForm.apariencia} onChange={(e) => setFichaForm(prev => ({ ...prev, apariencia: e.target.value }))} placeholder="Ej. Aseado, alineado, marcha normal..." />
+                                                                <input aria-label="Apariencia física" value={fichaForm.apariencia} onChange={(e) => setFichaForm(prev => ({ ...prev, apariencia: e.target.value }))} placeholder="Ej. Aseado, alineado, marcha normal..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><UserCheck size={13} style={{ color: 'var(--accent)' }} /> Actitud inicial</label>
-                                                                <input value={fichaForm.actitud} onChange={(e) => setFichaForm(prev => ({ ...prev, actitud: e.target.value }))} placeholder="Ej. Colaboradora, reservada, evasiva..." />
+                                                                <input aria-label="Actitud inicial" value={fichaForm.actitud} onChange={(e) => setFichaForm(prev => ({ ...prev, actitud: e.target.value }))} placeholder="Ej. Colaboradora, reservada, evasiva..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><Compass size={13} style={{ color: 'var(--accent)' }} /> Juicio y raciocinio</label>
-                                                                <input value={fichaForm.juicio} onChange={(e) => setFichaForm(prev => ({ ...prev, juicio: e.target.value }))} placeholder="Ej. Conservado, introspección presente..." />
+                                                                <input aria-label="Juicio y raciocinio" value={fichaForm.juicio} onChange={(e) => setFichaForm(prev => ({ ...prev, juicio: e.target.value }))} placeholder="Ej. Conservado, introspección presente..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><Activity size={13} style={{ color: 'var(--accent)' }} /> Conducta motora</label>
-                                                                <input value={fichaForm.conducta_motora} onChange={(e) => setFichaForm(prev => ({ ...prev, conducta_motora: e.target.value }))} placeholder="Ej. Eutónico, intranquilidad psicomotora..." />
+                                                                <input aria-label="Conducta motora" value={fichaForm.conducta_motora} onChange={(e) => setFichaForm(prev => ({ ...prev, conducta_motora: e.target.value }))} placeholder="Ej. Eutónico, intranquilidad psicomotora..." />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4857,15 +4827,15 @@ const Psicologo_page = () => {
                                                         <div className="mental-status-grid">
                                                             <div className="mental-status-card">
                                                                 <label><Clock size={13} style={{ color: 'var(--primary)' }} /> Calidad del sueño</label>
-                                                                <input value={fichaForm.sueno} onChange={(e) => setFichaForm(prev => ({ ...prev, sueno: e.target.value }))} placeholder="Ej. Insomnio de conciliación, reparador..." />
+                                                                <input aria-label="Calidad del sueño" value={fichaForm.sueno} onChange={(e) => setFichaForm(prev => ({ ...prev, sueno: e.target.value }))} placeholder="Ej. Insomnio de conciliación, reparador..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><Heart size={13} style={{ color: 'var(--primary)' }} /> Apetito y nutrición</label>
-                                                                <input value={fichaForm.apetito} onChange={(e) => setFichaForm(prev => ({ ...prev, apetito: e.target.value }))} placeholder="Ej. Normorexia, hiporexia..." />
+                                                                <input aria-label="Apetito y nutrición" value={fichaForm.apetito} onChange={(e) => setFichaForm(prev => ({ ...prev, apetito: e.target.value }))} placeholder="Ej. Normorexia, hiporexia..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><Smile size={13} style={{ color: 'var(--primary)' }} /> Afectividad y estado de ánimo</label>
-                                                                <input value={fichaForm.afectividad} onChange={(e) => setFichaForm(prev => ({ ...prev, afectividad: e.target.value }))} placeholder="Ej. Eutímico, anhedonia, lábil, congruente..." />
+                                                                <input aria-label="Afectividad y estado de ánimo" value={fichaForm.afectividad} onChange={(e) => setFichaForm(prev => ({ ...prev, afectividad: e.target.value }))} placeholder="Ej. Eutímico, anhedonia, lábil, congruente..." />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4882,23 +4852,23 @@ const Psicologo_page = () => {
                                                         <div className="mental-status-grid">
                                                             <div className="mental-status-card">
                                                                 <label><Compass size={13} style={{ color: 'var(--accent)' }} /> Orientación</label>
-                                                                <input value={fichaForm.orientacion} onChange={(e) => setFichaForm(prev => ({ ...prev, orientacion: e.target.value }))} placeholder="Ej. Autopsíquica y alopsíquica conservada..." />
+                                                                <input aria-label="Orientación" value={fichaForm.orientacion} onChange={(e) => setFichaForm(prev => ({ ...prev, orientacion: e.target.value }))} placeholder="Ej. Autopsíquica y alopsíquica conservada..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><Zap size={13} style={{ color: 'var(--accent)' }} /> Atención y concentración</label>
-                                                                <input value={fichaForm.atencion} onChange={(e) => setFichaForm(prev => ({ ...prev, atencion: e.target.value }))} placeholder="Ej. Normoproséxico, hipoproséxico..." />
+                                                                <input aria-label="Atención y concentración" value={fichaForm.atencion} onChange={(e) => setFichaForm(prev => ({ ...prev, atencion: e.target.value }))} placeholder="Ej. Normoproséxico, hipoproséxico..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><FileText size={13} style={{ color: 'var(--accent)' }} /> Memoria</label>
-                                                                <input value={fichaForm.memoria} onChange={(e) => setFichaForm(prev => ({ ...prev, memoria: e.target.value }))} placeholder="Ej. Conservada reciente y remota..." />
+                                                                <input aria-label="Memoria" value={fichaForm.memoria} onChange={(e) => setFichaForm(prev => ({ ...prev, memoria: e.target.value }))} placeholder="Ej. Conservada reciente y remota..." />
                                                             </div>
                                                             <div className="mental-status-card">
                                                                 <label><MessageSquare size={13} style={{ color: 'var(--accent)' }} /> Lenguaje</label>
-                                                                <input value={fichaForm.lenguaje} onChange={(e) => setFichaForm(prev => ({ ...prev, lenguaje: e.target.value }))} placeholder="Ej. Fluido, tono modulado, coherente..." />
+                                                                <input aria-label="Lenguaje" value={fichaForm.lenguaje} onChange={(e) => setFichaForm(prev => ({ ...prev, lenguaje: e.target.value }))} placeholder="Ej. Fluido, tono modulado, coherente..." />
                                                             </div>
                                                             <div className="mental-status-card" style={{ gridColumn: 'span 2' }}>
                                                                 <label><Brain size={13} style={{ color: 'var(--accent)' }} /> Curso y contenido del pensamiento</label>
-                                                                <input value={fichaForm.pensamiento} onChange={(e) => setFichaForm(prev => ({ ...prev, pensamiento: e.target.value }))} placeholder="Ej. Lógico, estructurado, ausente de ideación delirante..." />
+                                                                <input aria-label="Curso y contenido del pensamiento" value={fichaForm.pensamiento} onChange={(e) => setFichaForm(prev => ({ ...prev, pensamiento: e.target.value }))} placeholder="Ej. Lógico, estructurado, ausente de ideación delirante..." />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -4923,6 +4893,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Detalle reactivos o pruebas administradas (Ej. BDI-II, HTP, WAIS-IV, Inventario de Ansiedad de Beck)"
                                                                 value={fichaForm.detalle_prueba_aplicada}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_prueba_aplicada: e.target.value }))}
                                                                 placeholder="Detalle reactivos o pruebas administradas (Ej. BDI-II, HTP, WAIS-IV, Inventario de Ansiedad de Beck)..."
@@ -4938,6 +4909,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Síntesis cuantitativa/cualitativa de puntajes, patrones de conducta y correlación clínica"
                                                                 value={fichaForm.detalle_analisis_resultados}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_analisis_resultados: e.target.value }))}
                                                                 placeholder="Síntesis cuantitativa/cualitativa de puntajes, patrones de conducta y correlación clínica..."
@@ -4967,6 +4939,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Conclusiones conceptuales del caso psicoterapéutico"
                                                                 value={fichaForm.detalle_conclusion}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_conclusion: e.target.value }))}
                                                                 placeholder="Conclusiones conceptuales del caso psicoterapéutico..."
@@ -4978,10 +4951,10 @@ const Psicologo_page = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><CheckCircle size={15} /></span>
-                                                                    <h4 className="field-header__title">Diagnóstico Clínico (CIE-10 / DSM-5) <span className="field-req-star">*</span></h4>
+                                                                    <h4 id="psicologo-diagnostico-clinico-cie-10-dsm-5-titulo" className="field-header__title">Diagnóstico Clínico (CIE-10 / DSM-5) <span className="field-req-star">*</span></h4>
                                                                 </div>
                                                             </div>
-                                                            <textarea
+                                                            <textarea aria-labelledby="psicologo-diagnostico-clinico-cie-10-dsm-5-titulo"
                                                                 value={fichaForm.detalle_diagnostico}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_diagnostico: e.target.value }))}
                                                                 placeholder="Ingrese código y denominación diagnóstica (Ej. F41.1 Trastorno de ansiedad generalizada)..."
@@ -5001,6 +4974,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Evolución proyectada de la sintomatología según adherencia al plan"
                                                                 value={fichaForm.detalle_pronostico}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_pronostico: e.target.value }))}
                                                                 placeholder="Evolución proyectada de la sintomatología según adherencia al plan..."
@@ -5016,6 +4990,7 @@ const Psicologo_page = () => {
                                                                 </div>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Pautas psicoterapéuticas, frecuencia de sesiones, derivaciones o tareas en casa"
                                                                 value={fichaForm.detalle_recomendacion}
                                                                 onChange={(e) => setFichaForm(prev => ({ ...prev, detalle_recomendacion: e.target.value }))}
                                                                 placeholder="Pautas psicoterapéuticas, frecuencia de sesiones, derivaciones o tareas en casa..."
@@ -5032,7 +5007,7 @@ const Psicologo_page = () => {
                                                                 <span className="field-header__icon" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><ClipboardList size={16} /></span>
                                                                 <div>
                                                                     <h4 className="field-header__title">Registro Estadístico en Diario de Atención</h4>
-                                                                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Asocia automáticamente la consulta al informe estadístico de la jornada.</p>
+                                                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Asocia automáticamente la consulta al informe estadístico de la jornada.</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -5040,6 +5015,7 @@ const Psicologo_page = () => {
                                                             <div className="field">
                                                                 <span>Nivel de Atención *</span>
                                                                 <select
+                                                                    aria-label="Nivel de Atención"
                                                                     value={fichaForm.tipo_atencion}
                                                                     onChange={(e) => setFichaForm(prev => ({ ...prev, tipo_atencion: e.target.value }))}
                                                                     required
@@ -5049,12 +5025,12 @@ const Psicologo_page = () => {
                                                                     <option value="secundaria">Secundaria (Subsecuente / Evolución)</option>
                                                                 </select>
                                                                 {fichaForm.tipo_atencion === 'primaria' ? (
-                                                                    <div style={{ fontSize: '10.5px', color: '#1e40af', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                    <div style={{ fontSize: '11px', color: '#1e40af', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                         <Info size={12} />
                                                                         <span>Inicia un nuevo tratamiento (cierra el tratamiento anterior si existía uno activo).</span>
                                                                     </div>
                                                                 ) : (
-                                                                    <div style={{ fontSize: '10.5px', color: '#047857', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                    <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                         <Info size={12} />
                                                                         <span>Continúa el tratamiento activo como sesión de evolución y seguimiento.</span>
                                                                     </div>
@@ -5063,6 +5039,7 @@ const Psicologo_page = () => {
                                                             <div className="field">
                                                                 <span>Tipo de Atención *</span>
                                                                 <select
+                                                                    aria-label="Tipo de Atención"
                                                                     value={fichaForm.tipo_atencion2}
                                                                     onChange={(e) => setFichaForm(prev => ({ ...prev, tipo_atencion2: e.target.value }))}
                                                                     required
@@ -5107,7 +5084,7 @@ const Psicologo_page = () => {
             )}
 
             {/* TOAST SYSTEM */}
-            <div className={`toast ${toast.show ? 'show' : ''}`}>
+            <div role="status" aria-live="polite" className={`toast ${toast.show ? 'show' : ''}`}>
                 <CheckCircle size={16} /> <span>{toast.message}</span>
             </div>
 
@@ -5125,7 +5102,7 @@ const Psicologo_page = () => {
                                     <h2 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>{saveFeedback.title}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={(e) => { e.stopPropagation(); setSaveFeedback(prev => ({ ...prev, show: false })); }} style={{ color: '#fff' }}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={(e) => { e.stopPropagation(); setSaveFeedback(prev => ({ ...prev, show: false })); }} style={{ color: '#fff' }}><X size={15} /></button>
                         </header>
                         <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
                             <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 20px' }}>
@@ -5183,7 +5160,7 @@ const Psicologo_page = () => {
                                         : completingCita.paciente?.name || 'Paciente'}</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setCompletingCita(null)}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleCompletarCitaSubmit} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="premium-field-card">
@@ -5194,6 +5171,7 @@ const Psicologo_page = () => {
                                     </div>
                                 </div>
                                 <textarea
+                                    aria-label="Registre la síntesis de la consulta, recomendaciones o pautas acordadas con el paciente"
                                     required
                                     value={notasDoctor}
                                     onChange={(e) => setNotasDoctor(e.target.value)}

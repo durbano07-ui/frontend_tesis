@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
 import '../../medical.css';
 import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
-import PasswordRequirements from '../../components/PasswordRequirements';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioTab';
@@ -14,65 +12,9 @@ import FarmaciaDespachoTab from '../../components/farmacia/FarmaciaDespachoTab';
 import FarmaciaPresentacionesTab from '../../components/farmacia/FarmaciaPresentacionesTab';
 
 // Importación de iconos de Lucide
-import {
-    HeartPulse,
-    Search,
-    Activity,
-    ClipboardList,
-    BriefcaseMedical,
-    History,
-    LogOut,
-    Menu,
-    Bell,
-    ChevronDown,
-    ShieldCheck,
-    Pill,
-    PackageCheck,
-    Boxes,
-    UserSearch,
-    ScanLine,
-    Stethoscope,
-    ChevronRight,
-    UserPlus,
-    Pencil,
-    Save,
-    X,
-    Syringe,
-    Bandage,
-    Wind,
-    Scissors,
-    Droplets,
-    ListChecks,
-    Check,
-    CalendarCheck,
-    CalendarDays,
-    ChevronLeft,
-    Download,
-    FileText,
-    CheckCircle,
-    BarChart3,
-    UserRound,
-    Trash2,
-    AlertTriangle,
-    Eye,
-    Clock,
-    Thermometer,
-    Ruler,
-    Scale,
-    MapPin,
-    User,
-    Brain,
-    Shield,
-    BookOpen,
-    Mail,
-    Globe,
-    Printer,
-    UserCheck,
-    HeartHandshake,
-    TrendingUp,
-    FileCheck,
-    Info
-} from 'lucide-react';
+import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, Bell, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, MapPin, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
+import { onKeyActivate } from '../../a11y/keyboard';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -374,7 +316,7 @@ const Enfermero_page = () => {
 
     const fetchPendingDespachos = async () => {
         try {
-            const res = await api.get('/v1/receta-farmacia/pendientes-despacho');
+            const res = await api.get('/receta-farmacia/pendientes-despacho');
             setPendingDespachosCount((res.data.data || []).length);
         } catch (err) {
             console.error('Error al cargar conteo de recetas pendientes:', err);
@@ -547,7 +489,7 @@ const Enfermero_page = () => {
         setVitalsModalFormOpen(true);
     };
 
-    // Auto-save form draft to localStorage
+    // Auto-save form draft to sessionStorage
     useEffect(() => {
         if (selectedPatient && vitalsForm) {
             saveDraft(vitalsForm);
@@ -821,25 +763,25 @@ const Enfermero_page = () => {
 
             return `
                 <tr>
-                    <td>${idx + 1}</td>
-                    <td class="left-align font-bold">${fullName}</td>
-                    <td>${cedula}</td>
-                    <td>${age}</td>
-                    <td>${isMale ? 'X' : ''}</td>
-                    <td>${isFemale ? 'X' : ''}</td>
-                    <td>${isLgbti ? 'X' : ''}</td>
-                    <td>${isEstudiante ? 'X' : ''}</td>
-                    <td class="left-align">${careerName}</td>
-                    <td>${isDocente ? 'X' : ''}</td>
-                    <td>${isAdministrativo ? 'X' : ''}</td>
-                    <td>${pa}</td>
-                    <td>${fc}</td>
-                    <td>${fr}</td>
-                    <td>${temp}</td>
-                    <td>${talla}</td>
-                    <td>${peso}</td>
-                    <td class="left-align">${item.procedimiento?.nombre_procedimiento || 'Procedimiento menor'}</td>
-                    <td class="left-align">${item.detalle_procedimiento || 'Sin observaciones.'}</td>
+                    <td>${escapeHtml(idx + 1)}</td>
+                    <td class="left-align font-bold">${escapeHtml(fullName)}</td>
+                    <td>${escapeHtml(cedula)}</td>
+                    <td>${escapeHtml(age)}</td>
+                    <td>${escapeHtml(isMale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isFemale ? 'X' : '')}</td>
+                    <td>${escapeHtml(isLgbti ? 'X' : '')}</td>
+                    <td>${escapeHtml(isEstudiante ? 'X' : '')}</td>
+                    <td class="left-align">${escapeHtml(careerName)}</td>
+                    <td>${escapeHtml(isDocente ? 'X' : '')}</td>
+                    <td>${escapeHtml(isAdministrativo ? 'X' : '')}</td>
+                    <td>${escapeHtml(pa)}</td>
+                    <td>${escapeHtml(fc)}</td>
+                    <td>${escapeHtml(fr)}</td>
+                    <td>${escapeHtml(temp)}</td>
+                    <td>${escapeHtml(talla)}</td>
+                    <td>${escapeHtml(peso)}</td>
+                    <td class="left-align">${escapeHtml(item.procedimiento?.nombre_procedimiento || 'Procedimiento menor')}</td>
+                    <td class="left-align">${escapeHtml(item.detalle_procedimiento || 'Sin observaciones.')}</td>
                 </tr>
             `;
         }).join('');
@@ -849,7 +791,7 @@ const Enfermero_page = () => {
         for (let i = 0; i < emptyRowsCount; i++) {
             emptyRowsHtml += `
                 <tr>
-                    <td>${detailedList.length + i + 1}</td>
+                    <td>${escapeHtml(detailedList.length + i + 1)}</td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -884,7 +826,7 @@ const Enfermero_page = () => {
             <html lang="es">
             <head>
                 <meta charset="UTF-8">
-                <title>Parte Diario de Enfermería - ${formattedDate}</title>
+                <title>Parte Diario de Enfermería - ${escapeHtml(formattedDate)}</title>
                 <style>
                     @page {
                         size: A4 landscape;
@@ -1044,7 +986,7 @@ const Enfermero_page = () => {
                                 <h3>Enfermería</h3>
                             </div>
                             <div class="date-box">
-                                FECHA:<br>${formattedDate}
+                                FECHA:<br>${escapeHtml(formattedDate)}
                             </div>
                         </header>
 
@@ -1082,13 +1024,13 @@ const Enfermero_page = () => {
                                 ${emptyRowsHtml}
                                 <tr class="bg-totals">
                                     <td colspan="4" class="left-align font-bold">TOTAL</td>
-                                    <td>${sumHombre}</td>
-                                    <td>${sumMujer}</td>
-                                    <td>${sumLgbti}</td>
-                                    <td>${sumEstudiante}</td>
+                                    <td>${escapeHtml(sumHombre)}</td>
+                                    <td>${escapeHtml(sumMujer)}</td>
+                                    <td>${escapeHtml(sumLgbti)}</td>
+                                    <td>${escapeHtml(sumEstudiante)}</td>
                                     <td></td>
-                                    <td>${sumDocente}</td>
-                                    <td>${sumAdministrativo}</td>
+                                    <td>${escapeHtml(sumDocente)}</td>
+                                    <td>${escapeHtml(sumAdministrativo)}</td>
                                     <td colspan="6"></td>
                                     <td colspan="2"></td>
                                 </tr>
@@ -1099,7 +1041,7 @@ const Enfermero_page = () => {
                     <div class="signatures-container">
                         <div class="signature-box">
                             <div class="signature-line"></div>
-                            <strong>Enfermero/a: ${user?.name || 'Profesional Responsable'}</strong><br>
+                            <strong>Enfermero/a: ${escapeHtml(user?.name || 'Profesional Responsable')}</strong><br>
                             <span>Responsable de Bienestar Estudiantil</span>
                         </div>
                     </div>
@@ -1365,7 +1307,7 @@ const Enfermero_page = () => {
                             <strong>Sección</strong>
                             <span>Enfermería</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -1438,7 +1380,7 @@ const Enfermero_page = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={handleLogoutClick}>
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={16} /></span>
                             <span>Cerrar sesión</span>
                         </button>
@@ -1452,7 +1394,7 @@ const Enfermero_page = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -1475,7 +1417,7 @@ const Enfermero_page = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
+                            <button aria-label="Notificaciones" className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
                             <UserProfileMenu />
                         </div>
                     </header>
@@ -1530,7 +1472,7 @@ const Enfermero_page = () => {
                                         onClick={() => setIsHistogramModalOpen(true)}
                                     >
                                         <span className="vitals-action-card__glow" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}></span>
-                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}><BarChart3 size={24} /></span>
+                                        <span className="vitals-action-card__icon" style={{ backgroundColor: '#eff6ff', color: '#316ccc' }}><BarChart3 size={24} /></span>
                                         <span className="vitals-action-card__content">
                                             <small>Análisis Clínico</small>
                                             <strong>Histograma de Signos</strong>
@@ -1564,6 +1506,7 @@ const Enfermero_page = () => {
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <CalendarDays size={16} color="var(--accent)" />
                                                 <input
+                                                    aria-label="Fecha del parte diario"
                                                     type="date"
                                                     value={parteDiarioDate}
                                                     onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -1603,7 +1546,7 @@ const Enfermero_page = () => {
                                             </div>
                                         </div>
                                         <div className="psycho-kpi-card">
-                                            <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                            <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                             <div className="psycho-kpi-card__info">
                                                 <span>Certificados</span>
                                                 <strong>{getParteKPIs().certificados}</strong>
@@ -1622,6 +1565,7 @@ const Enfermero_page = () => {
                                             <div className="patient-search-input procedure-search">
                                                 <Search size={16} />
                                                 <input
+                                                    aria-label="Buscar paciente, cédula o procedimiento"
                                                     value={parteDiarioSearch}
                                                     onChange={(e) => setParteDiarioSearch(e.target.value)}
                                                     placeholder="Buscar paciente, cédula o procedimiento..."
@@ -1762,10 +1706,11 @@ const Enfermero_page = () => {
                                             </div>
                                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                                 {/* Formulario para agregar */}
-                                                <form onSubmit={handleAddProcedure} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <form onSubmit={handleAddProcedure} style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                     <div className="patient-search-input" style={{ minWidth: '240px' }}>
                                                         <BriefcaseMedical size={16} />
                                                         <input
+                                                            aria-label="Nuevo procedimiento"
                                                             value={newProcedureName}
                                                             onChange={(e) => setNewProcedureName(e.target.value)}
                                                             placeholder="Nuevo procedimiento..."
@@ -1781,6 +1726,7 @@ const Enfermero_page = () => {
                                                 <div className="patient-search-input">
                                                     <Search size={16} />
                                                     <input
+                                                        aria-label="Buscar en catálogo"
                                                         value={procedureSearchQuery}
                                                         onChange={(e) => setProcedureSearchQuery(e.target.value)}
                                                         placeholder="Buscar en catálogo..."
@@ -1810,7 +1756,7 @@ const Enfermero_page = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td>
-                                                                    <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--success)', background: 'var(--success-soft)', padding: '3px 8px', borderRadius: '12px' }}>
+                                                                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--success)', background: 'var(--success-soft)', padding: '3px 8px', borderRadius: '12px' }}>
                                                                         Activo en Catálogo
                                                                     </span>
                                                                 </td>
@@ -1878,6 +1824,7 @@ const Enfermero_page = () => {
                                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         <CalendarDays size={16} color="var(--accent)" />
                                                         <input
+                                                            aria-label="Fecha del parte diario"
                                                             type="date"
                                                             value={parteDiarioDate}
                                                             onChange={(e) => setParteDiarioDate(e.target.value)}
@@ -1917,7 +1864,7 @@ const Enfermero_page = () => {
                                                     </div>
                                                 </div>
                                                 <div className="psycho-kpi-card">
-                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#d97706' }}><FileCheck size={20} /></div>
+                                                    <div className="psycho-kpi-card__icon" style={{ background: '#fef3c7', color: '#a55a05' }}><FileCheck size={20} /></div>
                                                     <div className="psycho-kpi-card__info">
                                                         <span>Certificados</span>
                                                         <strong>{getParteKPIs().certificados}</strong>
@@ -1936,6 +1883,7 @@ const Enfermero_page = () => {
                                                     <div className="patient-search-input procedure-search">
                                                         <Search size={16} />
                                                         <input
+                                                            aria-label="Buscar en este parte"
                                                             value={parteDiarioSearch}
                                                             onChange={(e) => setParteDiarioSearch(e.target.value)}
                                                             placeholder="Buscar en este parte"
@@ -2087,7 +2035,7 @@ const Enfermero_page = () => {
                                     <h2>Buscar Paciente por Cédula</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setVitalsModalSearchOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setVitalsModalSearchOpen(false)}><X size={15} /></button>
                         </header>
 
                         <div className="clinical-modal__body">
@@ -2095,6 +2043,7 @@ const Enfermero_page = () => {
                                 <div className="patient-search-input" style={{ flex: 1 }}>
                                     <Search size={16} />
                                     <input
+                                        aria-label="Ingrese número de cédula o nombre del paciente"
                                         value={modalSearchCedula}
                                         onChange={(e) => handleInputChange(e.target.value)}
                                         placeholder="Ingrese número de cédula o nombre del paciente..."
@@ -2148,11 +2097,11 @@ const Enfermero_page = () => {
                                     <h2>Registrar paciente nuevo</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => { setVitalsModalRegisterOpen(false); setQuickValidationTriggered(false); }}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => { setVitalsModalRegisterOpen(false); setQuickValidationTriggered(false); }}><X size={15} /></button>
                         </header>
                         <form onSubmit={handleQuickRegisterPatient} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {registerError && (
-                                <div className="alert alert-danger" style={{ color: '#b71a34', marginBottom: '10px' }}>
+                                <div role="alert" className="alert alert-danger" style={{ color: '#b71a34', marginBottom: '10px' }}>
                                     {registerError}
                                 </div>
                             )}
@@ -2161,11 +2110,11 @@ const Enfermero_page = () => {
                                 <div className="field-header">
                                     <div className="field-header__left">
                                         <span className="field-header__icon"><User size={15} /></span>
-                                        <h4 className="field-header__title">Nombres y Apellidos Completos</h4>
+                                        <h4 id="enfermero-nombres-y-apellidos-completos-titulo" className="field-header__title">Nombres y Apellidos Completos</h4>
                                     </div>
                                     <span className="field-badge-req">Requerido</span>
                                 </div>
-                                <input
+                                <input aria-labelledby="enfermero-nombres-y-apellidos-completos-titulo"
                                     value={newPatientForm.nombre_completo}
                                     onChange={(e) => setNewPatientForm({ ...newPatientForm, nombre_completo: e.target.value })}
                                     placeholder="Ej: Maria Fernanda Lopez Gomez"
@@ -2179,11 +2128,11 @@ const Enfermero_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><ShieldCheck size={15} /></span>
-                                            <h4 className="field-header__title">Tipo de Documento</h4>
+                                            <h4 id="enfermero-tipo-de-documento-titulo" className="field-header__title">Tipo de Documento</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <select
+                                    <select aria-labelledby="enfermero-tipo-de-documento-titulo"
                                         value={newPatientForm.tipo_documento}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, tipo_documento: e.target.value, cedula: '', pais_origen: '' })}
                                     >
@@ -2201,6 +2150,7 @@ const Enfermero_page = () => {
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
                                     <input
+                                        aria-label={newPatientForm.tipo_documento === 'pasaporte' ? 'Número de Pasaporte' : 'Número de Cédula'}
                                         value={newPatientForm.cedula}
                                         onChange={(e) => setNewPatientForm({ ...newPatientForm, cedula: e.target.value })}
                                         placeholder={newPatientForm.tipo_documento === 'pasaporte' ? 'Ej: AB123456' : 'Ej: 0201234567'}
@@ -2216,11 +2166,11 @@ const Enfermero_page = () => {
                                     <div className="field-header">
                                         <div className="field-header__left">
                                             <span className="field-header__icon"><UserRound size={15} /></span>
-                                            <h4 className="field-header__title">Tipo de Paciente</h4>
+                                            <h4 id="enfermero-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
                                         </div>
                                         <span className="field-badge-req">Requerido</span>
                                     </div>
-                                    <select
+                                    <select aria-labelledby="enfermero-tipo-de-paciente-titulo"
                                         value={newPatientForm.id_tipo_usuario || 2}
                                         onChange={(e) => {
                                             const selectedId = Number(e.target.value);
@@ -2249,11 +2199,11 @@ const Enfermero_page = () => {
                                         <div className="field-header">
                                             <div className="field-header__left">
                                                 <span className="field-header__icon"><Globe size={15} /></span>
-                                                <h4 className="field-header__title">País de Origen</h4>
+                                                <h4 id="enfermero-pais-de-origen-titulo" className="field-header__title">País de Origen</h4>
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <select
+                                        <select aria-labelledby="enfermero-pais-de-origen-titulo"
                                             value={newPatientForm.pais_origen}
                                             onChange={(e) => setNewPatientForm({ ...newPatientForm, pais_origen: e.target.value })}
                                             style={getQuickInputStyle(newPatientForm.pais_origen)}
@@ -2276,6 +2226,7 @@ const Enfermero_page = () => {
                                 </div>
                                 <div style={getQuickEmailInputStyle(newPatientForm.correo)}>
                                     <input
+                                        aria-label="usuario.estudiante"
                                         type="text"
                                         value={newPatientForm.correo}
                                         onChange={(e) => {
@@ -2346,7 +2297,7 @@ const Enfermero_page = () => {
                                         <CheckCircle size={13} color="#f87171" /> Guardado {draftLastSaved}
                                     </span>
                                 )}
-                                <button className="clinical-modal__close" onClick={handleCancelVitals}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelVitals}><X size={15} /></button>
                             </div>
                         </header>
                         <form onSubmit={handleVitalsFormSubmit} className="clinical-modal__body">
@@ -2387,12 +2338,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Activity size={15} /></span>
-                                                    <h4 className="field-header__title">Presión Sistólica</h4>
+                                                    <h4 id="enfermero-presion-sistolica-titulo" className="field-header__title">Presión Sistólica</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-presion-sistolica-titulo"
                                                     type="number"
                                                     value={vitalsForm.presion_arterial_sistolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_sistolica: e.target.value })}
@@ -2408,12 +2359,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Activity size={15} /></span>
-                                                    <h4 className="field-header__title">Presión Diastólica</h4>
+                                                    <h4 id="enfermero-presion-diastolica-titulo" className="field-header__title">Presión Diastólica</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-presion-diastolica-titulo"
                                                     type="number"
                                                     value={vitalsForm.presion_arterial_diastolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_diastolica: e.target.value })}
@@ -2429,12 +2380,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><HeartPulse size={15} /></span>
-                                                    <h4 className="field-header__title">Frecuencia Cardíaca</h4>
+                                                    <h4 id="enfermero-frecuencia-cardiaca-titulo" className="field-header__title">Frecuencia Cardíaca</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-frecuencia-cardiaca-titulo"
                                                     type="number"
                                                     value={vitalsForm.frecuencia_cardiaca}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_cardiaca: e.target.value })}
@@ -2450,12 +2401,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Wind size={15} /></span>
-                                                    <h4 className="field-header__title">Frecuencia Respiratoria</h4>
+                                                    <h4 id="enfermero-frecuencia-respiratoria-titulo" className="field-header__title">Frecuencia Respiratoria</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-frecuencia-respiratoria-titulo"
                                                     type="number"
                                                     value={vitalsForm.frecuencia_respiratoria}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_respiratoria: e.target.value })}
@@ -2471,12 +2422,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Thermometer size={15} /></span>
-                                                    <h4 className="field-header__title">Temperatura</h4>
+                                                    <h4 id="enfermero-temperatura-titulo" className="field-header__title">Temperatura</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-temperatura-titulo"
                                                     type="number"
                                                     step="0.1"
                                                     value={vitalsForm.temperatura}
@@ -2493,12 +2444,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Ruler size={15} /></span>
-                                                    <h4 className="field-header__title">Talla (Estatura)</h4>
+                                                    <h4 id="enfermero-talla-estatura-titulo" className="field-header__title">Talla (Estatura)</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-talla-estatura-titulo"
                                                     type="number"
                                                     value={vitalsForm.talla}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, talla: e.target.value })}
@@ -2514,12 +2465,12 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Scale size={15} /></span>
-                                                    <h4 className="field-header__title">Peso Corporal</h4>
+                                                    <h4 id="enfermero-peso-corporal-titulo" className="field-header__title">Peso Corporal</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
                                             <div className="input-with-unit">
-                                                <input
+                                                <input aria-labelledby="enfermero-peso-corporal-titulo"
                                                     type="number"
                                                     step="0.1"
                                                     value={vitalsForm.peso}
@@ -2549,11 +2500,11 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Clock size={15} /></span>
-                                                    <h4 className="field-header__title">Hora de Atención</h4>
+                                                    <h4 id="enfermero-hora-de-atencion-titulo" className="field-header__title">Hora de Atención</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <input
+                                            <input aria-labelledby="enfermero-hora-de-atencion-titulo"
                                                 type="time"
                                                 value={vitalsForm.hora}
                                                 onChange={(e) => setVitalsForm({ ...vitalsForm, hora: e.target.value })}
@@ -2566,11 +2517,11 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><BriefcaseMedical size={15} /></span>
-                                                    <h4 className="field-header__title">Tipo de Atención</h4>
+                                                    <h4 id="enfermero-tipo-de-atencion-titulo" className="field-header__title">Tipo de Atención</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="enfermero-tipo-de-atencion-titulo"
                                                 value={vitalsForm.tipo_atencion}
                                                 onChange={(e) => setVitalsForm({ ...vitalsForm, tipo_atencion: e.target.value })}
                                                 style={getInputStyle(vitalsForm.tipo_atencion)}
@@ -2584,11 +2535,11 @@ const Enfermero_page = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><Syringe size={15} /></span>
-                                                    <h4 className="field-header__title">Finalidad de Consulta</h4>
+                                                    <h4 id="enfermero-finalidad-de-consulta-titulo" className="field-header__title">Finalidad de Consulta</h4>
                                                 </div>
                                                 <span className="field-badge-req">Requerido</span>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="enfermero-finalidad-de-consulta-titulo"
                                                 value={vitalsForm.tipo}
                                                 onChange={(e) => setVitalsForm({ ...vitalsForm, tipo: e.target.value })}
                                                 style={getInputStyle(vitalsForm.tipo)}
@@ -2610,6 +2561,7 @@ const Enfermero_page = () => {
 
                                                     {/* Selector visible */}
                                                     <div
+                                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                         onClick={() => setIsDoctorDropdownOpen(!isDoctorDropdownOpen)}
                                                         style={{
                                                             display: 'flex',
@@ -2638,7 +2590,7 @@ const Enfermero_page = () => {
                                                                         borderRadius: '20px',
                                                                         background: 'var(--primary-soft)',
                                                                         color: 'var(--primary)',
-                                                                        fontSize: '10px',
+                                                                        fontSize: '11px',
                                                                         fontWeight: 500
                                                                     }}>
                                                                         {selectedDoctor.campuses[0].nombre}
@@ -2655,6 +2607,7 @@ const Enfermero_page = () => {
                                                     {isDoctorDropdownOpen && (
                                                         <>
                                                             <div
+                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                 onClick={() => { setIsDoctorDropdownOpen(false); setDoctorSearchQuery(''); }}
                                                                 style={{ position: 'fixed', inset: 0, zIndex: 998 }}
                                                             />
@@ -2680,6 +2633,7 @@ const Enfermero_page = () => {
                                                                 <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 14px', background: 'var(--input-bg, #fcfdfe)', gap: '8px' }}>
                                                                     <Search size={14} style={{ color: 'var(--text-muted)' }} />
                                                                     <input
+                                                                        aria-label="Buscar médico por nombre"
                                                                         type="text"
                                                                         placeholder="Buscar médico por nombre..."
                                                                         value={doctorSearchQuery}
@@ -2707,6 +2661,7 @@ const Enfermero_page = () => {
                                                                 {/* Lista de médicos */}
                                                                 <div style={{ overflowY: 'auto', flex: 1, padding: '6px' }}>
                                                                     <div
+                                                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                         onClick={() => {
                                                                             setVitalsForm({ ...vitalsForm, id_usuario_medico_general: '' });
                                                                             setIsDoctorDropdownOpen(false);
@@ -2732,6 +2687,7 @@ const Enfermero_page = () => {
                                                                             const campusName = d.campuses?.[0]?.nombre || '';
                                                                             return (
                                                                                 <div
+                                                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={d.id}
                                                                                     onClick={() => {
                                                                                         setVitalsForm({ ...vitalsForm, id_usuario_medico_general: d.id });
@@ -2759,7 +2715,7 @@ const Enfermero_page = () => {
                                                                                             borderRadius: '20px',
                                                                                             background: isSelected ? 'var(--primary)' : 'var(--border)',
                                                                                             color: isSelected ? 'white' : 'var(--text-secondary)',
-                                                                                            fontSize: '10px',
+                                                                                            fontSize: '11px',
                                                                                             fontWeight: 500
                                                                                         }}>
                                                                                             {campusName}
@@ -2792,6 +2748,7 @@ const Enfermero_page = () => {
 
                                                     {/* Trigger Selector */}
                                                     <div
+                                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                         onClick={() => setVitalsProcedureDropdownOpen(!vitalsProcedureDropdownOpen)}
                                                         style={{
                                                             display: 'flex',
@@ -2814,6 +2771,7 @@ const Enfermero_page = () => {
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', maxWidth: '90%' }}>
                                                                 {selectedProcs.map((p) => (
                                                                     <span
+                                                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                         key={p.id}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation(); // Evitar abrir/cerrar el dropdown
@@ -2844,7 +2802,7 @@ const Enfermero_page = () => {
                                                                             borderRadius: '50%',
                                                                             background: 'rgba(0, 0, 0, 0.08)',
                                                                             color: 'var(--primary)',
-                                                                            fontSize: '9px',
+                                                                            fontSize: '11px',
                                                                             lineHeight: 1,
                                                                             cursor: 'pointer'
                                                                         }}>×</span>
@@ -2861,6 +2819,7 @@ const Enfermero_page = () => {
                                                     {vitalsProcedureDropdownOpen && (
                                                         <>
                                                             <div
+                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                 onClick={() => { setVitalsProcedureDropdownOpen(false); setVitalsProcedureSearchQuery(''); }}
                                                                 style={{ position: 'fixed', inset: 0, zIndex: 998 }}
                                                             />
@@ -2886,6 +2845,7 @@ const Enfermero_page = () => {
                                                                 <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', padding: '10px 14px', background: 'var(--input-bg, #fcfdfe)', gap: '8px' }}>
                                                                     <Search size={14} style={{ color: 'var(--text-muted)' }} />
                                                                     <input
+                                                                        aria-label="Buscar procedimiento"
                                                                         type="text"
                                                                         placeholder="Buscar procedimiento..."
                                                                         value={vitalsProcedureSearchQuery}
@@ -2917,6 +2877,7 @@ const Enfermero_page = () => {
                                                                             const isSelected = vitalsForm.id_procedimiento_enfermeria.includes(p.id);
                                                                             return (
                                                                                 <div
+                                                                                    role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={p.id}
                                                                                     onClick={(e) => {
                                                                                         e.stopPropagation();
@@ -2995,6 +2956,7 @@ const Enfermero_page = () => {
                                                 <span className="field-badge-opt">Opcional</span>
                                             </div>
                                             <textarea
+                                                aria-label="Detalla observaciones clínicamente relevantes sobre la atención"
                                                 value={vitalsForm.detalle_procedimiento}
                                                 onChange={(e) => setVitalsForm({ ...vitalsForm, detalle_procedimiento: e.target.value })}
                                                 placeholder="Detalla observaciones clínicamente relevantes sobre la atención..."
@@ -3059,7 +3021,7 @@ const Enfermero_page = () => {
                                     <h2>Confirmar Registro Clínico</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setVitalsBookPreviewOpen(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setVitalsBookPreviewOpen(false)}><X size={15} /></button>
                         </header>
 
                         <div className="clinical-modal__body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -3069,7 +3031,7 @@ const Enfermero_page = () => {
                                     {selectedPatient?.nombre_completo?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </div>
                                 <div>
-                                    <span className="eyebrow" style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase' }}>PACIENTE</span>
+                                    <span className="eyebrow" style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }}>PACIENTE</span>
                                     <h3 style={{ margin: '2px 0 0', fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold' }}>{selectedPatient?.nombre_completo}</h3>
                                     <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {selectedPatient?.numero_cedula || selectedPatient?.cedula || '—'} · Tipo: {selectedPatient?.tipo || selectedPatient?.tipo_usuario || 'Paciente'}</p>
                                 </div>
@@ -3077,44 +3039,44 @@ const Enfermero_page = () => {
 
                             {/* Vitals preview */}
                             <div>
-                                <span className="eyebrow" style={{ display: 'block', marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>SIGNOS VITALES</span>
+                                <span className="eyebrow" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>SIGNOS VITALES</span>
                                 <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Presión Arterial</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Presión Arterial</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.presion_arterial_sistolica || '—'}/{vitalsForm.presion_arterial_diastolica || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>mmHg</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>mmHg</small>
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Frec. Cardíaca</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Frec. Cardíaca</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.frecuencia_cardiaca || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>lpm</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>lpm</small>
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Frec. Respiratoria</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Frec. Respiratoria</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.frecuencia_respiratoria || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>rpm</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>rpm</small>
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Temperatura</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Temperatura</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.temperatura || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>°C</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>°C</small>
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Talla</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Talla</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.talla || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>cm</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>cm</small>
                                     </div>
                                     <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>Peso</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Peso</span>
                                         <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.peso || '—'}</strong>
-                                        <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>kg</small>
+                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>kg</small>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Procedure preview */}
                             <div className="premium-field-card" style={{ padding: '16px', borderRadius: '12px' }}>
-                                <span className="eyebrow" style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PROCEDIMIENTO</span>
+                                <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PROCEDIMIENTO</span>
                                 <h4 style={{ margin: '4px 0 0', color: 'var(--primary)', fontWeight: '600', fontSize: '13.5px' }}>
                                     {proceduresCatalog.find(p => p.id === Number(vitalsForm.id_procedimiento_enfermeria))?.nombre_procedimiento || 'Procedimiento menor'}
                                 </h4>
@@ -3122,7 +3084,7 @@ const Enfermero_page = () => {
 
                             {/* Notes preview */}
                             <div className="premium-field-card" style={{ padding: '16px', borderRadius: '12px' }}>
-                                <span className="eyebrow" style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OBSERVACIONES DE ENFERMERÍA</span>
+                                <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OBSERVACIONES DE ENFERMERÍA</span>
                                 <p style={{ margin: '4px 0 0', fontStyle: 'italic', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                                     {vitalsForm.detalle_procedimiento || 'Sin observaciones adicionales.'}
                                 </p>
@@ -3131,9 +3093,9 @@ const Enfermero_page = () => {
                             {/* Signature block */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '15px', marginTop: '10px' }}>
                                 <div>
-                                    <span className="eyebrow" style={{ display: 'block', fontSize: '10px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RESPONSABLE</span>
+                                    <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RESPONSABLE</span>
                                     <strong style={{ display: 'block', fontSize: '12px', color: 'var(--primary)' }}>{user?.name || 'Andrea Molina'}</strong>
-                                    <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Firma Digital de Enfermería</small>
+                                    <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Firma Digital de Enfermería</small>
                                 </div>
                                 <div className="preview-state" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--success-soft)', padding: '8px 12px', borderRadius: '8px', color: 'var(--success)' }}>
                                     <ShieldCheck size={16} />
@@ -3159,7 +3121,7 @@ const Enfermero_page = () => {
             )}
 
             {/* TOAST SYSTEM */}
-            <div className={`toast ${toast.show ? 'show' : ''}`} style={{ zIndex: 9999999 }}>
+            <div role="status" aria-live="polite" className={`toast ${toast.show ? 'show' : ''}`} style={{ zIndex: 9999999 }}>
                 <CheckCircle size={16} />
                 <span>{toast.message}</span>
             </div>
@@ -3189,7 +3151,7 @@ const Enfermero_page = () => {
                                     <h2>Seleccionar Campus de Atención</h2>
                                 </div>
                             </div>
-                            <button className="clinical-modal__close" onClick={() => setCampusSetupModal(false)}><X size={15} /></button>
+                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setCampusSetupModal(false)}><X size={15} /></button>
                         </header>
                         <div className="clinical-modal__body" style={{ padding: '20px' }}>
                             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
@@ -3199,6 +3161,7 @@ const Enfermero_page = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                                 {campusList.map(c => (
                                     <div
+                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                         key={c.id}
                                         onClick={() => setCampusSetupValue(String(c.id))}
                                         style={{

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 /**
  * Función que extrae y normaliza de forma exhaustiva todos los campos clínicos,
@@ -400,7 +401,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
     <html lang="es">
     <head>
         <meta charset="UTF-8" />
-        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA PREOCUPACIONAL - ${pac}</title>
+        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA PREOCUPACIONAL - ${escapeHtml(pac)}</title>
         <style>
             @page {
                 size: portrait;
@@ -512,8 +513,8 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 <tr>
                     <td style="width: 32%; padding: 4px 8px; border: 1.5px solid #000;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <img src="${logoBienestar}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
-                            ${uebBannerLogo ? `<img src="${uebBannerLogo}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
+                            <img src="${escapeHtml(logoBienestar)}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
+                            ${uebBannerLogo ? `<img src="${escapeHtml(uebBannerLogo)}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
                             <div>
                                 <div style="font-weight: 900; font-size: 11px; color: #002060;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                                 <div style="font-size: 7.5px; font-weight: bold; color: #002060;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</div>
@@ -542,11 +543,11 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr class="text-center font-bold">
                     <td>UNIVERSIDAD ESTATAL DE BOLIVAR</td>
-                    <td>${ruc}</td>
+                    <td>${escapeHtml(ruc)}</td>
                     <td>-</td>
-                    <td>${estSalud}</td>
-                    <td>${numHC}</td>
-                    <td>${numArch}</td>
+                    <td>${escapeHtml(estSalud)}</td>
+                    <td>${escapeHtml(numHC)}</td>
+                    <td>${escapeHtml(numArch)}</td>
                 </tr>
             </table>
 
@@ -564,15 +565,15 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 8%;">LATERALIDAD</td>
                 </tr>
                 <tr class="text-center font-bold">
-                    <td class="uppercase">${p1Ape}</td>
-                    <td class="uppercase">${p2Ape}</td>
-                    <td class="uppercase">${p1Nom}</td>
-                    <td class="uppercase">${p2Nom}</td>
-                    <td>${sexo}</td>
-                    <td>${edad}</td>
-                    <td>${rel}</td>
-                    <td>${grpSangre}</td>
-                    <td>${lat}</td>
+                    <td class="uppercase">${escapeHtml(p1Ape)}</td>
+                    <td class="uppercase">${escapeHtml(p2Ape)}</td>
+                    <td class="uppercase">${escapeHtml(p1Nom)}</td>
+                    <td class="uppercase">${escapeHtml(p2Nom)}</td>
+                    <td>${escapeHtml(sexo)}</td>
+                    <td>${escapeHtml(edad)}</td>
+                    <td>${escapeHtml(rel)}</td>
+                    <td>${escapeHtml(grpSangre)}</td>
+                    <td>${escapeHtml(lat)}</td>
                 </tr>
             </table>
 
@@ -588,17 +589,17 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 10%;">TELÉFONO</td>
                 </tr>
                 <tr class="text-center">
-                    <td><strong>${orientacion}</strong></td>
-                    <td><strong>${idGen}</strong></td>
-                    <td>${disc.tiene ? `SÍ (${disc.tipo} ${disc.porcentaje}%)` : '<strong>NO</strong>'}</td>
-                    <td><strong>${fecIngreso}</strong></td>
-                    <td><strong>${ciuo}</strong></td>
-                    <td class="uppercase" style="font-size: 7.5px;"><strong>${cargo}</strong></td>
-                    <td>${tel}</td>
+                    <td><strong>${escapeHtml(orientacion)}</strong></td>
+                    <td><strong>${escapeHtml(idGen)}</strong></td>
+                    <td>${disc.tiene ? `SÍ (${escapeHtml(disc.tipo)} ${escapeHtml(disc.porcentaje)}%)` : '<strong>NO</strong>'}</td>
+                    <td><strong>${escapeHtml(fecIngreso)}</strong></td>
+                    <td><strong>${escapeHtml(ciuo)}</strong></td>
+                    <td class="uppercase" style="font-size: 7.5px;"><strong>${escapeHtml(cargo)}</strong></td>
+                    <td>${escapeHtml(tel)}</td>
                 </tr>
                 <tr>
                     <td colspan="7" style="background: #f8fafc; padding: 3px 6px;">
-                        <strong>ACTIVIDADES RELEVANTES AL PUESTO DE TRABAJO A OCUPAR:</strong> <span class="uppercase">${actividades}</span>
+                        <strong>ACTIVIDADES RELEVANTES AL PUESTO DE TRABAJO A OCUPAR:</strong> <span class="uppercase">${escapeHtml(actividades)}</span>
                     </td>
                 </tr>
             </table>
@@ -609,7 +610,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td class="bg-purple">B. MOTIVO DE CONSULTA <span style="font-size: 7.5px; font-weight: normal; float: right;">(Versión del informante)</span></td>
                 </tr>
                 <tr>
-                    <td style="padding: 5px 8px; font-weight: bold; background: #fafafa;">${motivo}</td>
+                    <td style="padding: 5px 8px; font-weight: bold; background: #fafafa;">${escapeHtml(motivo)}</td>
                 </tr>
             </table>
 
@@ -623,8 +624,8 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td colspan="4" style="padding: 4px 6px;">
-                        <div><strong>Antecedentes clínicos:</strong> ${antClin}</div>
-                        <div style="margin-top: 3px;"><strong>Antecedentes quirúrgicos:</strong> ${antQuir}</div>
+                        <div><strong>Antecedentes clínicos:</strong> ${escapeHtml(antClin)}</div>
+                        <div style="margin-top: 3px;"><strong>Antecedentes quirúrgicos:</strong> ${escapeHtml(antQuir)}</div>
                     </td>
                 </tr>
                 <tr>
@@ -646,23 +647,23 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                                 <td>PLANIFICACIÓN</td>
                             </tr>
                             <tr class="text-center font-bold" style="font-size: 7.5px;">
-                                <td>${gin.menarquia || '-'}</td>
-                                <td>${gin.ciclos || '-'}</td>
-                                <td>${gin.fum || '-'}</td>
-                                <td>${gin.gestas ?? 0}</td>
-                                <td>${gin.partos ?? 0}</td>
-                                <td>${gin.cesareas ?? 0}</td>
-                                <td>${gin.abortos ?? 0}</td>
-                                <td>${gin.hijosVivos ?? 0}</td>
-                                <td>${gin.vidaSexualActiva ? 'SÍ' : 'NO'}</td>
-                                <td>${gin.planificacionFamiliar ? 'SÍ' : 'NO'}</td>
+                                <td>${escapeHtml(gin.menarquia || '-')}</td>
+                                <td>${escapeHtml(gin.ciclos || '-')}</td>
+                                <td>${escapeHtml(gin.fum || '-')}</td>
+                                <td>${escapeHtml(gin.gestas ?? 0)}</td>
+                                <td>${escapeHtml(gin.partos ?? 0)}</td>
+                                <td>${escapeHtml(gin.cesareas ?? 0)}</td>
+                                <td>${escapeHtml(gin.abortos ?? 0)}</td>
+                                <td>${escapeHtml(gin.hijosVivos ?? 0)}</td>
+                                <td>${escapeHtml(gin.vidaSexualActiva ? 'SÍ' : 'NO')}</td>
+                                <td>${escapeHtml(gin.planificacionFamiliar ? 'SÍ' : 'NO')}</td>
                             </tr>
                         </table>
                         <div style="padding: 3px 6px; font-size: 7.5px; background: #fafafa; border-top: 1px solid #000;">
-                            <strong>PAPANICOLAOU:</strong> ${gin.papanicolaou?.realizada ? `SÍ (${gin.papanicolaou.tiempo} - ${gin.papanicolaou.resultado})` : 'NO'} |
-                            <strong>COLPOSCOPIA:</strong> ${gin.colposcopia?.resultado || 'NO APLICA'} |
-                            <strong>MAMOGRAFÍA:</strong> ${gin.mamografia?.resultado || 'NO APLICA'} |
-                            <strong>ECO-MAMARIO:</strong> ${gin.ecoMamario?.resultado || 'NO APLICA'}
+                            <strong>PAPANICOLAOU:</strong> ${gin.papanicolaou?.realizada ? `SÍ (${escapeHtml(gin.papanicolaou.tiempo)} - ${escapeHtml(gin.papanicolaou.resultado)})` : 'NO'} |
+                            <strong>COLPOSCOPIA:</strong> ${escapeHtml(gin.colposcopia?.resultado || 'NO APLICA')} |
+                            <strong>MAMOGRAFÍA:</strong> ${escapeHtml(gin.mamografia?.resultado || 'NO APLICA')} |
+                            <strong>ECO-MAMARIO:</strong> ${escapeHtml(gin.ecoMamario?.resultado || 'NO APLICA')}
                         </div>
                     </td>
                 </tr>
@@ -671,16 +672,16 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td style="width: 25%; font-size: 7.5px;">
-                        <strong>TABACO:</strong> ${hab.tabaco ? 'SÍ' : 'NO [X]'}
+                        <strong>TABACO:</strong> ${escapeHtml(hab.tabaco ? 'SÍ' : 'NO [X]')}
                     </td>
                     <td style="width: 25%; font-size: 7.5px;">
-                        <strong>ALCOHOL:</strong> ${hab.alcohol ? 'SÍ' : 'NO [X]'}
+                        <strong>ALCOHOL:</strong> ${escapeHtml(hab.alcohol ? 'SÍ' : 'NO [X]')}
                     </td>
                     <td style="width: 25%; font-size: 7.5px;">
-                        <strong>ACTIVIDAD FÍSICA:</strong> ${hab.actividadFisica?.tiene ? `SÍ (${hab.actividadFisica.cual} - ${hab.actividadFisica.tiempo})` : 'NO'}
+                        <strong>ACTIVIDAD FÍSICA:</strong> ${hab.actividadFisica?.tiene ? `SÍ (${escapeHtml(hab.actividadFisica.cual)} - ${escapeHtml(hab.actividadFisica.tiempo)})` : 'NO'}
                     </td>
                     <td style="width: 25%; font-size: 7.5px;">
-                        <strong>MEDICACIÓN HABITUAL:</strong> ${hab.medicacionHabitual?.tiene ? `SÍ (${hab.medicacionHabitual.cual} - ${hab.medicacionHabitual.tiempo})` : 'NO'}
+                        <strong>MEDICACIÓN HABITUAL:</strong> ${hab.medicacionHabitual?.tiene ? `SÍ (${escapeHtml(hab.medicacionHabitual.cual)} - ${escapeHtml(hab.medicacionHabitual.tiempo)})` : 'NO'}
                     </td>
                 </tr>
             </table>
@@ -699,19 +700,19 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 14%;">OBSERVACIONES</td>
                 </tr>
                 ${empAnt.map((item, idx) => `
-                    <tr key="${idx}" class="text-center font-bold">
-                        <td class="text-left">${item.empresa}</td>
-                        <td>${item.puesto}</td>
-                        <td>${item.actividades}</td>
-                        <td>${item.tiempo}</td>
-                        <td style="font-size: 7px;">${item.riesgos?.fisico ? '[FÍSICO] ' : ''}${item.riesgos?.quimico ? '[QUÍMICO] ' : ''}${item.riesgos?.mecanico ? '[MECÁNICO] ' : ''}</td>
-                        <td>${item.observaciones || 'NINGUNA'}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center font-bold">
+                        <td class="text-left">${escapeHtml(item.empresa)}</td>
+                        <td>${escapeHtml(item.puesto)}</td>
+                        <td>${escapeHtml(item.actividades)}</td>
+                        <td>${escapeHtml(item.tiempo)}</td>
+                        <td style="font-size: 7px;">${escapeHtml(item.riesgos?.fisico ? '[FÍSICO] ' : '')}${escapeHtml(item.riesgos?.quimico ? '[QUÍMICO] ' : '')}${escapeHtml(item.riesgos?.mecanico ? '[MECÁNICO] ' : '')}</td>
+                        <td>${escapeHtml(item.observaciones || 'NINGUNA')}</td>
                     </tr>
                 `).join('')}
                 <tr>
                     <td colspan="6" style="padding: 3px 6px; font-size: 7.5px;">
-                        <strong>ACCIDENTES DE TRABAJO:</strong> ${accTrab.calificado ? `CALIFICADO IESS - ${accTrab.especificaciones}` : 'NO CALIFICADO [X] - Observaciones: NINGUNA'}<br />
-                        <strong>ENFERMEDADES PROFESIONALES:</strong> ${enfProf.calificado ? `CALIFICADA IESS - ${enfProf.especificaciones}` : 'NO CALIFICADA [X] - Observaciones: NINGUNA'}
+                        <strong>ACCIDENTES DE TRABAJO:</strong> ${accTrab.calificado ? `CALIFICADO IESS - ${escapeHtml(accTrab.especificaciones)}` : 'NO CALIFICADO [X] - Observaciones: NINGUNA'}<br />
+                        <strong>ENFERMEDADES PROFESIONALES:</strong> ${enfProf.calificado ? `CALIFICADA IESS - ${escapeHtml(enfProf.especificaciones)}` : 'NO CALIFICADA [X] - Observaciones: NINGUNA'}
                     </td>
                 </tr>
             </table>
@@ -742,7 +743,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr class="bg-green" style="font-size: 7px;">
                     <td>
-                        <span class="check-box ${antFam.cardiovascular ? 'checked' : ''}">X</span> 1. CARDIO-VASCULAR |
+                        <span class="check-box ${escapeHtml(antFam.cardiovascular ? 'checked' : '')}">X</span> 1. CARDIO-VASCULAR |
                         <span class="check-box"></span> 2. METABÓLICA |
                         <span class="check-box"></span> 3. NEUROLÓGICA |
                         <span class="check-box"></span> 4. ONCOLÓGICA |
@@ -754,7 +755,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">
-                        ${antFam.descripcion || '1.- ENFERMEDAD CARDIO-VASCULAR: ABUELO MATERNO CON HIPERTENSION ARTERIAL'}
+                        ${escapeHtml(antFam.descripcion || '1.- ENFERMEDAD CARDIO-VASCULAR: ABUELO MATERNO CON HIPERTENSION ARTERIAL')}
                     </td>
                 </tr>
             </table>
@@ -772,8 +773,8 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 20%;">QUÍMICO</td>
                 </tr>
                 <tr style="font-size: 7.5px;">
-                    <td class="font-bold uppercase">${factRiesgo.puesto || 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN'}</td>
-                    <td class="font-bold uppercase">${factRiesgo.actividades || 'DOCENCIA'}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.puesto || 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN')}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.actividades || 'DOCENCIA')}</td>
                     <td>
                         <span class="check-box checked">X</span> Temperaturas altas<br />
                         <span class="check-box checked">X</span> Temperaturas bajas<br />
@@ -810,7 +811,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                         <span class="check-box"></span> Sobrecarga / Alta responsabilidad
                     </td>
                     <td style="background: #fafafa; font-size: 7px; line-height: 1.25;">
-                        ${factRiesgo.medidasPreventivas}
+                        ${escapeHtml(factRiesgo.medidasPreventivas)}
                     </td>
                 </tr>
             </table>
@@ -821,7 +822,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td class="bg-purple">G. ACTIVIDADES EXTRA LABORALES</td>
                 </tr>
                 <tr>
-                    <td style="padding: 4px 8px; font-weight: bold;">${actExtra}</td>
+                    <td style="padding: 4px 8px; font-weight: bold;">${escapeHtml(actExtra)}</td>
                 </tr>
             </table>
 
@@ -831,7 +832,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td class="bg-purple">H. ENFERMEDAD ACTUAL</td>
                 </tr>
                 <tr>
-                    <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">${enfAct}</td>
+                    <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">${escapeHtml(enfAct)}</td>
                 </tr>
             </table>
 
@@ -856,7 +857,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td colspan="5" style="padding: 4px 8px; font-weight: bold; background: #fafafa;">
-                        ${orgSist}
+                        ${escapeHtml(orgSist)}
                     </td>
                 </tr>
             </table>
@@ -878,15 +879,15 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 10%;">PERÍMETRO ABD.</td>
                 </tr>
                 <tr class="text-center font-bold" style="font-size: 9px;">
-                    <td style="color: #0284c7;">${constantes.pa} mmHg</td>
-                    <td>${constantes.temp} °C</td>
-                    <td>${constantes.fc} lpm</td>
-                    <td>${constantes.satO2}%</td>
-                    <td>${constantes.fr} rpm</td>
-                    <td>${constantes.peso} Kg</td>
-                    <td>${constantes.talla} m</td>
-                    <td style="background: #f0fdf4; color: #166534;">${constantes.imc}</td>
-                    <td>${constantes.perimetroAbd || '-'}</td>
+                    <td style="color: #0284c7;">${escapeHtml(constantes.pa)} mmHg</td>
+                    <td>${escapeHtml(constantes.temp)} °C</td>
+                    <td>${escapeHtml(constantes.fc)} lpm</td>
+                    <td>${escapeHtml(constantes.satO2)}%</td>
+                    <td>${escapeHtml(constantes.fr)} rpm</td>
+                    <td>${escapeHtml(constantes.peso)} Kg</td>
+                    <td>${escapeHtml(constantes.talla)} m</td>
+                    <td style="background: #f0fdf4; color: #166534;">${escapeHtml(constantes.imc)}</td>
+                    <td>${escapeHtml(constantes.perimetroAbd || '-')}</td>
                 </tr>
             </table>
         </div>
@@ -957,7 +958,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td colspan="5" style="padding: 4px 8px; font-weight: bold; background: #fafafa;">
-                        HALLAZGOS: ${exFisico}
+                        HALLAZGOS: ${escapeHtml(exFisico)}
                     </td>
                 </tr>
             </table>
@@ -973,10 +974,10 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 45%;">RESULTADOS</td>
                 </tr>
                 ${exLab.map((item, idx) => `
-                    <tr key="${idx}" class="text-center">
-                        <td class="text-left font-bold">${item.examen}</td>
-                        <td>${item.fecha || 'PENDIENTE'}</td>
-                        <td class="font-bold" style="color: #0284c7;">${item.resultado}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center">
+                        <td class="text-left font-bold">${escapeHtml(item.examen)}</td>
+                        <td>${escapeHtml(item.fecha || 'PENDIENTE')}</td>
+                        <td class="font-bold" style="color: #0284c7;">${escapeHtml(item.resultado)}</td>
                     </tr>
                 `).join('')}
                 <tr>
@@ -1002,12 +1003,12 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 8%;">DEF</td>
                 </tr>
                 ${diags.map((d, idx) => `
-                    <tr key="${idx}" class="text-center font-bold">
-                        <td>${d.num || idx + 1}</td>
-                        <td class="text-left">${d.desc}</td>
-                        <td>${d.cie}</td>
-                        <td>${d.pre ? 'X' : ''}</td>
-                        <td>${d.def ? 'X' : ''}</td>
+                    <tr key="${escapeHtml(idx)}" class="text-center font-bold">
+                        <td>${escapeHtml(d.num || idx + 1)}</td>
+                        <td class="text-left">${escapeHtml(d.desc)}</td>
+                        <td>${escapeHtml(d.cie)}</td>
+                        <td>${escapeHtml(d.pre ? 'X' : '')}</td>
+                        <td>${escapeHtml(d.def ? 'X' : '')}</td>
                     </tr>
                 `).join('')}
             </table>
@@ -1018,23 +1019,23 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td colspan="4" class="bg-purple">N. APTITUD MÉDICA PARA EL TRABAJO</td>
                 </tr>
                 <tr class="text-center font-bold" style="font-size: 9px;">
-                    <td style="width: 25%; background: ${apt.apto ? '#dcfce7' : '#ffffff'}; color: ${apt.apto ? '#15803d' : '#000000'};">
-                        <span class="check-box ${apt.apto ? 'checked' : ''}">X</span> APTO
+                    <td style="width: 25%; background: ${escapeHtml(apt.apto ? '#dcfce7' : '#ffffff')}; color: ${escapeHtml(apt.apto ? '#15803d' : '#000000')};">
+                        <span class="check-box ${escapeHtml(apt.apto ? 'checked' : '')}">X</span> APTO
                     </td>
                     <td style="width: 25%;">
-                        <span class="check-box ${apt.aptoObservacion ? 'checked' : ''}"></span> APTO EN OBSERVACIÓN
+                        <span class="check-box ${escapeHtml(apt.aptoObservacion ? 'checked' : '')}"></span> APTO EN OBSERVACIÓN
                     </td>
                     <td style="width: 25%;">
-                        <span class="check-box ${apt.aptoLimitaciones ? 'checked' : ''}"></span> APTO CON LIMITACIONES
+                        <span class="check-box ${escapeHtml(apt.aptoLimitaciones ? 'checked' : '')}"></span> APTO CON LIMITACIONES
                     </td>
                     <td style="width: 25%;">
-                        <span class="check-box ${apt.noApto ? 'checked' : ''}"></span> NO APTO
+                        <span class="check-box ${escapeHtml(apt.noApto ? 'checked' : '')}"></span> NO APTO
                     </td>
                 </tr>
                 <tr>
                     <td colspan="4" style="padding: 3px 6px; font-size: 7.5px;">
-                        <strong>Observación:</strong> ${apt.observacion || 'Ninguna'}<br />
-                        <strong>Limitación o restricciones laborales:</strong> ${apt.limitacion || 'Uso adecuado de los Equipos de Protección Individual.'}
+                        <strong>Observación:</strong> ${escapeHtml(apt.observacion || 'Ninguna')}<br />
+                        <strong>Limitación o restricciones laborales:</strong> ${escapeHtml(apt.limitacion || 'Uso adecuado de los Equipos de Protección Individual.')}
                     </td>
                 </tr>
             </table>
@@ -1047,7 +1048,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 <tr>
                     <td style="padding: 4px 8px; font-size: 8px;">
                         <ol style="margin: 0; padding-left: 16px;">
-                            ${recs.map((rec, i) => `<li key="${i}"><strong>${rec}</strong></li>`).join('')}
+                            ${recs.map((rec, i) => `<li key="${escapeHtml(i)}"><strong>${escapeHtml(rec)}</strong></li>`).join('')}
                         </ol>
                     </td>
                 </tr>
@@ -1068,13 +1069,13 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="vertical-align: top; padding: 6px;">
                         <table style="margin: 0; width: 100%; border: none;">
                             <tr style="border: none;">
-                                <td style="border: none; width: 25%;"><strong>FECHA:</strong> ${prof.fecha}</td>
-                                <td style="border: none; width: 25%;"><strong>HORA:</strong> ${prof.hora}</td>
-                                <td style="border: none; width: 50%;"><strong>CÓDIGO MSP:</strong> ${prof.codigo}</td>
+                                <td style="border: none; width: 25%;"><strong>FECHA:</strong> ${escapeHtml(prof.fecha)}</td>
+                                <td style="border: none; width: 25%;"><strong>HORA:</strong> ${escapeHtml(prof.hora)}</td>
+                                <td style="border: none; width: 50%;"><strong>CÓDIGO MSP:</strong> ${escapeHtml(prof.codigo)}</td>
                             </tr>
                             <tr style="border: none;">
                                 <td colspan="3" style="border: none; padding-top: 6px;">
-                                    <strong>MÉDICO OCUPACIONAL:</strong> <span class="uppercase">${prof.nombre}</span><br />
+                                    <strong>MÉDICO OCUPACIONAL:</strong> <span class="uppercase">${escapeHtml(prof.nombre)}</span><br />
                                     <span style="font-size: 7px; color: #555;">Unidad de Seguridad y Salud en el Trabajo - UEB</span>
                                 </td>
                             </tr>
@@ -1083,7 +1084,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td class="text-center" style="vertical-align: bottom; padding: 10px 6px;">
                         <div style="border-top: 1px solid #000; width: 85%; margin: 30px auto 2px auto;"></div>
                         <strong>FIRMA DEL TRABAJADOR</strong><br />
-                        <span style="font-size: 7px;">C.I.: ${ced}</span>
+                        <span style="font-size: 7px;">C.I.: ${escapeHtml(ced)}</span>
                     </td>
                 </tr>
             </table>
@@ -1187,7 +1188,7 @@ export default function OfficialFichaIngresoModal({
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                background: '#0284c7',
+                                background: '#0369a1',
                                 color: '#ffffff',
                                 fontWeight: '700',
                                 padding: '7px 14px',
@@ -1199,7 +1200,7 @@ export default function OfficialFichaIngresoModal({
                         >
                             <Printer size={15} /> Imprimir Formulario Oficial (A4)
                         </button>
-                        <button
+                        <button aria-label="Cerrar"
                             type="button"
                             className="clinical-modal__close"
                             onClick={onClose}

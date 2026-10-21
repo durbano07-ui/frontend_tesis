@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import {
-    User, BookOpen, HeartPulse, Brain, Shield, Activity,
-    ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone,
-    AlertCircle, FileText, CheckCircle2, ShieldAlert,
-    Info, LogOut, Bell, Stethoscope, ClipboardList, Menu, X, Camera,
-    FileSpreadsheet, Scale, Thermometer, Heart, Coins, Edit3, Eye,
-    Calendar, Clock, Trash2, Pencil, Download, AlertTriangle, Printer,
-    Sparkles, UserCheck, Home, Globe, Award, XCircle, Search, Plus, Filter,
-    Droplet, CalendarCheck, Loader2, Check, ChevronDown
-} from 'lucide-react';
+import { User, BookOpen, ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, AlertCircle, FileText, CheckCircle2, ShieldAlert, Info, LogOut, Stethoscope, ClipboardList, Menu, X, Heart, Coins, Edit3, Eye, Calendar, Clock, Trash2, AlertTriangle, Printer, UserCheck, Home, Globe, Award, Filter, Droplet, CalendarCheck, Loader2, Check, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
@@ -17,6 +8,7 @@ import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
 import { compressImage } from '../../utils/compressImage';
 import '../../medical.css';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -1142,32 +1134,16 @@ const PacienteDashboard = () => {
         if (!validateStep(4)) return;
         setSaving(true);
         try {
-            // Clear existing address, contact, and extra options to prevent duplicates
-            if (profile?.addresses && profile.addresses.length > 0) {
-                for (const addr of profile.addresses) {
-                    try { await api.delete(`/user-profile/addresses/${addr.id}`); } catch (e) { }
-                }
-            }
-            if (profile?.emergency_contacts && profile.emergency_contacts.length > 0) {
-                for (const contact of profile.emergency_contacts) {
-                    try { await api.delete(`/user-profile/emergency-contacts/${contact.id}`); } catch (e) { }
-                }
-            }
-            if (profile?.children && profile.children.length > 0) {
-                for (const child of profile.children) {
-                    try { await api.delete(`/user-profile/children/${child.id}`); } catch (e) { }
-                }
-            }
-            if (profile?.allergies && profile.allergies.length > 0) {
-                for (const allergy of profile.allergies) {
-                    try { await api.delete(`/user-profile/allergies/${allergy.id}`); } catch (e) { }
-                }
-            }
-            if (profile?.disabilities && profile.disabilities.length > 0) {
-                for (const disability of profile.disabilities) {
-                    try { await api.delete(`/user-profile/disabilities/${disability.id}`); } catch (e) { }
-                }
-            }
+            // ISO/IEC 25010 (fiabilidad): primero se guardan los datos nuevos y solo al final se
+            // eliminan los anteriores. Antes se borraban al inicio: si la red fallaba a mitad del
+            // proceso, el paciente perdía direcciones, contactos, alergias y discapacidades.
+            const previousItems = [
+                ...(profile?.addresses || []).map(x => `/user-profile/addresses/${x.id}`),
+                ...(profile?.emergency_contacts || []).map(x => `/user-profile/emergency-contacts/${x.id}`),
+                ...(profile?.children || []).map(x => `/user-profile/children/${x.id}`),
+                ...(profile?.allergies || []).map(x => `/user-profile/allergies/${x.id}`),
+                ...(profile?.disabilities || []).map(x => `/user-profile/disabilities/${x.id}`),
+            ];
 
             // 1. Save Identification
             await api.post('/user-profile/identification', personalForm);
@@ -1236,9 +1212,14 @@ const PacienteDashboard = () => {
                 }
             }
 
+            // Todo se guardó correctamente: ahora sí se eliminan los registros anteriores
+            for (const url of previousItems) {
+                try { await api.delete(url); } catch (e) { console.warn('No se pudo eliminar el registro anterior:', url, e); }
+            }
+
             // Sync user name in frontend
             const userRes = await api.get('/users/' + user.id);
-            useAuthStore.setState({ user: userRes.data.data });
+            useAuthStore.getState().updateUser(userRes.data.data);
 
             await fetchProfile();
             setIsRegistering(false);
@@ -1341,24 +1322,24 @@ const PacienteDashboard = () => {
                 if (!profile.directions || profile.directions.length === 0) return '<p>No registrado</p>';
                 return profile.directions.map((dir, idx) => `
                     <div style="margin-bottom: 12px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                        <strong style="color: #b71a34; font-size: 11px; text-transform: uppercase;">Dirección de ${dir.id_tipo_direccion === 1 ? 'Procedencia' : dir.id_tipo_direccion === 2 ? 'Residencia Actual' : 'Lugar de Nacimiento'}</strong>
+                        <strong style="color: #b71a34; font-size: 11px; text-transform: uppercase;">Dirección de ${escapeHtml(dir.id_tipo_direccion === 1 ? 'Procedencia' : dir.id_tipo_direccion === 2 ? 'Residencia Actual' : 'Lugar de Nacimiento')}</strong>
                         <table style="width:100%; border-collapse: collapse; margin-top: 6px; font-size: 12px;">
                             <tr>
                                 <td style="width: 25%; font-weight: bold; padding: 3px 0;">Provincia:</td>
-                                <td>${dir.provincia?.nombre || '—'}</td>
+                                <td>${escapeHtml(dir.provincia?.nombre || '—')}</td>
                                 <td style="width: 25%; font-weight: bold; padding: 3px 0;">Cantón:</td>
-                                <td>${dir.canton?.nombre || '—'}</td>
+                                <td>${escapeHtml(dir.canton?.nombre || '—')}</td>
                             </tr>
                             ${dir.id_tipo_direccion !== 3 ? `
                             <tr>
                                 <td style="font-weight: bold; padding: 3px 0;">Calle Principal:</td>
-                                <td>${dir.calle_principal || '—'}</td>
+                                <td>${escapeHtml(dir.calle_principal || '—')}</td>
                                 <td style="font-weight: bold; padding: 3px 0;">Calle Sec.:</td>
-                                <td>${dir.calle_secundaria || '—'}</td>
+                                <td>${escapeHtml(dir.calle_secundaria || '—')}</td>
                             </tr>
                             <tr>
                                 <td style="font-weight: bold; padding: 3px 0;">Referencia:</td>
-                                <td colspan="3">${dir.referencia || '—'}</td>
+                                <td colspan="3">${escapeHtml(dir.referencia || '—')}</td>
                             </tr>
                             ` : ''}
                         </table>
@@ -1373,27 +1354,27 @@ const PacienteDashboard = () => {
                     <table style="width:100%; border-collapse: collapse; font-size: 12px;">
                         <tr>
                             <td style="width: 25%; font-weight: bold; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">Nombre:</td>
-                            <td style="border-bottom: 1px solid #f1f5f9;">${contact.nombre_completo || '—'}</td>
+                            <td style="border-bottom: 1px solid #f1f5f9;">${escapeHtml(contact.nombre_completo || '—')}</td>
                             <td style="width: 25%; font-weight: bold; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">Parentesco:</td>
-                            <td style="border-bottom: 1px solid #f1f5f9;">${contact.parentesco || '—'}</td>
+                            <td style="border-bottom: 1px solid #f1f5f9;">${escapeHtml(contact.parentesco || '—')}</td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold; padding: 6px 0;">Teléfono Fijo:</td>
-                            <td>${contact.telefono || '—'}</td>
+                            <td>${escapeHtml(contact.telefono || '—')}</td>
                             <td style="font-weight: bold; padding: 6px 0;">Celular:</td>
-                            <td>${contact.celular || '—'}</td>
+                            <td>${escapeHtml(contact.celular || '—')}</td>
                         </tr>
                     </table>
                 `;
             };
 
             const photoHtml = getPhotoUrl()
-                ? `<img src="${getPhotoUrl()}" style="width: 100px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" />`
+                ? `<img src="${escapeHtml(getPhotoUrl())}" alt="Foto del paciente" style="width: 100px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" />`
                 : `<div style="width: 100px; height: 120px; border: 1px dashed #cbd5e1; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 10px; text-align: center;">Sin Foto</div>`;
 
             printWindow.document.write(`
                 <!DOCTYPE html>
-                <html>
+                <html lang="es">
                 <head>
                     <title>Ficha Médica & Socioeconómica - UEB</title>
                     <style>
@@ -1472,30 +1453,30 @@ const PacienteDashboard = () => {
                     </div>
 
                     <div style="font-size: 13px; margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border-left: 4px solid #0b3155;">
-                        <strong>Usuario:</strong> ${profile?.identification?.primer_nombre} ${profile?.identification?.segundo_nombre || ''} ${profile?.identification?.apellido_paterno} ${profile?.identification?.apellido_materno || ''} 
-                        &nbsp;&nbsp;&nbsp;&nbsp;<strong>Cédula:</strong> ${profile?.identification?.numero_cedula || '—'}
+                        <strong>Usuario:</strong> ${escapeHtml(profile?.identification?.primer_nombre)} ${escapeHtml(profile?.identification?.segundo_nombre || '')} ${escapeHtml(profile?.identification?.apellido_paterno)} ${escapeHtml(profile?.identification?.apellido_materno || '')} 
+                        &nbsp;&nbsp;&nbsp;&nbsp;<strong>Cédula:</strong> ${escapeHtml(profile?.identification?.numero_cedula || '—')}
                     </div>
 
                     <div class="section-title">Datos Personales y Demográficos</div>
                     <div class="info-grid">
-                        <div class="info-item"><span class="info-label">Fecha de Nacimiento:</span><span class="info-val">${profile?.identification?.fecha_nacimiento || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Identificación de Género:</span><span class="info-val" style="text-transform: capitalize;">${profile?.demographic?.genero?.nombre || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Estado Civil:</span><span class="info-val" style="text-transform: capitalize;">${profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Nacionalidad:</span><span class="info-val">${profile?.identification?.es_extranjero ? `Extranjera (${profile?.identification?.nacionalidad || '—'})` : 'Ecuatoriana'}</span></div>
+                        <div class="info-item"><span class="info-label">Fecha de Nacimiento:</span><span class="info-val">${escapeHtml(profile?.identification?.fecha_nacimiento || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Identificación de Género:</span><span class="info-val" style="text-transform: capitalize;">${escapeHtml(profile?.demographic?.genero?.nombre || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Estado Civil:</span><span class="info-val" style="text-transform: capitalize;">${escapeHtml(profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Nacionalidad:</span><span class="info-val">${profile?.identification?.es_extranjero ? `Extranjera (${escapeHtml(profile?.identification?.nacionalidad || '—')})` : 'Ecuatoriana'}</span></div>
                     </div>
 
                     <div class="section-title">Información Institucional</div>
                     <div class="info-grid">
-                        <div class="info-item"><span class="info-label">Tipo de Usuario:</span><span class="info-val">${profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}</span></div>
-                        <div class="info-item"><span class="info-label">Facultad:</span><span class="info-val">${profile?.career_study?.facultad?.nombre || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Carrera:</span><span class="info-val">${profile?.career_study?.carrera?.nombre || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Ciclo / Semestre:</span><span class="info-val">${profile?.career_study?.ciclo?.numero || '—'} (Paralelo: ${profile?.career_study?.paralelo || '—'})</span></div>
+                        <div class="info-item"><span class="info-label">Tipo de Usuario:</span><span class="info-val">${escapeHtml(profile?.career_study?.tipo_usuario?.nombre || 'Estudiante')}</span></div>
+                        <div class="info-item"><span class="info-label">Facultad:</span><span class="info-val">${escapeHtml(profile?.career_study?.facultad?.nombre || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Carrera:</span><span class="info-val">${escapeHtml(profile?.career_study?.carrera?.nombre || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Ciclo / Semestre:</span><span class="info-val">${escapeHtml(profile?.career_study?.ciclo?.numero || '—')} (Paralelo: ${escapeHtml(profile?.career_study?.paralelo || '—')})</span></div>
                     </div>
 
                     <div class="section-title">Datos de Contacto y Ubicación</div>
                     <div class="info-grid" style="margin-bottom: 12px;">
-                        <div class="info-item"><span class="info-label">Teléfono Fijo:</span><span class="info-val">${profile?.addresses?.[0]?.telefono_convencional || '—'}</span></div>
-                        <div class="info-item"><span class="info-label">Correo:</span><span class="info-val">${user?.email || '—'}</span></div>
+                        <div class="info-item"><span class="info-label">Teléfono Fijo:</span><span class="info-val">${escapeHtml(profile?.addresses?.[0]?.telefono_convencional || '—')}</span></div>
+                        <div class="info-item"><span class="info-label">Correo:</span><span class="info-val">${escapeHtml(user?.email || '—')}</span></div>
                     </div>
                     ${getFullAddressHtml()}
 
@@ -1698,26 +1679,26 @@ const PacienteDashboard = () => {
 
                         <div class="certificate-body">
                             Por medio de la presente, se hace constar y se certifica que el/la estudiante/usuario 
-                            <span class="bold-text">${patientName}</span>, con cédula de identidad número 
-                            <span class="bold-text">${patientCedula}</span>, asistió 
-                            a la consulta del área de <span class="bold-text">${areaName}</span> el día 
-                            <span class="bold-text">${(record.fecha || record.created_at || '').slice(0, 10)}</span>.
+                            <span class="bold-text">${escapeHtml(patientName)}</span>, con cédula de identidad número 
+                            <span class="bold-text">${escapeHtml(patientCedula)}</span>, asistió 
+                            a la consulta del área de <span class="bold-text">${escapeHtml(areaName)}</span> el día 
+                            <span class="bold-text">${escapeHtml((record.fecha || record.created_at || '').slice(0, 10))}</span>.
                             <br><br>
                             El paciente recibió atención y soporte clínico correspondiente, registrando en su expediente el diagnóstico o procedimiento 
-                            de <span class="bold-text">"${diagnosis}"</span>, mostrando evolución favorable y estable.
+                            de <span class="bold-text">"${escapeHtml(diagnosis)}"</span>, mostrando evolución favorable y estable.
                             <br><br>
                             Se expide el presente documento a petición de la parte interesada para los fines académicos o personales que correspondan.
                         </div>
 
                         <div class="footer-date">
-                            Dado y firmado en la ciudad de Guaranda, a los ${dayNum} días del mes de ${monthName} del año ${year}.
+                            Dado y firmado en la ciudad de Guaranda, a los ${escapeHtml(dayNum)} días del mes de ${escapeHtml(monthName)} del año ${escapeHtml(year)}.
                         </div>
 
                         <div class="signatures-container">
                             <div class="signature-box">
                                 <div class="signature-line"></div>
                                 <strong style="font-size: 13px; color: #0f172a;">Profesional de Salud</strong><br>
-                                <span class="credentials">${roleName}</span><br>
+                                <span class="credentials">${escapeHtml(roleName)}</span><br>
                                 <span class="credentials">Bienestar Universitario</span>
                             </div>
                         </div>
@@ -2041,7 +2022,7 @@ const PacienteDashboard = () => {
                             <strong>Portal</strong>
                             <span>Estudiante</span>
                         </div>
-                        <button className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
+                        <button aria-label="Cerrar menú" className="sidebar__close" onClick={() => setIsSidebarOpen(false)}>
                             <X size={18} />
                         </button>
                     </div>
@@ -2092,7 +2073,7 @@ const PacienteDashboard = () => {
                     </nav>
 
                     <div className="sidebar__footer">
-                        <button className="logout-button" onClick={handleLogoutClick}>
+                        <button aria-label="Cerrar sesión" className="logout-button" onClick={handleLogoutClick}>
                             <span className="logout-button__icon"><LogOut size={18} /></span>
                             <span>Cerrar Sesión</span>
                         </button>
@@ -2104,7 +2085,7 @@ const PacienteDashboard = () => {
                     {/* TOPBAR */}
                     <header className="topbar">
                         <div className="topbar__left">
-                            <button className="menu-button" onClick={() => setIsSidebarOpen(true)}>
+                            <button aria-label="Abrir menú" className="menu-button" onClick={() => setIsSidebarOpen(true)}>
                                 <Menu size={20} />
                             </button>
                             <div>
@@ -2192,11 +2173,12 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><FileText size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             {demographicForm.es_extranjero ? 'Número de Pasaporte' : 'Número de Cédula'} <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
                                                 <input
+                                                    aria-label="Número de Cédula"
                                                     type="text"
                                                     maxLength={demographicForm.es_extranjero ? 20 : 10}
                                                     value={personalForm.numero_cedula}
@@ -2215,7 +2197,7 @@ const PacienteDashboard = () => {
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
                                                 />
-                                                {formErrors.numero_cedula && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.numero_cedula}</small>}
+                                                {formErrors.numero_cedula && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.numero_cedula}</small>}
                                             </div>
 
                                             <div className="premium-field-card">
@@ -2224,11 +2206,12 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><Calendar size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Fecha de Nacimiento <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
                                                 <input
+                                                    aria-label="Fecha de Nacimiento"
                                                     type="date"
                                                     value={personalForm.fecha_nacimiento}
                                                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
@@ -2268,7 +2251,7 @@ const PacienteDashboard = () => {
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
                                                 />
-                                                {formErrors.fecha_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.fecha_nacimiento}</small>}
+                                                {formErrors.fecha_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.fecha_nacimiento}</small>}
                                             </div>
                                         </div>
 
@@ -2279,11 +2262,12 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Primer Nombre <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
                                                 <input
+                                                    aria-label="Primer Nombre"
                                                     type="text"
                                                     value={personalForm.primer_nombre}
                                                     disabled={!!profile?.identification?.numero_cedula}
@@ -2295,7 +2279,7 @@ const PacienteDashboard = () => {
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
                                                 />
-                                                {formErrors.primer_nombre && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.primer_nombre}</small>}
+                                                {formErrors.primer_nombre && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.primer_nombre}</small>}
                                             </div>
 
                                             <div className="premium-field-card">
@@ -2304,12 +2288,13 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Segundo Nombre
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
                                                 </div>
                                                 <input
+                                                    aria-label="Segundo Nombre"
                                                     type="text"
                                                     value={personalForm.segundo_nombre}
                                                     disabled={!!profile?.identification?.numero_cedula}
@@ -2330,11 +2315,12 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Apellido Paterno <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
                                                 <input
+                                                    aria-label="Apellido Paterno"
                                                     type="text"
                                                     value={personalForm.apellido_paterno}
                                                     disabled={!!profile?.identification?.numero_cedula}
@@ -2346,7 +2332,7 @@ const PacienteDashboard = () => {
                                                         cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
                                                     }}
                                                 />
-                                                {formErrors.apellido_paterno && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.apellido_paterno}</small>}
+                                                {formErrors.apellido_paterno && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.apellido_paterno}</small>}
                                             </div>
 
                                             <div className="premium-field-card">
@@ -2355,12 +2341,13 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Apellido Materno
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
                                                 </div>
                                                 <input
+                                                    aria-label="Apellido Materno"
                                                     type="text"
                                                     value={personalForm.apellido_materno}
                                                     disabled={!!profile?.identification?.numero_cedula}
@@ -2390,10 +2377,10 @@ const PacienteDashboard = () => {
                                             <div className="field-header">
                                                 <div className="field-header__left">
                                                     <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                    <h4 className="field-header__title">Tipo de Usuario Institucional <span className="field-req-star">*</span></h4>
+                                                    <h4 id="pacientedash-tipo-de-usuario-institucional-titulo" className="field-header__title">Tipo de Usuario Institucional <span className="field-req-star">*</span></h4>
                                                 </div>
                                             </div>
-                                            <select
+                                            <select aria-labelledby="pacientedash-tipo-de-usuario-institucional-titulo"
                                                 value={academicForm.id_tipo_usuario}
                                                 onChange={e => {
                                                     const nextType = e.target.value;
@@ -2411,7 +2398,7 @@ const PacienteDashboard = () => {
                                                     <option key={t.id} value={t.id}>{t.nombre}</option>
                                                 ))}
                                             </select>
-                                            {formErrors.id_tipo_usuario && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_tipo_usuario}</small>}
+                                            {formErrors.id_tipo_usuario && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_tipo_usuario}</small>}
                                         </div>
 
                                         {Number(academicForm.id_tipo_usuario) === 2 && (
@@ -2421,10 +2408,10 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><GraduationCap size={15} /></span>
-                                                                <h4 className="field-header__title">Facultad <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-facultad-titulo" className="field-header__title">Facultad <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-facultad-titulo"
                                                             value={academicForm.id_facultad}
                                                             onChange={e => setAcademicForm({ ...academicForm, id_facultad: e.target.value, id_carrera: '' })}
                                                             style={{ border: formErrors.id_facultad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2434,17 +2421,17 @@ const PacienteDashboard = () => {
                                                                 <option key={f.id} value={f.id}>{f.nombre}</option>
                                                             ))}
                                                         </select>
-                                                        {formErrors.id_facultad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_facultad}</small>}
+                                                        {formErrors.id_facultad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_facultad}</small>}
                                                     </div>
 
                                                     <div className="premium-field-card">
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><BookOpen size={15} /></span>
-                                                                <h4 className="field-header__title">Carrera <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-carrera-titulo" className="field-header__title">Carrera <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-carrera-titulo"
                                                             value={academicForm.id_carrera}
                                                             onChange={e => setAcademicForm({ ...academicForm, id_carrera: e.target.value })}
                                                             disabled={!academicForm.id_facultad}
@@ -2455,7 +2442,7 @@ const PacienteDashboard = () => {
                                                                 <option key={c.id} value={c.id}>{c.nombre}</option>
                                                             ))}
                                                         </select>
-                                                        {formErrors.id_carrera && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_carrera}</small>}
+                                                        {formErrors.id_carrera && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_carrera}</small>}
                                                     </div>
                                                 </div>
 
@@ -2463,10 +2450,10 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Award size={15} /></span>
-                                                            <h4 className="field-header__title">Ciclo / Semestre Actual <span className="field-req-star">*</span></h4>
+                                                            <h4 id="pacientedash-ciclo-semestre-actual-titulo" className="field-header__title">Ciclo / Semestre Actual <span className="field-req-star">*</span></h4>
                                                         </div>
                                                     </div>
-                                                    <select
+                                                    <select aria-labelledby="pacientedash-ciclo-semestre-actual-titulo"
                                                         value={academicForm.id_ciclo}
                                                         onChange={e => setAcademicForm({ ...academicForm, id_ciclo: e.target.value })}
                                                         style={{ border: formErrors.id_ciclo ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2476,7 +2463,7 @@ const PacienteDashboard = () => {
                                                             <option key={ci.id} value={ci.id}>{formatCicloLabel(ci)}</option>
                                                         ))}
                                                     </select>
-                                                    {formErrors.id_ciclo && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_ciclo}</small>}
+                                                    {formErrors.id_ciclo && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_ciclo}</small>}
                                                 </div>
                                             </>
                                         )}
@@ -2486,10 +2473,10 @@ const PacienteDashboard = () => {
                                                 <div className="field-header">
                                                     <div className="field-header__left">
                                                         <span className="field-header__icon"><GraduationCap size={15} /></span>
-                                                        <h4 className="field-header__title">Facultad / Unidad de Adscripción <span style={{ fontWeight: 500, fontSize: '11px', color: 'var(--text-secondary)' }}>(opcional)</span></h4>
+                                                        <h4 id="pacientedash-facultad-unidad-de-adscripcion-titulo" className="field-header__title">Facultad / Unidad de Adscripción <span style={{ fontWeight: 500, fontSize: '11px', color: 'var(--text-secondary)' }}>(opcional)</span></h4>
                                                     </div>
                                                 </div>
-                                                <select
+                                                <select aria-labelledby="pacientedash-facultad-unidad-de-adscripcion-titulo"
                                                     value={academicForm.id_facultad}
                                                     onChange={e => setAcademicForm({ ...academicForm, id_facultad: e.target.value })}
                                                     style={{ border: formErrors.id_facultad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2499,7 +2486,7 @@ const PacienteDashboard = () => {
                                                         <option key={f.id} value={f.id}>{f.nombre}</option>
                                                     ))}
                                                 </select>
-                                                {formErrors.id_facultad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_facultad}</small>}
+                                                {formErrors.id_facultad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_facultad}</small>}
                                             </div>
                                         )}
 
@@ -2576,10 +2563,10 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><User size={15} /></span>
-                                                                <h4 className="field-header__title">Identificación de Género <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-identificacion-de-genero-titulo" className="field-header__title">Identificación de Género <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-identificacion-de-genero-titulo"
                                                             value={demographicForm.id_genero}
                                                             onChange={e => setDemographicForm({ ...demographicForm, id_genero: e.target.value })}
                                                             style={{ border: formErrors.id_genero ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2589,17 +2576,17 @@ const PacienteDashboard = () => {
                                                                 <option key={g.id} value={g.id}>{g.nombre}</option>
                                                             ))}
                                                         </select>
-                                                        {formErrors.id_genero && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_genero}</small>}
+                                                        {formErrors.id_genero && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_genero}</small>}
                                                     </div>
 
                                                     <div className="premium-field-card">
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Heart size={15} /></span>
-                                                                <h4 className="field-header__title">Estado Civil <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-estado-civil-titulo" className="field-header__title">Estado Civil <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-estado-civil-titulo"
                                                             value={demographicForm.id_estado_civil}
                                                             onChange={e => setDemographicForm({ ...demographicForm, id_estado_civil: e.target.value })}
                                                             style={{ border: formErrors.id_estado_civil ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2609,17 +2596,17 @@ const PacienteDashboard = () => {
                                                                 <option key={ec.id} value={ec.id}>{ec.nombres || ec.nombre || ec.nombre_estado_civil || ec.nombre_estado || 'Estado Civil'}</option>
                                                             ))}
                                                         </select>
-                                                        {formErrors.id_estado_civil && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_estado_civil}</small>}
+                                                        {formErrors.id_estado_civil && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_estado_civil}</small>}
                                                     </div>
 
                                                     <div className="premium-field-card">
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Globe size={15} /></span>
-                                                                <h4 className="field-header__title">Autoidentificación Étnica <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-autoidentificacion-etnica-titulo" className="field-header__title">Autoidentificación Étnica <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-autoidentificacion-etnica-titulo"
                                                             value={demographicForm.id_identificacion_etnica}
                                                             onChange={e => setDemographicForm({ ...demographicForm, id_identificacion_etnica: e.target.value })}
                                                             style={{ border: formErrors.id_identificacion_etnica ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2629,7 +2616,7 @@ const PacienteDashboard = () => {
                                                                 <option key={et.id} value={et.id}>{et.nombre}</option>
                                                             ))}
                                                         </select>
-                                                        {formErrors.id_identificacion_etnica && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_identificacion_etnica}</small>}
+                                                        {formErrors.id_identificacion_etnica && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_identificacion_etnica}</small>}
                                                     </div>
 
                                                     {/* Nacionalidad SOLO si es extranjero */}
@@ -2638,10 +2625,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Globe size={15} /></span>
-                                                                    <h4 className="field-header__title">Nacionalidad <span className="field-req-star">*</span></h4>
+                                                                    <h4 id="pacientedash-nacionalidad-titulo" className="field-header__title">Nacionalidad <span className="field-req-star">*</span></h4>
                                                                 </div>
                                                             </div>
-                                                            <select
+                                                            <select aria-labelledby="pacientedash-nacionalidad-titulo"
                                                                 value={demographicForm.nacionalidad}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
                                                                 style={{ border: formErrors.nacionalidad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2649,7 +2636,7 @@ const PacienteDashboard = () => {
                                                                 <option value="">-- Seleccione un país --</option>
                                                                 {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                                                             </select>
-                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
+                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
                                                         </div>
                                                     )}
 
@@ -2657,11 +2644,11 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Droplet size={15} color="var(--accent)" /></span>
-                                                                <h4 className="field-header__title">Tipo de Sangre</h4>
+                                                                <h4 id="pacientedash-tipo-de-sangre-titulo" className="field-header__title">Tipo de Sangre</h4>
                                                             </div>
                                                             <span className="field-badge-opt">Opcional</span>
                                                         </div>
-                                                        <select
+                                                        <select aria-labelledby="pacientedash-tipo-de-sangre-titulo"
                                                             value={demographicForm.id_tipo_sangre || ''}
                                                             onChange={e => setDemographicForm({ ...demographicForm, id_tipo_sangre: e.target.value })}
                                                             style={{ width: '100%' }}
@@ -2713,10 +2700,10 @@ const PacienteDashboard = () => {
                                                                 <div className="field-header">
                                                                     <div className="field-header__left">
                                                                         <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                        <h4 className="field-header__title">Provincia de Nacimiento <span className="field-req-star">*</span></h4>
+                                                                        <h4 id="pacientedash-provincia-de-nacimiento-titulo" className="field-header__title">Provincia de Nacimiento <span className="field-req-star">*</span></h4>
                                                                     </div>
                                                                 </div>
-                                                                <select
+                                                                <select aria-labelledby="pacientedash-provincia-de-nacimiento-titulo"
                                                                     value={demographicForm.id_provincia_nacimiento}
                                                                     onChange={e => setDemographicForm({ ...demographicForm, id_provincia_nacimiento: e.target.value, id_canton_nacimiento: '' })}
                                                                     style={{ border: formErrors.id_provincia_nacimiento ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2726,17 +2713,17 @@ const PacienteDashboard = () => {
                                                                         <option key={pr.id} value={pr.id}>{pr.nombre}</option>
                                                                     ))}
                                                                 </select>
-                                                                {formErrors.id_provincia_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia_nacimiento}</small>}
+                                                                {formErrors.id_provincia_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_provincia_nacimiento}</small>}
                                                             </div>
 
                                                             <div className="premium-field-card">
                                                                 <div className="field-header">
                                                                     <div className="field-header__left">
                                                                         <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                        <h4 className="field-header__title">Cantón de Nacimiento <span className="field-req-star">*</span></h4>
+                                                                        <h4 id="pacientedash-canton-de-nacimiento-titulo" className="field-header__title">Cantón de Nacimiento <span className="field-req-star">*</span></h4>
                                                                     </div>
                                                                 </div>
-                                                                <select
+                                                                <select aria-labelledby="pacientedash-canton-de-nacimiento-titulo"
                                                                     value={demographicForm.id_canton_nacimiento}
                                                                     onChange={e => setDemographicForm({ ...demographicForm, id_canton_nacimiento: e.target.value })}
                                                                     disabled={!demographicForm.id_provincia_nacimiento}
@@ -2747,7 +2734,7 @@ const PacienteDashboard = () => {
                                                                         <option key={ct.id} value={ct.id}>{ct.nombre}</option>
                                                                     ))}
                                                                 </select>
-                                                                {formErrors.id_canton_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton_nacimiento}</small>}
+                                                                {formErrors.id_canton_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_canton_nacimiento}</small>}
                                                             </div>
                                                         </>
                                                     ) : (
@@ -2755,10 +2742,10 @@ const PacienteDashboard = () => {
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
                                                                     <span className="field-header__icon"><Globe size={15} /></span>
-                                                                    <h4 className="field-header__title">País de Origen / Nacimiento <span className="field-req-star">*</span></h4>
+                                                                    <h4 id="pacientedash-pais-de-origen-nacimiento-titulo" className="field-header__title">País de Origen / Nacimiento <span className="field-req-star">*</span></h4>
                                                                 </div>
                                                             </div>
-                                                            <select
+                                                            <select aria-labelledby="pacientedash-pais-de-origen-nacimiento-titulo"
                                                                 value={demographicForm.nacionalidad}
                                                                 onChange={e => setDemographicForm({ ...demographicForm, nacionalidad: e.target.value })}
                                                                 style={{ border: formErrors.nacionalidad ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2766,7 +2753,7 @@ const PacienteDashboard = () => {
                                                                 <option value="">-- Seleccione un país --</option>
                                                                 {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                                                             </select>
-                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
+                                                            {formErrors.nacionalidad && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.nacionalidad}</small>}
                                                         </div>
                                                     )}
                                                 </div>
@@ -2797,10 +2784,10 @@ const PacienteDashboard = () => {
                                                                 <div className="field-header">
                                                                     <div className="field-header__left">
                                                                         <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                        <h4 className="field-header__title">Provincia <span className="field-req-star">*</span></h4>
+                                                                        <h4 id="pacientedash-provincia-titulo" className="field-header__title">Provincia <span className="field-req-star">*</span></h4>
                                                                     </div>
                                                                 </div>
-                                                                <select
+                                                                <select aria-labelledby="pacientedash-provincia-titulo"
                                                                     value={demographicForm.id_provincia}
                                                                     onChange={e => setDemographicForm({ ...demographicForm, id_provincia: e.target.value, id_canton: '' })}
                                                                     style={{ border: formErrors.id_provincia ? '1.5px solid var(--accent)' : undefined, width: '100%' }}
@@ -2810,17 +2797,17 @@ const PacienteDashboard = () => {
                                                                         <option key={pr.id} value={pr.id}>{pr.nombre}</option>
                                                                     ))}
                                                                 </select>
-                                                                {formErrors.id_provincia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_provincia}</small>}
+                                                                {formErrors.id_provincia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_provincia}</small>}
                                                             </div>
 
                                                             <div className="premium-field-card">
                                                                 <div className="field-header">
                                                                     <div className="field-header__left">
                                                                         <span className="field-header__icon"><MapPin size={15} /></span>
-                                                                        <h4 className="field-header__title">Cantón <span className="field-req-star">*</span></h4>
+                                                                        <h4 id="pacientedash-canton-titulo" className="field-header__title">Cantón <span className="field-req-star">*</span></h4>
                                                                     </div>
                                                                 </div>
-                                                                <select
+                                                                <select aria-labelledby="pacientedash-canton-titulo"
                                                                     value={demographicForm.id_canton}
                                                                     onChange={e => setDemographicForm({ ...demographicForm, id_canton: e.target.value })}
                                                                     disabled={!demographicForm.id_provincia}
@@ -2831,7 +2818,7 @@ const PacienteDashboard = () => {
                                                                         <option key={ct.id} value={ct.id}>{ct.nombre}</option>
                                                                     ))}
                                                                 </select>
-                                                                {formErrors.id_canton && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.id_canton}</small>}
+                                                                {formErrors.id_canton && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.id_canton}</small>}
                                                             </div>
                                                         </>
                                                     )}
@@ -2840,28 +2827,28 @@ const PacienteDashboard = () => {
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Home size={15} /></span>
-                                                                <h4 className="field-header__title">Dirección Referencial (Calles / Barrio) <span className="field-req-star">*</span></h4>
+                                                                <h4 id="pacientedash-direccion-referencial-calles-barrio-titulo" className="field-header__title">Dirección Referencial (Calles / Barrio) <span className="field-req-star">*</span></h4>
                                                             </div>
                                                         </div>
-                                                        <input
+                                                        <input aria-labelledby="pacientedash-direccion-referencial-calles-barrio-titulo"
                                                             type="text"
                                                             value={demographicForm.direccion_referencia}
                                                             onChange={e => setDemographicForm({ ...demographicForm, direccion_referencia: e.target.value })}
                                                             placeholder="Ej. Calle 10 de Agosto y Rocafuerte, Barrio Central"
                                                             style={{ border: formErrors.direccion_referencia ? '1.5px solid var(--accent)' : undefined }}
                                                         />
-                                                        {formErrors.direccion_referencia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.direccion_referencia}</small>}
+                                                        {formErrors.direccion_referencia && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.direccion_referencia}</small>}
                                                     </div>
 
                                                     <div className="premium-field-card clinical-col-span-2">
                                                         <div className="field-header">
                                                             <div className="field-header__left">
                                                                 <span className="field-header__icon"><Phone size={15} /></span>
-                                                                <h4 className="field-header__title">Teléfono Fijo / Convencional</h4>
+                                                                <h4 id="pacientedash-telefono-fijo-convencional-titulo" className="field-header__title">Teléfono Fijo / Convencional</h4>
                                                             </div>
                                                             <span className="field-badge-opt">Opcional</span>
                                                         </div>
-                                                        <input
+                                                        <input aria-labelledby="pacientedash-telefono-fijo-convencional-titulo"
                                                             type="text"
                                                             value={demographicForm.telefono_convencional}
                                                             onChange={e => setDemographicForm({ ...demographicForm, telefono_convencional: e.target.value })}
@@ -2894,62 +2881,62 @@ const PacienteDashboard = () => {
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><User size={15} /></span>
-                                                            <h4 className="field-header__title">Nombre Completo <span className="field-req-star">*</span></h4>
+                                                            <h4 id="pacientedash-nombre-completo-titulo" className="field-header__title">Nombre Completo <span className="field-req-star">*</span></h4>
                                                         </div>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="pacientedash-nombre-completo-titulo"
                                                         type="text"
                                                         value={emergencyForm.nombre_completo}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, nombre_completo: e.target.value })}
                                                         placeholder="Ej. María López"
                                                         style={{ border: formErrors.emergency_nombre ? '1.5px solid var(--accent)' : undefined }}
                                                     />
-                                                    {formErrors.emergency_nombre && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.emergency_nombre}</small>}
+                                                    {formErrors.emergency_nombre && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.emergency_nombre}</small>}
                                                 </div>
 
                                                 <div className="premium-field-card">
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                            <h4 className="field-header__title">Parentesco (Relación) <span className="field-req-star">*</span></h4>
+                                                            <h4 id="pacientedash-parentesco-relacion-titulo" className="field-header__title">Parentesco (Relación) <span className="field-req-star">*</span></h4>
                                                         </div>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="pacientedash-parentesco-relacion-titulo"
                                                         type="text"
                                                         value={emergencyForm.parentesco}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, parentesco: e.target.value })}
                                                         placeholder="Ej. Madre, Padre, Cónyuge"
                                                         style={{ border: formErrors.emergency_parentesco ? '1.5px solid var(--accent)' : undefined }}
                                                     />
-                                                    {formErrors.emergency_parentesco && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.emergency_parentesco}</small>}
+                                                    {formErrors.emergency_parentesco && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.emergency_parentesco}</small>}
                                                 </div>
 
                                                 <div className="premium-field-card">
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Phone size={15} /></span>
-                                                            <h4 className="field-header__title">Teléfono Principal <span className="field-req-star">*</span></h4>
+                                                            <h4 id="pacientedash-telefono-principal-titulo" className="field-header__title">Teléfono Principal <span className="field-req-star">*</span></h4>
                                                         </div>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="pacientedash-telefono-principal-titulo"
                                                         type="text"
                                                         value={emergencyForm.telefono}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, telefono: e.target.value })}
                                                         placeholder="Ej. 0998877665"
                                                         style={{ border: formErrors.emergency_telefono ? '1.5px solid var(--accent)' : undefined }}
                                                     />
-                                                    {formErrors.emergency_telefono && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '10px', marginTop: '2px' }}>{formErrors.emergency_telefono}</small>}
+                                                    {formErrors.emergency_telefono && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.emergency_telefono}</small>}
                                                 </div>
 
                                                 <div className="premium-field-card">
                                                     <div className="field-header">
                                                         <div className="field-header__left">
                                                             <span className="field-header__icon"><Phone size={15} /></span>
-                                                            <h4 className="field-header__title">Celular Alterno</h4>
+                                                            <h4 id="pacientedash-celular-alterno-titulo" className="field-header__title">Celular Alterno</h4>
                                                         </div>
                                                         <span className="field-badge-opt">Opcional</span>
                                                     </div>
-                                                    <input
+                                                    <input aria-labelledby="pacientedash-celular-alterno-titulo"
                                                         type="text"
                                                         value={emergencyForm.celular}
                                                         onChange={e => setEmergencyForm({ ...emergencyForm, celular: e.target.value })}
@@ -2963,6 +2950,7 @@ const PacienteDashboard = () => {
                                             <div className="field">
                                                 <span>¿Tienes Hijos? (Indica cantidad)</span>
                                                 <input
+                                                    aria-label="¿Tienes Hijos? (Indica cantidad)"
                                                     type="number"
                                                     min={0}
                                                     value={extraForm.numero_hijos}
@@ -2972,6 +2960,7 @@ const PacienteDashboard = () => {
                                             <div className="field clinical-col-span-2">
                                                 <span>¿Alergias Conocidas? (Separadas por comas)</span>
                                                 <input
+                                                    aria-label="¿Alergias Conocidas? (Separadas por comas)"
                                                     type="text"
                                                     value={extraForm.alergias}
                                                     onChange={e => setExtraForm({ ...extraForm, alergias: e.target.value })}
@@ -2981,6 +2970,7 @@ const PacienteDashboard = () => {
                                             <div className="field clinical-col-span-3">
                                                 <span>¿Tienes alguna Discapacidad? (Indicar cuál o dejar vacío)</span>
                                                 <input
+                                                    aria-label="¿Tienes alguna Discapacidad? (Indicar cuál o dejar vacío)"
                                                     type="text"
                                                     value={extraForm.discapacidades}
                                                     onChange={e => setExtraForm({ ...extraForm, discapacidades: e.target.value })}
@@ -3215,7 +3205,7 @@ const PacienteDashboard = () => {
                                                     <div>
                                                         <span style={{
                                                             display: 'block',
-                                                            fontSize: '10.5px',
+                                                            fontSize: '11px',
                                                             textTransform: 'uppercase',
                                                             color: 'var(--text-muted, #64748b)',
                                                             fontWeight: '700',
@@ -3238,7 +3228,7 @@ const PacienteDashboard = () => {
                                                     <div>
                                                         <span style={{
                                                             display: 'block',
-                                                            fontSize: '10.5px',
+                                                            fontSize: '11px',
                                                             textTransform: 'uppercase',
                                                             color: 'var(--text-muted, #64748b)',
                                                             fontWeight: '700',
@@ -3262,7 +3252,7 @@ const PacienteDashboard = () => {
                                                     <div>
                                                         <span style={{
                                                             display: 'block',
-                                                            fontSize: '10.5px',
+                                                            fontSize: '11px',
                                                             textTransform: 'uppercase',
                                                             color: 'var(--text-muted, #64748b)',
                                                             fontWeight: '700',
@@ -3339,7 +3329,7 @@ const PacienteDashboard = () => {
                                                             height: '18px',
                                                             display: 'grid',
                                                             placeItems: 'center',
-                                                            fontSize: '10.5px',
+                                                            fontSize: '11px',
                                                             fontWeight: 'bold',
                                                             marginLeft: '2px'
                                                         }}>
@@ -3386,10 +3376,10 @@ const PacienteDashboard = () => {
                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                                                     {/* Filtro: Especialidad Médica */}
                                                     <div>
-                                                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                                                        <label htmlFor="pacientedash-especialidad-medica" style={{ display: 'block', fontSize: '11.5px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                                                             Especialidad Médica
                                                         </label>
-                                                        <select
+                                                        <select id="pacientedash-especialidad-medica"
                                                             value={recetarioFilter}
                                                             onChange={e => { setRecetarioFilter(e.target.value); setRecetarioPage(1); }}
                                                             style={{
@@ -3423,13 +3413,14 @@ const PacienteDashboard = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => { setRecetarioDate(''); setRecetarioPage(1); }}
-                                                                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '10.5px', cursor: 'pointer', fontWeight: 'bold' }}
+                                                                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
                                                                 >
                                                                     Borrar fecha
                                                                 </button>
                                                             )}
                                                         </div>
                                                         <input
+                                                            aria-label="Filtrar por fecha"
                                                             type="date"
                                                             value={recetarioDate}
                                                             onChange={e => { setRecetarioDate(e.target.value); setRecetarioPage(1); }}
@@ -3546,7 +3537,7 @@ const PacienteDashboard = () => {
                                                                         <span style={{
                                                                             background: themeBgSoft,
                                                                             color: themeColor,
-                                                                            fontSize: '10px',
+                                                                            fontSize: '11px',
                                                                             fontWeight: 'bold',
                                                                             padding: '4px 10px',
                                                                             borderRadius: '20px',
@@ -3562,7 +3553,7 @@ const PacienteDashboard = () => {
 
                                                                     {/* Doctor Title */}
                                                                     <div style={{ marginBottom: '16px', borderBottom: '1px dashed var(--border)', paddingBottom: '10px' }}>
-                                                                        <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '9px', textTransform: 'uppercase' }}>Profesional a cargo</small>
+                                                                        <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Profesional a cargo</small>
                                                                         <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{item.doctorName}</strong>
                                                                     </div>
 
@@ -3578,7 +3569,7 @@ const PacienteDashboard = () => {
 
                                                                     {/* Indications / Recommendations */}
                                                                     <div style={{ marginBottom: '16px' }}>
-                                                                        <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '9px', textTransform: 'uppercase' }}>Indicaciones y Recomendaciones</small>
+                                                                        <small style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Indicaciones y Recomendaciones</small>
                                                                         <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
                                                                             {item.indicaciones}
                                                                         </p>
@@ -3731,6 +3722,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Nivel de instrucción del Jefe de Hogar</span>
                                                         <select
+                                                            aria-label="Nivel de instrucción del Jefe de Hogar"
                                                             value={socioeconomicForm.nivel_instruccion_jefe_hogar}
                                                             onChange={e => setSocioeconomicForm({ ...socioeconomicForm, nivel_instruccion_jefe_hogar: e.target.value })}
                                                             style={{ width: '100%', border: '1px solid var(--border)' }}
@@ -3746,6 +3738,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Ocupación / Empleo del Jefe de Hogar</span>
                                                         <select
+                                                            aria-label="Ocupación / Empleo del Jefe de Hogar"
                                                             value={socioeconomicForm.empleo_jefe_hogar}
                                                             onChange={e => setSocioeconomicForm({ ...socioeconomicForm, empleo_jefe_hogar: e.target.value })}
                                                             style={{ width: '100%', border: '1px solid var(--border)' }}
@@ -3762,6 +3755,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Ingresos Mensuales del Hogar</span>
                                                         <select
+                                                            aria-label="Ingresos Mensuales del Hogar"
                                                             value={socioeconomicForm.ingresos_mensuales}
                                                             onChange={e => setSocioeconomicForm({ ...socioeconomicForm, ingresos_mensuales: e.target.value })}
                                                             style={{ width: '100%', border: '1px solid var(--border)' }}
@@ -3777,6 +3771,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Número de personas en el hogar</span>
                                                         <input
+                                                            aria-label="Número de personas en el hogar"
                                                             type="number"
                                                             min="1"
                                                             placeholder="Ej. 4"
@@ -3789,6 +3784,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Aportantes económicos en el hogar</span>
                                                         <input
+                                                            aria-label="Aportantes económicos en el hogar"
                                                             type="number"
                                                             min="1"
                                                             placeholder="Ej. 2"
@@ -3801,6 +3797,7 @@ const PacienteDashboard = () => {
                                                     <div className="field">
                                                         <span>Tipo de vivienda</span>
                                                         <select
+                                                            aria-label="Tipo de vivienda"
                                                             value={socioeconomicForm.tipo_vivienda}
                                                             onChange={e => setSocioeconomicForm({ ...socioeconomicForm, tipo_vivienda: e.target.value })}
                                                             style={{ width: '100%', border: '1px solid var(--border)' }}
@@ -3930,6 +3927,7 @@ const PacienteDashboard = () => {
                                                             <Stethoscope size={13} color="var(--primary)" /> Especialidad <span style={{ color: '#dc2626' }}>*</span>
                                                         </label>
                                                         <select
+                                                            aria-label="Especialidad del profesional"
                                                             value={selectedRolDoctor}
                                                             onChange={(e) => setSelectedRolDoctor(e.target.value)}
                                                             style={{
@@ -3958,7 +3956,7 @@ const PacienteDashboard = () => {
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', marginBottom: '5px' }}>
                                                                 <UserCheck size={13} color="var(--primary)" /> Especialista <span style={{ color: '#dc2626' }}>*</span>
                                                             </label>
-                                                            <select
+                                                            <select aria-label="Profesional"
                                                                 value={selectedDoctorId}
                                                                 onChange={(e) => setSelectedDoctorId(e.target.value)}
                                                                 required
@@ -4004,6 +4002,7 @@ const PacienteDashboard = () => {
                                                                 <Calendar size={13} color="var(--primary)" /> Fecha de la Cita <span style={{ color: '#dc2626' }}>*</span>
                                                             </label>
                                                             <input
+                                                                aria-label="Filtrar por fecha"
                                                                 type="date"
                                                                 value={selectedDate}
                                                                 min={getTodayLocalDateStr()}
@@ -4072,7 +4071,7 @@ const PacienteDashboard = () => {
                                                                         <Clock size={13} color="var(--primary)" /> Horarios Disponibles <span style={{ color: '#dc2626' }}>*</span>
                                                                     </span>
                                                                     {!slotsLoading && validAvailableSlots.length > 0 && (
-                                                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
                                                                             {validAvailableSlots.length} turnos
                                                                         </span>
                                                                     )}
@@ -4141,9 +4140,10 @@ const PacienteDashboard = () => {
                                                                 <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', margin: 0 }}>
                                                                     <FileText size={13} color="var(--primary)" /> Motivo de la Consulta
                                                                 </label>
-                                                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>Opcional</span>
+                                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Opcional</span>
                                                             </div>
                                                             <textarea
+                                                                aria-label="Describa brevemente los síntomas o motivo de su cita"
                                                                 value={motivoCita}
                                                                 onChange={(e) => setMotivoCita(e.target.value)}
                                                                 placeholder="Describa brevemente los síntomas o motivo de su cita..."
@@ -4256,7 +4256,7 @@ const PacienteDashboard = () => {
                                                             height: '16px',
                                                             display: 'grid',
                                                             placeItems: 'center',
-                                                            fontSize: '10px',
+                                                            fontSize: '11px',
                                                             fontWeight: 'bold',
                                                             marginLeft: '2px'
                                                         }}>
@@ -4301,10 +4301,10 @@ const PacienteDashboard = () => {
                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
                                                         {/* Specialty Filter */}
                                                         <div>
-                                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                                                            <label htmlFor="pacientedash-especialidad" style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                                                                 Especialidad
                                                             </label>
-                                                            <select
+                                                            <select id="pacientedash-especialidad"
                                                                 value={citaFilterSpecialty}
                                                                 onChange={e => { setCitaFilterSpecialty(e.target.value); setCitaPage(1); }}
                                                                 style={{
@@ -4330,10 +4330,10 @@ const PacienteDashboard = () => {
 
                                                         {/* Month Filter */}
                                                         <div>
-                                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                                                            <label htmlFor="pacientedash-mes-de-la-cita" style={{ display: 'block', fontSize: '11px', fontWeight: '650', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                                                                 Mes de la Cita
                                                             </label>
-                                                            <select
+                                                            <select id="pacientedash-mes-de-la-cita"
                                                                 value={citaFilterMonth}
                                                                 onChange={e => { setCitaFilterMonth(e.target.value); setCitaPage(1); }}
                                                                 style={{
@@ -4374,13 +4374,13 @@ const PacienteDashboard = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>Filtros activos:</span>
                                                     {citaFilterSpecialty !== 'todas' && (
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
                                                             <span>{citaFilterSpecialty === 'medico_general' ? 'Medicina General' : citaFilterSpecialty === 'psicologo' ? 'Psicología' : citaFilterSpecialty === 'odontologo' ? 'Odontología' : 'Médico Ocupacional'}</span>
                                                             <X size={11} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setCitaFilterSpecialty('todas'); setCitaPage(1); }} />
                                                         </span>
                                                     )}
                                                     {citaFilterMonth !== 'todos' && (
-                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '10.5px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-soft, #eaf0f5)', color: 'var(--primary, #002040)', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '650', border: '1px solid rgba(0,32,64,0.1)' }}>
                                                             <span>Mes: {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(citaFilterMonth) - 1]}</span>
                                                             <X size={11} style={{ cursor: 'pointer', strokeWidth: 2.5 }} onClick={() => { setCitaFilterMonth('todos'); setCitaPage(1); }} />
                                                         </span>
@@ -4388,7 +4388,7 @@ const PacienteDashboard = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => { setCitaFilterMonth('todos'); setCitaFilterSpecialty('todas'); setCitaPage(1); }}
-                                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '10.5px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
+                                                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', textDecoration: 'underline' }}
                                                     >
                                                         Limpiar todo
                                                     </button>
@@ -4441,7 +4441,7 @@ const PacienteDashboard = () => {
                                                                 }}>
                                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                                         <div>
-                                                                            <span style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', color: statusColors.text, background: 'rgba(255,255,255,0.6)', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${statusColors.border}` }}>
+                                                                            <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: statusColors.text, background: 'rgba(255,255,255,0.6)', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${statusColors.border}` }}>
                                                                                 {specialtyLabels[cita.rol_doctor] || 'Médico'}
                                                                             </span>
                                                                             <h4 style={{ margin: '6px 0 2px', fontSize: '13px', fontWeight: 'bold', color: 'var(--text)' }}>
@@ -4458,7 +4458,7 @@ const PacienteDashboard = () => {
                                                                             </p>
                                                                         </div>
                                                                         <span style={{
-                                                                            fontSize: '9.5px',
+                                                                            fontSize: '11px',
                                                                             fontWeight: 'bold',
                                                                             textTransform: 'uppercase',
                                                                             color: statusColors.text,
@@ -4603,7 +4603,7 @@ const PacienteDashboard = () => {
                                         <h2 style={{ fontSize: '15px', color: '#fff', margin: 0 }}>Certificado No Disponible</h2>
                                     </div>
                                 </div>
-                                <button className="clinical-modal__close" onClick={() => setNoCertificateModal({ show: false, message: '' })} style={{ color: '#fff' }}><X size={15} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setNoCertificateModal({ show: false, message: '' })} style={{ color: '#fff' }}><X size={15} /></button>
                             </header>
                             <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
                                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 20px' }}>
@@ -4632,7 +4632,7 @@ const PacienteDashboard = () => {
                                         <FileText size={18} />
                                     </div>
                                     <div>
-                                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                             Detalles de Atención - {viewDetailsModal.area === 'medicina' ? 'Medicina General' :
                                                 viewDetailsModal.area === 'psicologia' ? 'Psicología Clínica' :
                                                     viewDetailsModal.area === 'odontologia' ? 'Odontología' : 'Enfermería'}
@@ -4640,7 +4640,7 @@ const PacienteDashboard = () => {
                                         <h2 style={{ fontSize: '16px', color: '#fff', margin: '2px 0 0' }}>{viewDetailsModal.record.recordTitle}</h2>
                                     </div>
                                 </div>
-                                <button className="clinical-modal__close" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })} style={{ color: '#fff' }}><X size={16} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setViewDetailsModal({ show: false, record: null, area: '' })} style={{ color: '#fff' }}><X size={16} /></button>
                             </header>
                             <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '75vh', overflowY: 'auto' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
@@ -4689,15 +4689,15 @@ const PacienteDashboard = () => {
                                             {viewDetailsModal.record.type === 'signos' && (
                                                 <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                                                     <div>
-                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>P. Arterial</span>
+                                                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)' }}>P. Arterial</span>
                                                         <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
                                                     </div>
                                                     <div>
-                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>F. Cardiaca</span>
+                                                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)' }}>F. Cardiaca</span>
                                                         <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
                                                     </div>
                                                     <div>
-                                                        <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-secondary)' }}>Temperatura</span>
+                                                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-secondary)' }}>Temperatura</span>
                                                         <strong style={{ fontSize: '13px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
                                                     </div>
                                                 </div>
@@ -4787,27 +4787,27 @@ const PacienteDashboard = () => {
                                             {viewDetailsModal.record.type === 'vitals' && (
                                                 <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid var(--border)' }}>
                                                     <div>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Presión Arterial</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Presión Arterial</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.presion_arterial_sistolica || '—'}/{viewDetailsModal.record.presion_arterial_diastolica || '—'} mmHg</strong>
                                                     </div>
                                                     <div>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Cardíaca</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Cardíaca</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_cardiaca || '—'} lpm</strong>
                                                     </div>
                                                     <div>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Respiratoria</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Frec. Respiratoria</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.frecuencia_respiratoria || '—'} rpm</strong>
                                                     </div>
                                                     <div style={{ marginTop: '10px' }}>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Temperatura</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Temperatura</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.temperatura || '—'} °C</strong>
                                                     </div>
                                                     <div style={{ marginTop: '10px' }}>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Talla (Estatura)</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Talla (Estatura)</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.talla || '—'} cm</strong>
                                                     </div>
                                                     <div style={{ marginTop: '10px' }}>
-                                                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', display: 'block' }}>Peso Corporal</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Peso Corporal</span>
                                                         <strong style={{ fontSize: '14px' }}>{viewDetailsModal.record.peso || '—'} kg</strong>
                                                     </div>
                                                 </div>
@@ -4884,7 +4884,7 @@ const PacienteDashboard = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <button className="clinical-modal__close" onClick={() => setIsViewFichaOpen(false)} style={{ color: 'white' }}><X size={16} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsViewFichaOpen(false)} style={{ color: 'white' }}><X size={16} /></button>
                             </header>
 
                             <div className="clinical-modal__body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
@@ -4926,47 +4926,47 @@ const PacienteDashboard = () => {
                                                     color: 'var(--text-muted)'
                                                 }}>
                                                     <User size={32} />
-                                                    <span style={{ fontSize: '10px', fontWeight: 'bold' }}>Sin Foto</span>
+                                                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Sin Foto</span>
                                                 </div>
                                             </div>
                                         )}
                                         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Cédula / Pasaporte</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Cédula / Pasaporte</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.numero_cedula || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombres Completos</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Nombres Completos</small>
                                                 <strong style={{ fontSize: '12.5px' }}>
                                                     {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''}
                                                 </strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Apellidos Completos</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Apellidos Completos</small>
                                                 <strong style={{ fontSize: '12.5px' }}>
                                                     {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
                                                 </strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Fecha de Nacimiento</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Fecha de Nacimiento</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.fecha_nacimiento || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Género</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Género</small>
                                                 <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.genero?.nombre || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Estado Civil</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Estado Civil</small>
                                                 <strong style={{ fontSize: '12.5px', textTransform: 'capitalize' }}>{profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nacionalidad</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Nacionalidad</small>
                                                 <strong style={{ fontSize: '12.5px' }}>
                                                     {profile?.identification?.es_extranjero ? `Extranjero (${profile?.identification?.nacionalidad || '—'})` : 'Ecuatoriana'}
                                                 </strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Sangre</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Tipo de Sangre</small>
                                                 <strong style={{ fontSize: '12.5px', color: profile?.blood_type?.nombre ? 'var(--accent)' : 'inherit' }}>
                                                     {profile?.blood_type?.nombre || 'No asignado'}
                                                 </strong>
@@ -4982,30 +4982,30 @@ const PacienteDashboard = () => {
                                     </h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
                                             <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}</strong>
                                         </div>
                                         {profile?.career_study?.facultad && (
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Facultad</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Facultad</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.facultad?.nombre || '—'}</strong>
                                             </div>
                                         )}
                                         {profile?.career_study?.carrera && (
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Carrera</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Carrera</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.carrera?.nombre || '—'}</strong>
                                             </div>
                                         )}
                                         {profile?.career_study?.ciclo && (
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Semestre / Ciclo</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Semestre / Ciclo</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.ciclo?.numero || '—'}</strong>
                                             </div>
                                         )}
                                         {profile?.career_study?.paralelo && (
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Paralelo</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Paralelo</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.paralelo || '—'}</strong>
                                             </div>
                                         )}
@@ -5019,11 +5019,11 @@ const PacienteDashboard = () => {
                                     </h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono Convencional (Fijo)</small>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Teléfono Convencional (Fijo)</small>
                                             <strong style={{ fontSize: '12.5px' }}>{profile?.addresses?.[0]?.telefono_convencional || '—'}</strong>
                                         </div>
                                         <div>
-                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Correo Institucional</small>
+                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Correo Institucional</small>
                                             <strong style={{ fontSize: '12.5px' }}>{user?.email || '—'}</strong>
                                         </div>
                                     </div>
@@ -5037,19 +5037,19 @@ const PacienteDashboard = () => {
                                         </h3>
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Nombre Completo</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Nombre Completo</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].nombre_completo || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Parentesco</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Parentesco</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].parentesco || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Teléfono de Contacto</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Teléfono de Contacto</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].telefono || '—'}</strong>
                                             </div>
                                             <div>
-                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px', textTransform: 'uppercase' }}>Celular Alterno</small>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Celular Alterno</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].celular || '—'}</strong>
                                             </div>
                                         </div>
@@ -5065,7 +5065,7 @@ const PacienteDashboard = () => {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                             {profile.directions.map((dir, idx) => (
                                                 <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                                    <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
                                                         Dirección de {dir.id_tipo_direccion === 1 ? 'Procedencia' : 'Residencia'}
                                                     </span>
                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
@@ -5132,7 +5132,7 @@ const PacienteDashboard = () => {
                                         <h2 style={{ fontSize: '15px', color: '#fff', margin: 0, fontWeight: '800' }}>{alertModal.title}</h2>
                                     </div>
                                 </div>
-                                <button className="clinical-modal__close" onClick={() => setAlertModal({ ...alertModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
+                                <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setAlertModal({ ...alertModal, show: false })} style={{ color: '#fff' }}><X size={16} /></button>
                             </header>
                             <div className="clinical-modal__body" style={{ padding: '24px 20px', textAlign: 'center' }}>
                                 <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.5, margin: '0 0 24px', fontWeight: '500', whiteSpace: 'pre-wrap' }}>

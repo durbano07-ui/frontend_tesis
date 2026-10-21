@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
+import { useState } from 'react';
+import { Printer, Download, X, FileSpreadsheet } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
+import { escapeHtml } from '../../utils/escapeHtml';
 
 /**
  * Función que extrae y normaliza de forma exhaustiva todos los campos clínicos,
@@ -388,7 +389,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
     <html lang="es">
     <head>
         <meta charset="UTF-8" />
-        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA OCUPACIONAL DE REINTEGRO - ${pac}</title>
+        <title>FORMULARIO 077 - EVALUACIÓN MÉDICA OCUPACIONAL DE REINTEGRO - ${escapeHtml(pac)}</title>
         <style>
             @page {
                 size: portrait;
@@ -493,8 +494,8 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             <tr>
                 <td style="width: 32%; padding: 4px 8px; vertical-align: middle;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <img src="${logoBienestar}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
-                        ${uebBannerLogo ? `<img src="${uebBannerLogo}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
+                        <img src="${escapeHtml(logoBienestar)}" style="height: 38px; object-fit: contain;" alt="Bienestar Universitario" />
+                        ${uebBannerLogo ? `<img src="${escapeHtml(uebBannerLogo)}" style="height: 38px; object-fit: contain;" alt="UEB" />` : ''}
                         <div>
                             <div style="font-weight: 900; font-size: 11px; color: #002060;">UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                             <div style="font-size: 7.5px; font-weight: bold; color: #002060;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO</div>
@@ -522,11 +523,11 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             </tr>
             <tr class="text-center font-bold">
                 <td colspan="2">UNIVERSIDAD ESTATAL DE BOLIVAR</td>
-                <td>${ruc}</td>
+                <td>${escapeHtml(ruc)}</td>
                 <td>8530</td>
-                <td colspan="2">${estSalud}</td>
-                <td>${numHC}</td>
-                <td>${numArch}</td>
+                <td colspan="2">${escapeHtml(estSalud)}</td>
+                <td>${escapeHtml(numHC)}</td>
+                <td>${escapeHtml(numArch)}</td>
             </tr>
             <tr class="bg-green">
                 <td>PRIMER APELLIDO</td>
@@ -538,13 +539,13 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td colspan="2">N° CÉDULA DE IDENTIDAD</td>
             </tr>
             <tr class="text-center">
-                <td class="font-bold">${p1Ape}</td>
-                <td class="font-bold">${p2Ape}</td>
-                <td class="font-bold">${p1Nom}</td>
-                <td class="font-bold">${p2Nom}</td>
-                <td class="font-bold">${sexo}</td>
-                <td>${edad} AÑOS</td>
-                <td colspan="2" class="font-bold">${ced}</td>
+                <td class="font-bold">${escapeHtml(p1Ape)}</td>
+                <td class="font-bold">${escapeHtml(p2Ape)}</td>
+                <td class="font-bold">${escapeHtml(p1Nom)}</td>
+                <td class="font-bold">${escapeHtml(p2Nom)}</td>
+                <td class="font-bold">${escapeHtml(sexo)}</td>
+                <td>${escapeHtml(edad)} AÑOS</td>
+                <td colspan="2" class="font-bold">${escapeHtml(ced)}</td>
             </tr>
             <tr class="bg-green">
                 <td colspan="2">RELIGIÓN</td>
@@ -555,12 +556,12 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td colspan="2">DISCAPACIDAD</td>
             </tr>
             <tr class="text-center">
-                <td colspan="2">${rel}</td>
-                <td class="font-bold">${grpSangre}</td>
-                <td>${lat}</td>
-                <td>${orientacion}</td>
-                <td>${idGen}</td>
-                <td colspan="2">${disc.tiene ? `SÍ (${disc.porcentaje || '35'}% - ${disc.tipo || 'Física'})` : 'NO'}</td>
+                <td colspan="2">${escapeHtml(rel)}</td>
+                <td class="font-bold">${escapeHtml(grpSangre)}</td>
+                <td>${escapeHtml(lat)}</td>
+                <td>${escapeHtml(orientacion)}</td>
+                <td>${escapeHtml(idGen)}</td>
+                <td colspan="2">${disc.tiene ? `SÍ (${escapeHtml(disc.porcentaje || '35')}% - ${escapeHtml(disc.tipo || 'Física')})` : 'NO'}</td>
             </tr>
         </table>
 
@@ -575,26 +576,26 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>DÍAS TOTALES DE AUSENCIA</td>
             </tr>
             <tr class="text-center">
-                <td colspan="2" class="font-bold">${puesto}</td>
-                <td>${ciuo}</td>
-                <td class="font-bold">${fecSalida}</td>
-                <td class="font-bold" style="color: #0369a1;">${fecReintegro}</td>
-                <td class="font-bold" style="font-size: 10px; color: #b45309;">${diasAusencia} DÍAS</td>
+                <td colspan="2" class="font-bold">${escapeHtml(puesto)}</td>
+                <td>${escapeHtml(ciuo)}</td>
+                <td class="font-bold">${escapeHtml(fecSalida)}</td>
+                <td class="font-bold" style="color: #0369a1;">${escapeHtml(fecReintegro)}</td>
+                <td class="font-bold" style="font-size: 10px; color: #b45309;">${escapeHtml(diasAusencia)} DÍAS</td>
             </tr>
             <tr class="bg-green">
                 <td colspan="3">ACTIVIDADES PRINCIPALES DESEMPEÑADAS EN EL PUESTO</td>
                 <td colspan="3">CAUSA / MOTIVO DE SALIDA Y REPOSO MÉDICO</td>
             </tr>
             <tr>
-                <td colspan="3" class="text-left" style="padding: 5px;">${actividades}</td>
-                <td colspan="3" class="text-left font-bold" style="padding: 5px; color: #0f172a;">${causaSalida}</td>
+                <td colspan="3" class="text-left" style="padding: 5px;">${escapeHtml(actividades)}</td>
+                <td colspan="3" class="text-left font-bold" style="padding: 5px; color: #0f172a;">${escapeHtml(causaSalida)}</td>
             </tr>
         </table>
 
         <!-- C. MOTIVO DE CONSULTA -->
         <table>
             <tr><td class="bg-purple">C. MOTIVO DE CONSULTA DE REINTEGRO OCUPACIONAL</td></tr>
-            <tr><td style="padding: 6px; font-weight: 500;">${motivo}</td></tr>
+            <tr><td style="padding: 6px; font-weight: 500;">${escapeHtml(motivo)}</td></tr>
         </table>
 
         <!-- D. ANTECEDENTES CLÍNICOS Y QUIRÚRGICOS -->
@@ -605,8 +606,8 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td style="width: 50%;">ANTECEDENTES QUIRÚRGICOS / TRAUMATOLÓGICOS</td>
             </tr>
             <tr>
-                <td style="padding: 5px;">${antClin}</td>
-                <td style="padding: 5px;">${antQuir}</td>
+                <td style="padding: 5px;">${escapeHtml(antClin)}</td>
+                <td style="padding: 5px;">${escapeHtml(antQuir)}</td>
             </tr>
         </table>
 
@@ -624,14 +625,14 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>PAP / CONTROL</td>
             </tr>
             <tr class="text-center">
-                <td>${gin.menarquia}</td>
-                <td>${gin.ciclos}</td>
-                <td>${gin.fum}</td>
-                <td>${gin.gestas}G / ${gin.partos}P / ${gin.cesareas}C</td>
-                <td>${gin.hijosVivos}</td>
-                <td>${gin.planificacionFamiliar ? gin.tipoPlanificacion || 'SÍ' : 'NO'}</td>
-                <td class="font-bold" style="color: ${gin.lactanciaActiva ? '#15803d' : '#000'};">${gin.lactanciaActiva ? 'SÍ (ACTIVA)' : 'NO'}</td>
-                <td>${gin.papanicolaou?.resultado || 'NORMAL'}</td>
+                <td>${escapeHtml(gin.menarquia)}</td>
+                <td>${escapeHtml(gin.ciclos)}</td>
+                <td>${escapeHtml(gin.fum)}</td>
+                <td>${escapeHtml(gin.gestas)}G / ${escapeHtml(gin.partos)}P / ${escapeHtml(gin.cesareas)}C</td>
+                <td>${escapeHtml(gin.hijosVivos)}</td>
+                <td>${escapeHtml(gin.planificacionFamiliar ? gin.tipoPlanificacion || 'SÍ' : 'NO')}</td>
+                <td class="font-bold" style="color: ${escapeHtml(gin.lactanciaActiva ? '#15803d' : '#000')};">${escapeHtml(gin.lactanciaActiva ? 'SÍ (ACTIVA)' : 'NO')}</td>
+                <td>${escapeHtml(gin.papanicolaou?.resultado || 'NORMAL')}</td>
             </tr>
         </table>
 
@@ -646,11 +647,11 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>MEDICACIÓN HABITUAL ACTUAL</td>
             </tr>
             <tr class="text-center">
-                <td>${hab.tabaco ? 'SÍ' : 'NO'}</td>
-                <td>${hab.alcohol ? 'SÍ' : 'NO'}</td>
-                <td>${hab.drogas ? 'SÍ' : 'NO'}</td>
-                <td colspan="2">${hab.actividadFisica?.tiene ? `${hab.actividadFisica.cual} (${hab.actividadFisica.tiempo})` : 'NO REALIZA'}</td>
-                <td>${hab.medicacionHabitual?.tiene ? hab.medicacionHabitual.cual : 'NINGUNA'}</td>
+                <td>${escapeHtml(hab.tabaco ? 'SÍ' : 'NO')}</td>
+                <td>${escapeHtml(hab.alcohol ? 'SÍ' : 'NO')}</td>
+                <td>${escapeHtml(hab.drogas ? 'SÍ' : 'NO')}</td>
+                <td colspan="2">${hab.actividadFisica?.tiene ? `${escapeHtml(hab.actividadFisica.cual)} (${escapeHtml(hab.actividadFisica.tiempo)})` : 'NO REALIZA'}</td>
+                <td>${escapeHtml(hab.medicacionHabitual?.tiene ? hab.medicacionHabitual.cual : 'NINGUNA')}</td>
             </tr>
         </table>
 
@@ -681,10 +682,10 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>DESCRIPCIÓN CLÍNICA DETALLADA</td>
             </tr>
             <tr class="text-center">
-                <td>${antFam.cardiovascular ? 'SÍ' : 'NO'}</td>
-                <td>${antFam.diabetes ? 'SÍ' : 'NO'}</td>
-                <td>${antFam.hipertension ? 'SÍ' : 'NO'}</td>
-                <td class="text-left">${antFam.descripcion || 'SIN ANTECEDENTES FAMILIARES DE GRAVEDAD.'}</td>
+                <td>${escapeHtml(antFam.cardiovascular ? 'SÍ' : 'NO')}</td>
+                <td>${escapeHtml(antFam.diabetes ? 'SÍ' : 'NO')}</td>
+                <td>${escapeHtml(antFam.hipertension ? 'SÍ' : 'NO')}</td>
+                <td class="text-left">${escapeHtml(antFam.descripcion || 'SIN ANTECEDENTES FAMILIARES DE GRAVEDAD.')}</td>
             </tr>
         </table>
 
@@ -708,14 +709,14 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>${factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : 'Atención al usuario'}</td>
             </tr>
             <tr>
-                <td colspan="6" style="padding: 4px;"><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> ${factRiesgo.medidasPreventivas || 'Pausas activas y control ergonómico.'}</td>
+                <td colspan="6" style="padding: 4px;"><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> ${escapeHtml(factRiesgo.medidasPreventivas || 'Pausas activas y control ergonómico.')}</td>
             </tr>
         </table>
 
         <!-- I. ENFERMEDAD ACTUAL Y EVOLUCIÓN POST-REPOSO -->
         <table>
             <tr><td class="bg-purple">I. ENFERMEDAD ACTUAL, EVOLUCIÓN TRAS REPOSO MÉDICO Y ESTADO ACTUAL</td></tr>
-            <tr><td style="padding: 6px; font-weight: 500;">${enfAct}</td></tr>
+            <tr><td style="padding: 6px; font-weight: 500;">${escapeHtml(enfAct)}</td></tr>
         </table>
 
         <!-- J. REVISIÓN DE ÓRGANOS Y SISTEMAS -->
@@ -726,10 +727,10 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td colspan="3">DESCRIPCIÓN DE HALLAZGOS POR SISTEMA</td>
             </tr>
             <tr>
-                <td class="text-center font-bold" style="color: ${orgSist.normal ? '#15803d' : '#b45309'};">
-                    ${orgSist.normal ? 'CONSERVADO (NORMAL)' : 'PATOLÓGICO'}
+                <td class="text-center font-bold" style="color: ${escapeHtml(orgSist.normal ? '#15803d' : '#b45309')};">
+                    ${escapeHtml(orgSist.normal ? 'CONSERVADO (NORMAL)' : 'PATOLÓGICO')}
                 </td>
-                <td colspan="3" style="padding: 5px;">${orgSist.descripcion}</td>
+                <td colspan="3" style="padding: 5px;">${escapeHtml(orgSist.descripcion)}</td>
             </tr>
         </table>
 
@@ -747,16 +748,16 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>I.M.C. (KG/M²)</td>
             </tr>
             <tr class="text-center font-bold" style="font-size: 9.5px;">
-                <td>${constantes.pa} mmHg</td>
-                <td>${constantes.temp} °C</td>
-                <td>${constantes.fc} lpm</td>
-                <td>${constantes.satO2}%</td>
-                <td>${constantes.fr} rpm</td>
-                <td>${constantes.peso} kg</td>
-                <td>${constantes.talla} m</td>
-                <td style="color: #0369a1;">${constantes.imc}</td>
+                <td>${escapeHtml(constantes.pa)} mmHg</td>
+                <td>${escapeHtml(constantes.temp)} °C</td>
+                <td>${escapeHtml(constantes.fc)} lpm</td>
+                <td>${escapeHtml(constantes.satO2)}%</td>
+                <td>${escapeHtml(constantes.fr)} rpm</td>
+                <td>${escapeHtml(constantes.peso)} kg</td>
+                <td>${escapeHtml(constantes.talla)} m</td>
+                <td style="color: #0369a1;">${escapeHtml(constantes.imc)}</td>
             </tr>
-            ${constantes.novedades ? `<tr><td colspan="8" style="padding: 4px;"><strong>Novedades en Signos Vitales:</strong> ${constantes.novedades}</td></tr>` : ''}
+            ${constantes.novedades ? `<tr><td colspan="8" style="padding: 4px;"><strong>Novedades en Signos Vitales:</strong> ${escapeHtml(constantes.novedades)}</td></tr>` : ''}
         </table>
 
         <!-- L. EXAMEN FÍSICO REGIONAL DE REINTEGRO -->
@@ -767,8 +768,8 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td style="width: 50%;">EVALUACIÓN OSTEOMUSCULAR, COLUMNA Y EXTREMIDADES</td>
             </tr>
             <tr>
-                <td style="padding: 6px;">${exFisicoDesc}</td>
-                <td style="padding: 6px; font-weight: bold; color: #0f172a;">${extremidadesDesc}</td>
+                <td style="padding: 6px;">${escapeHtml(exFisicoDesc)}</td>
+                <td style="padding: 6px; font-weight: bold; color: #0f172a;">${escapeHtml(extremidadesDesc)}</td>
             </tr>
         </table>
 
@@ -799,9 +800,9 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             </tr>
             ${exLab.map(el => `
                 <tr>
-                    <td class="font-bold">${el.examen}</td>
-                    <td class="text-center">${el.fecha || fecReintegro}</td>
-                    <td>${el.resultado}</td>
+                    <td class="font-bold">${escapeHtml(el.examen)}</td>
+                    <td class="text-center">${escapeHtml(el.fecha || fecReintegro)}</td>
+                    <td>${escapeHtml(el.resultado)}</td>
                 </tr>
             `).join('')}
         </table>
@@ -818,11 +819,11 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             </tr>
             ${diags.map((d, i) => `
                 <tr>
-                    <td class="text-center font-bold">${i + 1}</td>
-                    <td class="font-bold">${d.desc}</td>
-                    <td class="text-center font-bold" style="color: #0369a1;">${d.cie}</td>
-                    <td class="text-center font-bold">${d.pre ? 'X' : ''}</td>
-                    <td class="text-center font-bold">${d.def ? 'X' : ''}</td>
+                    <td class="text-center font-bold">${escapeHtml(i + 1)}</td>
+                    <td class="font-bold">${escapeHtml(d.desc)}</td>
+                    <td class="text-center font-bold" style="color: #0369a1;">${escapeHtml(d.cie)}</td>
+                    <td class="text-center font-bold">${escapeHtml(d.pre ? 'X' : '')}</td>
+                    <td class="text-center font-bold">${escapeHtml(d.def ? 'X' : '')}</td>
                 </tr>
             `).join('')}
         </table>
@@ -831,20 +832,20 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
         <table>
             <tr><td colspan="4" class="bg-purple">O. DICTAMEN DE APTITUD MÉDICA PARA EL REINTEGRO LABORAL (NORMATIVA MDT)</td></tr>
             <tr class="text-center" style="font-size: 8.5px; font-weight: bold;">
-                <td style="width: 25%; padding: 6px; background: ${aptitudDictamen.total ? '#dcfce7' : '#fff'}; color: ${aptitudDictamen.total ? '#15803d' : '#000'};">
-                    <span class="check-box">${aptitudDictamen.total ? 'X' : ''}</span> REINTEGRO TOTAL
+                <td style="width: 25%; padding: 6px; background: ${escapeHtml(aptitudDictamen.total ? '#dcfce7' : '#fff')}; color: ${escapeHtml(aptitudDictamen.total ? '#15803d' : '#000')};">
+                    <span class="check-box">${escapeHtml(aptitudDictamen.total ? 'X' : '')}</span> REINTEGRO TOTAL
                     <div style="font-size: 7px; font-weight: normal;">(Sin restricciones laborales)</div>
                 </td>
-                <td style="width: 25%; padding: 6px; background: ${aptitudDictamen.conAdaptacion ? '#fef3c7' : '#fff'}; color: ${aptitudDictamen.conAdaptacion ? '#b45309' : '#000'};">
-                    <span class="check-box">${aptitudDictamen.conAdaptacion ? 'X' : ''}</span> CON ADAPTACIÓN
+                <td style="width: 25%; padding: 6px; background: ${escapeHtml(aptitudDictamen.conAdaptacion ? '#fef3c7' : '#fff')}; color: ${escapeHtml(aptitudDictamen.conAdaptacion ? '#b45309' : '#000')};">
+                    <span class="check-box">${escapeHtml(aptitudDictamen.conAdaptacion ? 'X' : '')}</span> CON ADAPTACIÓN
                     <div style="font-size: 7px; font-weight: normal;">(Modificaciones al puesto)</div>
                 </td>
-                <td style="width: 25%; padding: 6px; background: ${aptitudDictamen.reubicacion ? '#e0e7ff' : '#fff'}; color: ${aptitudDictamen.reubicacion ? '#3730a3' : '#000'};">
-                    <span class="check-box">${aptitudDictamen.reubicacion ? 'X' : ''}</span> CON REUBICACIÓN
+                <td style="width: 25%; padding: 6px; background: ${escapeHtml(aptitudDictamen.reubicacion ? '#e0e7ff' : '#fff')}; color: ${escapeHtml(aptitudDictamen.reubicacion ? '#3730a3' : '#000')};">
+                    <span class="check-box">${escapeHtml(aptitudDictamen.reubicacion ? 'X' : '')}</span> CON REUBICACIÓN
                     <div style="font-size: 7px; font-weight: normal;">(Temporal o definitiva)</div>
                 </td>
-                <td style="width: 25%; padding: 6px; background: ${aptitudDictamen.noApto ? '#fee2e2' : '#fff'}; color: ${aptitudDictamen.noApto ? '#b91c1c' : '#000'};">
-                    <span class="check-box">${aptitudDictamen.noApto ? 'X' : ''}</span> NO APTO / PRÓRROGA
+                <td style="width: 25%; padding: 6px; background: ${escapeHtml(aptitudDictamen.noApto ? '#fee2e2' : '#fff')}; color: ${escapeHtml(aptitudDictamen.noApto ? '#b91c1c' : '#000')};">
+                    <span class="check-box">${escapeHtml(aptitudDictamen.noApto ? 'X' : '')}</span> NO APTO / PRÓRROGA
                     <div style="font-size: 7px; font-weight: normal;">(Continúa reposo médico)</div>
                 </td>
             </tr>
@@ -853,8 +854,8 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td colspan="2">LIMITACIONES Y ESPECIFICACIONES DE ADAPTACIÓN</td>
             </tr>
             <tr>
-                <td colspan="2" style="padding: 5px;">${aptitudDictamen.observacion}</td>
-                <td colspan="2" style="padding: 5px;">${aptitudDictamen.limitacion}</td>
+                <td colspan="2" style="padding: 5px;">${escapeHtml(aptitudDictamen.observacion)}</td>
+                <td colspan="2" style="padding: 5px;">${escapeHtml(aptitudDictamen.limitacion)}</td>
             </tr>
         </table>
 
@@ -864,7 +865,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             <tr>
                 <td style="padding: 5px;">
                     <ul style="margin: 0; padding-left: 18px; font-size: 8px;">
-                        ${recs.map(rc => `<li>${rc}</li>`).join('')}
+                        ${recs.map(rc => `<li>${escapeHtml(rc)}</li>`).join('')}
                     </ul>
                 </td>
             </tr>
@@ -875,7 +876,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             <tr><td class="bg-purple">Q. CERTIFICACIÓN Y CONFORMIDAD LEGAL DE REINTEGRO LABORAL</td></tr>
             <tr>
                 <td style="padding: 6px; font-size: 7.5px; text-align: justify; line-height: 1.2;">
-                    En cumplimiento de la normativa legal vigente (Código del Trabajo, Reglamento del Seguro General de Riesgos del Trabajo del IESS y Acuerdo Ministerial MDT-2023-140), se certifica que el servidor <strong>${pac}</strong> con C.I. <strong>${ced}</strong> ha sido evaluado médicamente tras su período de ausencia. El trabajador manifiesta haber recibido información clara respecto a su dictamen de aptitud, pautas de autocuidado y ergonomía en su puesto de trabajo.
+                    En cumplimiento de la normativa legal vigente (Código del Trabajo, Reglamento del Seguro General de Riesgos del Trabajo del IESS y Acuerdo Ministerial MDT-2023-140), se certifica que el servidor <strong>${escapeHtml(pac)}</strong> con C.I. <strong>${escapeHtml(ced)}</strong> ha sido evaluado médicamente tras su período de ausencia. El trabajador manifiesta haber recibido información clara respecto a su dictamen de aptitud, pautas de autocuidado y ergonomía en su puesto de trabajo.
                 </td>
             </tr>
         </table>
@@ -885,16 +886,16 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             <tr style="border: none;">
                 <td style="width: 50%; border: none; text-align: center; vertical-align: bottom;">
                     <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 3px;">
-                        <div style="font-weight: bold; font-size: 8.5px;">${prof.nombre || 'DR. JORGE MORALES'}</div>
-                        <div style="font-size: 7.5px;">MÉDICO OCUPACIONAL · CÓD. MSP / REG: ${prof.codigo || '1804486288'}</div>
+                        <div style="font-weight: bold; font-size: 8.5px;">${escapeHtml(prof.nombre || 'DR. JORGE MORALES')}</div>
+                        <div style="font-size: 7.5px;">MÉDICO OCUPACIONAL · CÓD. MSP / REG: ${escapeHtml(prof.codigo || '1804486288')}</div>
                         <div style="font-size: 7px; color: #475569;">DEPARTAMENTO MÉDICO - UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                     </div>
                 </td>
                 <td style="width: 50%; border: none; text-align: center; vertical-align: bottom;">
                     <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 3px;">
-                        <div style="font-weight: bold; font-size: 8.5px;">${pac}</div>
+                        <div style="font-weight: bold; font-size: 8.5px;">${escapeHtml(pac)}</div>
                         <div style="font-size: 7.5px;">FIRMA DEL TRABAJADOR / FUNCIONARIO REINTEGRADO</div>
-                        <div style="font-size: 7px; color: #475569;">C.I.: ${ced} · FECHA: ${fecReintegro}</div>
+                        <div style="font-size: 7px; color: #475569;">C.I.: ${escapeHtml(ced)} · FECHA: ${escapeHtml(fecReintegro)}</div>
                     </div>
                 </td>
             </tr>
@@ -941,9 +942,10 @@ export const printOfficialReintegroForm = (record = {}, uebBannerLogo = '') => {
  * Componente Modal Oficial para la FICHA DE REINTEGRO LABORAL (Formulario 077 MSP / MDT)
  */
 export default function OfficialFichaReintegroModal({ isOpen, onClose, record, uebBannerLogo }) {
-    if (!isOpen || !record) return null;
-
+    // Los hooks deben ejecutarse siempre en el mismo orden (antes de cualquier return)
     const [activeSheet, setActiveSheet] = useState('sheet1');
+
+    if (!isOpen || !record) return null;
 
     const data = extractFichaReintegroFields(record);
     const {
@@ -969,7 +971,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
             <div className="clinical-modal__dialog" style={{ maxWidth: '1100px', width: '96vw', maxHeight: '94vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', borderRadius: '12px', overflow: 'hidden' }}>
                 
                 {/* ENCABEZADO DEL MODAL */}
-                <header className="clinical-modal__header" style={{ background: '#0284c7', color: '#ffffff', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <header className="clinical-modal__header" style={{ background: '#0369a1', color: '#ffffff', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <FileSpreadsheet size={24} style={{ color: '#bae6fd' }} />
                         <div>
@@ -1024,7 +1026,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                         >
                             <Printer size={14} /> Imprimir Formulario 077 Reintegro
                         </button>
-                        <button
+                        <button aria-label="Cerrar"
                             type="button"
                             className="clinical-modal__close"
                             onClick={onClose}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileSpreadsheet, Loader2, Save, Search, X } from 'lucide-react';
 import api from '../../api/axios';
 import { MATRICES, ensureCatalogId } from './matricesOcupacionales';
@@ -87,11 +87,11 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                     <div className="clinical-modal__patient">
                         <div className="clinical-modal__avatar"><FileSpreadsheet size={18} /></div>
                         <div>
-                            <span style={{ textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>NUEVO REGISTRO DE MATRIZ</span>
+                            <span style={{ textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>NUEVO REGISTRO DE MATRIZ</span>
                             <h2>{config.label}</h2>
                         </div>
                     </div>
-                    <button className="clinical-modal__close" onClick={onClose} type="button"><X size={16} /></button>
+                    <button aria-label="Cerrar" className="clinical-modal__close" onClick={onClose} type="button"><X size={16} /></button>
                 </header>
 
                 <form className="clinical-modal__body" onSubmit={handleSubmit}>
@@ -115,6 +115,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                     <div className="patient-search-input" style={{ margin: 0 }}>
                                         <Search size={16} />
                                         <input
+                                            aria-label="Buscar por cédula o nombre"
                                             type="text"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -186,7 +187,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                     </div>
 
                     {error && (
-                        <p style={{ margin: '14px 0 0', padding: '10px 12px', borderRadius: '8px', background: '#fef2f2', color: '#b91c1c', fontSize: '12px', fontWeight: 600 }}>
+                        <p role="alert" style={{ margin: '14px 0 0', padding: '10px 12px', borderRadius: '8px', background: '#fef2f2', color: '#b91c1c', fontSize: '12px', fontWeight: 600 }}>
                             {error}
                         </p>
                     )}
