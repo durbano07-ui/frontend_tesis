@@ -8,10 +8,12 @@ import {
     UserCheck,
     Clock,
     ChevronRight,
-    Sparkles
+    Sparkles,
+    X
 } from 'lucide-react';
 import api from '../api/axios';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, getAuthToken } from '../stores/authStore';
+import useAutoRefresh from '../hooks/useAutoRefresh';
 import { onKeyActivate } from '../a11y/keyboard';
 
 const NotificationMenu = ({ onNavigateToCitas }) => {
@@ -20,6 +22,9 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
     const [filter, setFilter] = useState('todas'); // 'todas' | 'no_leidas'
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [loadedOnce, setLoadedOnce] = useState(false);
+    // Aviso al iniciar sesión: "Tienes N notificaciones pendientes de revisar"
+    const [loginNotice, setLoginNotice] = useState(null);
 
     const dropdownRef = useRef(null);
 
@@ -42,8 +47,9 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
     };
 
     // Cargar notificaciones
-    const fetchNotifications = async () => {
-        setLoading(true);
+    // silent: actualización automática, sin indicador de carga
+    const fetchNotifications = async (silent = false) => {
+        if (silent !== true) setLoading(true);
         const storageKey = `app_read_notifs_${user?.id || 'anon'}`;
         const readIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
 
@@ -53,6 +59,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
             if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
                 setNotifications(res.data.data);
                 setLoading(false);
+                setLoadedOnce(true);
                 return;
             }
         } catch {
@@ -216,15 +223,16 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
             console.error("Error al cargar notificaciones de citas:", err);
         } finally {
             setLoading(false);
+            setLoadedOnce(true);
         }
     };
 
     useEffect(() => {
         fetchNotifications();
-        // Recargar periódicamente cada 30 segundos
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
     }, [user?.id]);
+
+    // Las notificaciones nuevas aparecen sin recargar la página
+    useAutoRefresh(() => fetchNotifications(true));
 
     const markAsRead = async (id) => {
         const storageKey = `app_read_notifs_${user?.id || 'anon'}`;
@@ -268,6 +276,22 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
     };
 
     const unreadCount = notifications.filter(n => !n.leida).length;
+
+    // Una vez por inicio de sesión (cada login genera un token nuevo), al terminar la primera carga
+    useEffect(() => {
+        if (!loadedOnce) return undefined;
+        const sessionMark = (getAuthToken() || '').slice(-16);
+        let alreadyShown = true;
+        try {
+            alreadyShown = sessionStorage.getItem('bu_aviso_notificaciones') === sessionMark;
+            sessionStorage.setItem('bu_aviso_notificaciones', sessionMark);
+        } catch { /* almacenamiento no disponible */ }
+        if (alreadyShown || unreadCount === 0) return undefined;
+
+        setLoginNotice(unreadCount);
+        const timer = setTimeout(() => setLoginNotice(null), 10000);
+        return () => clearTimeout(timer);
+    }, [loadedOnce]);
     const filteredNotifications = filter === 'no_leidas'
         ? notifications.filter(n => !n.leida)
         : notifications;
@@ -339,15 +363,16 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                     if (!isOpen) fetchNotifications();
                 }}
                 title={unreadCount > 0 ? `${unreadCount} notificaciones de citas sin leer` : 'Notificaciones de agenda'}
-                aria-label="Notificaciones de citas"
+                aria-label={unreadCount > 0 ? `Notificaciones: ${unreadCount} sin leer` : 'Notificaciones'}
             >
                 <Bell size={18} />
                 {unreadCount > 0 && (
                     <span
                         className="notification-point"
+                        aria-hidden="true"
                         style={{
-                            minWidth: unreadCount > 9 ? '18px' : '9px',
-                            height: unreadCount > 9 ? '18px' : '9px',
+                            minWidth: '18px',
+                            height: '18px',
                             borderRadius: '10px',
                             background: 'var(--accent, #b71a34)',
                             display: 'flex',
@@ -356,16 +381,67 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                             color: '#ffffff',
                             fontSize: '11px',
                             fontWeight: '800',
-                            padding: unreadCount > 9 ? '0 4px' : '0',
-                            top: unreadCount > 9 ? '4px' : '8px',
-                            right: unreadCount > 9 ? '4px' : '8px',
+                            padding: '0 4px',
+                            top: '3px',
+                            right: '3px',
                             boxShadow: '0 2px 6px rgba(183, 26, 52, 0.4)'
                         }}
                     >
-                        {unreadCount > 9 ? '9+' : ''}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
+
+            {/* AVISO AL INICIAR SESIÓN */}
+            {loginNotice !== null && !isOpen && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                        position: 'fixed',
+                        top: '78px',
+                        right: '16px',
+                        zIndex: 3000,
+                        width: '340px',
+                        maxWidth: 'calc(100vw - 32px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '14px 14px 14px 16px',
+                        borderRadius: '14px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderLeft: '4px solid var(--accent, #b71a34)',
+                        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)'
+                    }}
+                >
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(183, 26, 52, 0.08)', color: 'var(--accent, #b71a34)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Bell size={18} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <strong style={{ display: 'block', fontSize: '13px', color: '#0f172a' }}>
+                            {loginNotice === 1
+                                ? 'Tienes 1 notificación pendiente de revisar'
+                                : `Tienes ${loginNotice} notificaciones pendientes de revisar`}
+                        </strong>
+                        <button
+                            type="button"
+                            onClick={() => { setLoginNotice(null); setIsOpen(true); }}
+                            style={{ marginTop: '4px', padding: 0, border: 0, background: 'none', color: 'var(--accent, #b71a34)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                            Ver notificaciones
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Cerrar aviso"
+                        onClick={() => setLoginNotice(null)}
+                        style={{ border: 0, background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', alignSelf: 'flex-start' }}
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
 
             {/* DROPDOWN POPUP DE NOTIFICACIONES */}
             {isOpen && (

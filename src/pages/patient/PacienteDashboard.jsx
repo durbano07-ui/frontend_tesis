@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
 import { User, BookOpen, ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, AlertCircle, FileText, CheckCircle2, ShieldAlert, Info, LogOut, Stethoscope, ClipboardList, Menu, X, Heart, Coins, Edit3, Eye, Calendar, Clock, Trash2, AlertTriangle, Printer, UserCheck, Home, Globe, Award, Filter, Droplet, CalendarCheck, Loader2, Check, ChevronDown, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
@@ -718,8 +719,9 @@ const PacienteDashboard = () => {
     }, [recetarioFilter, recetarioDate]);
 
     // Appointments effects & helpers
-    const fetchMisCitas = async () => {
-        setCitasLoading(true);
+    // silent: actualización automática, sin indicador de carga
+    const fetchMisCitas = async (silent = false) => {
+        if (silent !== true) setCitasLoading(true);
         try {
             const res = await api.get('/citas-medicas/mis-citas');
             setCitasList(res.data.data);
@@ -729,6 +731,9 @@ const PacienteDashboard = () => {
             setCitasLoading(false);
         }
     };
+
+    // Confirmaciones, atenciones y cambios hechos por el especialista aparecen sin recargar
+    useAutoRefresh(() => fetchMisCitas(true), activeTab === 'citas');
 
     const fetchDoctoresDisponibles = async () => {
         setDoctoresLoading(true);

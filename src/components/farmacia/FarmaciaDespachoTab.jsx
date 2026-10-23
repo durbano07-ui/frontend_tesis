@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import api from '../../api/axios';
 import { PackageCheck, Search, CheckCircle2, Clock, Stethoscope, Pill, FileText, Boxes, Check } from 'lucide-react';
 
@@ -10,8 +11,9 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
     const [processingId, setProcessingId] = useState(null);
     const ITEMS_PER_PAGE = 10;
 
-    const fetchPendientes = async () => {
-        setLoading(true);
+    // silent: actualización automática, sin indicador de carga ni avisos de error
+    const fetchPendientes = async (silent = false) => {
+        if (silent !== true) setLoading(true);
         try {
             const res = await api.get('/receta-farmacia/pendientes-despacho');
             const data = res.data.data || [];
@@ -21,7 +23,7 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
             }
         } catch (err) {
             console.error('Error cargando recetas pendientes:', err);
-            showSystemToast('Error al cargar recetas de farmacia.');
+            if (silent !== true) showSystemToast('Error al cargar recetas de farmacia.');
         } finally {
             setLoading(false);
         }
@@ -30,6 +32,9 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
     useEffect(() => {
         fetchPendientes();
     }, []);
+
+    // Recetas nuevas emitidas por los médicos aparecen sin recargar la página
+    useAutoRefresh(() => fetchPendientes(true));
 
     // Aplanar líneas de receta
     const allLines = [];

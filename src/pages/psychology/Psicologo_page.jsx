@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -1881,8 +1882,9 @@ const Psicologo_page = () => {
     }, [activeTab]);
 
     // Appointments (Citas Médicas) actions
-    const fetchCitasDoctor = async () => {
-        setCitasLoading(true);
+    // silent: actualización automática, sin indicador de carga
+    const fetchCitasDoctor = async (silent = false) => {
+        if (silent !== true) setCitasLoading(true);
         try {
             const res = await api.get('/citas-medicas/doctor/citas', {
                 params: {
@@ -2166,6 +2168,9 @@ const Psicologo_page = () => {
             fetchCitasDoctor();
         }
     }, [activeTab, citasDate]);
+
+    // Citas nuevas, canceladas o confirmadas por los pacientes aparecen sin recargar la página
+    useAutoRefresh(() => fetchCitasDoctor(true), activeTab === 'citas');
 
     const getFilteredHistorial = () => {
         return historialList.filter(item => {

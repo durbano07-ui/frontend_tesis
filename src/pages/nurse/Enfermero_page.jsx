@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
@@ -329,6 +330,9 @@ const Enfermero_page = () => {
         fetchTodosLosDoctores();
         fetchPendingDespachos();
     }, []);
+
+    // Recetas nuevas emitidas por los médicos actualizan el contador sin recargar
+    useAutoRefresh(fetchPendingDespachos);
 
     const handleModalPatientSearch = async (e) => {
         if (e) e.preventDefault();

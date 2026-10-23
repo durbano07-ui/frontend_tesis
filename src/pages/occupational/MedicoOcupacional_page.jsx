@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
@@ -2143,6 +2144,9 @@ export default function MedicoOcupacionalPage() {
             if (fichaSubTab === 'ingreso' || fichaSubTab === 'cese') fetchFichasBackend();
         }
     }, [activeTab, activeReportSubTab, parteDiarioDate, citasDate, fichaSubTab, genReportMonth, genReportYear, reportCitasFecha, reportCitasEstado]);
+
+    // Citas nuevas, canceladas o confirmadas por los pacientes aparecen sin recargar la página
+    useAutoRefresh(() => fetchCitas(), activeTab === 'citas');
 
     const getParteKPIs = () => {
         const total = parteDiarioList.length;

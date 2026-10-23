@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../api/axios';
@@ -2483,8 +2484,9 @@ const MedicoGeneral_page = () => {
     }, [activeTab]);
 
     // Appointments (Citas Médicas) actions
-    const fetchCitasDoctor = async () => {
-        setCitasLoading(true);
+    // silent: actualización automática, sin indicador de carga
+    const fetchCitasDoctor = async (silent = false) => {
+        if (silent !== true) setCitasLoading(true);
         try {
             const res = await api.get('/citas-medicas/doctor/citas', {
                 params: {
@@ -2761,6 +2763,9 @@ const MedicoGeneral_page = () => {
             fetchCitasDoctor();
         }
     }, [activeTab, citasDate]);
+
+    // Citas nuevas, canceladas o confirmadas por los pacientes aparecen sin recargar la página
+    useAutoRefresh(() => fetchCitasDoctor(true), activeTab === 'citas');
 
     const getFilteredHistorial = () => {
         return historialList.filter(item => {
