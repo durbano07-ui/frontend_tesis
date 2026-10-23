@@ -735,6 +735,14 @@ const PacienteDashboard = () => {
     // Confirmaciones, atenciones y cambios hechos por el especialista aparecen sin recargar
     useAutoRefresh(() => fetchMisCitas(true), activeTab === 'citas');
 
+    // Solo una cita pendiente por área: mientras exista, no se puede agendar otra en esa área
+    // (el backend aplica la misma regla; aquí se avisa antes de llenar el formulario)
+    const citaPendienteArea = (citasList || []).find(c =>
+        c.rol_doctor === selectedRolDoctor
+        && ['programada', 'confirmada'].includes(c.estado)
+        && (!c.fin_margen_atencion || new Date(c.fin_margen_atencion) > new Date())
+    );
+
     const fetchDoctoresDisponibles = async () => {
         setDoctoresLoading(true);
         try {
@@ -4027,6 +4035,14 @@ const PacienteDashboard = () => {
                                                         <AlertTriangle size={16} flexShrink={0} />
                                                         <div>
                                                             <strong>Acceso Restringido:</strong> Solo personal docente o acogido al Código de Trabajo tiene permitido agendar consultas con Medicina Ocupacional.
+                                                        </div>
+                                                    </div>
+                                                ) : citaPendienteArea ? (
+                                                    <div role="status" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e3a8a', padding: '12px 14px', borderRadius: '10px', fontSize: '12px', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                        <Info size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                                                        <div>
+                                                            Ya tienes una cita pendiente en esta área para el <strong>{String(citaPendienteArea.fecha).slice(0, 10).split('-').reverse().join('/')}</strong> a las <strong>{String(citaPendienteArea.hora_inicio).slice(0, 5)}</strong>.
+                                                            {' '}Podrás agendar otra cuando esa cita se complete o si la cancelas desde <strong>Mis citas</strong>.
                                                         </div>
                                                     </div>
                                                 ) : (

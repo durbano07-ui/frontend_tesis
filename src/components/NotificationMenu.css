@@ -1,0 +1,20 @@
+/* Panel de notificaciones en pantallas pequeñas: la campana no está en el borde derecho
+   (a su derecha va la foto de perfil), así que el panel alineado a la campana se salía por la
+   izquierda. En móvil ocupa el ancho de la pantalla con 12px de margen. */
+@media (max-width: 600px) {
+    .notification-dropdown {
+        position: fixed !important;
+        top: 76px !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-width: none !important;
+        max-height: calc(100dvh - 180px);
+    }
+
+    .notification-dropdown__list {
+        max-height: none !important;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+}

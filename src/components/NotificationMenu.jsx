@@ -14,6 +14,7 @@ import {
 import api from '../api/axios';
 import { useAuthStore, getAuthToken } from '../stores/authStore';
 import useAutoRefresh from '../hooks/useAutoRefresh';
+import './NotificationMenu.css';
 import { onKeyActivate } from '../a11y/keyboard';
 
 const NotificationMenu = ({ onNavigateToCitas }) => {
@@ -446,6 +447,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
             {/* DROPDOWN POPUP DE NOTIFICACIONES */}
             {isOpen && (
                 <div
+                    className="notification-dropdown"
                     style={{
                         position: 'absolute',
                         top: 'calc(100% + 10px)',
@@ -573,7 +575,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                     </div>
 
                     {/* LISTA DE NOTIFICACIONES */}
-                    <div
+                    <div className="notification-dropdown__list"
                         style={{
                             maxHeight: '380px',
                             overflowY: 'auto',
