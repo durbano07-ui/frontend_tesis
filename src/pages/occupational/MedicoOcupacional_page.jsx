@@ -1818,63 +1818,7 @@ export default function MedicoOcupacionalPage() {
         prioridad: 'Normal'
     });
 
-    const [citasList, setCitasList] = useState([
-        {
-            id: 101,
-            fecha: todayStr,
-            hora_inicio: '08:30',
-            hora_fin: '09:00',
-            paciente: { name: 'Juan Carlos Pérez', cedula: '1723456789', puesto: 'Analista de Sistemas', area: 'Dirección de Tecnología' },
-            tipo_evaluacion: 'Evaluación Periódica',
-            motivo: 'Control anual de salud ocupacional y ergonomía',
-            estado: 'confirmada',
-            prioridad: 'Normal'
-        },
-        {
-            id: 102,
-            fecha: todayStr,
-            hora_inicio: '09:15',
-            hora_fin: '09:45',
-            paciente: { name: 'María Fernanda Rodríguez', cedula: '1712345678', puesto: 'Docente Investigador', area: 'Facultad de Ciencias' },
-            tipo_evaluacion: 'Reintegro Laboral',
-            motivo: 'Evaluación post-incapacidad médica (30 días de reposo)',
-            estado: 'programada',
-            prioridad: 'Alta'
-        },
-        {
-            id: 103,
-            fecha: todayStr,
-            hora_inicio: '10:00',
-            hora_fin: '10:30',
-            paciente: { name: 'Carlos Alberto Gomez', cedula: '1709876543', puesto: 'Técnico de Mantenimiento', area: 'Servicios Generales' },
-            tipo_evaluacion: 'Evaluación Preocupacional',
-            motivo: 'Examen de ingreso para área de alto riesgo físico',
-            estado: 'completada',
-            prioridad: 'Normal'
-        },
-        {
-            id: 104,
-            fecha: todayStr,
-            hora_inicio: '11:00',
-            hora_fin: '11:30',
-            paciente: { name: 'Ana Isabel Morales', cedula: '1754321098', puesto: 'Secretaria Ejecutiva', area: 'Vicerrectorado' },
-            tipo_evaluacion: 'Evaluación de Salida / Retiro',
-            motivo: 'Examen de retiro por culminación de contrato',
-            estado: 'programada',
-            prioridad: 'Normal'
-        },
-        {
-            id: 105,
-            fecha: todayStr,
-            hora_inicio: '14:00',
-            hora_fin: '14:30',
-            paciente: { name: 'Luis Fernando Torres', cedula: '1765432109', puesto: 'Chofer Institucional', area: 'Transporte' },
-            tipo_evaluacion: 'Evaluación Periódica Especial',
-            motivo: 'Evaluación de agudeza visual y psicotécnica',
-            estado: 'cancelada',
-            prioridad: 'Alta'
-        }
-    ]);
+    const [citasList, setCitasList] = useState([]);
 
     const filteredCitas = citasList.filter(item => {
         const pName = item.paciente?.name || item.pacienteNombre || '';
@@ -1928,34 +1872,32 @@ export default function MedicoOcupacionalPage() {
     };
 
     const handleUpdateCitaStatus = async (id, newStatus) => {
-        setCitasList(prev => prev.map(c => c.id === id ? { ...c, estado: newStatus } : c));
+        const accion = { cancelada: 'cancelar', confirmada: 'confirmar', completada: 'completar' }[newStatus];
+        if (!accion) return;
         try {
-            if (newStatus === 'cancelada') {
-                await api.patch(`/citas-medicas/${id}/cancelar`).catch(() => {});
-            } else if (newStatus === 'confirmada') {
-                await api.patch(`/citas-medicas/${id}/confirmar`).catch(() => {});
-            } else if (newStatus === 'completada') {
-                await api.patch(`/citas-medicas/${id}/completar`).catch(() => {});
-            }
+            await api.patch(`/citas-medicas/${id}/${accion}`);
+            setCitasList(prev => prev.map(c => c.id === id ? { ...c, estado: newStatus } : c));
         } catch (err) {
-            console.log("Cita status updated locally");
+            // p. ej. la cita ya pasó su margen de atención y quedó como "No asistió"
+            alert(err.response?.data?.message || 'No se pudo actualizar la cita');
+            fetchCitas();
         }
     };
 
     const fetchCitas = async () => {
         try {
             const res = await api.get('/citas-medicas/doctor/citas', { params: { fecha: citasDate } });
-            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
+            if (Array.isArray(res.data?.data)) {
                 const mapped = res.data.data.map(c => {
                     const p = c.paciente || {};
                     const d = p.datos_identificacion || p.datosIdentificacion || {};
                     const nombre = d.primer_nombre
-                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
+                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.apellido_paterno || ''} ${d.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
                         : (p.name || 'Paciente');
                     return {
                         id: c.id,
                         pacienteNombre: nombre,
-                        cedula: d.numero_identificacion || p.cedula || 'N/D',
+                        cedula: d.numero_cedula || p.cedula || 'N/D',
                         fecha: c.fecha,
                         horaInicio: c.hora_inicio ? c.hora_inicio.slice(0, 5) : '08:00',
                         horaFin: c.hora_fin ? c.hora_fin.slice(0, 5) : '08:30',
@@ -1963,13 +1905,14 @@ export default function MedicoOcupacionalPage() {
                         tipoEvaluacion: c.tipo_atencion || 'Periódica',
                         prioridad: 'Normal',
                         estado: c.estado || 'programada',
-                        paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: d.primer_apellido, cedula: d.numero_identificacion }
+                        paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '), cedula: d.numero_cedula }
                     };
                 });
                 setCitasList(mapped);
             }
         } catch (err) {
-            console.log("Citas backend offline or empty, using state fallback");
+            console.error("Error al cargar las citas:", err);
+            setCitasList([]);
         }
     };
 
@@ -7134,7 +7077,8 @@ export default function MedicoOcupacionalPage() {
                                                         programada: { bg: '#eff6ff', text: '#1e40af', border: '#dbeafe' },
                                                         confirmada: { bg: '#ecfdf5', text: '#065f46', border: '#d1fae5' },
                                                         completada: { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' },
-                                                        cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' }
+                                                        cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' },
+                                                        no_asistio: { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' }
                                                     }[cita.estado] || { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' };
 
                                                     return (
@@ -7170,7 +7114,7 @@ export default function MedicoOcupacionalPage() {
                                                                     border: `1px solid ${statusColors.border}`,
                                                                     display: 'inline-block'
                                                                 }}>
-                                                                    {cita.estado}
+                                                                    {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
                                                                 </span>
                                                                 {(cita.confirmada_por_paciente || cita.estado === 'completada' || cita.estado === 'confirmada') && (
                                                                     <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -7180,7 +7124,7 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                                    {cita.estado !== 'completada' && cita.estado !== 'cancelada' && (
+                                                                    {['programada', 'confirmada'].includes(cita.estado) && (
                                                                         <button
                                                                             onClick={() => {
                                                                                 setPatientSelected({ nombres: patientName, apellidos: '', cedula, puestoTrabajo: cita.paciente?.puesto || 'Servidor' });
@@ -7620,6 +7564,7 @@ export default function MedicoOcupacionalPage() {
                                                     <option value="confirmada">Confirmadas</option>
                                                     <option value="completada">Completadas</option>
                                                     <option value="cancelada">Canceladas</option>
+                                                    <option value="no_asistio">No asistió</option>
                                                 </select>
                                             </div>
                                         </div>

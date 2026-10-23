@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { User, BookOpen, ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, AlertCircle, FileText, CheckCircle2, ShieldAlert, Info, LogOut, Stethoscope, ClipboardList, Menu, X, Heart, Coins, Edit3, Eye, Calendar, Clock, Trash2, AlertTriangle, Printer, UserCheck, Home, Globe, Award, Filter, Droplet, CalendarCheck, Loader2, Check, ChevronDown } from 'lucide-react';
+import { User, BookOpen, ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, AlertCircle, FileText, CheckCircle2, ShieldAlert, Info, LogOut, Stethoscope, ClipboardList, Menu, X, Heart, Coins, Edit3, Eye, Calendar, Clock, Trash2, AlertTriangle, Printer, UserCheck, Home, Globe, Award, Filter, Droplet, CalendarCheck, Loader2, Check, ChevronDown, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
+import WeekdayDatePicker from '../../components/WeekdayDatePicker';
 import { compressImage } from '../../utils/compressImage';
 import '../../medical.css';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -891,6 +892,31 @@ const PacienteDashboard = () => {
                     setAlertModal({
                         show: true,
                         title: 'Error al Cancelar Cita',
+                        message: err.response?.data?.message || 'Ocurrió un error al intentar cancelar la cita.',
+                        type: 'danger'
+                    });
+                }
+            }
+        });
+    };
+
+    const handleNoAsistire = (citaId) => {
+        setConfirmModal({
+            show: true,
+            title: 'No asistiré a la cita',
+            message: 'Tu cita ya comenzó. Si no podrás llegar, se cancelará y el especialista sabrá que no asistirás. ¿Deseas continuar?',
+            type: 'danger',
+            confirmText: 'Sí, no asistiré',
+            cancelText: 'Volver',
+            onConfirm: async () => {
+                try {
+                    await api.patch(`/citas-medicas/${citaId}/cancelar`);
+                    setSuccessCita('Se registró que no asistirás. La cita fue cancelada.');
+                    fetchMisCitas();
+                } catch (err) {
+                    setAlertModal({
+                        show: true,
+                        title: 'No se pudo cancelar la cita',
                         message: err.response?.data?.message || 'Ocurrió un error al intentar cancelar la cita.',
                         type: 'danger'
                     });
@@ -4005,57 +4031,10 @@ const PacienteDashboard = () => {
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', marginBottom: '5px' }}>
                                                                 <Calendar size={13} color="var(--primary)" /> Fecha de la Cita <span style={{ color: '#dc2626' }}>*</span>
                                                             </label>
-                                                            <input
-                                                                aria-label="Filtrar por fecha"
-                                                                type="date"
+                                                            <WeekdayDatePicker
                                                                 value={selectedDate}
                                                                 min={getTodayLocalDateStr()}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    if (!val) {
-                                                                        setSelectedDate('');
-                                                                        return;
-                                                                    }
-                                                                    const todayStr = getTodayLocalDateStr();
-                                                                    if (val < todayStr) {
-                                                                        setAlertModal({
-                                                                            show: true,
-                                                                            title: 'Fecha No Permitida',
-                                                                            message: 'No es posible seleccionar una fecha anterior al día de hoy.',
-                                                                            type: 'warning'
-                                                                        });
-                                                                        setSelectedDate('');
-                                                                        return;
-                                                                    }
-                                                                    const [y, m, d] = val.split('-').map(Number);
-                                                                    const dateObj = new Date(y, m - 1, d);
-                                                                    const day = dateObj.getDay();
-                                                                    if (day === 0 || day === 6) {
-                                                                        setAlertModal({
-                                                                            show: true,
-                                                                            title: 'Día No Laborable',
-                                                                            message: 'La universidad no brinda atención médica los fines de semana. Por favor, selecciona una fecha de lunes a viernes.',
-                                                                            type: 'warning'
-                                                                        });
-                                                                        setSelectedDate('');
-                                                                    } else {
-                                                                        setSelectedDate(val);
-                                                                    }
-                                                                }}
-                                                                required
-                                                                style={{
-                                                                    width: '100%',
-                                                                    fontSize: '12px',
-                                                                    padding: '8px 10px',
-                                                                    borderRadius: '8px',
-                                                                    border: '1px solid var(--border)',
-                                                                    background: '#ffffff',
-                                                                    fontWeight: '600',
-                                                                    color: 'var(--text-primary)',
-                                                                    outline: 'none',
-                                                                    height: '38px',
-                                                                    boxSizing: 'border-box'
-                                                                }}
+                                                                onChange={setSelectedDate}
                                                             />
                                                         </div>
 
@@ -4418,11 +4397,19 @@ const PacienteDashboard = () => {
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '300px', paddingRight: '4px' }}>
                                                         {paginatedCitasList.map(cita => {
                                                             const isUpcoming = ['programada', 'confirmada'].includes(cita.estado);
+                                                            // Desde la hora de la cita hasta el fin del margen (fin_margen_atencion, lo envía el backend)
+                                                            const inicioCita = cita.fecha && cita.hora_inicio
+                                                                ? new Date(`${String(cita.fecha).slice(0, 10)}T${String(cita.hora_inicio).slice(0, 5)}:00`)
+                                                                : null;
+                                                            const finMargen = cita.fin_margen_atencion ? new Date(cita.fin_margen_atencion) : null;
+                                                            const ahora = new Date();
+                                                            const enMargen = isUpcoming && inicioCita && finMargen && ahora >= inicioCita && ahora < finMargen;
                                                             const statusColors = {
                                                                 programada: { bg: '#eff6ff', text: '#1e40af', border: '#dbeafe' },
                                                                 confirmada: { bg: '#ecfdf5', text: '#065f46', border: '#d1fae5' },
                                                                 completada: { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' },
-                                                                cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' }
+                                                                cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' },
+                                                                no_asistio: { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' }
                                                             }[cita.estado];
 
                                                             const specialtyLabels = {
@@ -4471,7 +4458,7 @@ const PacienteDashboard = () => {
                                                                             background: 'white',
                                                                             border: `1px solid ${statusColors.border}`
                                                                         }}>
-                                                                            {cita.estado}
+                                                                            {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
                                                                         </span>
                                                                     </div>
 
@@ -4487,7 +4474,33 @@ const PacienteDashboard = () => {
                                                                         </p>
                                                                     )}
 
-                                                                    {isUpcoming && (
+                                                                    {enMargen && (
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '4px', padding: '8px 12px', borderRadius: '8px', background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                                                                            <span style={{ fontSize: '11.5px', color: '#9a3412' }}>
+                                                                                Tu cita ya comenzó. Puedes ser atendido hasta las <strong>{finMargen.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</strong>
+                                                                            </span>
+                                                                            <button
+                                                                                onClick={() => handleNoAsistire(cita.id)}
+                                                                                style={{
+                                                                                    background: '#b91c1c',
+                                                                                    color: 'white',
+                                                                                    border: 0,
+                                                                                    fontSize: '11px',
+                                                                                    fontWeight: 'bold',
+                                                                                    cursor: 'pointer',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    gap: '4px',
+                                                                                    padding: '6px 12px',
+                                                                                    borderRadius: '8px'
+                                                                                }}
+                                                                            >
+                                                                                <XCircle size={13} /> No asistiré
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {isUpcoming && !enMargen && (
                                                                         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '4px' }}>
                                                                             {!cita.confirmada_por_paciente && (
                                                                                 <button

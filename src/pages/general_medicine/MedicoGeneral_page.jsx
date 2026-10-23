@@ -431,19 +431,8 @@ const MedicoGeneral_page = () => {
         setActiveTab('ficha');
         setIsFichaModalOpen(true);
 
-        const pId = patient?.id || patient?.id_usuario || patient?.id_usuario_paciente;
-        if (pId) {
-            try {
-                await api.post('/citas-medicas/atender-paciente', {
-                    id_usuario_paciente: pId,
-                    rol_doctor: 'medico_general',
-                    motivo: 'Atención en Medicina General'
-                });
-                fetchCitasDoctor();
-            } catch (err) {
-                console.error("Error al auto-sincronizar cita:", err);
-            }
-        }
+        // La cita se marca como atendida al guardar la atención (el backend lo hace al registrar el
+        // parte diario), no al abrir la ficha: así abrirla por error no da la cita por completada.
     };
 
     const handleQuickRegisterPatient = async (e) => {
@@ -3944,7 +3933,8 @@ const MedicoGeneral_page = () => {
                                                             programada: { bg: '#eff6ff', text: '#1e40af', border: '#dbeafe' },
                                                             confirmada: { bg: '#ecfdf5', text: '#065f46', border: '#d1fae5' },
                                                             completada: { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' },
-                                                            cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' }
+                                                            cancelada: { bg: '#fef2f2', text: '#991b1b', border: '#fee2e2' },
+                                                            no_asistio: { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' }
                                                         }[cita.estado] || { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' };
 
                                                         return (
@@ -3982,7 +3972,7 @@ const MedicoGeneral_page = () => {
                                                                         border: `1px solid ${statusColors.border}`,
                                                                         display: 'inline-block'
                                                                     }}>
-                                                                        {cita.estado}
+                                                                        {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
                                                                     </span>
                                                                     {cita.confirmada_por_paciente && (
                                                                         <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>

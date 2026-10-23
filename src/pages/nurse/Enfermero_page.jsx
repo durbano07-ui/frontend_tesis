@@ -446,18 +446,8 @@ const Enfermero_page = () => {
         setSelectedPatient(patient);
         setCurrentStepIndex(0);
 
-        const pId = patient.id_usuario || patient.id_usuario_paciente || patient.user_id || patient.id;
-        if (pId) {
-            try {
-                await api.post('/citas-medicas/atender-paciente', {
-                    id_usuario_paciente: pId,
-                    rol_doctor: 'enfermero',
-                    motivo: 'Atención en Enfermería'
-                });
-            } catch (err) {
-                console.error("Error al auto-sincronizar cita en enfermería:", err);
-            }
-        }
+        // La cita se marca como atendida al guardar la atención (el backend lo hace al registrar el
+        // parte diario), no al abrir la ficha: así abrirla por error no da la cita por completada.
 
         const initialFormState = {
             fecha: new Date().toISOString().slice(0, 10),
