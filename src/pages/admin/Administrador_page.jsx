@@ -8,7 +8,7 @@ import HelpPanel from '../../components/HelpPanel';
 import UserProfileMenu from '../../components/UserProfileMenu';
 import PasswordRequirements from '../../components/PasswordRequirements';
 
-import { Menu, LogOut, Bell, Search, X, History, Plus, Calendar, ChevronRight, ChevronLeft, CheckCircle, AlertTriangle, User, UserPlus, Shield, Users, Key, Power, ShieldAlert, RefreshCw, Building2, GraduationCap, School, Landmark, Trash2, Edit3 } from 'lucide-react';
+import { Menu, LogOut, Search, X, History, Plus, Calendar, ChevronRight, ChevronLeft, CheckCircle, AlertTriangle, User, UserPlus, Shield, Users, Key, Power, ShieldAlert, RefreshCw, Building2, GraduationCap, School, Landmark, Trash2, Edit3 } from 'lucide-react';
 
 const Administrador_page = () => {
     const navigate = useNavigate();
@@ -889,7 +889,6 @@ const Administrador_page = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button aria-label="Notificaciones" className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
                             <UserProfileMenu />
                         </div>
                     </header>

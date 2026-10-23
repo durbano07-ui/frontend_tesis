@@ -12,7 +12,7 @@ import FarmaciaDespachoTab from '../../components/farmacia/FarmaciaDespachoTab';
 import FarmaciaPresentacionesTab from '../../components/farmacia/FarmaciaPresentacionesTab';
 
 // Importación de iconos de Lucide
-import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, Bell, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, MapPin, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
+import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, MapPin, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 
@@ -1417,7 +1417,6 @@ const Enfermero_page = () => {
                             </div>
                         </div>
                         <div className="topbar__right">
-                            <button aria-label="Notificaciones" className="topbar-button" style={{ marginRight: '8px' }}><Bell size={18} /><span className="notification-point"></span></button>
                             <UserProfileMenu />
                         </div>
                     </header>
