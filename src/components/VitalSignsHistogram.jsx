@@ -180,16 +180,27 @@ const VitalSignsHistogram = ({
         setLoading(true);
         setError('');
         try {
+            // timeout: si el servidor no responde, se muestra un error con "Reintentar" en vez de
+            // dejar el indicador de carga indefinidamente
             const params = { id_usuario_paciente: patientId };
+            const opts = { params, timeout: 20000 };
+            const failed = [];
             const [nurseRes, medRes] = await Promise.all([
-                api.get('/enfermeria/signos-vitales', { params }).catch(() => ({ data: { data: [] } })),
-                api.get('/medicina-general/signos-vitales', { params }).catch(() => ({ data: { data: [] } }))
+                api.get('/enfermeria/signos-vitales', opts).catch(err => { failed.push(err); return { data: { data: [] } }; }),
+                api.get('/medicina-general/signos-vitales', opts).catch(err => { failed.push(err); return { data: { data: [] } }; })
             ]);
+            // Sin respuesta del servidor en ninguna de las dos consultas
+            if (failed.length === 2 && failed.every(e => !e.response)) {
+                throw failed[0];
+            }
 
             const listNurse = (nurseRes.data && Array.isArray(nurseRes.data.data)) ? nurseRes.data.data : [];
             const listMed = (medRes.data && Array.isArray(medRes.data.data)) ? medRes.data.data : [];
 
-            const combined = [...listNurse, ...listMed];
+            // Ambas rutas leen la misma tabla: se quitan las lecturas repetidas
+            const byId = new Map();
+            [...listNurse, ...listMed].forEach(r => byId.set(r.id ?? `${r.fecha}-${r.created_at}`, r));
+            const combined = [...byId.values()];
             combined.sort((a, b) => new Date(a.created_at || a.fecha) - new Date(b.created_at || b.fecha));
 
             setHistory(combined);
@@ -666,6 +677,15 @@ const VitalSignsHistogram = ({
                     <RefreshCw className="spin" size={26} style={{ margin: '0 auto 8px auto', display: 'block', color: '#2563eb' }} />
                     <p style={{ fontSize: '13.5px', fontWeight: 500 }}>Cargando registros históricos del paciente...</p>
                 </div>
+            ) : error ? (
+                <div role="alert" style={{ padding: '36px 20px', textAlign: 'center', background: '#fef2f2', borderRadius: '16px', border: '1px solid #fecaca' }}>
+                    <h4 style={{ margin: 0, color: '#991b1b', fontSize: '15px', fontWeight: 700 }}>{error}</h4>
+                    <p style={{ margin: '4px 0 12px 0', color: '#7f1d1d', fontSize: '13px' }}>Revisa la conexión e inténtalo de nuevo.</p>
+                    <button type="button" className="action-button" onClick={() => fetchPatientHistory(activePatient)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <RefreshCw size={14} /> Reintentar
+                    </button>
+                </div>
             ) : !activePatient ? (
                 <div style={{ padding: '40px 20px', textAlign: 'center', background: '#fafafa', borderRadius: '16px', border: '2px dashed #cbd5e1' }}>
                     <Search size={36} style={{ color: '#64748b', marginBottom: '10px' }} />
@@ -679,7 +699,7 @@ const VitalSignsHistogram = ({
                     <Info size={36} style={{ color: '#64748b', marginBottom: '10px' }} />
                     <h4 style={{ margin: 0, color: '#1e293b', fontSize: '15px', fontWeight: 700 }}>Sin mediciones en el historial</h4>
                     <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '13px' }}>
-                        El paciente <strong>{activePatient.nombre_completo || activePatient.name}</strong> aún no posee registros de <strong>{activeConfig.label}</strong> en sus consultas clínicas.
+                        El paciente <strong>{activePatient.nombre_completo || activePatient.name || `${activePatient.nombres || ''} ${activePatient.apellidos || ''}`.trim()}</strong> aún no posee registros de <strong>{activeConfig.label}</strong> en sus consultas clínicas.
                     </p>
                 </div>
             ) : viewMode === 'line' && lineChartData ? (

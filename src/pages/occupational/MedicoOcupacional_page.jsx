@@ -1394,23 +1394,13 @@ export default function MedicoOcupacionalPage() {
         alert('¡Nota de evolución registrada exitosamente!');
     };
 
-    // Mock stock catalog for Farmacia de Enfermería
-    const MOCK_FARMACIA_STOCK = [
-        { id: 101, codigo: 'FAR-001', nombre: 'Paracetamol 500mg Tabletas', presentacion: 'Caja x 20 comprimidos', stock_cajas: 35, stock_unidades: 700, via: 'Oral' },
-        { id: 102, codigo: 'FAR-002', nombre: 'Ibuprofeno 400mg Comprimidos', presentacion: 'Caja x 10 comprimidos', stock_cajas: 22, stock_unidades: 220, via: 'Oral' },
-        { id: 103, codigo: 'FAR-003', nombre: 'Amoxicilina 500mg Cápsulas', presentacion: 'Caja x 12 cápsulas', stock_cajas: 15, stock_unidades: 180, via: 'Oral' },
-        { id: 104, codigo: 'FAR-004', nombre: 'Diclofenaco Sódico 75mg Ampollas', presentacion: 'Caja x 5 ampollas', stock_cajas: 8, stock_unidades: 40, via: 'Intramuscular' },
-        { id: 105, codigo: 'FAR-005', nombre: 'Omeprazol 20mg Cápsulas', presentacion: 'Frasco x 14 cápsulas', stock_cajas: 19, stock_unidades: 266, via: 'Oral' },
-        { id: 106, codigo: 'FAR-006', nombre: 'Salbutamol 100mcg Inhalador', presentacion: 'Inhalador 200 dosis', stock_cajas: 5, stock_unidades: 5, via: 'Inhalatoria' },
-        { id: 107, codigo: 'FAR-007', nombre: 'Loratadina 10mg Tabletas', presentacion: 'Caja x 10 comprimidos', stock_cajas: 40, stock_unidades: 400, via: 'Oral' },
-        { id: 108, codigo: 'FAR-008', nombre: 'Complejo B Inyectable', presentacion: 'Caja x 3 ampollas', stock_cajas: 0, stock_unidades: 0, via: 'Intramuscular' }
-    ];
 
     // Recetario & Prescripción State
+    const [farmaciaSearchLoading, setFarmaciaSearchLoading] = useState(false);
     const [prescripcionesList, setPrescripcionesList] = useState([]);
     const [prescripcionForm, setPrescripcionForm] = useState({
         detalle_medicamento: '',
-        dosis: '',
+        dosis: '1 tableta',
         via: 'Oral',
         frecuencia: '8',
         duracion: '3',
@@ -6071,43 +6061,32 @@ export default function MedicoOcupacionalPage() {
 
     const handleSearchFarmacia = async (query = '') => {
         setFarmaciaSearchQuery(query);
-        if (!query || !query.trim()) {
+        if (!query || query.trim().length < 2) {
             setFarmaciaSearchResults([]);
             return;
         }
-        const qClean = query.trim().toLowerCase();
-        const filteredLocal = MOCK_FARMACIA_STOCK.filter(prod =>
-            (prod.nombre && prod.nombre.toLowerCase().includes(qClean)) ||
-            (prod.codigo && prod.codigo.toLowerCase().includes(qClean))
-        );
-
+        setFarmaciaSearchLoading(true);
         try {
             const res = await api.get('/farmacia-search', { params: { query: query.trim() } });
-            if (res.data && res.data.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-                setFarmaciaSearchResults(res.data.data);
-                return;
-            }
+            setFarmaciaSearchResults(res.data.data || []);
         } catch (err) {
-            console.error('Error al buscar medicamentos en farmacia:', err);
+            console.error('Error buscando productos de farmacia:', err);
+            setFarmaciaSearchResults([]);
+        } finally {
+            setFarmaciaSearchLoading(false);
         }
-
-        setFarmaciaSearchResults(filteredLocal);
     };
 
-    const handleSelectFarmaciaProduct = (prod) => {
-        const hasStock = (prod.stock_cajas || 0) > 0 || (prod.stock_unidades || 0) > 0;
-        const presentacionText = typeof prod.presentacion === 'object' && prod.presentacion !== null
-            ? (prod.presentacion.nombre || '')
-            : (prod.presentacion || '');
-        const nombreCompleto = presentacionText ? `${prod.nombre} (${presentacionText})` : prod.nombre;
-
+    const handleSelectFarmaciaProduct = (product) => {
+        const hasStock = (product.stock_cajas || 0) > 0 || (product.stock_unidades || 0) > 0;
         setPrescripcionForm(prev => ({
             ...prev,
-            detalle_medicamento: nombreCompleto,
-            via: prod.via || 'Oral',
-            id_producto_farmacia: prod.id,
+            detalle_medicamento: `${product.nombre} (${product.presentacion?.nombre || 'General'})`,
+            id_producto_farmacia: product.id,
             disponible_farmacia: hasStock ? 'farmacia' : 'no_disponible',
-            observacion_nodisponible: hasStock ? '' : `Sin stock de ${prod.nombre} en Farmacia de Enfermería. Se envía receta alternativa para compra externa.`
+            observaciones: hasStock
+                ? `Stock actual: ${product.stock_cajas} cajas / ${product.stock_unidades} unidades`
+                : 'Sin stock en Farmacia de Enfermería: receta para compra externa.'
         }));
         setFarmaciaSearchQuery('');
         setFarmaciaSearchResults([]);
@@ -6115,17 +6094,13 @@ export default function MedicoOcupacionalPage() {
 
     const handleAddPrescripcionLine = () => {
         if (!prescripcionForm.detalle_medicamento.trim()) {
-            alert('Por favor ingrese o seleccione el nombre del medicamento');
+            alert('Por favor ingrese o seleccione el nombre del medicamento.');
             return;
         }
-        if (prescripcionForm.disponible_farmacia === 'no_disponible' && !prescripcionForm.observacion_nodisponible.trim()) {
-            alert('Por favor especifique el detalle / observación en caso de que no haya la medicina en farmacia');
-            return;
-        }
-        setPrescripcionesList(prev => [...prev, { ...prescripcionForm }]);
+        setPrescripcionesList(prev => [...prev, { ...prescripcionForm, observacion_nodisponible: prescripcionForm.disponible_farmacia === 'no_disponible' ? prescripcionForm.observaciones : '' }]);
         setPrescripcionForm({
             detalle_medicamento: '',
-            dosis: '',
+            dosis: '1 tableta',
             via: 'Oral',
             frecuencia: '8',
             duracion: '3',
@@ -8802,259 +8777,190 @@ export default function MedicoOcupacionalPage() {
 
                                         {consultaActiveStep === 5 && (
                                             <div>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                                                    <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Pill size={18} /> Punto 7: Prescripción Médica & Recetario Ocupacional
-                                                    </h3>
-                                                    <span style={{ fontSize: '11.5px', background: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '12px', fontWeight: '700', border: '1px solid #bfdbfe', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                        <CheckCircle size={13} /> Conexión con Farmacia / Enfermería
-                                                    </span>
-                                                </div>
+                                                <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Pill size={16} /> 7. Prescripción Médica y Recetario
+                                                </h3>
+                                                <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                                                    Prescribe medicamentos desde el inventario de Farmacia para la atención de este trabajador.
+                                                </p>
 
-                                                {/* BUSCADOR DE FARMACIA */}
-                                                <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                                                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
-                                                        <Search size={14} /> Buscar Medicamento en Catálogo de Farmacia de Enfermería
+                                                {/* BUSCADOR DE PRODUCTOS DE FARMACIA */}
+                                                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                                                    <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px' }}>
+                                                        <Search size={15} color="var(--primary)" /> Buscar Medicamento en Catálogo de Farmacia
                                                     </label>
                                                     <div style={{ position: 'relative' }}>
                                                         <input
-                                                            aria-label="Buscar Medicamento en Catálogo de Farmacia de Enfermería"
+                                                            aria-label="Buscar Medicamento en Catálogo de Farmacia"
                                                             type="text"
                                                             value={farmaciaSearchQuery}
                                                             onChange={(e) => handleSearchFarmacia(e.target.value)}
-                                                            placeholder="Escriba nombre o código (ej: Paracetamol, Ibuprofeno, Amoxicilina)..."
-                                                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
+                                                            placeholder="Escriba el nombre o código del producto en inventario (ej: Paracetamol, Ibuprofeno, Amoxicilina)..."
+                                                            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
                                                         />
+                                                        {farmaciaSearchLoading && (
+                                                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748b' }}>Buscando...</span>
+                                                        )}
                                                         {farmaciaSearchResults.length > 0 && (
                                                             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '200px', overflowY: 'auto', marginTop: '4px' }}>
-                                                                {farmaciaSearchResults.map((prod) => {
-                                                                    const presentacionStr = typeof prod.presentacion === 'object' && prod.presentacion !== null
-                                                                        ? (prod.presentacion.nombre || 'General')
-                                                                        : (prod.presentacion || 'General');
-                                                                    const hasStock = (prod.stock_cajas || 0) > 0 || (prod.stock_unidades || 0) > 0;
-                                                                    return (
-                                                                        <div
-                                                                            role="button" tabIndex={0} onKeyDown={onKeyActivate}
-                                                                            key={prod.id}
-                                                                            onClick={() => handleSelectFarmaciaProduct(prod)}
-                                                                            style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px' }}
-                                                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
-                                                                            onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                                                                        >
-                                                                            <div>
-                                                                                <strong style={{ color: '#0f172a' }}>{prod.nombre}</strong>
-                                                                                <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>
-                                                                                    Código: {prod.codigo || 'S/C'} | {presentacionStr}
-                                                                                </small>
-                                                                            </div>
-                                                                            <span style={{
-                                                                                background: hasStock ? '#dcfce7' : '#fef2f2',
-                                                                                color: hasStock ? '#15803d' : '#dc2626',
-                                                                                padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700'
-                                                                            }}>
-                                                                                {hasStock ? `Stock: ${prod.stock_cajas || 0} cj / ${prod.stock_unidades || 0} ud` : 'SIN STOCK'}
-                                                                            </span>
+                                                                {farmaciaSearchResults.map((prod) => (
+                                                                    <div
+                                                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
+                                                                        key={prod.id}
+                                                                        onClick={() => handleSelectFarmaciaProduct(prod)}
+                                                                        style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px' }}
+                                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                                                                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                                                                    >
+                                                                        <div>
+                                                                            <strong style={{ color: '#0f172a' }}>{prod.nombre}</strong>
+                                                                            <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>
+                                                                                Código: {prod.codigo} | Presentación: {prod.presentacion?.nombre || 'N/A'}
+                                                                            </small>
                                                                         </div>
-                                                                    );
-                                                                })}
+                                                                        <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
+                                                                            Stock: {prod.stock_cajas} cj / {prod.stock_unidades} ud
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
 
                                                 {/* FORMULARIO DE DETALLE DEL MEDICAMENTO */}
-                                                <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento Prescrito</h4>
-
-                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                                        <label className="field">
+                                                <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
+                                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
+                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
+                                                        <div className="field" style={{ margin: 0 }}>
                                                             <span>Medicamento Prescrito *</span>
                                                             <input
+                                                                aria-label="Medicamento Prescrito"
                                                                 type="text"
                                                                 value={prescripcionForm.detalle_medicamento}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, detalle_medicamento: e.target.value })}
-                                                                placeholder="Ej: Paracetamol 500mg Tabletas"
+                                                                placeholder="Ej: Amoxicilina 500mg"
                                                             />
-                                                        </label>
-                                                        <label className="field">
-                                                            <span>Dosis Indicada</span>
+                                                        </div>
+                                                        <div className="field" style={{ margin: 0 }}>
+                                                            <span>Dosis *</span>
                                                             <input
+                                                                aria-label="Dosis"
                                                                 type="text"
                                                                 value={prescripcionForm.dosis}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, dosis: e.target.value })}
-                                                                placeholder="Ej: 1 comprimido"
+                                                                placeholder="Ej: 1 cápsula"
                                                             />
-                                                        </label>
-                                                        <label className="field">
-                                                            <span>Vía de Administración</span>
-                                                            <select
+                                                        </div>
+                                                        <div className="field" style={{ margin: 0 }}>
+                                                            <span>Vía de Adm. *</span>
+                                                            <input
+                                                                aria-label="Vía de Adm."
+                                                                type="text"
                                                                 value={prescripcionForm.via}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, via: e.target.value })}
-                                                            >
-                                                                <option value="Oral">Oral</option>
-                                                                <option value="Intravenosa">Intravenosa</option>
-                                                                <option value="Intramuscular">Intramuscular</option>
-                                                                <option value="Tópica">Tópica</option>
-                                                                <option value="Oftálmica">Oftálmica</option>
-                                                                <option value="Sublingual">Sublingual</option>
-                                                                <option value="Inhalatoria">Inhalatoria</option>
-                                                            </select>
-                                                        </label>
+                                                                placeholder="Ej: Oral"
+                                                            />
+                                                        </div>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                                                        <label className="field">
-                                                            <span>Frecuencia (Horas)</span>
+                                                    {/* Sin "Cant. Cajas": la cantidad de cajas la define Farmacia al despachar */}
+                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                                        <div className="field" style={{ margin: 0 }}>
+                                                            <span>Cada (Horas) *</span>
                                                             <input
+                                                                aria-label="Cada (Horas)"
                                                                 type="number"
                                                                 min="1"
                                                                 value={prescripcionForm.frecuencia}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, frecuencia: e.target.value })}
                                                             />
-                                                        </label>
-                                                        <label className="field">
-                                                            <span>Duración (Días)</span>
+                                                        </div>
+                                                        <div className="field" style={{ margin: 0 }}>
+                                                            <span>Durante (Días) *</span>
                                                             <input
+                                                                aria-label="Durante (Días)"
                                                                 type="number"
                                                                 min="1"
                                                                 value={prescripcionForm.duracion}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, duracion: e.target.value })}
                                                             />
-                                                        </label>
-                                                        <label className="field">
+                                                        </div>
+                                                        <div className="field" style={{ margin: 0 }}>
                                                             <span>Cant. Unidades</span>
                                                             <input
+                                                                aria-label="Cant. Unidades"
                                                                 type="number"
                                                                 min="0"
                                                                 value={prescripcionForm.cantidad_unidades}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, cantidad_unidades: e.target.value })}
                                                             />
-                                                        </label>
-                                                    </div>
-
-                                                    {/* SELECCIÓN DE DISPONIBILIDAD EN FARMACIA */}
-                                                    <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '12px' }}>
-                                                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b', display: 'block', marginBottom: '8px' }}>
-                                                            Disponibilidad en Farmacia de Enfermería:
-                                                        </span>
-                                                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                                                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer', fontWeight: '600', color: '#166534' }}>
-                                                                <input
-                                                                    type="radio"
-                                                                    name="disponible_farmacia"
-                                                                    checked={prescripcionForm.disponible_farmacia === 'farmacia'}
-                                                                    onChange={() => setPrescripcionForm({ ...prescripcionForm, disponible_farmacia: 'farmacia' })}
-                                                                    style={{ accentColor: '#16a34a' }}
-                                                                />
-                                                                Dispensar en Farmacia de Enfermería
-                                                            </label>
-                                                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', cursor: 'pointer', fontWeight: '600', color: '#b45309' }}>
-                                                                <input
-                                                                    type="radio"
-                                                                    name="disponible_farmacia"
-                                                                    checked={prescripcionForm.disponible_farmacia === 'no_disponible'}
-                                                                    onChange={() => setPrescripcionForm({ ...prescripcionForm, disponible_farmacia: 'no_disponible' })}
-                                                                    style={{ accentColor: '#d97706' }}
-                                                                />
-                                                                No disponible en Farmacia / Fármaco Alternativo Enviado
-                                                            </label>
                                                         </div>
                                                     </div>
 
-                                                    {/* CAMPO DE DETALLE CUANDO NO HAY MEDICINA */}
-                                                    {prescripcionForm.disponible_farmacia === 'no_disponible' && (
-                                                        <div className="field" style={{ marginBottom: '12px' }}>
-                                                            <span style={{ color: '#b45309', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                                                <AlertTriangle size={14} /> Detalle en Caso de No Disponibilidad / Alternativa Enviada *
-                                                            </span>
-                                                            <textarea
-                                                                aria-label="Detalle en Caso de No Disponibilidad / Alternativa Enviada"
-                                                                rows={2}
-                                                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #fcd34d', background: '#fffbeb', fontSize: '12.5px', fontFamily: 'inherit' }}
-                                                                value={prescripcionForm.observacion_nodisponible}
-                                                                onChange={(e) => setPrescripcionForm({ ...prescripcionForm, observacion_nodisponible: e.target.value })}
-                                                                placeholder="Especifique el motivo de no disponibilidad en farmacia institucional o detalle la alternativa / receta externa enviada al trabajador..."
+                                                    <div style={{ marginTop: '12px' }}>
+                                                        <div className="field" style={{ margin: 0 }}>
+                                                            <span>Indicaciones Adicionales / Observaciones</span>
+                                                            <input
+                                                                aria-label="Indicaciones Adicionales / Observaciones"
+                                                                type="text"
+                                                                value={prescripcionForm.observaciones}
+                                                                onChange={(e) => setPrescripcionForm({ ...prescripcionForm, observaciones: e.target.value })}
+                                                                placeholder="Ej: Tomar después de las comidas..."
                                                             />
                                                         </div>
-                                                    )}
-
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleAddPrescripcionLine}
-                                                            className="action-button action-button--primary"
-                                                            style={{ padding: '8px 16px', fontSize: '12.5px', borderRadius: '8px' }}
-                                                        >
-                                                            <Plus size={15} style={{ marginRight: '4px' }} /> Agregar Medicamento a la Receta
-                                                        </button>
                                                     </div>
+
+                                                    <button
+                                                        type="button"
+                                                        className="action-button action-button--primary"
+                                                        onClick={handleAddPrescripcionLine}
+                                                        style={{ marginTop: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                                    >
+                                                        <Plus size={16} /> Agregar a la Receta
+                                                    </button>
                                                 </div>
 
-                                                {/* TABLA DE MEDICAMENTOS EN LA RECETA ACTUAL */}
-                                                <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                                                    <div style={{ background: '#f8fafc', padding: '10px 14px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <strong style={{ fontSize: '13px', color: '#0f172a', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                                            <ClipboardList size={15} /> Medicamentos Prescritos ({prescripcionesList.length})
-                                                        </strong>
-                                                        <span style={{ fontSize: '11.5px', color: '#64748b' }}>Serán registrados en el Recetario Médico Ocupacional</span>
+                                                {/* LISTADO DE MEDICAMENTOS EN LA RECETA */}
+                                                <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                        <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <Pill size={16} color="var(--primary)" /> Medicamentos Prescritos
+                                                        </h4>
+                                                        <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontWeight: '700', border: '1px solid #bae6fd' }}>
+                                                            {prescripcionesList.length} medicamento(s)
+                                                        </span>
                                                     </div>
 
                                                     {prescripcionesList.length === 0 ? (
-                                                        <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                                                            No se han agregado medicamentos a esta receta aún.
+                                                        <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#475569', fontSize: '12px' }}>
+                                                            <Pill size={22} color="#94a3b8" style={{ marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
+                                                            No ha agregado medicamentos a la receta. Use el buscador o el formulario para añadir prescripciones.
                                                         </div>
                                                     ) : (
-                                                        <div className="table-responsive">
-                                                            <table className="table" style={{ width: '100%', fontSize: '12px' }}>
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Medicamento</th>
-                                                                        <th>Dosis & Vía</th>
-                                                                        <th>Frecuencia / Duración</th>
-                                                                        <th>Origen / Dispensación</th>
-                                                                        <th style={{ textAlign: 'right' }}>Acciones</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {prescripcionesList.map((item, idx) => (
-                                                                        <tr key={idx}>
-                                                                            <td>
-                                                                                <strong>{item.detalle_medicamento}</strong>
-                                                                                {item.cantidad_unidades > 0 && <small style={{ display: 'block', color: '#64748b' }}>Cant: {item.cantidad_unidades} ud</small>}
-                                                                            </td>
-                                                                            <td>{item.dosis} ({item.via})</td>
-                                                                            <td>Cada {item.frecuencia}h por {item.duracion} días</td>
-                                                                            <td>
-                                                                                {item.disponible_farmacia === 'farmacia' ? (
-                                                                                    <span style={{ padding: '3px 8px', borderRadius: '12px', background: '#f0fdf4', color: '#166534', fontWeight: '700', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                                                        <CheckCircle size={11} /> Farmacia Enfermería
-                                                                                    </span>
-                                                                                ) : (
-                                                                                    <div>
-                                                                                        <span style={{ padding: '3px 8px', borderRadius: '12px', background: '#fffbeb', color: '#b45309', fontWeight: '700', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                                                            <AlertTriangle size={11} /> No Disponible / Alternativo
-                                                                                        </span>
-                                                                                        {item.observacion_nodisponible && (
-                                                                                            <small style={{ display: 'block', color: '#92400e', fontSize: '11px', marginTop: '2px' }}>
-                                                                                                {item.observacion_nodisponible}
-                                                                                            </small>
-                                                                                        )}
-                                                                                    </div>
-                                                                                )}
-                                                                            </td>
-                                                                            <td style={{ textAlign: 'right' }}>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => handleRemovePrescripcionLine(idx)}
-                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                                                >
-                                                                                    <Trash2 size={12} /> Eliminar
-                                                                                </button>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            {prescripcionesList.map((item, idx) => (
+                                                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                                                    <div>
+                                                                        <strong style={{ color: '#0f172a', fontSize: '13px', display: 'block' }}>{item.detalle_medicamento}</strong>
+                                                                        <span style={{ fontSize: '11.5px', color: '#475569' }}>
+                                                                            {item.dosis} · Cada {item.frecuencia} horas por {item.duracion} días ({item.via})
+                                                                        </span>
+                                                                        {item.observaciones && (
+                                                                            <small style={{ display: 'block', color: '#64748b', fontSize: '11px', marginTop: '2px' }}>
+                                                                                {item.observaciones}
+                                                                            </small>
+                                                                        )}
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRemovePrescripcionLine(idx)}
+                                                                        style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600', flexShrink: 0 }}
+                                                                    >
+                                                                        <Trash2 size={13} /> Quitar
+                                                                    </button>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -9213,17 +9119,30 @@ export default function MedicoOcupacionalPage() {
 
                                             // Persistencia al backend si el paciente está registrado
                                             if (patientSelected?.id) {
-                                                api.post('/medicina-general/signos-vitales', {
-                                                    id_usuario_paciente: patientSelected.id,
-                                                    presion_arterial_sistolica: parseFloat(vitalSigns.paSystolic) || 120,
-                                                    presion_arterial_diastolica: parseFloat(vitalSigns.paDiastolic) || 80,
-                                                    frecuencia_cardiaca: parseInt(vitalSigns.fc) || 75,
-                                                    frecuencia_respiratoria: parseInt(vitalSigns.fr) || 18,
-                                                    temperatura: parseFloat(vitalSigns.temp) || 36.5,
-                                                    peso: parseFloat(vitalSigns.peso) || 70,
-                                                    talla: parseFloat(vitalSigns.talla) || 1.70,
-                                                    fecha: localDateStr()
-                                                }).catch(() => {});
+                                                // Solo los signos vitales que el médico registró (sin valores inventados);
+                                                // la talla se registra en centímetros, igual que en Enfermería
+                                                const num = (v, parse = parseFloat) => {
+                                                    const n = parse(v);
+                                                    return Number.isFinite(n) ? n : null;
+                                                };
+                                                const signos = {
+                                                    presion_arterial_sistolica: num(vitalSigns.paSystolic),
+                                                    presion_arterial_diastolica: num(vitalSigns.paDiastolic),
+                                                    frecuencia_cardiaca: num(vitalSigns.fc, v => parseInt(v, 10)),
+                                                    frecuencia_respiratoria: num(vitalSigns.fr, v => parseInt(v, 10)),
+                                                    temperatura: num(vitalSigns.temp),
+                                                    peso: num(vitalSigns.peso),
+                                                    talla: num(vitalSigns.talla)
+                                                };
+                                                if (Object.values(signos).some(v => v !== null)) {
+                                                    api.post('/medicina-general/signos-vitales', {
+                                                        id_usuario_paciente: patientSelected.id,
+                                                        ...signos,
+                                                        fecha: localDateStr()
+                                                    }).catch(err => {
+                                                        alert(err.response?.data?.message || 'No se pudieron guardar los signos vitales del trabajador.');
+                                                    });
+                                                }
 
                                                 if (diagnosticoCie) {
                                                     api.post('/medicina-general/diagnosticos', {
