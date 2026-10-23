@@ -34,7 +34,12 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const isPatient = user?.roles?.some(r => r.name === 'paciente') || user?.rol === 'paciente';
+    // Los roles llegan como texto (["paciente"]) desde el login, o como objetos ({ name }) en otras respuestas
+    const isPatient = user?.roles?.some(r => (typeof r === 'string' ? r : r?.name) === 'paciente') || user?.rol === 'paciente';
+    const localToday = () => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
 
     // Cargar notificaciones
     const fetchNotifications = async () => {
@@ -56,7 +61,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
 
         try {
             // Fallback sincronizado con las citas médicas reales según el rol
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayStr = localToday();
             const endpoint = isPatient ? '/citas-medicas/mis-citas' : '/citas-medicas/doctor/citas';
             const citasRes = await api.get(endpoint);
             const citas = citasRes.data?.data || [];
@@ -652,7 +657,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                             onClick={() => {
                                 setIsOpen(false);
                                 if (onNavigateToCitas) {
-                                    onNavigateToCitas(new Date().toISOString().slice(0, 10));
+                                    onNavigateToCitas(localToday());
                                 }
                             }}
                             style={{
