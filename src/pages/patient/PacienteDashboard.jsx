@@ -235,6 +235,10 @@ const PacienteDashboard = () => {
 
     const activeRecetarioFilterCount = (recetarioFilter !== 'Todos' ? 1 : 0) + (recetarioDate ? 1 : 0);
     const [profile, setProfile] = useState(null);
+
+    // Un dato de identificación queda fijo solo si ya tiene un valor guardado (p. ej. lo registró el
+    // médico); si quedó vacío, el paciente debe poder completarlo para avanzar.
+    const isFixedField = (field) => !!profile?.identification?.[field];
     const [profileLoading, setProfileLoading] = useState(true);
     const [isRegistering, setIsRegistering] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -2173,7 +2177,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><FileText size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             {demographicForm.es_extranjero ? 'Número de Pasaporte' : 'Número de Cédula'} <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('numero_cedula') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
@@ -2182,7 +2186,7 @@ const PacienteDashboard = () => {
                                                     type="text"
                                                     maxLength={demographicForm.es_extranjero ? 20 : 10}
                                                     value={personalForm.numero_cedula}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('numero_cedula')}
                                                     onChange={e => {
                                                         const val = e.target.value;
                                                         setPersonalForm({
@@ -2193,8 +2197,8 @@ const PacienteDashboard = () => {
                                                     placeholder={demographicForm.es_extranjero ? "Ej. A1234567B" : "Ej. 0201234567"}
                                                     style={{
                                                         border: formErrors.numero_cedula ? '1.5px solid var(--accent)' : undefined,
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('numero_cedula') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('numero_cedula') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                                 {formErrors.numero_cedula && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.numero_cedula}</small>}
@@ -2206,7 +2210,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><Calendar size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Fecha de Nacimiento <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('fecha_nacimiento') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
@@ -2215,7 +2219,7 @@ const PacienteDashboard = () => {
                                                     type="date"
                                                     value={personalForm.fecha_nacimiento}
                                                     max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('fecha_nacimiento')}
                                                     onChange={e => {
                                                         const val = e.target.value;
                                                         setPersonalForm(prev => ({ ...prev, fecha_nacimiento: val }));
@@ -2247,8 +2251,8 @@ const PacienteDashboard = () => {
                                                     }}
                                                     style={{
                                                         border: formErrors.fecha_nacimiento ? '1.5px solid var(--accent)' : undefined,
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('fecha_nacimiento') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('fecha_nacimiento') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                                 {formErrors.fecha_nacimiento && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.fecha_nacimiento}</small>}
@@ -2262,7 +2266,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Primer Nombre <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('primer_nombre') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
@@ -2270,13 +2274,13 @@ const PacienteDashboard = () => {
                                                     aria-label="Primer Nombre"
                                                     type="text"
                                                     value={personalForm.primer_nombre}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('primer_nombre')}
                                                     onChange={e => setPersonalForm({ ...personalForm, primer_nombre: e.target.value })}
                                                     placeholder="Ej. Juan"
                                                     style={{
                                                         border: formErrors.primer_nombre ? '1.5px solid var(--accent)' : undefined,
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('primer_nombre') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('primer_nombre') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                                 {formErrors.primer_nombre && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.primer_nombre}</small>}
@@ -2288,7 +2292,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Segundo Nombre
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('segundo_nombre') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
@@ -2297,12 +2301,12 @@ const PacienteDashboard = () => {
                                                     aria-label="Segundo Nombre"
                                                     type="text"
                                                     value={personalForm.segundo_nombre}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('segundo_nombre')}
                                                     onChange={e => setPersonalForm({ ...personalForm, segundo_nombre: e.target.value })}
                                                     placeholder="Ej. Carlos"
                                                     style={{
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('segundo_nombre') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('segundo_nombre') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                             </div>
@@ -2315,7 +2319,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Apellido Paterno <span className="field-req-star">*</span>
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('apellido_paterno') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                 </div>
@@ -2323,13 +2327,13 @@ const PacienteDashboard = () => {
                                                     aria-label="Apellido Paterno"
                                                     type="text"
                                                     value={personalForm.apellido_paterno}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('apellido_paterno')}
                                                     onChange={e => setPersonalForm({ ...personalForm, apellido_paterno: e.target.value })}
                                                     placeholder="Ej. Pérez"
                                                     style={{
                                                         border: formErrors.apellido_paterno ? '1.5px solid var(--accent)' : undefined,
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('apellido_paterno') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('apellido_paterno') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                                 {formErrors.apellido_paterno && <small style={{ color: 'var(--accent)', display: 'block', fontSize: '11px', marginTop: '2px' }}>{formErrors.apellido_paterno}</small>}
@@ -2341,7 +2345,7 @@ const PacienteDashboard = () => {
                                                         <span className="field-header__icon"><User size={15} /></span>
                                                         <h4 className="field-header__title">
                                                             Apellido Materno
-                                                            {!!profile?.identification?.numero_cedula && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
+                                                            {isFixedField('apellido_materno') && <span style={{ marginLeft: '6px', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 'normal' }}>(Campo Fijo)</span>}
                                                         </h4>
                                                     </div>
                                                     <span className="field-badge-opt">Opcional</span>
@@ -2350,12 +2354,12 @@ const PacienteDashboard = () => {
                                                     aria-label="Apellido Materno"
                                                     type="text"
                                                     value={personalForm.apellido_materno}
-                                                    disabled={!!profile?.identification?.numero_cedula}
+                                                    disabled={isFixedField('apellido_materno')}
                                                     onChange={e => setPersonalForm({ ...personalForm, apellido_materno: e.target.value })}
                                                     placeholder="Ej. López"
                                                     style={{
-                                                        background: !!profile?.identification?.numero_cedula ? '#f1f5f9' : undefined,
-                                                        cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : undefined
+                                                        background: isFixedField('apellido_materno') ? '#f1f5f9' : undefined,
+                                                        cursor: isFixedField('apellido_materno') ? 'not-allowed' : undefined
                                                     }}
                                                 />
                                             </div>
