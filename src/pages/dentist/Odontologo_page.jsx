@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -969,6 +970,12 @@ const Odontologo_page = () => {
         e.preventDefault();
         setRegisterLoading(true);
         setRegisterError('');
+        // Cédula ecuatoriana validada con su algoritmo (los extranjeros usan pasaporte)
+        if (newPatientForm.tipo_documento !== 'pasaporte' && !esCedulaValida(newPatientForm.cedula)) {
+            setRegisterError(MENSAJE_CEDULA_INVALIDA);
+            setRegisterLoading(false);
+            return;
+        }
 
         try {
             let finalEmail = newPatientForm.correo.trim();

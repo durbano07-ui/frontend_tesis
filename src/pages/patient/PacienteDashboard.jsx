@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
 import { User, BookOpen, ChevronRight, ChevronLeft, GraduationCap, MapPin, Phone, AlertCircle, FileText, CheckCircle2, ShieldAlert, Info, LogOut, Stethoscope, ClipboardList, Menu, X, Heart, Coins, Edit3, Eye, Calendar, Clock, Trash2, AlertTriangle, Printer, UserCheck, Home, Globe, Award, Filter, Droplet, CalendarCheck, Loader2, Check, ChevronDown, XCircle } from 'lucide-react';
@@ -529,6 +530,13 @@ const PacienteDashboard = () => {
         }
     };
 
+    // Tras corregir la cédula en el aviso obligatorio, se recarga el perfil con el número nuevo
+    useEffect(() => {
+        const onCedulaCorregida = () => fetchProfile();
+        window.addEventListener('cedula-corregida', onCedulaCorregida);
+        return () => window.removeEventListener('cedula-corregida', onCedulaCorregida);
+    }, []);
+
     // Fetch catalogs
     const fetchCatalogs = async () => {
         try {
@@ -1018,8 +1026,8 @@ const PacienteDashboard = () => {
             if (!personalForm.apellido_paterno.trim()) errors.apellido_paterno = 'Apellido paterno es obligatorio';
             if (!personalForm.numero_cedula.trim()) {
                 errors.numero_cedula = demographicForm.es_extranjero ? 'Número de pasaporte es obligatorio' : 'Cédula es obligatoria';
-            } else if (!demographicForm.es_extranjero && !/^\d{10}$/.test(personalForm.numero_cedula)) {
-                errors.numero_cedula = 'La cédula ecuatoriana debe tener exactamente 10 dígitos numéricos';
+            } else if (!demographicForm.es_extranjero && !esCedulaValida(personalForm.numero_cedula)) {
+                errors.numero_cedula = MENSAJE_CEDULA_INVALIDA;
             } else if (demographicForm.es_extranjero && !/^[A-Za-z0-9-]{5,20}$/.test(personalForm.numero_cedula)) {
                 errors.numero_cedula = 'El pasaporte debe ser un código alfanumérico válido de entre 5 y 20 caracteres';
             }
@@ -1189,7 +1197,7 @@ const PacienteDashboard = () => {
             ];
 
             // 1. Save Identification
-            await api.post('/user-profile/identification', personalForm);
+            await api.post('/user-profile/identification', { ...personalForm, es_extranjero: !!demographicForm.es_extranjero });
 
             // 2. Save Academic Data
             await api.post('/user-profile/career-study', academicForm);

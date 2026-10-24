@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -365,6 +366,12 @@ const Enfermero_page = () => {
 
         setRegisterLoading(true);
         setRegisterError('');
+        // Cédula ecuatoriana validada con su algoritmo (los extranjeros usan pasaporte)
+        if (newPatientForm.tipo_documento !== 'pasaporte' && !esCedulaValida(newPatientForm.cedula)) {
+            setRegisterError(MENSAJE_CEDULA_INVALIDA);
+            setRegisterLoading(false);
+            return;
+        }
 
         try {
             const finalEmail = newPatientForm.correo.includes('@') ? newPatientForm.correo.trim() : `${newPatientForm.correo.trim()}@ueb.edu.ec`;
