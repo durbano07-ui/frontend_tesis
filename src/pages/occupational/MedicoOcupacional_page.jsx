@@ -1292,72 +1292,74 @@ export default function MedicoOcupacionalPage() {
         prescripcion_medica: ''
     });
 
-    const [areaHistories, setAreaHistories] = useState({
-        ocupacional: [
-            {
-                id: 'evo-ocu-1',
-                fecha: '2026-09-10',
-                recordTitle: 'Control Aptitud Ocupacional',
-                type: 'ocupacional',
-                detalle_evolucion: 'Paciente refiere mejoría en sintomatología lumbar tras adaptación ergonómica de su puesto. Pausas activas cumplidas adecuadamente.',
-                prescripcion_medica: 'Mantener pausas activas de 5 min por hora. Continuar con silla ergonómica.',
-                medico: 'Dr. Medicina Ocupacional'
-            },
-            {
-                id: 'evo-ocu-2',
-                fecha: '2026-09-14',
-                recordTitle: 'Seguimiento Reintegro Laboral',
-                type: 'ocupacional',
-                detalle_evolucion: 'Evaluación de reintegro post-incapacidad por túnel carpiano. Fuerza de prensión conservada sin dolor agudo al movimiento.',
-                prescripcion_medica: 'Uso de férula de reposo nocturno. Control en 15 días.',
-                medico: 'Dr. Medicina Ocupacional'
-            }
-        ],
-        medicina: [
-            {
-                id: 'evo-med-1',
-                fecha: '2026-09-02',
-                recordTitle: 'Consulta General',
-                type: 'medicina',
-                detalle_evolucion: 'Cefalea tensional ocasional asociada a fatiga laboral. PA: 120/80 mmHg.',
-                prescripcion_medica: 'Paracetamol 500mg VO cada 8 horas si hay dolor.',
-                medico: 'Dr. Medicina General'
-            }
-        ],
-        psicologia: [
-            {
-                id: 'evo-psi-1',
-                fecha: '2026-08-25',
-                recordTitle: 'Sesión Psicológica Ocupacional',
-                type: 'psicologia',
-                detalle_evolucion: 'Sesión de manejo de estrés laboral y técnicas de relajación diafragmática.',
-                prescripcion_medica: 'Pautas de higiene del sueño y desconexión digital.',
-                medico: 'Psic. Clínica'
-            }
-        ],
-        odontologia: [
-            {
-                id: 'evo-odo-1',
-                fecha: '2026-08-15',
-                recordTitle: 'Control Odontológico Periódico',
-                type: 'odontologia',
-                detalle_evolucion: 'Profilaxis dental realizada. Sin caries activas detectadas.',
-                prescripcion_medica: 'Uso de hilo dental diario y enjuague fluorado.',
-                medico: 'Dra. Odontología'
-            }
-        ],
-        enfermeria: [
-            {
-                id: 'evo-enf-1',
-                fecha: '2026-09-01',
-                recordTitle: 'Toma de Signos & Vacunación',
-                type: 'enfermeria',
-                detalle_evolucion: 'Administración de dosis de refuerzo vacuna Tétanos-Difteria (Td).',
-                prescripcion_medica: 'Compresas frías en sitio de punción si presenta molestia.',
-                medico: 'Lic. Enfermería'
-            }
-        ]
-    });
+    const [areaHistories, setAreaHistories] = useState({ medicina: [], psicologia: [], odontologia: [], enfermeria: [] });
+    const [areaHistoriesLoading, setAreaHistoriesLoading] = useState(false);
+
+    // Historial real del paciente en cada área (mismas consultas que la vista integrada de Medicina General)
+    const fetchPatientHistoryByArea = async (patientId) => {
+        if (!patientId) return;
+        setAreaHistoriesLoading(true);
+        const get = (url) => api.get(url, { params: { id_usuario_paciente: patientId } })
+            .then(res => (Array.isArray(res.data?.data) ? res.data.data : []))
+            .catch(() => []);
+        try {
+            const [medEvol, medDiario, medSignos, psiEvol, psiDiario, odoEvol, odoDiario, enfVitals, enfDiario] = await Promise.all([
+                get('/medicina-general/historial-evolucion'),
+                get('/medicina-general/parte-diario'),
+                get('/medicina-general/signos-vitales'),
+                get('/psicologia/historial-evolucion'),
+                get('/psicologia/parte-diario'),
+                get('/odontologia/historial-evolucion'),
+                get('/odontologia/parte-diario-odontologia'),
+                get('/enfermeria/signos-vitales'),
+                get('/enfermeria/parte-diario')
+            ]);
+            const propio = (list) => list.filter(x => String(x.id_usuario_paciente) === String(patientId));
+            const quien = (x) => {
+                const d = x.doctor || x.medico_general || x.medicoGeneral;
+                const di = d?.datos_identificacion || d?.datosIdentificacion;
+                return di?.primer_nombre ? `${di.primer_nombre} ${di.apellido_paterno || ''}`.trim() : (d?.name || '');
+            };
+            const signos = (x) => [
+                x.presion_arterial_sistolica && `PA ${Number(x.presion_arterial_sistolica)}/${Number(x.presion_arterial_diastolica)} mmHg`,
+                x.frecuencia_cardiaca && `FC ${x.frecuencia_cardiaca} lpm`,
+                x.temperatura && `T ${Number(x.temperatura)} °C`,
+                x.peso && `Peso ${Number(x.peso)} kg`,
+                x.talla && `Talla ${Number(x.talla)} cm`
+            ].filter(Boolean).join(' · ');
+            const item = (x, recordTitle, resumen) => ({
+                ...x,
+                fecha: x.fecha ? String(x.fecha).slice(0, 10) : String(x.created_at || '').slice(0, 10),
+                recordTitle,
+                detalle_evolucion: resumen || x.detalle_evolucion || x.detalle_diagnostico || '',
+                medico: quien(x)
+            });
+            const ordenar = (list) => list.sort((a, b) => new Date(b.fecha || b.created_at) - new Date(a.fecha || a.created_at));
+            // Signos vitales: ambas rutas leen la misma tabla, se quitan los repetidos
+            const vitales = [...new Map([...propio(medSignos), ...propio(enfVitals)].map(v => [v.id, v])).values()];
+
+            setAreaHistories({
+                medicina: ordenar([
+                    ...propio(medEvol).map(x => item(x, 'Evolución Clínica', x.detalle_evolucion)),
+                    ...propio(medDiario).map(x => item(x, 'Consulta de Jornada', x.detalle_diagnostico))
+                ]),
+                psicologia: ordenar([
+                    ...propio(psiEvol).map(x => item(x, 'Sesión Psicológica', x.detalle_evolucion)),
+                    ...propio(psiDiario).map(x => item(x, 'Consulta de Psicología', x.detalle_diagnostico))
+                ]),
+                odontologia: ordenar([
+                    ...propio(odoEvol).map(x => item(x, 'Evolución Dental', [x.detalle_tratamiento, x.detalle_procedimiento].filter(Boolean).join(' · '))),
+                    ...propio(odoDiario).map(x => item(x, 'Consulta Odontológica', x.detalle_diagnostico))
+                ]),
+                enfermeria: ordenar([
+                    ...vitales.map(x => item(x, 'Signos Vitales', signos(x))),
+                    ...propio(enfDiario).map(x => item(x, 'Procedimiento de Enfermería', [x.detalle_procedimiento, x.detalle_medicacion].filter(Boolean).join(' · ')))
+                ])
+            });
+        } finally {
+            setAreaHistoriesLoading(false);
+        }
+    };
 
     const handleSaveEvolucion = (e) => {
         e.preventDefault();
@@ -6115,6 +6117,14 @@ export default function MedicoOcupacionalPage() {
     };
 
 
+    useEffect(() => {
+        if (activeTab === 'evolucion' && patientSelected?.id) {
+            setActiveBookRecord(null);
+            setHistoryPage(1);
+            fetchPatientHistoryByArea(patientSelected.id);
+        }
+    }, [activeTab, patientSelected?.id]);
+
     // Calculate IMC automatically when peso & talla change
     useEffect(() => {
         const p = parseFloat(vitalSigns.peso);
@@ -6679,7 +6689,12 @@ export default function MedicoOcupacionalPage() {
                                     <div className="historial-grid-container" style={{ gridTemplateColumns: activeBookRecord ? '1fr 1fr' : '1fr' }}>
                                         {/* Table Column Card */}
                                         <div className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
-                                            {!areaHistories[activeBookArea] || areaHistories[activeBookArea].length === 0 ? (
+                                            {areaHistoriesLoading ? (
+                                                <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px' }}>
+                                                    <Loader2 size={22} className="spin-icon" style={{ display: 'block', margin: '0 auto 8px' }} />
+                                                    Cargando historial del paciente...
+                                                </div>
+                                            ) : !areaHistories[activeBookArea] || areaHistories[activeBookArea].length === 0 ? (
                                                 <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                                     <FileText size={36} style={{ marginBottom: '10px', opacity: 0.5 }} />
                                                     <strong style={{ fontSize: '13.5px', color: 'var(--text)' }}>Sin antecedentes registrados</strong>
