@@ -3,7 +3,7 @@ import { Stethoscope } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import api from '../api/axios';
 
-// Roles que requieren configuracion de campus
+// Roles que requieren configuración de campus
 const MEDICAL_ROLES = [
     'enfermero',
     'medico_general',
@@ -59,6 +59,8 @@ const CampusSetupModal = () => {
                 id_lugar_trabajo: parseInt(selectedCampus),
             });
             setShow(false);
+            // Las pantallas que dependen del campus (p. ej. Enfermería) recargan sus datos
+            window.dispatchEvent(new CustomEvent('campus-configurado', { detail: { id: parseInt(selectedCampus) } }));
         } catch (err) {
             const msg = err.response?.data?.message;
             if (msg === 'Campus ya asignado') {
@@ -101,11 +103,11 @@ const CampusSetupModal = () => {
                         <Stethoscope size={28} style={{ color: 'var(--primary, #1d4ed8)' }} />
                     </div>
                     <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 700, color: 'var(--text-primary, #111)' }}>
-                        Configuracion inicial
+                        Configuración inicial
                     </h2>
                     <p style={{ margin: 0, color: 'var(--text-secondary, #555)', fontSize: '14px', lineHeight: 1.6 }}>
                         Selecciona el campus donde prestas tus servicios.
-                        Esta informacion permite coordinar atenciones entre el personal de salud del mismo campus.
+                        Esta información permite coordinar atenciones entre el personal de salud del mismo campus.
                     </p>
                 </div>
 

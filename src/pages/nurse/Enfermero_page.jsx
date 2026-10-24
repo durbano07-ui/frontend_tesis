@@ -13,7 +13,7 @@ import FarmaciaDespachoTab from '../../components/farmacia/FarmaciaDespachoTab';
 import FarmaciaPresentacionesTab from '../../components/farmacia/FarmaciaPresentacionesTab';
 
 // Importación de iconos de Lucide
-import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, MapPin, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
+import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 
@@ -215,11 +215,7 @@ const Enfermero_page = () => {
 
     // Campus y médicos del mismo campus
     const [myCampusId, setMyCampusId] = useState(null);
-    const [campusList, setCampusList] = useState([]);
     const [doctoresCampus, setDoctoresCampus] = useState([]);
-    const [campusSetupModal, setCampusSetupModal] = useState(false);
-    const [campusSetupValue, setCampusSetupValue] = useState('');
-    const [campusSetupSaving, setCampusSetupSaving] = useState(false);
 
     // Custom searchable doctor selector states
     const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
@@ -228,17 +224,6 @@ const Enfermero_page = () => {
     // Custom searchable procedure selector states
     const [vitalsProcedureDropdownOpen, setVitalsProcedureDropdownOpen] = useState(false);
     const [vitalsProcedureSearchQuery, setVitalsProcedureSearchQuery] = useState('');
-
-    const fetchCampusData = async () => {
-        try {
-            // Obtener catálogo de campus disponibles desde medicina ocupacional
-            const catalogRes = await api.get('/medicina-ocupacional/usuario-lugar-de-trabajo');
-            // Usamos una petición a un endpoint de referencia para listar todos los campus
-            // El listado de campus viene de los doctores registrados; haremos una llamada separada
-        } catch (err) {
-            console.error('Error cargando campus:', err);
-        }
-    };
 
     const fetchMyCampus = async () => {
         try {
@@ -250,23 +235,10 @@ const Enfermero_page = () => {
                 const campusId = firstRecord.id_lugar_trabajo || firstRecord.lugar_trabajo?.id;
                 setMyCampusId(campusId);
                 fetchDoctoresByCampus(campusId);
-            } else {
-                // No tiene campus asignado, mostrar modal de configuracion
-                fetchAllCampuses();
-                setCampusSetupModal(true);
             }
+            // Sin campus asignado: lo pide el modal compartido CampusSetupModal (ProtectedRoute)
         } catch (err) {
             console.error('Error al verificar campus:', err);
-        }
-    };
-
-    const fetchAllCampuses = async () => {
-        try {
-            const res = await api.get('/medicina-ocupacional/campus');
-            const list = (res.data.data || []).map(c => ({ id: c.id, nombre: c.nombre }));
-            setCampusList(list);
-        } catch (err) {
-            console.error('Error cargando campus disponibles:', err);
         }
     };
 
@@ -285,25 +257,12 @@ const Enfermero_page = () => {
         fetchTodosLosDoctores();
     };
 
-    const handleSaveCampusSetup = async () => {
-        if (!campusSetupValue) return;
-        setCampusSetupSaving(true);
-        try {
-            await api.post('/medicina-ocupacional/usuario-lugar-de-trabajo', {
-                id_lugar_trabajo: parseInt(campusSetupValue)
-            });
-            const campusId = parseInt(campusSetupValue);
-            setMyCampusId(campusId);
-            fetchDoctoresByCampus(campusId);
-            setCampusSetupModal(false);
-            showSystemToast('Campus de trabajo configurado correctamente.');
-        } catch (err) {
-            console.error('Error guardando campus:', err);
-            showSystemToast('No se pudo guardar el campus. Intenta de nuevo.');
-        } finally {
-            setCampusSetupSaving(false);
-        }
-    };
+    // Cuando el modal compartido guarda el campus, se recargan los datos que dependen de él
+    useEffect(() => {
+        const onCampusConfigurado = () => fetchMyCampus();
+        window.addEventListener('campus-configurado', onCampusConfigurado);
+        return () => window.removeEventListener('campus-configurado', onCampusConfigurado);
+    }, []);
 
     // Cargar catálogo de procedimientos
     const fetchProcedures = async () => {
@@ -3130,61 +3089,6 @@ const Enfermero_page = () => {
                 contactInfo={{ email: 'soporte@ueb.edu.ec' }}
             />
 
-
-            {/* MODAL CONFIGURACIÓN DE CAMPUS */}
-            {campusSetupModal && (
-                <div className="clinical-modal show">
-                    <div className="clinical-modal__backdrop" onClick={() => setCampusSetupModal(false)}></div>
-                    <section className="clinical-modal__dialog" style={{ maxWidth: '480px', height: 'auto', maxHeight: '90vh' }}>
-                        <header className="clinical-modal__header">
-                            <div className="clinical-modal__patient">
-                                <span className="clinical-modal__avatar"><MapPin size={18} /></span>
-                                <div>
-                                    <span>Configuración inicial</span>
-                                    <h2>Seleccionar Campus de Atención</h2>
-                                </div>
-                            </div>
-                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setCampusSetupModal(false)}><X size={15} /></button>
-                        </header>
-                        <div className="clinical-modal__body" style={{ padding: '20px' }}>
-                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                                Selecciona el campus universitario donde estás prestando servicios hoy para registrar correctamente los partes diarios:
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                                {campusList.map(c => (
-                                    <div
-                                        role="button" tabIndex={0} onKeyDown={onKeyActivate}
-                                        key={c.id}
-                                        onClick={() => setCampusSetupValue(String(c.id))}
-                                        style={{
-                                            padding: '12px 16px',
-                                            borderRadius: '10px',
-                                            border: `2px solid ${String(campusSetupValue) === String(c.id) ? 'var(--primary)' : 'var(--border)'}`,
-                                            background: String(campusSetupValue) === String(c.id) ? 'var(--primary-soft)' : '#fff',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            fontWeight: String(campusSetupValue) === String(c.id) ? 'bold' : 'normal',
-                                            color: String(campusSetupValue) === String(c.id) ? 'var(--primary)' : 'var(--text-primary)'
-                                        }}
-                                    >
-                                        <span>{c.nombre}</span>
-                                        {String(campusSetupValue) === String(c.id) && <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>✓</span>}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                <button className="action-button action-button--primary" onClick={handleSaveCampusSetup} disabled={campusSetupSaving} style={{ width: '100%' }}>
-                                    {campusSetupSaving ? 'Guardando...' : 'Guardar Configuración'}
-                                </button>
-                            </footer>
-                        </div>
-                    </section>
-                </div>
-            )}
 
             {/* MODAL DE CONFIRMACIÓN CUSTOM */}
             {confirmModal.show && (
