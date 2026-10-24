@@ -198,6 +198,7 @@ export default function MedicoOcupacionalPage() {
 
     // Medical Form State
     const [tipoFicha, setTipoFicha] = useState('Ingreso');
+    const [tipoAtencion, setTipoAtencion] = useState('primaria');
     const [motivoConsulta, setMotivoConsulta] = useState('');
     const [enfermedadActual, setEnfermedadActual] = useState('');
     const [antecedentesPersonales, setAntecedentesPersonales] = useState('');
@@ -1297,6 +1298,34 @@ export default function MedicoOcupacionalPage() {
     const [areaHistories, setAreaHistories] = useState({ ocupacional: [], medicina: [], psicologia: [], odontologia: [], enfermeria: [] });
     const [areaHistoriesLoading, setAreaHistoriesLoading] = useState(false);
 
+    // Tratamientos: cada atención primaria inicia uno; lo posterior (subsecuentes, notas de evolución,
+    // signos vitales) pertenece al tratamiento en curso hasta la siguiente atención primaria.
+    const agruparTratamientos = (records) => {
+        const esPrimaria = (r) => r.type === 'diario' && r.tipo_atencion !== 'secundaria';
+        const asc = [...records].sort((a, b) =>
+            (a.fecha || '').localeCompare(b.fecha || '')
+            || (esPrimaria(b) - esPrimaria(a))
+            || (new Date(a.created_at) - new Date(b.created_at))
+        );
+        const grupos = [];
+        let actual = null;
+        asc.forEach(r => {
+            if (esPrimaria(r)) {
+                actual = { inicio: r.fecha, registros: [r] };
+                grupos.push(actual);
+            } else {
+                if (!actual) {
+                    actual = { inicio: r.fecha, sinPrimaria: true, registros: [] };
+                    grupos.push(actual);
+                }
+                actual.registros.push(r);
+            }
+        });
+        let n = 0;
+        grupos.forEach(g => { if (!g.sinPrimaria) g.numero = ++n; g.registros.reverse(); });
+        return grupos.reverse();
+    };
+
     // Historial real del paciente en cada área (mismas consultas que la vista integrada de Medicina General)
     const fetchPatientHistoryByArea = async (patientId) => {
         if (!patientId) return;
@@ -1333,8 +1362,9 @@ export default function MedicoOcupacionalPage() {
                 x.peso && `Peso ${Number(x.peso)} kg`,
                 x.talla && `Talla ${Number(x.talla)} cm`
             ].filter(Boolean).join(' · ');
-            const item = (x, recordTitle, resumen) => ({
+            const item = (x, recordTitle, resumen, type) => ({
                 ...x,
+                type,
                 fecha: x.fecha ? String(x.fecha).slice(0, 10) : String(x.created_at || '').slice(0, 10),
                 recordTitle,
                 detalle_evolucion: resumen || x.detalle_evolucion || x.detalle_diagnostico || '',
@@ -1347,9 +1377,9 @@ export default function MedicoOcupacionalPage() {
             if (!esCoordinador) {
                 setAreaHistories({
                     ocupacional: ordenar([
-                        ...propio(medEvol).map(x => item(x, 'Evolución Ocupacional', x.detalle_evolucion)),
-                        ...propio(medDiario).map(x => item(x, 'Atención Ocupacional', x.detalle_diagnostico)),
-                        ...propio(enfVitals).map(x => item(x, 'Signos Vitales', signos(x)))
+                        ...propio(medEvol).map(x => item(x, 'Evolución Ocupacional', x.detalle_evolucion, 'evolucion')),
+                        ...propio(medDiario).map(x => item(x, x.tipo_atencion === 'secundaria' ? 'Atención Subsecuente' : 'Atención Primaria', x.detalle_diagnostico, 'diario')),
+                        ...propio(enfVitals).map(x => item(x, 'Signos Vitales', signos(x), 'signos'))
                     ])
                 });
                 return;
@@ -1357,20 +1387,20 @@ export default function MedicoOcupacionalPage() {
 
             setAreaHistories({
                 medicina: ordenar([
-                    ...propio(medEvol).map(x => item(x, 'Evolución Clínica', x.detalle_evolucion)),
-                    ...propio(medDiario).map(x => item(x, 'Consulta de Jornada', x.detalle_diagnostico))
+                    ...propio(medEvol).map(x => item(x, 'Evolución Clínica', x.detalle_evolucion, 'evolucion')),
+                    ...propio(medDiario).map(x => item(x, 'Consulta de Jornada', x.detalle_diagnostico, 'diario'))
                 ]),
                 psicologia: ordenar([
-                    ...propio(psiEvol).map(x => item(x, 'Sesión Psicológica', x.detalle_evolucion)),
-                    ...propio(psiDiario).map(x => item(x, 'Consulta de Psicología', x.detalle_diagnostico))
+                    ...propio(psiEvol).map(x => item(x, 'Sesión Psicológica', x.detalle_evolucion, 'evolucion')),
+                    ...propio(psiDiario).map(x => item(x, 'Consulta de Psicología', x.detalle_diagnostico, 'diario'))
                 ]),
                 odontologia: ordenar([
-                    ...propio(odoEvol).map(x => item(x, 'Evolución Dental', [x.detalle_tratamiento, x.detalle_procedimiento].filter(Boolean).join(' · '))),
-                    ...propio(odoDiario).map(x => item(x, 'Consulta Odontológica', x.detalle_diagnostico))
+                    ...propio(odoEvol).map(x => item(x, 'Evolución Dental', [x.detalle_tratamiento, x.detalle_procedimiento].filter(Boolean).join(' · '), 'evolucion')),
+                    ...propio(odoDiario).map(x => item(x, 'Consulta Odontológica', x.detalle_diagnostico, 'diario'))
                 ]),
                 enfermeria: ordenar([
-                    ...vitales.map(x => item(x, 'Signos Vitales', signos(x))),
-                    ...propio(enfDiario).map(x => item(x, 'Procedimiento de Enfermería', [x.detalle_procedimiento, x.detalle_medicacion].filter(Boolean).join(' · ')))
+                    ...vitales.map(x => item(x, 'Signos Vitales', signos(x), 'signos')),
+                    ...propio(enfDiario).map(x => item(x, 'Procedimiento de Enfermería', [x.detalle_procedimiento, x.detalle_medicacion].filter(Boolean).join(' · '), 'diario'))
                 ])
             });
         } finally {
@@ -6218,6 +6248,10 @@ export default function MedicoOcupacionalPage() {
             }
         }
 
+        if (patientSearchTarget === 'evolucion') {
+            return;
+        }
+
         if (patientSearchTarget === 'exam') {
             setExamForm(prev => ({
                 ...prev,
@@ -6229,6 +6263,7 @@ export default function MedicoOcupacionalPage() {
         }
         setConsultaActiveStep(0);
         setPrescripcionesList([]);
+        setTipoAtencion('primaria');
         setIsConsultaModalOpen(true);
     };
 
@@ -6553,7 +6588,7 @@ export default function MedicoOcupacionalPage() {
                             <section className="vitals-action-grid">
                                 <button
                                     className="vitals-action-card vitals-action-card--primary"
-                                    onClick={openPatientSearch}
+                                    onClick={() => openPatientSearch('consulta')}
                                 >
                                     <span className="vitals-action-card__glow"></span>
                                     <span className="vitals-action-card__icon"><Search size={24} /></span>
@@ -6642,7 +6677,6 @@ export default function MedicoOcupacionalPage() {
                     {/* PESTAÑA 5: SEGUIMIENTO & EVOLUCIÓN CLÍNICA */}
                     {activeTab === 'evolucion' && (
                         <div>
-                            {/* SELECCIÓN DE PACIENTE */}
                             <section className="nurse-card patient-selector-card" style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -6670,16 +6704,20 @@ export default function MedicoOcupacionalPage() {
                                 <div className="patient-empty-state show">
                                     <User size={40} />
                                     <strong>No hay paciente seleccionado</strong>
-                                    <p>Busca e introduce un paciente para consultar su historial médico por áreas.</p>
+                                    <p>Busca e introduce un paciente para consultar su evolución clínica.</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    {/* Header Card con Liquid Nav Bar */}
+                                    {/* Header Card */}
                                     <div className="card" style={{ borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: '15px' }}>
                                         <div>
-                                            <span className="eyebrow" style={{ color: '#dc2626', fontWeight: '700' }}>HISTORIAL CLÍNICO</span>
+                                            <span className="eyebrow">HISTORIAL CLÍNICO</span>
                                             <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Historial Clínico del Paciente</h3>
-                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>{esCoordinador ? 'Consulte la evolución y atenciones del paciente agrupadas por área clínica.' : 'Consulte las atenciones y la evolución del paciente en Medicina Ocupacional.'}</p>
+                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                                                {esCoordinador
+                                                    ? 'Consulte la evolución y atenciones del paciente agrupadas por área clínica.'
+                                                    : 'Cada atención primaria inicia un tratamiento; las atenciones subsecuentes se registran en el tratamiento en curso.'}
+                                            </p>
                                         </div>
 
                                         {/* Liquid Navigation Bar */}
@@ -6695,7 +6733,7 @@ export default function MedicoOcupacionalPage() {
                                                 <button
                                                     key={area.key}
                                                     className={`liquid-nav__item ${activeBookArea === area.key ? 'active' : ''}`}
-                                                    onClick={() => { setActiveBookArea(area.key); setActiveBookRecord(null); setHistoryPage(1); }}
+                                                    onClick={() => { setActiveBookArea(area.key); setActiveBookRecord(null); }}
                                                 >
                                                     {area.icon}
                                                     <span>{area.label}</span>
@@ -6706,52 +6744,60 @@ export default function MedicoOcupacionalPage() {
 
                                     {/* Table and Detail Grid */}
                                     <div className="historial-grid-container" style={{ gridTemplateColumns: activeBookRecord ? '1fr 1fr' : '1fr' }}>
-                                        {/* Table Column Card */}
-                                        <div className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
                                             {areaHistoriesLoading ? (
-                                                <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-                                                    <Loader2 size={22} className="spin-icon" style={{ display: 'block', margin: '0 auto 8px' }} />
-                                                    Cargando historial del paciente...
-                                                </div>
+                                                <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', borderRadius: '14px', background: 'white', boxShadow: 'var(--shadow-sm)' }}>Cargando registros...</div>
                                             ) : !areaHistories[activeBookArea] || areaHistories[activeBookArea].length === 0 ? (
-                                                <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                    <FileText size={36} style={{ marginBottom: '10px', opacity: 0.5 }} />
-                                                    <strong style={{ fontSize: '13.5px', color: 'var(--text)' }}>Sin antecedentes registrados</strong>
-                                                    <span style={{ fontSize: '11px', maxWidth: '280px', marginTop: '4px' }}>No se encontraron atenciones previas en el área seleccionada.</span>
+                                                <div className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
+                                                    <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                                        <FileText size={36} style={{ marginBottom: '10px', opacity: 0.5 }} />
+                                                        <strong style={{ fontSize: '13.5px', color: 'var(--text)' }}>Sin antecedentes registrados</strong>
+                                                        <span style={{ fontSize: '11px', maxWidth: '280px', marginTop: '4px' }}>No se encontraron atenciones previas en el área seleccionada.</span>
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                <>
-                                                    <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                                                        <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '480px' }}>
-                                                            <thead>
-                                                                <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
-                                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
-                                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Fecha</th>
-                                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Especialidad</th>
-                                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Detalle / Diagnóstico</th>
-                                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textAlign: 'right' }}>Acción</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {areaHistories[activeBookArea]
-                                                                    .slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE)
-                                                                    .map((record, index) => {
-                                                                        const rowNumber = (historyPage - 1) * HISTORY_PER_PAGE + index + 1;
-                                                                        const isActive = activeBookRecord?.id === record.id;
+                                                (activeBookArea === 'ocupacional'
+                                                    ? agruparTratamientos(areaHistories.ocupacional)
+                                                    : [{ plano: true, registros: areaHistories[activeBookArea] }]
+                                                ).map((grupo, gIdx) => (
+                                                    <div key={grupo.plano ? 'plano' : `trat-${grupo.numero}`} className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
+                                                        {!grupo.plano && (
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                                                                <div>
+                                                                    <strong style={{ fontSize: '13px', color: 'var(--primary)' }}>
+                                                                        {grupo.sinPrimaria ? 'Registros sin atención primaria' : `Tratamiento ${grupo.numero}`}
+                                                                    </strong>
+                                                                    <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                                        {grupo.sinPrimaria ? 'Atenciones previas a la primera consulta primaria' : `Inicio: ${grupo.inicio} (atención primaria)`} · {grupo.registros.length} registro(s)
+                                                                    </span>
+                                                                </div>
+                                                                {gIdx === 0 && !grupo.sinPrimaria && (
+                                                                    <span className="evolution-badge evolution-badge--ocupacional">En curso</span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
+                                                            <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '480px' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
+                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
+                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Fecha</th>
+                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Especialidad</th>
+                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Detalle / Diagnóstico</th>
+                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textAlign: 'right' }}>Acción</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {grupo.registros.map((record, index) => {
+                                                                        const isActive = activeBookRecord === record;
                                                                         return (
                                                                             <tr
                                                                                 tabIndex={0} onKeyDown={onKeyActivate}
-                                                                                key={record.id || index}
-                                                                                style={{
-                                                                                    borderBottom: '1px solid var(--border)',
-                                                                                    background: isActive ? 'rgba(11, 49, 85, 0.04)' : 'transparent',
-                                                                                    cursor: 'pointer'
-                                                                                }}
+                                                                                key={`${record.type}-${record.id || index}`}
+                                                                                style={{ borderBottom: '1px solid var(--border)', background: isActive ? 'rgba(11, 49, 85, 0.04)' : 'transparent', cursor: 'pointer' }}
                                                                                 onClick={() => setActiveBookRecord(record)}
                                                                             >
-                                                                                <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
-                                                                                    {rowNumber}
-                                                                                </td>
+                                                                                <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>{index + 1}</td>
                                                                                 <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text)', whiteSpace: 'nowrap' }}>
                                                                                     {(record.fecha || record.created_at || '').slice(0, 10)}
                                                                                 </td>
@@ -6761,16 +6807,13 @@ export default function MedicoOcupacionalPage() {
                                                                                     </span>
                                                                                 </td>
                                                                                 <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                                    {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
+                                                                                    {record.detalle_evolucion || record.detalle_diagnostico || 'Ver detalles'}
                                                                                 </td>
                                                                                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                                                                     <button
                                                                                         className={`action-button ${isActive ? 'action-button--accent' : 'action-button--primary'}`}
                                                                                         style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px' }}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setActiveBookRecord(record);
-                                                                                        }}
+                                                                                        onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
                                                                                     >
                                                                                         {isActive ? 'Viendo' : 'Ver Detalle'}
                                                                                     </button>
@@ -6778,41 +6821,15 @@ export default function MedicoOcupacionalPage() {
                                                                             </tr>
                                                                         );
                                                                     })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-
-                                                    {Math.ceil((areaHistories[activeBookArea] || []).length / HISTORY_PER_PAGE) > 1 && (
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', background: 'var(--surface-hover)', borderTop: '1px solid var(--border)' }}>
-                                                            <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                                                                Mostrando {((historyPage - 1) * HISTORY_PER_PAGE) + 1} - {Math.min(historyPage * HISTORY_PER_PAGE, areaHistories[activeBookArea].length)} de {areaHistories[activeBookArea].length} registros
-                                                            </span>
-                                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                                <button
-                                                                    disabled={historyPage === 1}
-                                                                    onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                                                                    style={{ opacity: historyPage === 1 ? 0.5 : 1, padding: '4px 10px', borderRadius: '6px', fontSize: '11px', border: '1px solid var(--border)', cursor: historyPage === 1 ? 'not-allowed' : 'pointer' }}
-                                                                >
-                                                                    Anterior
-                                                                </button>
-                                                                <span style={{ fontSize: '11.5px', padding: '4px 8px', fontWeight: '600', color: 'var(--text)' }}>
-                                                                    Página {historyPage} de {Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE)}
-                                                                </span>
-                                                                <button
-                                                                    disabled={historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE)}
-                                                                    onClick={() => setHistoryPage(p => Math.min(Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE), p + 1))}
-                                                                    style={{ opacity: historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE) ? 0.5 : 1, padding: '4px 10px', borderRadius: '6px', fontSize: '11px', border: '1px solid var(--border)', cursor: historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE) ? 'not-allowed' : 'pointer' }}
-                                                                >
-                                                                    Siguiente
-                                                                </button>
-                                                            </div>
+                                                                </tbody>
+                                                            </table>
                                                         </div>
-                                                    )}
-                                                </>
+                                                    </div>
+                                                ))
                                             )}
                                         </div>
 
-                                        {/* Detail Column Card */}
+                                        {/* Detail Column */}
                                         {activeBookRecord && (
                                             <div className="premium-field-card clinical-detail-card" style={{ padding: '24px', position: 'sticky', top: '20px' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 32, 64, 0.05)', paddingBottom: '12px', marginBottom: '16px' }}>
@@ -6825,90 +6842,69 @@ export default function MedicoOcupacionalPage() {
                                                             Fecha: {(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}
                                                         </p>
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                                        <button aria-label="Cerrar detalle"
-                                                            className="action-button action-button--light"
-                                                            style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                            onClick={() => setActiveBookRecord(null)}
-                                                        >
-                                                            <X size={15} />
-                                                        </button>
-                                                    </div>
+                                                    <button aria-label="Cerrar detalle"
+                                                        className="action-button action-button--light"
+                                                        style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        onClick={() => setActiveBookRecord(null)}
+                                                    >
+                                                        <X size={15} />
+                                                    </button>
                                                 </div>
 
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px', flex: 'none' }} className="clinical-modal__body">
-                                                    <div className="preview-paper-field">
-                                                        <span>Notas de Evolución & Detalle</span>
-                                                        <p style={{ fontStyle: 'italic', background: '#fff9e6', padding: '12px', borderRadius: '8px', border: '1px solid #ffe89e', lineHeight: '1.5', margin: 0 }}>
-                                                            {activeBookRecord.detalle_evolucion || activeBookRecord.detalle_diagnostico || 'Sin observaciones registradas.'}
-                                                        </p>
-                                                    </div>
-                                                    <div className="preview-paper-field">
-                                                        <span>Prescripción y Plan Farmacéutico</span>
-                                                        <p style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', margin: 0 }}>
-                                                            {activeBookRecord.prescripcion_medica || 'Sin prescripción indicada.'}
-                                                        </p>
-                                                    </div>
+                                                    {(activeBookRecord.type === 'diario') && (
+                                                        <>
+                                                            <div className="preview-paper-field">
+                                                                <span>Tipo de Atención</span>
+                                                                <strong style={{ textTransform: 'capitalize' }}>
+                                                                    {activeBookRecord.tipo_atencion === 'secundaria' ? 'Subsecuente' : (activeBookRecord.tipo_atencion || 'Primaria')} ({activeBookRecord.tipo || 'Preventivo'})
+                                                                </strong>
+                                                            </div>
+                                                            <div className="preview-paper-field">
+                                                                <span>Diagnóstico</span>
+                                                                <p style={{ fontWeight: '600', margin: 0 }}>{activeBookRecord.detalle_diagnostico || 'Sin diagnóstico registrado.'}</p>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {activeBookRecord.type === 'evolucion' && (
+                                                        <>
+                                                            <div className="preview-paper-field">
+                                                                <span>Nota de Evolución</span>
+                                                                <p style={{ fontStyle: 'italic', background: '#fff9e6', padding: '12px', borderRadius: '8px', border: '1px solid #ffe89e', lineHeight: '1.5', margin: 0 }}>
+                                                                    {activeBookRecord.detalle_evolucion}
+                                                                </p>
+                                                            </div>
+                                                            <div className="preview-paper-field">
+                                                                <span>Prescripción y Plan Farmacéutico</span>
+                                                                <p style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', margin: 0 }}>
+                                                                    {activeBookRecord.prescripcion_medica || 'Sin prescripción indicada.'}
+                                                                </p>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {activeBookRecord.type === 'signos' && (
+                                                        <div className="preview-vitals-grid">
+                                                            <div><span>Presión Arterial</span><strong>{activeBookRecord.presion_arterial_sistolica ? Number(activeBookRecord.presion_arterial_sistolica) : '—'}/{activeBookRecord.presion_arterial_diastolica ? Number(activeBookRecord.presion_arterial_diastolica) : '—'}</strong><small>mmHg</small></div>
+                                                            <div><span>Frec. Cardíaca</span><strong>{activeBookRecord.frecuencia_cardiaca || '—'}</strong><small>lpm</small></div>
+                                                            <div><span>Frec. Respiratoria</span><strong>{activeBookRecord.frecuencia_respiratoria || '—'}</strong><small>rpm</small></div>
+                                                            <div><span>Temperatura</span><strong>{activeBookRecord.temperatura ? Number(activeBookRecord.temperatura) : '—'}</strong><small>°C</small></div>
+                                                            <div><span>Talla</span><strong>{activeBookRecord.talla ? Number(activeBookRecord.talla) : '—'}</strong><small>cm</small></div>
+                                                            <div><span>Peso</span><strong>{activeBookRecord.peso ? Number(activeBookRecord.peso) : '—'}</strong><small>kg</small></div>
+                                                        </div>
+                                                    )}
+                                                    {!['diario', 'evolucion', 'signos'].includes(activeBookRecord.type) && (
+                                                        <div className="preview-paper-field">
+                                                            <span>Detalle</span>
+                                                            <p style={{ margin: 0 }}>{activeBookRecord.detalle_evolucion || 'Sin observaciones registradas.'}</p>
+                                                        </div>
+                                                    )}
                                                     {activeBookRecord.medico && (
-                                                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
-                                                            Registrado por: <strong>{activeBookRecord.medico}</strong>
+                                                        <div className="preview-paper-field">
+                                                            <span>Registrado por</span>
+                                                            <strong>{activeBookRecord.medico}</strong>
                                                         </div>
                                                     )}
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* SECCIÓN DE RECETARIOS Y PRESCRIPCIONES DEL PACIENTE */}
-                                    <div className="card" style={{ borderRadius: '14px', padding: '20px', background: 'white', boxShadow: 'var(--shadow-sm)', marginTop: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ background: '#f0fdf4', color: '#166534', padding: '8px', borderRadius: '8px' }}>
-                                                    <Pill size={18} />
-                                                </div>
-                                                <div>
-                                                    <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--primary)' }}>Recetarios & Prescripciones del Paciente</h3>
-                                                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Histórico de recetas médicas emitidas para este trabajador/estudiante.</p>
-                                                </div>
-                                            </div>
-                                            <span className="eyebrow" style={{ color: '#166534' }}>
-                                                {recetasData.filter(r => r.cedula === patientSelected.cedula || r.paciente.toLowerCase().includes((patientSelected.nombres || patientSelected.nombre_completo || '').toLowerCase())).length} RECETAS ENCONTRADAS
-                                            </span>
-                                        </div>
-
-                                        {recetasData.filter(r => r.cedula === patientSelected.cedula || r.paciente.toLowerCase().includes((patientSelected.nombres || patientSelected.nombre_completo || '').toLowerCase())).length === 0 ? (
-                                            <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                                                <Pill size={30} style={{ opacity: 0.4, marginBottom: '8px' }} />
-                                                <p style={{ margin: 0, fontSize: '12px' }}>El paciente no registra recetarios u órdenes de medicamentos emitidas previamente.</p>
-                                            </div>
-                                        ) : (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                {recetasData
-                                                    .filter(r => r.cedula === patientSelected.cedula || r.paciente.toLowerCase().includes((patientSelected.nombres || patientSelected.nombre_completo || '').toLowerCase()))
-                                                    .map((receta, idx) => (
-                                                        <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '14px 16px', background: '#fafbfd', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                                                            <div>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                    <strong style={{ fontSize: '13px', color: 'var(--primary)' }}>{receta.numero_receta || `REC-${receta.id}`}</strong>
-                                                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>· {receta.fecha}</span>
-                                                                    <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                                                                        {receta.estado || 'Emitido'}
-                                                                    </span>
-                                                                </div>
-                                                                <p style={{ margin: '6px 0 0', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                                                                    <strong>CIE:</strong> {receta.cie || 'General'} &nbsp;|&nbsp; <strong>Fármacos:</strong> {(receta.lineas || []).map(l => l.detalle_medicamento).join(', ') || receta.medicamentos}
-                                                                </p>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                className="action-button action-button--accent"
-                                                                style={{ padding: '6px 14px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                                onClick={() => setSelectedRecetaPreview(receta)}
-                                                            >
-                                                                <Pill size={14} /> Ver / Imprimir Recetario
-                                                            </button>
-                                                        </div>
-                                                    ))}
                                             </div>
                                         )}
                                     </div>
@@ -8651,6 +8647,20 @@ export default function MedicoOcupacionalPage() {
                                                         </select>
                                                     </label>
                                                     <label className="field">
+                                                        <span>Tipo de Atención *</span>
+                                                        <select
+                                                            aria-label="Tipo de Atención"
+                                                            value={tipoAtencion}
+                                                            onChange={e => setTipoAtencion(e.target.value)}
+                                                        >
+                                                            <option value="primaria">Primaria (Consulta Inicial)</option>
+                                                            <option value="secundaria">Subsecuente (Seguimiento)</option>
+                                                        </select>
+                                                        <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                                                            La atención primaria inicia un nuevo tratamiento en la evolución del paciente.
+                                                        </small>
+                                                    </label>
+                                                    <label className="field">
                                                         <span>Motivo de la Atención Médica</span>
                                                         <textarea
                                                             rows={3}
@@ -9208,7 +9218,7 @@ export default function MedicoOcupacionalPage() {
                                                 api.post('/medicina-general/parte-diario', {
                                                     id_usuario_paciente: patientSelected.id,
                                                     fecha: localDateStr(),
-                                                    tipo_atencion: 'primaria',
+                                                    tipo_atencion: tipoAtencion,
                                                     tipo: prescripcionesList.length > 0 ? 'curativo' : 'preventivo',
                                                     detalle_diagnostico: diagnosticoCie || `Evaluación ocupacional (${tipoFicha})`
                                                 }).then(() => {
