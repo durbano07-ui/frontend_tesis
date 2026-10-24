@@ -6299,6 +6299,12 @@ textarea::-webkit-scrollbar {
     border: 1px solid #ffe4e6;
 }
 
+.evolution-badge--ocupacional {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+}
+
 /* Forzar legibilidad y contraste alto en menús desplegables select > option */
 select option,
 .premium-field-card select option,

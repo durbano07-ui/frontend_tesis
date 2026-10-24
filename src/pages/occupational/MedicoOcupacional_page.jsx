@@ -1281,7 +1281,9 @@ export default function MedicoOcupacionalPage() {
     const [examResultModal, setExamResultModal] = useState({ show: false, item: null, resultadoText: '', estado: 'Realizado' });
 
     // Evolución & Historical Tracking State
-    const [activeBookArea, setActiveBookArea] = useState('medicina');
+    // Cada departamento ve solo su historial; el médico coordinador ve todas las áreas
+    const esCoordinador = (user?.roles || []).some(r => (typeof r === 'string' ? r : r?.name) === 'medico_coordinador');
+    const [activeBookArea, setActiveBookArea] = useState(esCoordinador ? 'medicina' : 'ocupacional');
     const [activeBookRecord, setActiveBookRecord] = useState(null);
     const [historyPage, setHistoryPage] = useState(1);
     const HISTORY_PER_PAGE = 5;
@@ -1292,7 +1294,7 @@ export default function MedicoOcupacionalPage() {
         prescripcion_medica: ''
     });
 
-    const [areaHistories, setAreaHistories] = useState({ medicina: [], psicologia: [], odontologia: [], enfermeria: [] });
+    const [areaHistories, setAreaHistories] = useState({ ocupacional: [], medicina: [], psicologia: [], odontologia: [], enfermeria: [] });
     const [areaHistoriesLoading, setAreaHistoriesLoading] = useState(false);
 
     // Historial real del paciente en cada área (mismas consultas que la vista integrada de Medicina General)
@@ -1303,16 +1305,20 @@ export default function MedicoOcupacionalPage() {
             .then(res => (Array.isArray(res.data?.data) ? res.data.data : []))
             .catch(() => []);
         try {
+            // Las atenciones ocupacionales se registran en las tablas de Medicina General; el backend
+            // devuelve solo las de profesionales del mismo departamento (o todas al coordinador).
+            // /enfermeria/signos-vitales aplica ese filtro; /medicina-general/signos-vitales no.
+            const none = Promise.resolve([]);
             const [medEvol, medDiario, medSignos, psiEvol, psiDiario, odoEvol, odoDiario, enfVitals, enfDiario] = await Promise.all([
                 get('/medicina-general/historial-evolucion'),
                 get('/medicina-general/parte-diario'),
-                get('/medicina-general/signos-vitales'),
-                get('/psicologia/historial-evolucion'),
-                get('/psicologia/parte-diario'),
-                get('/odontologia/historial-evolucion'),
-                get('/odontologia/parte-diario-odontologia'),
+                esCoordinador ? get('/medicina-general/signos-vitales') : none,
+                esCoordinador ? get('/psicologia/historial-evolucion') : none,
+                esCoordinador ? get('/psicologia/parte-diario') : none,
+                esCoordinador ? get('/odontologia/historial-evolucion') : none,
+                esCoordinador ? get('/odontologia/parte-diario-odontologia') : none,
                 get('/enfermeria/signos-vitales'),
-                get('/enfermeria/parte-diario')
+                esCoordinador ? get('/enfermeria/parte-diario') : none
             ]);
             const propio = (list) => list.filter(x => String(x.id_usuario_paciente) === String(patientId));
             const quien = (x) => {
@@ -1337,6 +1343,17 @@ export default function MedicoOcupacionalPage() {
             const ordenar = (list) => list.sort((a, b) => new Date(b.fecha || b.created_at) - new Date(a.fecha || a.created_at));
             // Signos vitales: ambas rutas leen la misma tabla, se quitan los repetidos
             const vitales = [...new Map([...propio(medSignos), ...propio(enfVitals)].map(v => [v.id, v])).values()];
+
+            if (!esCoordinador) {
+                setAreaHistories({
+                    ocupacional: ordenar([
+                        ...propio(medEvol).map(x => item(x, 'Evolución Ocupacional', x.detalle_evolucion)),
+                        ...propio(medDiario).map(x => item(x, 'Atención Ocupacional', x.detalle_diagnostico)),
+                        ...propio(enfVitals).map(x => item(x, 'Signos Vitales', signos(x)))
+                    ])
+                });
+                return;
+            }
 
             setAreaHistories({
                 medicina: ordenar([
@@ -6662,17 +6679,19 @@ export default function MedicoOcupacionalPage() {
                                         <div>
                                             <span className="eyebrow" style={{ color: '#dc2626', fontWeight: '700' }}>HISTORIAL CLÍNICO</span>
                                             <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Historial Clínico del Paciente</h3>
-                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Consulte la evolución y atenciones del paciente agrupadas por área clínica.</p>
+                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>{esCoordinador ? 'Consulte la evolución y atenciones del paciente agrupadas por área clínica.' : 'Consulte las atenciones y la evolución del paciente en Medicina Ocupacional.'}</p>
                                         </div>
 
                                         {/* Liquid Navigation Bar */}
                                         <div className="liquid-nav" style={{ margin: 0 }}>
-                                            {[
+                                            {(esCoordinador ? [
                                                 { key: 'medicina', label: 'Medicina General', icon: <Stethoscope size={15} /> },
                                                 { key: 'psicologia', label: 'Psicología Clínica', icon: <Brain size={15} /> },
                                                 { key: 'odontologia', label: 'Odontología', icon: <Shield size={15} /> },
                                                 { key: 'enfermeria', label: 'Enfermería', icon: <HeartPulse size={15} /> }
-                                            ].map(area => (
+                                            ] : [
+                                                { key: 'ocupacional', label: 'Medicina Ocupacional', icon: <Briefcase size={15} /> }
+                                            ]).map(area => (
                                                 <button
                                                     key={area.key}
                                                     className={`liquid-nav__item ${activeBookArea === area.key ? 'active' : ''}`}
