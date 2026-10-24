@@ -1684,6 +1684,7 @@ export default function MedicoOcupacionalPage() {
     const [genReportLoading, setGenReportLoading] = useState(false);
     const [genReportData, setGenReportData] = useState(null);
     const [toast, setToast] = useState({ show: false, message: '' });
+    const [examSaving, setExamSaving] = useState(false);
     const showSystemToast = (message) => {
         setToast({ show: true, message });
         setTimeout(() => setToast({ show: false, message: '' }), 3400);
@@ -5992,43 +5993,39 @@ export default function MedicoOcupacionalPage() {
         setIsExamModalOpen(true);
     };
 
-    const handleSaveExamOrder = (e) => {
+    const handleSaveExamOrder = async (e) => {
         e.preventDefault();
+        if (examSaving) return;
         const pacienteNombreFinal = patientSelected
             ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim()
             : (examForm.pacienteNombre || '');
-        const pacienteCedulaFinal = patientSelected
-            ? patientSelected.cedula
-            : (examForm.pacienteCedula || '');
 
-        if (!pacienteNombreFinal) {
-            alert('Por favor seleccione un paciente antes de emitir la orden de examen.');
+        // La orden se guarda en el expediente del paciente: debe estar registrado en el sistema
+        if (!patientSelected?.id) {
+            alert('Seleccione un paciente registrado con el buscador antes de emitir la orden de examen.');
             return;
         }
 
-        const newOrder = {
-            id: Date.now(),
-            fecha: localDateStr(),
-            paciente: pacienteNombreFinal,
-            cedula: pacienteCedulaFinal,
-            examen: examForm.examenTipo,
-            motivo: examForm.motivo,
-            laboratorio: examForm.laboratorio,
-            prioridad: examForm.prioridad,
-            estado: 'Pendiente',
-            resultado: 'Pendiente de emisión por laboratorio'
-        };
-        setExamenesData([newOrder, ...examenesData]);
-        setIsExamModalOpen(false);
-
-        if (patientSelected?.id) {
-            api.post('/medicina-ocupacional/orden-examen', {
+        setExamSaving(true);
+        try {
+            await api.post('/medicina-ocupacional/orden-examen', {
                 id_usuario_paciente: patientSelected.id,
                 fecha: localDateStr(),
                 observaciones: examForm.motivo || 'Orden de examen ocupacional',
                 otros_examenes: [examForm.examenTipo]
-            }).catch(err => console.log('Exam order saved locally'));
+            });
+        } catch (err) {
+            const data = err.response?.data;
+            const firstError = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
+            alert(`No se pudo emitir la orden de examen. ${firstError || data?.message || 'Verifique su conexión e inténtelo de nuevo.'}`);
+            setExamSaving(false);
+            return;
         }
+        setExamSaving(false);
+
+        setIsExamModalOpen(false);
+        showSystemToast(`Orden de examen emitida con éxito para ${pacienteNombreFinal}.`);
+        fetchExamOrders();
 
         setExamForm({
             pacienteCedula: '',
@@ -9767,7 +9764,7 @@ export default function MedicoOcupacionalPage() {
 
                             <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="action-button action-button--light" onClick={handleCancelExamModal}>Cancelar</button>
-                                <button type="submit" className="action-button action-button--primary">Emitir Orden de Examen</button>
+                                <button type="submit" className="action-button action-button--primary" disabled={examSaving}>{examSaving ? 'Emitiendo...' : 'Emitir Orden de Examen'}</button>
                             </footer>
                         </form>
                     </div>
