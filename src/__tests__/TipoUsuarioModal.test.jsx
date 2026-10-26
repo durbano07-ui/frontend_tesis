@@ -11,8 +11,8 @@ const CATALOGOS = {
         { id: 1, nombre: 'Médico' }, { id: 2, nombre: 'Estudiante' }, { id: 3, nombre: 'Docente' },
         { id: 4, nombre: 'Administrativo' }, { id: 5, nombre: 'Código de Trabajo' },
     ],
-    facultades: [{ id: 10, nombre: 'CIENCIAS DE LA SALUD' }],
-    carreras: [{ id: 100, nombre: 'ENFERMERÍA', id_facultad: 10 }],
+    facultades: [{ id: 10, nombre: 'CIENCIAS DE LA SALUD' }, { id: 20, nombre: 'JURISPRUDENCIA' }],
+    carreras: [{ id: 100, nombre: 'ENFERMERÍA', id_facultad: 10 }, { id: 101, nombre: 'MEDICINA', id_facultad: 10 }, { id: 200, nombre: 'DERECHO', id_facultad: 20 }],
     ciclos: [{ id: 5, numero: '5' }],
 };
 
@@ -55,13 +55,29 @@ describe('confirmación del tipo de usuario del paciente', () => {
 
         const confirmar = screen.getByRole('button', { name: 'Confirmar' });
         expect(confirmar.disabled).toBe(true);
+        // La carrera no se puede elegir hasta escoger la facultad
+        expect(screen.getByRole('combobox', { name: 'Carrera' }).disabled).toBe(true);
 
+        fireEvent.change(screen.getByRole('combobox', { name: 'Facultad' }), { target: { value: '10' } });
         fireEvent.change(screen.getByRole('combobox', { name: 'Carrera' }), { target: { value: '100' } });
         fireEvent.change(screen.getByRole('combobox', { name: 'Ciclo / semestre actual' }), { target: { value: '5' } });
         expect(confirmar.disabled).toBe(false);
         fireEvent.click(confirmar);
 
         await waitFor(() => expect(api.put).toHaveBeenCalledWith('/user-profile/tipo-usuario', { id_tipo_usuario: 2, id_carrera: 100, id_ciclo: 5 }));
+    });
+
+    it('solo muestra las carreras de la facultad elegida', async () => {
+        render(<TipoUsuarioModal />);
+        await screen.findByRole('dialog');
+        fireEvent.change(tipoSelect(), { target: { value: '2' } });
+        const carreras = () => [...screen.getByRole('combobox', { name: 'Carrera' }).options].map(o => o.textContent).slice(1);
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Facultad' }), { target: { value: '20' } });
+        expect(carreras()).toEqual(['DERECHO']);
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Facultad' }), { target: { value: '10' } });
+        expect(carreras()).toEqual(['ENFERMERÍA', 'MEDICINA']);
     });
 
     it('no aparece si el paciente ya confirmó', async () => {

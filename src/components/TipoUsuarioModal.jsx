@@ -26,7 +26,7 @@ const TipoUsuarioModal = () => {
     const { user } = useAuthStore();
     const [show, setShow] = useState(false);
     const [catalogos, setCatalogos] = useState({ tipos: [], carreras: [], facultades: [], ciclos: [] });
-    const [form, setForm] = useState({ id_tipo_usuario: '', id_carrera: '', id_ciclo: '' });
+    const [form, setForm] = useState({ id_tipo_usuario: '', id_facultad: '', id_carrera: '', id_ciclo: '' });
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
 
@@ -48,17 +48,20 @@ const TipoUsuarioModal = () => {
             .catch(() => { /* si falla la consulta no se bloquea al usuario */ });
     }, [user?.id]);
 
-    // Carreras agrupadas por facultad para el selector
-    const carrerasPorFacultad = useMemo(() => catalogos.facultades
-        .map(f => ({ ...f, carreras: catalogos.carreras.filter(c => Number(c.id_facultad) === Number(f.id)) }))
-        .filter(f => f.carreras.length > 0), [catalogos]);
+    // Solo facultades que tienen carreras, y solo las carreras de la facultad elegida
+    const facultadesConCarreras = useMemo(() => catalogos.facultades
+        .filter(f => catalogos.carreras.some(c => Number(c.id_facultad) === Number(f.id))), [catalogos]);
+    const carrerasDeFacultad = useMemo(() => catalogos.carreras
+        .filter(c => Number(c.id_facultad) === Number(form.id_facultad))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')), [catalogos, form.id_facultad]);
 
     const esEstudiante = Number(form.id_tipo_usuario) === TIPO_ESTUDIANTE;
-    const completo = form.id_tipo_usuario && (!esEstudiante || (form.id_carrera && form.id_ciclo));
+    const completo = form.id_tipo_usuario && (!esEstudiante || (form.id_facultad && form.id_carrera && form.id_ciclo));
 
     const handleSave = async () => {
         const next = {};
         if (!form.id_tipo_usuario) next.id_tipo_usuario = 'Selecciona una opción.';
+        if (esEstudiante && !form.id_facultad) next.id_facultad = 'Selecciona tu facultad.';
         if (esEstudiante && !form.id_carrera) next.id_carrera = 'Selecciona tu carrera.';
         if (esEstudiante && !form.id_ciclo) next.id_ciclo = 'Selecciona tu ciclo.';
         setErrors(next);
@@ -118,7 +121,7 @@ const TipoUsuarioModal = () => {
                         autoFocus
                         value={form.id_tipo_usuario}
                         aria-invalid={!!errors.id_tipo_usuario}
-                        onChange={(e) => { setForm({ id_tipo_usuario: e.target.value, id_carrera: '', id_ciclo: '' }); setErrors({}); }}
+                        onChange={(e) => { setForm({ id_tipo_usuario: e.target.value, id_facultad: '', id_carrera: '', id_ciclo: '' }); setErrors({}); }}
                         style={fieldStyle(errors.id_tipo_usuario)}
                     >
                         <option value="">Selecciona una opción</option>
@@ -130,19 +133,30 @@ const TipoUsuarioModal = () => {
                 {esEstudiante && (
                     <>
                         <label style={{ display: 'block', marginBottom: '18px' }}>
+                            <span style={labelStyle}>Facultad</span>
+                            <select
+                                value={form.id_facultad}
+                                aria-invalid={!!errors.id_facultad}
+                                onChange={(e) => { setForm({ ...form, id_facultad: e.target.value, id_carrera: '' }); setErrors({ ...errors, id_facultad: undefined }); }}
+                                style={fieldStyle(errors.id_facultad)}
+                            >
+                                <option value="">Selecciona tu facultad</option>
+                                {facultadesConCarreras.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+                            </select>
+                            {errors.id_facultad && <small role="alert" style={{ display: 'block', marginTop: '6px', color: '#ef4444', fontSize: '12px' }}>{errors.id_facultad}</small>}
+                        </label>
+
+                        <label style={{ display: 'block', marginBottom: '18px' }}>
                             <span style={labelStyle}>Carrera</span>
                             <select
                                 value={form.id_carrera}
+                                disabled={!form.id_facultad}
                                 aria-invalid={!!errors.id_carrera}
                                 onChange={(e) => { setForm({ ...form, id_carrera: e.target.value }); setErrors({ ...errors, id_carrera: undefined }); }}
-                                style={fieldStyle(errors.id_carrera)}
+                                style={{ ...fieldStyle(errors.id_carrera), opacity: form.id_facultad ? 1 : 0.6 }}
                             >
-                                <option value="">Selecciona tu carrera</option>
-                                {carrerasPorFacultad.map(f => (
-                                    <optgroup key={f.id} label={f.nombre}>
-                                        {f.carreras.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                    </optgroup>
-                                ))}
+                                <option value="">{form.id_facultad ? 'Selecciona tu carrera' : 'Primero elige la facultad'}</option>
+                                {carrerasDeFacultad.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                             </select>
                             {errors.id_carrera && <small role="alert" style={{ display: 'block', marginTop: '6px', color: '#ef4444', fontSize: '12px' }}>{errors.id_carrera}</small>}
                         </label>
