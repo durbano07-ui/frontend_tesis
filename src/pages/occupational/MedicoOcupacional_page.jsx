@@ -18,7 +18,7 @@ import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetir
 import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
 import MatrizRegistroModal from './MatrizRegistroModal';
 import ResultadoExamenModal, { abrirResultadoPdf } from './ResultadoExamenModal';
-import PeriodoSelector from '../../components/PeriodoSelector';
+import ReporteEncabezado, { ListaRegistros } from '../../components/ReporteEncabezado';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup, fechaPrincipal } from './matricesOcupacionales';
 
@@ -72,6 +72,21 @@ const DEPARTMENTS = [
     'Biblioteca Central',
     'Financiero y Contabilidad',
     'Otra Área / Departamento'
+];
+
+// Matrices que se consultan en Reportes
+const MATRICES_REPORTE = [
+    ['catastroficas', 'Enfermedades Catastróficas o Huérfanas'],
+    ['accidentes', 'Accidentes Laborales y Enfermedades Profesionales'],
+    ['covid', 'Casos Sospechosos y Confirmados COVID-19'],
+    ['ausentismo', 'Ausentismo Laboral'],
+    ['embarazadas', 'Censo de Embarazadas'],
+    ['psicosocial', 'Riesgo Psicosocial (Ansiedad y Depresión)'],
+    ['enfermedades_nuevas', 'Enfermedades Nuevas'],
+    ['examenes_periodicos', 'Exámenes Médicos y Fichas Periódicas por Mes'],
+    ['discapacidad', 'Funcionarios con Discapacidad'],
+    ['vulnerables_patologias', 'Grupos Vulnerables (Diabéticos, Hipertensos, Adulto Mayor, Otras)'],
+    ['personal_nuevo', 'Personal Nuevo que Ingresó en el Año']
 ];
 
 // Tipo de ficha ocupacional: clave en el servidor <-> etiqueta del formulario
@@ -830,6 +845,7 @@ export default function MedicoOcupacionalPage() {
             setExamenesData(mapped);
         } catch (err) {
             console.error('No se pudieron cargar las órdenes de examen:', err);
+            showSystemToast(`No se pudieron cargar las órdenes de examen: ${err.response?.data?.message || 'sin conexión con el servidor'}.`);
         }
     };
 
@@ -862,6 +878,7 @@ export default function MedicoOcupacionalPage() {
             setReintegrosData(fichas.filter(f => f.tipoFicha === 'reintegro'));
         } catch (err) {
             console.error('No se pudieron cargar las fichas ocupacionales:', err);
+            showSystemToast(`No se pudieron cargar las fichas: ${err.response?.data?.message || 'sin conexión con el servidor'}.`);
         }
     };
     const fetchReintegros = fetchFichasBackend;
@@ -905,6 +922,7 @@ export default function MedicoOcupacionalPage() {
             setRecetasData(recetas);
         } catch (err) {
             console.error('No se pudo cargar el recetario:', err);
+            showSystemToast(`No se pudo cargar el recetario: ${err.response?.data?.message || 'sin conexión con el servidor'}.`);
         }
     };
 
@@ -6073,7 +6091,7 @@ export default function MedicoOcupacionalPage() {
                                 </div>
                             )}
 
-                            {(activeTab === 'matrices' || isMatricesCat) && (
+                            {activeTab === 'matrices' && (
                                 <div className="report-toolbar">
                                     <div className="field">
                                         <label>{activeTab === 'matrices' ? 'REGISTRAR EN' : 'MATRIZ'}</label>
@@ -6210,98 +6228,30 @@ export default function MedicoOcupacionalPage() {
                             {/* SUBTAB: FICHAS OCUPACIONALES - FORMATO OFICIAL MSP/MDT 077 */}
                             {activeReportSubTab === 'fichas' && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    {/* TARJETA DE CONTROL: SUBPESTAÑAS Y BUSCADOR DE PACIENTE */}
-                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
-                                            <div>
-                                                <span className="eyebrow">MINISTERIO DE SALUD PÚBLICA / MDT</span>
-                                                <h3 style={{ margin: '4px 0 6px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                                                    Fichas Médicas Ocupacionales · Formulario Oficial 077
-                                                </h3>
-                                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                                                    Formato oficial normado de evaluación médica ocupacional (MSP / MDT Formulario 077).
-                                                </p>
-                                                
-                                                {/* SUBPESTAÑAS DE TIPO DE FICHA 077 */}
-                                                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
-                                                    <button
-                                                        type="button"
-                                                        className={`history-tab ${fichaSubTab === 'ingreso' ? 'active' : ''}`}
-                                                        onClick={() => {
-                                                            setFichaSubTab('ingreso');
-                                                            const firstIngreso = fichasData.find(f => f.tipo === 'Ingreso' || f.tipo === 'Periódico');
-                                                            if (firstIngreso) setSelectedFichaWorkerId(firstIngreso.id);
-                                                        }}
-                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                                                    >
-                                                        <FileCheck size={14} /> Ingreso / Periódico (077)
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className={`history-tab ${fichaSubTab === 'cese' ? 'active' : ''}`}
-                                                        onClick={() => {
-                                                            setFichaSubTab('cese');
-                                                            const firstRetiro = fichasData.find(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
-                                                            if (firstRetiro) setSelectedFichaWorkerId(firstRetiro.id);
-                                                        }}
-                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                                                    >
-                                                        <UserX size={14} /> Retiro / Cese (077)
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className={`history-tab ${fichaSubTab === 'reintegro' ? 'active' : ''}`}
-                                                        onClick={() => {
-                                                            setFichaSubTab('reintegro');
-                                                            if (reintegrosData.length > 0) setSelectedFichaWorkerId(reintegrosData[0].id);
-                                                        }}
-                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                                                    >
-                                                        <RefreshCw size={14} /> Reintegro Laboral (077)
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* PERÍODO DE EMISIÓN DE LAS FICHAS */}
-                                            <PeriodoSelector value={fichaPeriodo} onChange={setFichaPeriodo} que="de emisión de las fichas" />
-                                        </div>
-
-                                        {/* Fichas de la pestaña emitidas en el período */}
-                                        <div style={{ marginTop: '14px' }}>
-                                            <span role="status" aria-live="polite" style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
-                                                {activeFichas.length === 0
-                                                    ? `No se emitieron fichas de este tipo ${describirPeriodo(fichaPeriodo)}.`
-                                                    : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha emitida' : 'fichas emitidas'} ${describirPeriodo(fichaPeriodo)}`}
-                                            </span>
-                                            {activeFichas.length > 0 && (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
-                                                    {activeFichas.map(ficha => {
-                                                        const seleccionada = selectedFichaRecord?.id === ficha.id;
-                                                        return (
-                                                            <button
-                                                                key={ficha.id}
-                                                                type="button"
-                                                                aria-pressed={seleccionada}
-                                                                onClick={() => setSelectedFichaWorkerId(ficha.id)}
-                                                                style={{
-                                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textAlign: 'left',
-                                                                    padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-                                                                    border: seleccionada ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                                                                    background: seleccionada ? 'var(--primary-soft)' : '#f8fafc'
-                                                                }}
-                                                            >
-                                                                <span style={{ minWidth: 0 }}>
-                                                                    <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>{ficha.paciente || 'Sin nombre'}</strong>
-                                                                    <small style={{ color: '#64748b', fontSize: '11px' }}>C.I. {ficha.cedula || '—'} · {ficha.tipo}</small>
-                                                                </span>
-                                                                <small style={{ color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>{formatFecha(ficha.fecha)}</small>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </article>
+                                    <ReporteEncabezado
+                                        eyebrow="MINISTERIO DE SALUD PÚBLICA / MDT"
+                                        titulo="Fichas Médicas Ocupacionales · Formulario Oficial 077"
+                                        descripcion="Formato oficial normado de evaluación médica ocupacional (MSP / MDT Formulario 077)."
+                                        periodo={fichaPeriodo}
+                                        onPeriodo={setFichaPeriodo}
+                                        que="de emisión de las fichas"
+                                        tabs={[
+                                            { id: 'ingreso', label: 'Ingreso / Periódico (077)', icon: FileCheck },
+                                            { id: 'cese', label: 'Retiro / Cese (077)', icon: UserX },
+                                            { id: 'reintegro', label: 'Reintegro Laboral (077)', icon: RefreshCw }
+                                        ]}
+                                        tabActiva={fichaSubTab}
+                                        onTab={(id) => { setFichaSubTab(id); setSelectedFichaWorkerId(null); }}
+                                        estado={activeFichas.length === 0
+                                            ? `No se emitieron fichas de este tipo ${describirPeriodo(fichaPeriodo)}.`
+                                            : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha emitida' : 'fichas emitidas'} ${describirPeriodo(fichaPeriodo)}`}
+                                    >
+                                        <ListaRegistros
+                                            items={activeFichas.map(f => ({ id: f.id, titulo: f.paciente || 'Sin nombre', detalle: `C.I. ${f.cedula || '—'} · ${f.tipo}`, fecha: f.fecha }))}
+                                            seleccionado={selectedFichaRecord?.id}
+                                            onSeleccionar={setSelectedFichaWorkerId}
+                                        />
+                                    </ReporteEncabezado>
 
                                     {/* VISOR DE DOCUMENTO OFICIAL FORMATO 077 */}
                                     <div className="document-viewer" style={{
@@ -6493,36 +6443,24 @@ export default function MedicoOcupacionalPage() {
                                 ];
                                 return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
-                                            <div>
-                                                <span className="eyebrow">DIAGNÓSTICO OCUPACIONAL</span>
-                                                <h3>Órdenes de Exámenes Enviadas</h3>
-                                                <p>Consulte las solicitudes de examen emitidas en un día o en un mes y si ya tienen adjunto el PDF de resultados.</p>
-                                            </div>
-
-                                            {/* PERÍODO: DÍA O MES */}
-                                            <PeriodoSelector value={examPeriodo} onChange={setExamPeriodo} que="de envío de las órdenes" />
-                                        </div>
-                                    </article>
+                                    <ReporteEncabezado
+                                        eyebrow="DIAGNÓSTICO OCUPACIONAL"
+                                        titulo="Órdenes de Exámenes Enviadas"
+                                        descripcion="Consulte las solicitudes de examen emitidas en un día o en un mes y si ya tienen adjunto el PDF de resultados."
+                                        periodo={examPeriodo}
+                                        onPeriodo={setExamPeriodo}
+                                        que="de envío de las órdenes"
+                                        tabs={filtros.map(([id, label, icon]) => ({ id, label, icon }))}
+                                        tabActiva={examFilterStatus}
+                                        onTab={setExamFilterStatus}
+                                        estado={examenesDelPeriodo.length === 0
+                                            ? `No se enviaron órdenes de examen ${descripcionPeriodo}.`
+                                            : `Órdenes enviadas ${descripcionPeriodo}: ${examenesDelPeriodo.length} · con PDF: ${conPdf} · sin PDF: ${examenesDelPeriodo.length - conPdf}`}
+                                    />
 
                                     <div className="card" style={{ borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', background: '#ffffff' }}>
-                                        {/* ESTADO DEL PDF, BÚSQUEDA Y CONTEO */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
-                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                {filtros.map(([valor, texto, Icono]) => (
-                                                    <button
-                                                        key={valor}
-                                                        type="button"
-                                                        aria-pressed={examFilterStatus === valor}
-                                                        className={`history-tab ${examFilterStatus === valor ? 'active' : ''}`}
-                                                        onClick={() => setExamFilterStatus(valor)}
-                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                                                    >
-                                                        <Icono size={14} /> {texto}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        {/* BÚSQUEDA */}
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
                                             <div className="patient-search-input" style={{ width: '100%', maxWidth: '340px', margin: 0 }}>
                                                 <Search size={16} />
                                                 <input
@@ -6534,11 +6472,6 @@ export default function MedicoOcupacionalPage() {
                                                 />
                                             </div>
                                         </div>
-                                        <p role="status" aria-live="polite" style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
-                                            {examenesDelPeriodo.length === 0
-                                                ? `No se enviaron órdenes de examen ${descripcionPeriodo}.`
-                                                : <>Órdenes enviadas {descripcionPeriodo}: <strong>{examenesDelPeriodo.length}</strong> · con PDF: <strong>{conPdf}</strong> · sin PDF: <strong>{examenesDelPeriodo.length - conPdf}</strong></>}
-                                        </p>
 
                                         {/* TABLA DE ÓRDENES */}
                                         <div className="table-responsive">
@@ -6634,59 +6567,23 @@ export default function MedicoOcupacionalPage() {
 
                                 return (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        {/* TARJETA DE CONTROL: PERÍODO Y RECETAS EMITIDAS */}
-                                        <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
-                                                <div>
-                                                    <span className="eyebrow">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</span>
-                                                    <h3 style={{ margin: '4px 0 6px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                                                        Prescripción Médica Ocupacional · Recetario Oficial
-                                                    </h3>
-                                                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                                                        Formato oficial normado de indicaciones farmacológicas, horarios y recomendaciones médicas para el paciente.
-                                                    </p>
-                                                </div>
-
-                                                {/* PERÍODO DE EMISIÓN DE LAS RECETAS */}
-                                                <PeriodoSelector value={recetaPeriodo} onChange={setRecetaPeriodo} que="de emisión de las recetas" />
-                                            </div>
-
-                                            {/* Recetas emitidas en el período */}
-                                            <div style={{ marginTop: '14px' }}>
-                                                <span role="status" aria-live="polite" style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
-                                                    {filteredRecetas.length === 0
-                                                        ? `No se emitieron recetas ${describirPeriodo(recetaPeriodo)}.`
-                                                        : `${filteredRecetas.length} ${filteredRecetas.length === 1 ? 'receta emitida' : 'recetas emitidas'} ${describirPeriodo(recetaPeriodo)}`}
-                                                </span>
-                                                {filteredRecetas.length > 0 && (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
-                                                        {filteredRecetas.map(receta => {
-                                                            const seleccionada = currentSelectedReceta?.id === receta.id;
-                                                            return (
-                                                                <button
-                                                                    key={receta.id}
-                                                                    type="button"
-                                                                    aria-pressed={seleccionada}
-                                                                    onClick={() => setSelectedRecetaId(receta.id)}
-                                                                    style={{
-                                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textAlign: 'left',
-                                                                        padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-                                                                        border: seleccionada ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                                                                        background: seleccionada ? 'var(--primary-soft)' : '#f8fafc'
-                                                                    }}
-                                                                >
-                                                                    <span style={{ minWidth: 0 }}>
-                                                                        <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>{receta.paciente || 'Sin nombre'}</strong>
-                                                                        <small style={{ color: '#64748b', fontSize: '11px' }}>C.I. {receta.cedula || '—'} · {receta.numero_receta} · {receta.estado}</small>
-                                                                    </span>
-                                                                    <small style={{ color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>{formatFecha(receta.fecha)}</small>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </article>
+                                        <ReporteEncabezado
+                                            eyebrow="DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL"
+                                            titulo="Prescripción Médica Ocupacional · Recetario Oficial"
+                                            descripcion="Formato oficial normado de indicaciones farmacológicas, horarios y recomendaciones médicas para el paciente."
+                                            periodo={recetaPeriodo}
+                                            onPeriodo={setRecetaPeriodo}
+                                            que="de emisión de las recetas"
+                                            estado={filteredRecetas.length === 0
+                                                ? `No se emitieron recetas ${describirPeriodo(recetaPeriodo)}.`
+                                                : `${filteredRecetas.length} ${filteredRecetas.length === 1 ? 'receta emitida' : 'recetas emitidas'} ${describirPeriodo(recetaPeriodo)}`}
+                                        >
+                                            <ListaRegistros
+                                                items={filteredRecetas.map(r => ({ id: r.id, titulo: r.paciente || 'Sin nombre', detalle: `C.I. ${r.cedula || '—'} · ${r.numero_receta} · ${r.estado}`, fecha: r.fecha }))}
+                                                seleccionado={currentSelectedReceta?.id}
+                                                onSeleccionar={setSelectedRecetaId}
+                                            />
+                                        </ReporteEncabezado>
 
                                         {/* VISOR DE PDF OFICIAL DE PREESCRIPCIÓN MÉDICA */}
                                         <div className="document-viewer" style={{
@@ -6909,50 +6806,32 @@ export default function MedicoOcupacionalPage() {
                                 const meta = getActiveMatrixMeta();
                                 return (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        {/* PANEL DE CONTROL SUPERIOR */}
-                                        <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '18px 20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                                                <div>
-                                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{meta.title}</h3>
-                                                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
-                                                        {activeReportSubTab === 'examenes_periodicos'
-                                                            ? 'Matriz anual: elija el año en el visor.'
-                                                            : `${meta.count} ${meta.count === 1 ? 'registro' : 'registros'} ${describirPeriodo(matrizPeriodo)}`}
-                                                    </p>
-                                                </div>
-
-                                                {/* PERÍODO DE LOS REGISTROS (la matriz de exámenes periódicos es anual y tiene su propio año) */}
-                                                {activeReportSubTab !== 'examenes_periodicos' && (
-                                                    <PeriodoSelector value={matrizPeriodo} onChange={setMatrizPeriodo} que="de los registros de la matriz" />
-                                                )}
-                                            </div>
-
-                                            {/* SUBTABS DE CATEGORÍA SI TIENE */}
-                                            {meta.subtabs && meta.subtabs.length > 0 && (
-                                                <div style={{ display: 'flex', gap: '6px', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f1f5f9', overflowX: 'auto' }}>
-                                                    {meta.subtabs.map(tab => (
-                                                        <button
-                                                            key={tab.id}
-                                                            onClick={() => meta.onSubtabChange(tab.id)}
-                                                            style={{
-                                                                padding: '6px 14px',
-                                                                borderRadius: '6px',
-                                                                border: 'none',
-                                                                fontSize: '11.5px',
-                                                                fontWeight: meta.activeSubtab === tab.id ? '700' : '500',
-                                                                background: meta.activeSubtab === tab.id ? '#0f172a' : '#f1f5f9',
-                                                                color: meta.activeSubtab === tab.id ? '#ffffff' : '#475569',
-                                                                cursor: 'pointer',
-                                                                whiteSpace: 'nowrap',
-                                                                transition: 'all 0.15s'
-                                                            }}
-                                                        >
-                                                            {tab.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </article>
+                                        <ReporteEncabezado
+                                            eyebrow="MATRICES ESTADÍSTICAS · SALUD OCUPACIONAL"
+                                            titulo={meta.title}
+                                            // La matriz de exámenes periódicos es anual y tiene su propio año en el visor
+                                            periodo={activeReportSubTab !== 'examenes_periodicos' ? matrizPeriodo : null}
+                                            onPeriodo={setMatrizPeriodo}
+                                            que="de los registros de la matriz"
+                                            extra={
+                                                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '520px' }}>
+                                                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Matriz</span>
+                                                    <select
+                                                        value={activeReportSubTab}
+                                                        onChange={(e) => setActiveReportSubTab(e.target.value)}
+                                                        style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 10px', fontSize: '12.5px', background: '#ffffff' }}
+                                                    >
+                                                        {MATRICES_REPORTE.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
+                                                    </select>
+                                                </label>
+                                            }
+                                            tabs={(meta.subtabs || []).map(t => ({ id: t.id, label: t.label }))}
+                                            tabActiva={meta.activeSubtab}
+                                            onTab={meta.onSubtabChange}
+                                            estado={activeReportSubTab === 'examenes_periodicos'
+                                                ? 'Matriz anual: elija el año en el visor.'
+                                                : `${meta.count} ${meta.count === 1 ? 'registro' : 'registros'} ${describirPeriodo(matrizPeriodo)}`}
+                                        />
 
                                         {/* VISOR OFICIAL DE MATRIZ EN FORMATO PDF */}
                                         <div className="document-viewer" style={{ border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
