@@ -15,6 +15,7 @@ import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioTab';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -1867,32 +1868,22 @@ const MedicoGeneral_page = () => {
                     genderKey = 'lgbti';
                 }
 
-                const typeId = profile?.estudioCarrera?.id_tipo_usuario || profile?.estudio_carrera?.id_tipo_usuario || profile?.id_tipo_usuario;
-                let userType = 'estudiantes';
-                if (typeId === 2) {
+                // Tipo de usuario con los códigos correctos (ver utils/tipoPaciente.js). Los pacientes
+                // que aún no confirmaron su tipo no se cuentan en ningún grupo (antes se asumía uno).
+                const tipoPaciente = clasificarTipoPaciente(profile);
+                let userType = null;
+                if (tipoPaciente === 'estudiante') {
                     userType = 'estudiantes';
                     totalEstudiantes++;
-                } else if (typeId === 3) {
+                } else if (tipoPaciente === 'docente') {
                     userType = 'docentes';
                     totalDocentes++;
-                } else if (typeId === 4 || typeId === 5) {
+                } else if (esPersonalAdministrativo(tipoPaciente)) {
                     userType = 'administrativos';
                     totalAdministrativos++;
-                } else {
-                    const roleName = (profile?.role || '').toLowerCase();
-                    if (roleName.includes('estud')) {
-                        userType = 'estudiantes';
-                        totalEstudiantes++;
-                    } else if (roleName.includes('docen') || roleName.includes('prof')) {
-                        userType = 'docentes';
-                        totalDocentes++;
-                    } else {
-                        userType = 'administrativos';
-                        totalAdministrativos++;
-                    }
                 }
 
-                genderCounts[userType][genderKey]++;
+                if (userType) genderCounts[userType][genderKey]++;
 
                 let canonCareerName = null;
                 let repFacName = null;
@@ -2184,20 +2175,25 @@ const MedicoGeneral_page = () => {
                 }
 
                 // Área (Docente / Carrera o Administrativo)
-                const userType = item.paciente?.estudio_carrera?.tipo_usuario?.nombre?.toLowerCase() || item.paciente?.estudioCarrera?.tipoUsuario?.nombre?.toLowerCase() || '';
-                const carrera = item.paciente?.estudio_carrera?.carrera?.nombre || item.paciente?.estudioCarrera?.carrera?.nombre || '';
+                // Clasificación con los códigos correctos de tipo_usuario (ver utils/tipoPaciente.js)
+                const tipoPaciente = clasificarTipoPaciente(item.paciente);
+                const carrera = getEstudioCarrera(item.paciente)?.carrera?.nombre || '';
                 const cargo = item.paciente?.cargo?.detalle_cargo || '';
 
                 let areaDocenteCarrera = '';
                 let areaAdministrativo = '';
 
-                if (userType.includes('admin') || cargo) {
-                    areaAdministrativo = cargo || 'Administrativo';
+                if (esPersonalAdministrativo(tipoPaciente) || cargo) {
+                    // Código de trabajo también es personal de la institución (antes caía en "Carrera")
+                    areaAdministrativo = cargo || (tipoPaciente === 'codigo_trabajo' ? 'Código de Trabajo' : 'Administrativo');
                     totalAdministrativo++;
-                } else {
-                    const rolPrefix = userType.includes('docente') ? 'Docente - ' : '';
+                } else if (tipoPaciente === 'docente' || tipoPaciente === 'estudiante') {
+                    const rolPrefix = tipoPaciente === 'docente' ? 'Docente - ' : '';
                     areaDocenteCarrera = rolPrefix + (carrera || 'Carrera General');
                     totalDocenteCarrera++;
+                } else {
+                    // Aún no confirmó su tipo: se indica y no se suma a ninguna columna
+                    areaDocenteCarrera = 'Tipo sin confirmar';
                 }
 
                 // Tipo de Atención (Primera / Subsecuente / Certificado Médico / Validación)

@@ -20,6 +20,7 @@ import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { buildGeneralReportHtml } from './reports/generalReport';
 import { buildCurativasNarrative, buildFacultyNarrative, buildGenderNarrative, buildProcedimientosMorbilidadNarrative, buildProcedimientosPreventivosNarrative, defaultFacultyCareers } from './reports/narratives';
+import { clasificarTipoPaciente, esPersonalAdministrativo } from '../../utils/tipoPaciente';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -1660,22 +1661,15 @@ const Odontologo_page = () => {
                 sumLgbti++;
             }
 
-            const userTypeVal = item.paciente?.id_tipo_usuario;
-            const estudio = item.paciente?.estudio_carrera || item.paciente?.estudioCarrera;
-            let isEstudiante = false;
-            let isDocente = false;
-            let isAdministrativo = false;
-
-            if (estudio || userTypeVal === 1) {
-                isEstudiante = true;
-                sumEstudiante++;
-            } else if (userTypeVal === 2) {
-                isDocente = true;
-                sumDocente++;
-            } else if (userTypeVal === 3) {
-                isAdministrativo = true;
-                sumAdministrativo++;
-            }
+            // Clasificación con los códigos correctos de tipo_usuario (ver utils/tipoPaciente.js).
+            // Los pacientes que aún no confirmaron su tipo no se cuentan en ninguna categoría.
+            const tipoPaciente = clasificarTipoPaciente(item.paciente);
+            const isEstudiante = tipoPaciente === 'estudiante';
+            const isDocente = tipoPaciente === 'docente';
+            const isAdministrativo = esPersonalAdministrativo(tipoPaciente);
+            if (isEstudiante) sumEstudiante++;
+            else if (isDocente) sumDocente++;
+            else if (isAdministrativo) sumAdministrativo++;
 
             // Tipo de Atención
             const ta = (item.tipo_atencion || '').toLowerCase();
@@ -2757,42 +2751,22 @@ const Odontologo_page = () => {
                     genderKey = 'lgbti';
                 }
 
-                // Determinar el tipo de usuario (Estudiante, Docente, Administrativo)
-                const typeId = profile?.estudioCarrera?.id_tipo_usuario || profile?.estudio_carrera?.id_tipo_usuario || profile?.id_tipo_usuario;
-                let userType = 'estudiantes';
-                if (typeId === 2) {
+                // Tipo de usuario con los códigos correctos (ver utils/tipoPaciente.js). Los pacientes
+                // que aún no confirmaron su tipo no se cuentan en ningún grupo (antes se asumía uno).
+                const tipoPaciente = clasificarTipoPaciente(profile);
+                let userType = null;
+                if (tipoPaciente === 'estudiante') {
                     userType = 'estudiantes';
                     totalEstudiantes++;
-                } else if (typeId === 3) {
+                } else if (tipoPaciente === 'docente') {
                     userType = 'docentes';
                     totalDocentes++;
-                } else if (typeId === 4 || typeId === 5) {
+                } else if (esPersonalAdministrativo(tipoPaciente)) {
                     userType = 'administrativos';
                     totalAdministrativos++;
-                } else {
-                    // Fallback por rol o carrera
-                    const roleName = (profile?.role || '').toLowerCase();
-                    if (roleName.includes('estud')) {
-                        userType = 'estudiantes';
-                        totalEstudiantes++;
-                    } else if (roleName.includes('docen') || roleName.includes('prof')) {
-                        userType = 'docentes';
-                        totalDocentes++;
-                    } else if (roleName.includes('admin') || roleName.includes('trabaj')) {
-                        userType = 'administrativos';
-                        totalAdministrativos++;
-                    } else {
-                        if (profile?.estudioCarrera?.id_carrera) {
-                            userType = 'estudiantes';
-                            totalEstudiantes++;
-                        } else {
-                            userType = 'administrativos';
-                            totalAdministrativos++;
-                        }
-                    }
                 }
 
-                genderCounts[userType][genderKey]++;
+                if (userType) genderCounts[userType][genderKey]++;
 
                 // Mapear carrera y facultad para Estudiantes
                 let canonCareerName = null;
@@ -2861,8 +2835,10 @@ const Odontologo_page = () => {
                     }
                 }
 
-                // Tabla 3 (Consolidado)
-                if (isPreventivo) {
+                // Tabla 3 (Consolidado) y procedimientos: solo pacientes con tipo confirmado
+                if (!userType) {
+                    // sin tipo de usuario confirmado
+                } else if (isPreventivo) {
                     consolidadoStats.preventivo['Examen Odontológico'][userType][genderKey]++;
                     consolidadoStats.preventivo['Examen Odontológico'][userType].total++;
                 } else {
@@ -2878,7 +2854,9 @@ const Odontologo_page = () => {
                 const genKey = genderKey;
                 const catKey = userType;
 
-                if (proc.includes('profilaxis')) {
+                if (!catKey) {
+                    // sin tipo de usuario confirmado
+                } else if (proc.includes('profilaxis')) {
                     procPreventivos['PROFILAXIS'][catKey][genKey]++;
                 } else if (proc.includes('fluor')) {
                     procPreventivos['FLUORIZACIÓN'][catKey][genKey]++;

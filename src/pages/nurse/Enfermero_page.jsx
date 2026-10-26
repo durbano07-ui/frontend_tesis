@@ -17,6 +17,7 @@ import FarmaciaPresentacionesTab from '../../components/farmacia/FarmaciaPresent
 import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, Menu, ChevronDown, ShieldCheck, Pill, PackageCheck, Boxes, Stethoscope, ChevronRight, UserPlus, Pencil, Save, X, Syringe, Wind, CalendarCheck, CalendarDays, FileText, CheckCircle, BarChart3, UserRound, AlertTriangle, Clock, Thermometer, Ruler, Scale, User, Mail, Globe, UserCheck, HeartHandshake, TrendingUp, FileCheck, Info } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -683,25 +684,16 @@ const Enfermero_page = () => {
                 sumLgbti++;
             }
 
-            const estudio = item.paciente?.estudio_carrera || item.paciente?.estudioCarrera || item.paciente?.career_study;
-            const tipoUsuarioObj = estudio?.tipo_usuario || estudio?.tipoUsuario || {};
-            const tipoUsuarioNombre = (tipoUsuarioObj?.nombre || '').toLowerCase();
-            const userTypeVal = item.paciente?.id_tipo_usuario || estudio?.id_tipo_usuario;
-
-            let isEstudiante = false;
-            let isDocente = false;
-            let isAdministrativo = false;
-
-            if (tipoUsuarioNombre.includes('estud') || userTypeVal === 1 || (estudio && !tipoUsuarioNombre.includes('docen') && !tipoUsuarioNombre.includes('admin') && !tipoUsuarioNombre.includes('trabaj'))) {
-                isEstudiante = true;
-                sumEstudiante++;
-            } else if (tipoUsuarioNombre.includes('docen') || userTypeVal === 2) {
-                isDocente = true;
-                sumDocente++;
-            } else if (tipoUsuarioNombre.includes('admin') || tipoUsuarioNombre.includes('trabaj') || tipoUsuarioNombre.includes('serv') || userTypeVal === 3) {
-                isAdministrativo = true;
-                sumAdministrativo++;
-            }
+            const estudio = getEstudioCarrera(item.paciente);
+            // Clasificación con los códigos correctos de tipo_usuario (ver utils/tipoPaciente.js).
+            // Los pacientes que aún no confirmaron su tipo no se cuentan en ninguna categoría.
+            const tipoPaciente = clasificarTipoPaciente(item.paciente);
+            const isEstudiante = tipoPaciente === 'estudiante';
+            const isDocente = tipoPaciente === 'docente';
+            const isAdministrativo = esPersonalAdministrativo(tipoPaciente);
+            if (isEstudiante) sumEstudiante++;
+            else if (isDocente) sumDocente++;
+            else if (isAdministrativo) sumAdministrativo++;
 
             const careerName = isEstudiante ? (estudio?.carrera?.nombre || '—') : '—';
 
