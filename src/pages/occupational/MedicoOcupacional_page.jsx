@@ -5306,12 +5306,11 @@ export default function MedicoOcupacionalPage() {
                                 <div className="page-hero__icon"><ClipboardList size={34} /></div>
                             </section>
 
-                            {/* TARJETAS DE ACCIÓN DIRECTA CON TAMAÑO ACOTADO */}
-                            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            {/* TARJETAS DE ACCIÓN DIRECTA (misma cuadrícula que la pestaña de Atención) */}
+                            <section className="vitals-action-grid">
                                 <button
                                     className="vitals-action-card vitals-action-card--primary"
                                     onClick={() => openPatientSearch('exam')}
-                                    style={{ maxWidth: '380px', width: '100%' }}
                                 >
                                     <span className="vitals-action-card__glow"></span>
                                     <span className="vitals-action-card__icon"><Plus size={24} /></span>
@@ -5322,9 +5321,8 @@ export default function MedicoOcupacionalPage() {
                                     <span className="vitals-action-card__arrow"><ChevronRight size={20} /></span>
                                 </button>
                                 <button
-                                    className="vitals-action-card vitals-action-card--primary"
+                                    className="vitals-action-card vitals-action-card--secondary"
                                     onClick={() => setIsResultadoExamenOpen(true)}
-                                    style={{ maxWidth: '380px', width: '100%' }}
                                 >
                                     <span className="vitals-action-card__glow"></span>
                                     <span className="vitals-action-card__icon"><Upload size={24} /></span>
@@ -5334,7 +5332,7 @@ export default function MedicoOcupacionalPage() {
                                     </span>
                                     <span className="vitals-action-card__arrow"><ChevronRight size={20} /></span>
                                 </button>
-                            </div>
+                            </section>
                         </div>
                     )}
 
