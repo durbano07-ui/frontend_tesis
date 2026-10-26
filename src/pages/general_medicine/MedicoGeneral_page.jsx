@@ -18,6 +18,8 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
+import ReporteEncabezado from '../../components/ReporteEncabezado';
+import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -81,6 +83,11 @@ const MedicoGeneral_page = () => {
     const [citasList, setCitasList] = useState([]);
     const [citasLoading, setCitasLoading] = useState(false);
     const [citasDate, setCitasDate] = useState(new Date().toISOString().slice(0, 10));
+    // Reportes > Agendamiento de Citas: citas del día o mes elegido
+    const [reportCitasPeriodo, setReportCitasPeriodo] = useState(periodoInicial);
+    const [reportCitasEstado, setReportCitasEstado] = useState('all');
+    const [reportCitasTodas, setReportCitasTodas] = useState([]);
+    const [reportCitasLoading, setReportCitasLoading] = useState(false);
     const [citasPage, setCitasPage] = useState(1);
     const CITAS_PER_PAGE = 12;
     const [historyPage, setHistoryPage] = useState(1);
@@ -2495,6 +2502,23 @@ const MedicoGeneral_page = () => {
 
     // Appointments (Citas Médicas) actions
     // silent: actualización automática, sin indicador de carga
+    const fetchReportCitas = async () => {
+        setReportCitasLoading(true);
+        try {
+            const res = await api.get('/citas-medicas/doctor/citas');
+            setReportCitasTodas(Array.isArray(res.data?.data) ? res.data.data : []);
+        } catch (err) {
+            console.error('Error al cargar citas para el reporte:', err);
+            showSystemToast('No se pudieron cargar las citas para el reporte.');
+        } finally {
+            setReportCitasLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'historial' && activeReportSubTab === 'citas') fetchReportCitas();
+    }, [activeTab, activeReportSubTab]);
+
     const fetchCitasDoctor = async (silent = false) => {
         if (silent !== true) setCitasLoading(true);
         try {
@@ -2551,7 +2575,8 @@ const MedicoGeneral_page = () => {
         }
     };
 
-    const handlePrintReporteCitas = () => {
+    // Reporte de citas: por defecto el de la pestaña Citas; en Reportes recibe la lista del período
+    const handlePrintReporteCitas = (lista = citasList, etiquetaFecha = citasDate ? formatFecha(citasDate) : 'Todas las fechas') => {
         try {
             const printWindow = window.open('', '_blank');
             if (!printWindow) {
@@ -2560,15 +2585,15 @@ const MedicoGeneral_page = () => {
             }
 
             const doctorNameText = user?.name || 'Profesional Responsable';
-            const formattedDate = citasDate ? citasDate : 'Todas las fechas';
+            const formattedDate = etiquetaFecha;
 
-            const totalCitas = citasList.length;
-            const countProgramadas = citasList.filter(c => c.estado === 'programada').length;
-            const countConfirmadas = citasList.filter(c => c.estado === 'confirmada').length;
-            const countCompletadas = citasList.filter(c => c.estado === 'completada').length;
-            const countCanceladas = citasList.filter(c => c.estado === 'cancelada').length;
+            const totalCitas = lista.length;
+            const countProgramadas = lista.filter(c => c.estado === 'programada').length;
+            const countConfirmadas = lista.filter(c => c.estado === 'confirmada').length;
+            const countCompletadas = lista.filter(c => c.estado === 'completada').length;
+            const countCanceladas = lista.filter(c => c.estado === 'cancelada').length;
 
-            const rowsHtml = citasList.map((cita, index) => {
+            const rowsHtml = lista.map((cita, index) => {
                 const pIdent = cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion;
                 const patientName = pIdent
                     ? `${pIdent.primer_nombre} ${pIdent.segundo_nombre || ''} ${pIdent.apellido_paterno} ${pIdent.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
@@ -2597,7 +2622,7 @@ const MedicoGeneral_page = () => {
                 `;
             }).join('');
 
-            const emptyRowsHtml = citasList.length === 0 ? `
+            const emptyRowsHtml = lista.length === 0 ? `
                 <tr>
                     <td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay citas agendadas o registradas para la fecha seleccionada.</td>
                 </tr>
@@ -3752,6 +3777,92 @@ const MedicoGeneral_page = () => {
                                 )}
 
                                 {/* SUB-TAB 2: INFORME ESTADÍSTICO MENSUAL */}
+                                {/* SUB-TAB 2: AGENDAMIENTO DE CITAS (día o mes) */}
+                                {activeReportSubTab === 'citas' && (() => {
+                                    const delPeriodo = reportCitasTodas.filter(c => enPeriodo(c.fecha, reportCitasPeriodo));
+                                    const cuenta = (estado) => delPeriodo.filter(c => c.estado === estado).length;
+                                    const listado = reportCitasEstado === 'all' ? delPeriodo : delPeriodo.filter(c => c.estado === reportCitasEstado);
+                                    const ESTADOS = [
+                                        ['all', `Todas (${delPeriodo.length})`, ClipboardList],
+                                        ['programada', `Programadas (${cuenta('programada')})`, Calendar],
+                                        ['confirmada', `Confirmadas (${cuenta('confirmada')})`, CheckCircle],
+                                        ['completada', `Completadas (${cuenta('completada')})`, CalendarCheck],
+                                        ['cancelada', `Canceladas (${cuenta('cancelada')})`, X],
+                                        ['no_asistio', `No asistió (${cuenta('no_asistio')})`, AlertTriangle]
+                                    ];
+                                    const COLOR_ESTADO = { programada: '#1e40af', confirmada: '#065f46', completada: '#374151', cancelada: '#991b1b', no_asistio: '#9a3412' };
+                                    const nombrePaciente = (cita) => {
+                                        const d = cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion;
+                                        return d ? [d.primer_nombre, d.segundo_nombre, d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' ') : (cita.paciente?.name || '');
+                                    };
+                                    return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                            <ReporteEncabezado
+                                                eyebrow="AGENDA DE MEDICINA GENERAL"
+                                                titulo="Reporte de Agendamiento de Citas"
+                                                descripcion="Consulte las citas de un día o de un mes por estado y genere el reporte."
+                                                periodo={reportCitasPeriodo}
+                                                onPeriodo={setReportCitasPeriodo}
+                                                que="de las citas"
+                                                tabs={ESTADOS.map(([id, label, icon]) => ({ id, label, icon }))}
+                                                tabActiva={reportCitasEstado}
+                                                onTab={setReportCitasEstado}
+                                                estado={reportCitasLoading ? 'Cargando citas...' : `${listado.length} ${listado.length === 1 ? 'cita' : 'citas'} ${describirPeriodo(reportCitasPeriodo)}`}
+                                            />
+
+                                            <div className="card" style={{ borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', background: '#ffffff' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="action-button action-button--accent"
+                                                        onClick={() => listado.length === 0
+                                                            ? showSystemToast('No hay citas en este período para generar el reporte.')
+                                                            : handlePrintReporteCitas(listado, describirPeriodo(reportCitasPeriodo).replace(/^(el|en) /, ''))}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                                                    >
+                                                        <FileText size={14} /> Ver Reporte
+                                                    </button>
+                                                </div>
+                                                <div className="table-responsive">
+                                                    <table className="table" style={{ width: '100%' }}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Fecha</th>
+                                                                <th>Horario</th>
+                                                                <th>Paciente / Cédula</th>
+                                                                <th>Motivo</th>
+                                                                <th>Estado</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {listado.length === 0 ? (
+                                                                <tr>
+                                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
+                                                                        {reportCitasLoading ? 'Cargando citas...' : 'No hay citas que coincidan con los filtros.'}
+                                                                    </td>
+                                                                </tr>
+                                                            ) : listado.map(cita => (
+                                                                <tr key={cita.id}>
+                                                                    <td style={{ whiteSpace: 'nowrap' }}>{formatFecha(cita.fecha)}</td>
+                                                                    <td style={{ whiteSpace: 'nowrap' }}>{String(cita.hora_inicio || '').slice(0, 5)} - {String(cita.hora_fin || '').slice(0, 5)}</td>
+                                                                    <td>
+                                                                        <strong>{nombrePaciente(cita)}</strong>
+                                                                        <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {(cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion)?.numero_cedula || '—'}</small>
+                                                                    </td>
+                                                                    <td style={{ fontSize: '12px', color: '#334155' }}>{cita.motivo || '—'}</td>
+                                                                    <td style={{ fontWeight: 700, fontSize: '11.5px', color: COLOR_ESTADO[cita.estado] || '#334155', textTransform: 'uppercase' }}>
+                                                                        {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {activeReportSubTab === 'mensual' && (
                                     <div>
                                         <section className="nurse-card daily-header-card" style={{ marginBottom: '20px' }}>
@@ -3902,7 +4013,7 @@ const MedicoGeneral_page = () => {
                                         </label>
                                         <button
                                             type="button"
-                                            onClick={handlePrintReporteCitas}
+                                            onClick={() => handlePrintReporteCitas()}
                                             className="action-button action-button--accent"
                                             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                             title="Imprimir reporte de citas agendadas, completadas y canceladas"
