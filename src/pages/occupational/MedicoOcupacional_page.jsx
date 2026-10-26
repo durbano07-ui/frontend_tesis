@@ -34,6 +34,7 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { compileRecetaFormHtmlString } from './reports/recetaTemplate';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
+import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
 
 const COUNTRIES = [
     'Ecuador', 'Colombia', 'Perú', 'Venezuela', 'Argentina', 'Chile', 'Bolivia', 'Brasil',
@@ -1449,6 +1450,8 @@ export default function MedicoOcupacionalPage() {
 
     // Recetario & Prescripción State
     const [farmaciaSearchLoading, setFarmaciaSearchLoading] = useState(false);
+    // Vía registrada por Farmacia para el producto elegido: si existe, no se puede cambiar
+    const [viaFarmacia, setViaFarmacia] = useState(null);
     const [prescripcionesList, setPrescripcionesList] = useState([]);
     const [prescripcionForm, setPrescripcionForm] = useState({
         detalle_medicamento: '',
@@ -6127,11 +6130,13 @@ export default function MedicoOcupacionalPage() {
             ...prev,
             detalle_medicamento: `${product.nombre} (${product.presentacion?.nombre || 'General'})`,
             id_producto_farmacia: product.id,
+            via: viaDeProducto(product) || prev.via,
             disponible_farmacia: hasStock ? 'farmacia' : 'no_disponible',
             observaciones: hasStock
                 ? `Stock actual: ${product.stock_cajas} cajas / ${product.stock_unidades} unidades`
                 : 'Sin stock en Farmacia de Enfermería: receta para compra externa.'
         }));
+        setViaFarmacia(viaDeProducto(product));
         setFarmaciaSearchQuery('');
         setFarmaciaSearchResults([]);
     };
@@ -6142,6 +6147,7 @@ export default function MedicoOcupacionalPage() {
             return;
         }
         setPrescripcionesList(prev => [...prev, { ...prescripcionForm, observacion_nodisponible: prescripcionForm.disponible_farmacia === 'no_disponible' ? prescripcionForm.observaciones : '' }]);
+        setViaFarmacia(null);
         setPrescripcionForm({
             detalle_medicamento: '',
             dosis: '1 tableta',
@@ -8899,13 +8905,15 @@ export default function MedicoOcupacionalPage() {
                                                         </div>
                                                         <div className="field" style={{ margin: 0 }}>
                                                             <span>Vía de Adm. *</span>
-                                                            <input
+                                                            <select
                                                                 aria-label="Vía de Adm."
-                                                                type="text"
                                                                 value={prescripcionForm.via}
+                                                                disabled={!!viaFarmacia}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, via: e.target.value })}
-                                                                placeholder="Ej: Oral"
-                                                            />
+                                                            >
+                                                                {VIAS_ADMINISTRACION.map(v => <option key={v} value={v}>{v}</option>)}
+                                                            </select>
+                                                            {viaFarmacia && <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#64748b' }}>Registrada por Farmacia</small>}
                                                         </div>
                                                     </div>
 

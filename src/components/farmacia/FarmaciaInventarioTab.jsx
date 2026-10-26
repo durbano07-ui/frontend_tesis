@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api/axios';
+import { VIAS_ADMINISTRACION } from '../../utils/viasAdministracion';
 import { Pill, Search, Plus, Minus, History, Pencil, Power, AlertTriangle, Package, Boxes, Filter, X, FileSpreadsheet, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
 
 const FarmaciaInventarioTab = ({ showSystemToast }) => {
@@ -41,6 +42,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
         codigo: '',
         nombre: '',
         id_presentacion: '',
+        via_administracion: '',
         stock_inicial_cajas: 0,
         stock_inicial_unidades: 0,
         descripcion: ''
@@ -114,6 +116,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             codigo: `MED-${Math.floor(1000 + Math.random() * 9000)}`,
             nombre: '',
             id_presentacion: presentaciones[0]?.id || '',
+            via_administracion: '',
             stock_inicial_cajas: 0,
             stock_inicial_unidades: 0,
             descripcion: ''
@@ -133,6 +136,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                 codigo: productForm.codigo.trim(),
                 nombre: productForm.nombre.trim(),
                 id_presentacion: parseInt(productForm.id_presentacion),
+                via_administracion: productForm.via_administracion || null,
                 stock_inicial_cajas: parseInt(productForm.stock_inicial_cajas) || 0,
                 stock_inicial_unidades: parseInt(productForm.stock_inicial_unidades) || 0,
                 descripcion: productForm.descripcion
@@ -156,6 +160,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             codigo: producto.codigo,
             nombre: producto.nombre,
             id_presentacion: producto.id_presentacion,
+            via_administracion: producto.via_administracion || '',
             stock_inicial_cajas: producto.stock_cajas,
             stock_inicial_unidades: producto.stock_unidades,
             descripcion: ''
@@ -174,7 +179,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             await api.put(`/farmacia/${selectedProducto.id}`, {
                 codigo: productForm.codigo.trim(),
                 nombre: productForm.nombre.trim(),
-                id_presentacion: parseInt(productForm.id_presentacion)
+                id_presentacion: parseInt(productForm.id_presentacion),
+                via_administracion: productForm.via_administracion || null
             });
             showSystemToast('Producto actualizado correctamente.');
             setIsEditModalOpen(false);
@@ -708,6 +714,18 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             </div>
 
                             <div>
+                                <label htmlFor="farmaciainve-via-crear" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Vía de Administración</label>
+                                <select id="farmaciainve-via-crear"
+                                    value={productForm.via_administracion}
+                                    onChange={(e) => setProductForm({ ...productForm, via_administracion: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                >
+                                    <option value="">Sin especificar (la elige el médico)</option>
+                                    {VIAS_ADMINISTRACION.map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
                                 <label htmlFor="farmaciainve-nombre-del-medicamento-producto" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Nombre del Medicamento / Producto *</label>
                                 <input id="farmaciainve-nombre-del-medicamento-producto"
                                     type="text"
@@ -809,6 +827,18 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     {presentaciones.map(p => (
                                         <option key={p.id} value={p.id}>{p.nombre}</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="farmaciainve-via-editar" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Vía de Administración</label>
+                                <select id="farmaciainve-via-editar"
+                                    value={productForm.via_administracion}
+                                    onChange={(e) => setProductForm({ ...productForm, via_administracion: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#fff' }}
+                                >
+                                    <option value="">Sin especificar (la elige el médico)</option>
+                                    {VIAS_ADMINISTRACION.map(v => <option key={v} value={v}>{v}</option>)}
                                 </select>
                             </div>
 

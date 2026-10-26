@@ -17,6 +17,7 @@ import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
+import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -254,6 +255,8 @@ const MedicoGeneral_page = () => {
     const [farmaciaSearchQuery, setFarmaciaSearchQuery] = useState('');
     const [farmaciaSearchResults, setFarmaciaSearchResults] = useState([]);
     const [farmaciaSearchLoading, setFarmaciaSearchLoading] = useState(false);
+    // Vía registrada por Farmacia para el producto elegido: si existe, no se puede cambiar
+    const [viaFarmacia, setViaFarmacia] = useState(null);
     const [prescripcionLineForm, setPrescripcionLineForm] = useState({
         detalle_medicamento: '',
         id_producto_farmacia: null,
@@ -289,8 +292,10 @@ const MedicoGeneral_page = () => {
             ...prev,
             detalle_medicamento: `${product.nombre} (${product.presentacion?.nombre || 'General'})`,
             id_producto_farmacia: product.id,
+            detalle_via_administracion: viaDeProducto(product) || prev.detalle_via_administracion,
             observaciones: `Stock actual: ${product.stock_cajas} cajas / ${product.stock_unidades} unidades`
         }));
+        setViaFarmacia(viaDeProducto(product));
         setFarmaciaSearchQuery('');
         setFarmaciaSearchResults([]);
     };
@@ -308,6 +313,7 @@ const MedicoGeneral_page = () => {
             ...prev,
             prescripcion_lineas: [...(prev.prescripcion_lineas || []), newLine]
         }));
+        setViaFarmacia(null);
         setPrescripcionLineForm({
             detalle_medicamento: '',
             id_producto_farmacia: null,
@@ -4843,16 +4849,12 @@ const MedicoGeneral_page = () => {
                                                                 <select
                                                                     aria-label="Vía de Administración"
                                                                     value={prescripcionLineForm.detalle_via_administracion}
+                                                                    disabled={!!viaFarmacia}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_via_administracion: e.target.value })}
                                                                 >
-                                                                    <option value="Oral">Oral</option>
-                                                                    <option value="Intravenosa">Intravenosa</option>
-                                                                    <option value="Intramuscular">Intramuscular</option>
-                                                                    <option value="Tópica">Tópica</option>
-                                                                    <option value="Oftálmica">Oftálmica</option>
-                                                                    <option value="Sublingual">Sublingual</option>
-                                                                    <option value="Inhalatoria">Inhalatoria</option>
+                                                                    {VIAS_ADMINISTRACION.map(v => <option key={v} value={v}>{v}</option>)}
                                                                 </select>
+                                                                {viaFarmacia && <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#64748b' }}>Registrada por Farmacia</small>}
                                                             </div>
                                                         </div>
 
