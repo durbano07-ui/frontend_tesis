@@ -8295,7 +8295,7 @@ const Odontologo_page = () => {
                                                 <div>
                                                     <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={16} /> 1. Motivo de Consulta y Antecedentes Médicos</h3>
                                                     <div className="field field--full">
-                                                        <span>Motivo de Consulta *</span>
+                                                        <span>Motivo de Consulta <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Motivo de Consulta"
                                                             value={fichaForm.detalle_motivo}
@@ -8576,7 +8576,7 @@ const Odontologo_page = () => {
                                                 <div>
                                                     <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><FileText size={16} /> 4. Diagnóstico Final, Tratamiento y Registro Diario</h3>
                                                     <div className="field field--full">
-                                                        <span>Diagnóstico Odontológico *</span>
+                                                        <span>Diagnóstico Odontológico <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Diagnóstico Odontológico"
                                                             value={fichaForm.detalle_diagnostico}
@@ -8597,14 +8597,14 @@ const Odontologo_page = () => {
                                                         </div>
                                                         <div className="clinical-fields-grid">
                                                             <div className="field">
-                                                                <span>Tipo de Atención *</span>
+                                                                <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
                                                                     <option value="primaria">Primaria (Consulta Inicial)</option>
                                                                     <option value="secundaria">Secundaria (Seguimiento)</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
-                                                                <span>Subtipo de Atención *</span>
+                                                                <span>Subtipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Subtipo de Atención" value={fichaForm.tipo_atencion2} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion2: e.target.value })}>
                                                                     <option value="curativo">Curativo</option>
                                                                     <option value="preventivo">Preventivo</option>
@@ -8612,7 +8612,7 @@ const Odontologo_page = () => {
                                                             </div>
                                                         </div>
                                                         <div className="field" style={{ marginTop: '10px' }}>
-                                                            <span>Procedimiento Dental Realizado *</span>
+                                                            <span>Procedimiento Dental Realizado <span className="field-req-star">*</span></span>
                                                             <select aria-label="Procedimiento Dental Realizado" value={fichaForm.procedimiento} onChange={(e) => setFichaForm({ ...fichaForm, procedimiento: e.target.value })}>
                                                                 <option value="Profilaxis">Profilaxis</option>
                                                                 <option value="Fluorizacion">Fluorización</option>
@@ -8765,7 +8765,7 @@ const Odontologo_page = () => {
                                                     <form onSubmit={handleSaveInlineConsumo} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '2fr 1fr auto', alignItems: 'end', gap: '12px' }}>
                                                             <div className="field">
-                                                                <span>Insumo del Inventario *</span>
+                                                                <span>Insumo del Inventario <span className="field-req-star">*</span></span>
                                                                 <select
                                                                     aria-label="Insumo del Inventario"
                                                                     value={inlineInsumoForm.id_insumo}
@@ -8781,7 +8781,7 @@ const Odontologo_page = () => {
                                                                 </select>
                                                             </div>
                                                             <div className="field">
-                                                                <span>Cantidad Consumida *</span>
+                                                                <span>Cantidad Consumida <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Cantidad Consumida"
                                                                     type="text"
@@ -9003,7 +9003,7 @@ const Odontologo_page = () => {
                                                         <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Medicamento Prescrito *</span>
+                                                                <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Medicamento Prescrito"
                                                                     type="text"
@@ -9013,7 +9013,7 @@ const Odontologo_page = () => {
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Dosis *</span>
+                                                                <span>Dosis <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Dosis"
                                                                     type="text"
@@ -9023,7 +9023,7 @@ const Odontologo_page = () => {
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Vía de Adm. *</span>
+                                                                <span>Vía de Adm. <span className="field-req-star">*</span></span>
                                                                 <select
                                                                     aria-label="Vía de Adm."
                                                                     value={prescripcionLineForm.detalle_via_administracion}
@@ -9038,7 +9038,7 @@ const Odontologo_page = () => {
 
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Cada (Horas) *</span>
+                                                                <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Cada (Horas)"
                                                                     type="number"
@@ -9048,7 +9048,7 @@ const Odontologo_page = () => {
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Durante (Días) *</span>
+                                                                <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Durante (Días)"
                                                                     type="number"

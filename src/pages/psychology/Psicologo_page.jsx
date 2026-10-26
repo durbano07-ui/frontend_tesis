@@ -4991,7 +4991,7 @@ const Psicologo_page = () => {
                                                         </div>
                                                         <div className="clinical-fields-grid" style={{ marginTop: '6px' }}>
                                                             <div className="field">
-                                                                <span>Nivel de Atención *</span>
+                                                                <span>Nivel de Atención <span className="field-req-star">*</span></span>
                                                                 <select
                                                                     aria-label="Nivel de Atención"
                                                                     value={fichaForm.tipo_atencion}
@@ -5015,7 +5015,7 @@ const Psicologo_page = () => {
                                                                 )}
                                                             </div>
                                                             <div className="field">
-                                                                <span>Tipo de Atención *</span>
+                                                                <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select
                                                                     aria-label="Tipo de Atención"
                                                                     value={fichaForm.tipo_atencion2}

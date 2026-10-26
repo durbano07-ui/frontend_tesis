@@ -4437,7 +4437,7 @@ const MedicoGeneral_page = () => {
                                                 <div>
                                                     <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><FileText size={16} /> 2. Motivo de Consulta y Enfermedad Actual</h3>
                                                     <div className="field field--full">
-                                                        <span>Motivo de Consulta *</span>
+                                                        <span>Motivo de Consulta <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Motivo de Consulta"
                                                             value={fichaForm.detalle_motivo}
@@ -4448,7 +4448,7 @@ const MedicoGeneral_page = () => {
                                                         />
                                                     </div>
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
-                                                        <span>Historia de la Enfermedad Actual *</span>
+                                                        <span>Historia de la Enfermedad Actual <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Historia de la Enfermedad Actual"
                                                             value={fichaForm.detalle_enfermedad_actual}
@@ -4491,7 +4491,7 @@ const MedicoGeneral_page = () => {
                                                 <div>
                                                     <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={16} /> 4. Revisión de Órganos y Sistemas</h3>
                                                     <div className="field field--full">
-                                                        <span>Hallazgos de la Revisión *</span>
+                                                        <span>Hallazgos de la Revisión <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Hallazgos de la Revisión"
                                                             value={fichaForm.detalle_revision_organos}
@@ -4510,7 +4510,7 @@ const MedicoGeneral_page = () => {
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px', alignItems: 'start' }}>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                                             <div className="field field--full" style={{ margin: 0 }}>
-                                                                <span>Descripción del Examen Físico *</span>
+                                                                <span>Descripción del Examen Físico <span className="field-req-star">*</span></span>
                                                                 <textarea
                                                                     aria-label="Descripción del Examen Físico"
                                                                     value={fichaForm.detalle_examen_fisico}
@@ -4690,7 +4690,7 @@ const MedicoGeneral_page = () => {
                                                     <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><ClipboardList size={16} /> 6. Diagnóstico, Plan Terapéutico y Diario</h3>
                                                     <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr', alignItems: 'end', gap: '20px' }}>
                                                         <label className="field" style={{ margin: 0 }}>
-                                                            <span>CIE-10 / Diagnóstico Principal *</span>
+                                                            <span>CIE-10 / Diagnóstico Principal <span className="field-req-star">*</span></span>
                                                             <input type="text" value={fichaForm.cie10} onChange={(e) => setFichaForm({ ...fichaForm, cie10: e.target.value })} placeholder="Ej: J18 - Neumonía..." required />
                                                         </label>
                                                         <div style={{ display: 'flex', gap: '24px', paddingBottom: '12px' }}>
@@ -4717,7 +4717,7 @@ const MedicoGeneral_page = () => {
                                                         </div>
                                                     </div>
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
-                                                        <span>Descripción Diagnóstica *</span>
+                                                        <span>Descripción Diagnóstica <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Descripción Diagnóstica"
                                                             value={fichaForm.detalle_diagnostico}
@@ -4728,7 +4728,7 @@ const MedicoGeneral_page = () => {
                                                         />
                                                     </div>
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
-                                                        <span>Plan Terapéutico / Tratamiento Indicado *</span>
+                                                        <span>Plan Terapéutico / Tratamiento Indicado <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Plan Terapéutico / Tratamiento Indicado"
                                                             value={fichaForm.detalle_plan_terapeutico}
@@ -4742,14 +4742,14 @@ const MedicoGeneral_page = () => {
                                                     <div className="clinical-form-section" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
                                                         <div className="clinical-fields-grid">
                                                             <div className="field">
-                                                                <span>Tipo de Atención *</span>
+                                                                <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
                                                                     <option value="primaria">Primaria (Consulta Inicial)</option>
                                                                     <option value="secundaria">Secundaria (Seguimiento)</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
-                                                                <span>Clasificación de Consulta *</span>
+                                                                <span>Clasificación de Consulta <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Clasificación de Consulta" value={fichaForm.tipo} onChange={(e) => setFichaForm({ ...fichaForm, tipo: e.target.value })}>
                                                                     <option value="curativo">Curativo</option>
                                                                     <option value="preventivo">Preventivo</option>
@@ -4825,7 +4825,7 @@ const MedicoGeneral_page = () => {
                                                         <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Medicamento Prescrito *</span>
+                                                                <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Medicamento Prescrito"
                                                                     type="text"
@@ -5109,7 +5109,7 @@ const MedicoGeneral_page = () => {
                         </header>
                         <form onSubmit={handleCompletarCitaSubmit} className="clinical-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div className="field">
-                                <span>Notas Médicas de la Consulta *</span>
+                                <span>Notas Médicas de la Consulta <span className="field-req-star">*</span></span>
                                 <textarea
                                     aria-label="Notas Médicas de la Consulta"
                                     required

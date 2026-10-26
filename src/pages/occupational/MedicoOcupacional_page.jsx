@@ -8656,42 +8656,42 @@ export default function MedicoOcupacionalPage() {
                                                 </h3>
                                                 <div className="clinical-fields-grid">
                                                     <label className="field">
-                                                        <span>PA SISTÓLICA (MMHG) *</span>
+                                                        <span>PA SISTÓLICA (MMHG) <span className="field-req-star">*</span></span>
                                                         <input type="number" step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
                                                         {errorConsulta('paSystolic')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>PA DIASTÓLICA (MMHG) *</span>
+                                                        <span>PA DIASTÓLICA (MMHG) <span className="field-req-star">*</span></span>
                                                         <input type="number" step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
                                                         {errorConsulta('paDiastolic')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>FRECUENCIA CARDIACA (LPM) *</span>
+                                                        <span>FRECUENCIA CARDIACA (LPM) <span className="field-req-star">*</span></span>
                                                         <input type="number" value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
                                                         {errorConsulta('fc')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>FRECUENCIA RESPIRATORIA (RPM) *</span>
+                                                        <span>FRECUENCIA RESPIRATORIA (RPM) <span className="field-req-star">*</span></span>
                                                         <input type="number" value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
                                                         {errorConsulta('fr')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>TEMPERATURA (°C) *</span>
+                                                        <span>TEMPERATURA (°C) <span className="field-req-star">*</span></span>
                                                         <input type="number" step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
                                                         {errorConsulta('temp')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>TALLA (CM) *</span>
+                                                        <span>TALLA (CM) <span className="field-req-star">*</span></span>
                                                         <input type="number" step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
                                                         {errorConsulta('talla')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>PESO (KG) *</span>
+                                                        <span>PESO (KG) <span className="field-req-star">*</span></span>
                                                         <input type="number" step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
                                                         {errorConsulta('peso')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>SATURACIÓN SPO2 (%) *</span>
+                                                        <span>SATURACIÓN SPO2 (%) <span className="field-req-star">*</span></span>
                                                         <input type="number" value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
                                                         {errorConsulta('spo2')}
                                                     </label>
@@ -8746,7 +8746,7 @@ export default function MedicoOcupacionalPage() {
                                                         </select>
                                                     </label>
                                                     <label className="field">
-                                                        <span>Tipo de Atención *</span>
+                                                        <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                         <select
                                                             aria-label="Tipo de Atención"
                                                             value={tipoAtencion}
@@ -8760,7 +8760,7 @@ export default function MedicoOcupacionalPage() {
                                                         </small>
                                                     </label>
                                                     <label className="field">
-                                                        <span>Motivo de la Atención Médica *</span>
+                                                        <span>Motivo de la Atención Médica <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
@@ -8772,7 +8772,7 @@ export default function MedicoOcupacionalPage() {
                                                         {errorConsulta('motivoConsulta')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>Enfermedad o Sintomatología Actual *</span>
+                                                        <span>Enfermedad o Sintomatología Actual <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
@@ -8804,7 +8804,7 @@ export default function MedicoOcupacionalPage() {
                                                         />
                                                     </label>
                                                     <label className="field">
-                                                        <span>Examen Físico Dirigido por Sistemas *</span>
+                                                        <span>Examen Físico Dirigido por Sistemas <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
@@ -8826,7 +8826,7 @@ export default function MedicoOcupacionalPage() {
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                                     <label className="field">
-                                                        <span>Diagnóstico Principal (Código CIE-10) *</span>
+                                                        <span>Diagnóstico Principal (Código CIE-10) <span className="field-req-star">*</span></span>
                                                         <input
                                                             type="text"
                                                             aria-invalid={!!consultaErrores.diagnosticoCie}
@@ -8837,7 +8837,7 @@ export default function MedicoOcupacionalPage() {
                                                         {errorConsulta('diagnosticoCie')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>Plan de Tratamiento / Indicaciones Médicas *</span>
+                                                        <span>Plan de Tratamiento / Indicaciones Médicas <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
@@ -8912,7 +8912,7 @@ export default function MedicoOcupacionalPage() {
 
                                                 {aptitudLaboral === 'apto_restriccion' && (
                                                     <label className="field">
-                                                        <span>Detalle de Restricciones & Adaptaciones del Puesto *</span>
+                                                        <span>Detalle de Restricciones & Adaptaciones del Puesto <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
@@ -8985,7 +8985,7 @@ export default function MedicoOcupacionalPage() {
                                                     <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
                                                     <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                         <div className="field" style={{ margin: 0 }}>
-                                                            <span>Medicamento Prescrito *</span>
+                                                            <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Medicamento Prescrito"
                                                                 type="text"
@@ -8995,7 +8995,7 @@ export default function MedicoOcupacionalPage() {
                                                             />
                                                         </div>
                                                         <div className="field" style={{ margin: 0 }}>
-                                                            <span>Dosis *</span>
+                                                            <span>Dosis <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Dosis"
                                                                 type="text"
@@ -9005,7 +9005,7 @@ export default function MedicoOcupacionalPage() {
                                                             />
                                                         </div>
                                                         <div className="field" style={{ margin: 0 }}>
-                                                            <span>Vía de Adm. *</span>
+                                                            <span>Vía de Adm. <span className="field-req-star">*</span></span>
                                                             <select
                                                                 aria-label="Vía de Adm."
                                                                 value={prescripcionForm.via}
@@ -9021,7 +9021,7 @@ export default function MedicoOcupacionalPage() {
                                                     {/* Sin "Cant. Cajas": la cantidad de cajas la define Farmacia al despachar */}
                                                     <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                         <div className="field" style={{ margin: 0 }}>
-                                                            <span>Cada (Horas) *</span>
+                                                            <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Cada (Horas)"
                                                                 type="number"
@@ -9031,7 +9031,7 @@ export default function MedicoOcupacionalPage() {
                                                             />
                                                         </div>
                                                         <div className="field" style={{ margin: 0 }}>
-                                                            <span>Durante (Días) *</span>
+                                                            <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Durante (Días)"
                                                                 type="number"

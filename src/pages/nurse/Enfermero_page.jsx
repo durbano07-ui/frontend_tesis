@@ -2663,7 +2663,7 @@ const Enfermero_page = () => {
 
                                             return (
                                                 <label className="field" style={{ gridColumn: 'span 3', position: 'relative' }}>
-                                                    <span>Procedimiento(s) realizado(s) *</span>
+                                                    <span>Procedimiento(s) realizado(s) <span className="field-req-star">*</span></span>
 
                                                     {/* Trigger Selector */}
                                                     <div
