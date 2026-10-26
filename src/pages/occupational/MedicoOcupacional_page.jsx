@@ -18,7 +18,9 @@ import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetir
 import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
 import MatrizRegistroModal from './MatrizRegistroModal';
 import ResultadoExamenModal, { abrirResultadoPdf } from './ResultadoExamenModal';
-import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup } from './matricesOcupacionales';
+import PeriodoSelector from '../../components/PeriodoSelector';
+import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
+import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup, fechaPrincipal } from './matricesOcupacionales';
 
 const uebBannerLogo = logoUeb;
 
@@ -71,8 +73,6 @@ const DEPARTMENTS = [
     'Financiero y Contabilidad',
     'Otra Área / Departamento'
 ];
-
-const MESES_REPORTE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Tipo de ficha ocupacional: clave en el servidor <-> etiqueta del formulario
 const TIPO_FICHA_LABEL = { ingreso: 'Ingreso', periodico: 'Periódico', retiro: 'Retiro', reintegro: 'Reintegro', gestante: 'Gestante', discapacidad: 'Discapacidad' };
@@ -280,11 +280,11 @@ export default function MedicoOcupacionalPage() {
     // State for Exámenes Ocupacionales
     const [examSearchTerm, setExamSearchTerm] = useState('');
     const [examFilterStatus, setExamFilterStatus] = useState('todos'); // 'todos' | 'con_pdf' | 'sin_pdf'
-    // Período del reporte de órdenes: un día o un mes/año
-    const [examPeriodo, setExamPeriodo] = useState('mes');
-    const [examDia, setExamDia] = useState(localDateStr());
-    const [examMes, setExamMes] = useState(new Date().getMonth() + 1);
-    const [examAnio, setExamAnio] = useState(new Date().getFullYear());
+    // Período de los reportes: un día o un mes/año (ver utils/periodo.js)
+    const [examPeriodo, setExamPeriodo] = useState(periodoInicial);
+    const [fichaPeriodo, setFichaPeriodo] = useState(periodoInicial);
+    const [recetaPeriodo, setRecetaPeriodo] = useState(periodoInicial);
+    const [matrizPeriodo, setMatrizPeriodo] = useState(periodoInicial);
     const [examForm, setExamForm] = useState({
         pacienteCedula: '',
         pacienteNombre: '',
@@ -677,8 +677,6 @@ export default function MedicoOcupacionalPage() {
     const fichasIframeRef = useRef(null);
     const recetaIframeRef = useRef(null);
     const matrixIframeRef = useRef(null);
-    const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
-    const [matrixDateFilter, setMatrixDateFilter] = useState('');
     const [selectedFichaWorkerId, setSelectedFichaWorkerId] = useState(null);
     const [selectedRecetaId, setSelectedRecetaId] = useState(null);
     const [genReportMonth, setGenReportMonth] = useState(new Date().getMonth() + 1);
@@ -697,8 +695,6 @@ export default function MedicoOcupacionalPage() {
     };
 
     const [recetasData, setRecetasData] = useState([]);
-    const [recetasSearchNombre, setRecetasSearchNombre] = useState('');
-    const [recetasSearchFecha, setRecetasSearchFecha] = useState('');
     const [selectedRecetaPreview, setSelectedRecetaPreview] = useState(null);
     const [farmaciaSearchQuery, setFarmaciaSearchQuery] = useState('');
     const [farmaciaSearchResults, setFarmaciaSearchResults] = useState([]);
@@ -942,7 +938,7 @@ export default function MedicoOcupacionalPage() {
         try {
             const res = await api.get(config.path);
             // El backend devuelve los más recientes primero; la matriz se numera en orden de registro
-            const rows = [...(res.data?.data || [])].reverse().map((row, idx) => config.fromApi(row, idx));
+            const rows = [...(res.data?.data || [])].reverse().map((row, idx) => ({ ...config.fromApi(row, idx), fechaPeriodo: fechaPrincipal(row) }));
             applyMatrixRows(key, rows);
         } catch (err) {
             console.error(`Error al cargar la matriz ${key}:`, err);
@@ -1023,38 +1019,13 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Exámenes & Laboratorio
 
-    const matchesDateFilter = (recordDateStr, filterVal) => {
-        if (!filterVal || !recordDateStr) return true;
-        const cleanDate = String(recordDateStr).trim();
-        if (cleanDate.includes(filterVal)) return true;
-        const parts = filterVal.split('-');
-        if (parts.length === 3) {
-            const [y, m, d] = parts;
-            const dmy = `${d}/${m}/${y}`;
-            const my = `${m}/${y}`;
-            const ym = `${y}-${m}`;
-            if (cleanDate.includes(dmy) || cleanDate.includes(my) || cleanDate.includes(ym) || cleanDate.includes(y)) return true;
-        }
-        return false;
-    };
-
-    const handleMatrixSearch = (val) => {
-        setMatrixSearchTerm(val);
-        setCatastrophicSearchTerm(val);
-        setAccidenteSearchTerm(val);
-        setCovidSearchTerm(val);
-        setAusentismoSearchTerm(val);
-        setEmbarazadasSearchTerm(val);
-        setPsicosocialSearchTerm(val);
-        setEnfermedadesNuevasSearchTerm(val);
-        setPeriodicosSearchTerm(val);
-        setPersonalNuevoSearchTerm(val);
-        setDiscapacidadSearchTerm(val);
-    };
+    // En Reportes las matrices muestran solo los registros del día o mes elegido
+    const enPeriodoMatriz = (item) => activeTab !== 'reportes' || enPeriodo(item.fechaPeriodo, matrizPeriodo);
 
     // Handlers for Catastróficas
     const filteredCatastroficas = catastroficasData.filter(item => {
-        const term = (matrixSearchTerm || catastrophicSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (catastrophicSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
@@ -1063,7 +1034,6 @@ export default function MedicoOcupacionalPage() {
             (item.novedades || '').toLowerCase().includes(term);
 
         if (!matchesSearch) return false;
-        if (matrixDateFilter && !matchesDateFilter(item.fechaDiagnostico, matrixDateFilter)) return false;
 
         if (catastrophicTabFilter === 'catastroficas') {
             return (item.clasificacion || 'Catastrófica') === 'Catastrófica';
@@ -1201,7 +1171,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Accidentes
     const filteredAccidentes = accidentesLaboralesData.filter(item => {
-        const term = (matrixSearchTerm || accidenteSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (accidenteSearchTerm || '').toLowerCase();
         const matchSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').toLowerCase().includes(term) ||
@@ -1212,7 +1183,6 @@ export default function MedicoOcupacionalPage() {
             (item.novedades || '').toLowerCase().includes(term);
 
         if (!matchSearch) return false;
-        if (matrixDateFilter && !matchesDateFilter(item.fechaAccidente, matrixDateFilter)) return false;
 
         if (accidenteTabFilter === 'leves') {
             return (item.gravedad || '').toUpperCase().includes('LEVE');
@@ -1366,7 +1336,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Grupo Vulnerable & Discapacidad
     const filteredDiscapacidad = discapacidadData.filter(item => {
-        const term = (matrixSearchTerm || discapacidadSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (discapacidadSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
@@ -1482,13 +1453,13 @@ export default function MedicoOcupacionalPage() {
     const [vulnerablePatologiasData, setVulnerablePatologiasData] = useState({ diabeticos: [], hipertensos: [], adultoMayor: [], otras: [] });
 
     const getFilteredVulnerablesPatologias = () => {
-        const term = (matrixSearchTerm || vulnerablePatologiasSearchTerm || '').toLowerCase();
-        if (!term) return vulnerablePatologiasData;
+        const term = (vulnerablePatologiasSearchTerm || '').toLowerCase();
+        const incluir = (i, extra = '') => enPeriodoMatriz(i) && (!term || (i.nombre || '').toLowerCase().includes(term) || extra.toLowerCase().includes(term));
         return {
-            diabeticos: (vulnerablePatologiasData.diabeticos || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
-            hipertensos: (vulnerablePatologiasData.hipertensos || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
-            adultoMayor: (vulnerablePatologiasData.adultoMayor || []).filter(i => (i.nombre || '').toLowerCase().includes(term)),
-            otras: (vulnerablePatologiasData.otras || []).filter(i => (i.nombre || '').toLowerCase().includes(term) || (i.patologia || '').toLowerCase().includes(term))
+            diabeticos: (vulnerablePatologiasData.diabeticos || []).filter(i => incluir(i)),
+            hipertensos: (vulnerablePatologiasData.hipertensos || []).filter(i => incluir(i)),
+            adultoMayor: (vulnerablePatologiasData.adultoMayor || []).filter(i => incluir(i)),
+            otras: (vulnerablePatologiasData.otras || []).filter(i => incluir(i, i.patologia || ''))
         };
     };
 
@@ -1695,13 +1666,13 @@ export default function MedicoOcupacionalPage() {
     const [personalNuevoData, setPersonalNuevoData] = useState([]);
 
     const filteredPersonalNuevo = personalNuevoData.filter(item => {
-        const term = (matrixSearchTerm || personalNuevoSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (personalNuevoSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
             (item.cargo || '').toLowerCase().includes(term);
         if (!matchesSearch) return false;
-        if (matrixDateFilter && !matchesDateFilter(item.fechaIngreso, matrixDateFilter)) return false;
         if (personalNuevoSelectedYear !== 'TODOS' && String(item.anio) !== String(personalNuevoSelectedYear)) return false;
         return true;
     });
@@ -2124,7 +2095,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Riesgo Psicosocial
     const filteredPsicosocial = psicosocialData.filter(item => {
-        const term = (matrixSearchTerm || psicosocialSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (psicosocialSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
@@ -2270,7 +2242,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Enfermedades Nuevas (Incidencia UEB)
     const filteredEnfermedadesNuevas = enfermedadesNuevasData.filter(item => {
-        const term = (matrixSearchTerm || enfermedadesNuevasSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (enfermedadesNuevasSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
@@ -2282,7 +2255,6 @@ export default function MedicoOcupacionalPage() {
             (item.fechaAparecimiento && item.fechaAparecimiento.includes(enfermedadesNuevasFilterYear));
 
         if (!matchesSearch || !matchesYear) return false;
-        if (matrixDateFilter && !matchesDateFilter(item.fechaAparecimiento, matrixDateFilter)) return false;
 
         return true;
     });
@@ -2574,7 +2546,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Censo de Embarazadas
     const filteredEmbarazadas = embarazadasData.filter(item => {
-        const term = (matrixSearchTerm || embarazadasSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (embarazadasSearchTerm || '').toLowerCase();
         const matchesSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').includes(term) ||
@@ -2582,9 +2555,6 @@ export default function MedicoOcupacionalPage() {
             (item.semanasGestacion || '').toLowerCase().includes(term);
 
         if (!matchesSearch) return false;
-        if (matrixDateFilter && !matchesDateFilter(item.fum, matrixDateFilter) && !matchesDateFilter(item.fechaProbableParto, matrixDateFilter)) {
-            return false;
-        }
 
         return true;
     });
@@ -2765,7 +2735,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for Ausentismo Laboral
     const filteredAusentismo = ausentismoData.filter(item => {
-        const term = (matrixSearchTerm || ausentismoSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (ausentismoSearchTerm || '').toLowerCase();
         const matchSearch = !term ||
             (item.paciente || '').toLowerCase().includes(term) ||
             (item.cedula || '').toLowerCase().includes(term) ||
@@ -2976,7 +2947,8 @@ export default function MedicoOcupacionalPage() {
 
     // Handlers for COVID-19
     const filteredCovidCases = covidCasesData.filter(item => {
-        const term = (matrixSearchTerm || covidSearchTerm || '').toLowerCase();
+        if (!enPeriodoMatriz(item)) return false;
+        const term = (covidSearchTerm || '').toLowerCase();
         const matchSearch = !term ||
             (item.pacienteSospechoso || '').toLowerCase().includes(term) ||
             (item.pacienteConfirmado || '').toLowerCase().includes(term) ||
@@ -4255,18 +4227,9 @@ export default function MedicoOcupacionalPage() {
         printIframeDocument(mensualIframeRef, () => compileGeneralReportHtmlString(genReportData, false));
     };
 
-    const [fichaSearchTerm, setFichaSearchTerm] = useState('');
-
-    // Búsqueda en vivo por nombre o cédula (sin distinguir mayúsculas ni tildes)
-    const normalizarBusqueda = (texto) => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const coincideFicha = (item) => {
-        const termino = normalizarBusqueda(fichaSearchTerm);
-        if (!termino) return true;
-        return normalizarBusqueda(item.paciente).includes(termino)
-            || String(item.cedula || '').replace(/\D/g, '').includes(termino.replace(/\D/g, '') || '\u0000');
-    };
-    const filteredFichas = fichasData.filter(coincideFicha);
-    const filteredReintegros = reintegrosData.filter(coincideFicha);
+    // Fichas emitidas en el día o mes elegido
+    const filteredFichas = fichasData.filter(f => enPeriodo(f.fecha, fichaPeriodo));
+    const filteredReintegros = reintegrosData.filter(f => enPeriodo(f.fecha, fichaPeriodo));
 
     const getActiveFichaList = () => {
         if (fichaSubTab === 'reintegro') return filteredReintegros;
@@ -4599,11 +4562,7 @@ export default function MedicoOcupacionalPage() {
         printHtmlDocument(html, `Ficha Ocupacional - ${item.paciente}`);
     };
 
-    const enPeriodoExamen = (fecha) => {
-        const f = String(fecha || '').slice(0, 10);
-        return examPeriodo === 'dia' ? f === examDia : f.slice(0, 7) === `${examAnio}-${String(examMes).padStart(2, '0')}`;
-    };
-    const examenesDelPeriodo = examenesData.filter(item => enPeriodoExamen(item.fecha));
+    const examenesDelPeriodo = examenesData.filter(item => enPeriodo(item.fecha, examPeriodo));
     const filteredExamenes = examenesDelPeriodo.filter(item => {
         const termino = examSearchTerm.trim().toLowerCase();
         const coincide = !termino || (item.paciente || '').toLowerCase().includes(termino)
@@ -6270,7 +6229,6 @@ export default function MedicoOcupacionalPage() {
                                                         className={`history-tab ${fichaSubTab === 'ingreso' ? 'active' : ''}`}
                                                         onClick={() => {
                                                             setFichaSubTab('ingreso');
-                                                            setFichaSearchTerm('');
                                                             const firstIngreso = fichasData.find(f => f.tipo === 'Ingreso' || f.tipo === 'Periódico');
                                                             if (firstIngreso) setSelectedFichaWorkerId(firstIngreso.id);
                                                         }}
@@ -6283,7 +6241,6 @@ export default function MedicoOcupacionalPage() {
                                                         className={`history-tab ${fichaSubTab === 'cese' ? 'active' : ''}`}
                                                         onClick={() => {
                                                             setFichaSubTab('cese');
-                                                            setFichaSearchTerm('');
                                                             const firstRetiro = fichasData.find(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
                                                             if (firstRetiro) setSelectedFichaWorkerId(firstRetiro.id);
                                                         }}
@@ -6296,7 +6253,6 @@ export default function MedicoOcupacionalPage() {
                                                         className={`history-tab ${fichaSubTab === 'reintegro' ? 'active' : ''}`}
                                                         onClick={() => {
                                                             setFichaSubTab('reintegro');
-                                                            setFichaSearchTerm('');
                                                             if (reintegrosData.length > 0) setSelectedFichaWorkerId(reintegrosData[0].id);
                                                         }}
                                                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
@@ -6306,45 +6262,16 @@ export default function MedicoOcupacionalPage() {
                                                 </div>
                                             </div>
 
-                                            {/* BUSCADOR DE PACIENTE FUERA DEL VISOR */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ position: 'relative' }}>
-                                                    <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                                                    <input
-                                                        aria-label="Buscar trabajador por nombre o cédula"
-                                                        type="text"
-                                                        placeholder="Buscar trabajador por nombre o cédula..."
-                                                        value={fichaSearchTerm}
-                                                        onChange={(e) => setFichaSearchTerm(e.target.value)}
-                                                        style={{
-                                                            border: '1px solid var(--border)',
-                                                            borderRadius: '8px',
-                                                            padding: '8px 12px 8px 32px',
-                                                            fontSize: '12px',
-                                                            minWidth: '280px',
-                                                            outline: 'none',
-                                                            background: '#ffffff'
-                                                        }}
-                                                    />
-                                                    {fichaSearchTerm && (
-                                                        <button aria-label="Limpiar búsqueda"
-                                                            type="button"
-                                                            onClick={() => setFichaSearchTerm('')}
-                                                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
-                                                        >
-                                                            <X size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            {/* PERÍODO DE EMISIÓN DE LAS FICHAS */}
+                                            <PeriodoSelector value={fichaPeriodo} onChange={setFichaPeriodo} que="de emisión de las fichas" />
                                         </div>
 
-                                        {/* Fichas de la pestaña, filtradas mientras se escribe */}
+                                        {/* Fichas de la pestaña emitidas en el período */}
                                         <div style={{ marginTop: '14px' }}>
                                             <span role="status" aria-live="polite" style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
                                                 {activeFichas.length === 0
-                                                    ? (fichaSearchTerm.trim() ? 'Ninguna ficha coincide con la búsqueda.' : 'Aún no hay fichas registradas de este tipo.')
-                                                    : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha' : 'fichas'}${fichaSearchTerm.trim() ? ' encontradas' : ''}`}
+                                                    ? `No se emitieron fichas de este tipo ${describirPeriodo(fichaPeriodo)}.`
+                                                    : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha emitida' : 'fichas emitidas'} ${describirPeriodo(fichaPeriodo)}`}
                                             </span>
                                             {activeFichas.length > 0 && (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
@@ -6558,17 +6485,12 @@ export default function MedicoOcupacionalPage() {
                             {/* SUBTAB: REPORTE DE EXÁMENES & LABORATORIO */}
                             {activeReportSubTab === 'examenes' && (() => {
                                 const conPdf = examenesDelPeriodo.filter(e => e.tieneResultado).length;
-                                const anioActual = new Date().getFullYear();
-                                const anios = Array.from({ length: 5 }, (_, i) => anioActual - i);
-                                const descripcionPeriodo = examPeriodo === 'dia'
-                                    ? `el ${formatFecha(examDia)}`
-                                    : `${MESES_REPORTE[examMes - 1].toLowerCase()} de ${examAnio}`;
+                                const descripcionPeriodo = describirPeriodo(examPeriodo);
                                 const filtros = [
                                     ['todos', `Todas (${examenesDelPeriodo.length})`, FileText],
                                     ['sin_pdf', `Sin PDF (${examenesDelPeriodo.length - conPdf})`, AlertTriangle],
                                     ['con_pdf', `Con PDF (${conPdf})`, CheckCircle]
                                 ];
-                                const controlStyle = { border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 10px', fontSize: '12px', background: '#ffffff' };
                                 return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
@@ -6580,41 +6502,7 @@ export default function MedicoOcupacionalPage() {
                                             </div>
 
                                             {/* PERÍODO: DÍA O MES */}
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                                                <div role="group" aria-label="Consultar por" style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
-                                                    {[['dia', 'Por día'], ['mes', 'Por mes']].map(([valor, texto]) => (
-                                                        <button
-                                                            key={valor}
-                                                            type="button"
-                                                            aria-pressed={examPeriodo === valor}
-                                                            onClick={() => setExamPeriodo(valor)}
-                                                            style={{
-                                                                padding: '6px 12px', fontSize: '11.5px', fontWeight: 600, border: 'none', borderRadius: '6px', cursor: 'pointer',
-                                                                background: examPeriodo === valor ? '#ffffff' : 'transparent',
-                                                                color: examPeriodo === valor ? 'var(--primary)' : 'var(--text-muted)',
-                                                                boxShadow: examPeriodo === valor ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                                                            }}
-                                                        >
-                                                            {texto}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                {examPeriodo === 'dia' ? (
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <CalendarDays size={16} color="var(--accent)" />
-                                                        <input aria-label="Día de envío de las órdenes" type="date" value={examDia} onChange={e => setExamDia(e.target.value)} style={controlStyle} />
-                                                    </label>
-                                                ) : (
-                                                    <>
-                                                        <select aria-label="Mes de envío de las órdenes" value={examMes} onChange={e => setExamMes(Number(e.target.value))} style={controlStyle}>
-                                                            {MESES_REPORTE.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                                                        </select>
-                                                        <select aria-label="Año de envío de las órdenes" value={examAnio} onChange={e => setExamAnio(Number(e.target.value))} style={controlStyle}>
-                                                            {anios.map(a => <option key={a} value={a}>{a}</option>)}
-                                                        </select>
-                                                    </>
-                                                )}
-                                            </div>
+                                            <PeriodoSelector value={examPeriodo} onChange={setExamPeriodo} que="de envío de las órdenes" />
                                         </div>
                                     </article>
 
@@ -6648,8 +6536,8 @@ export default function MedicoOcupacionalPage() {
                                         </div>
                                         <p role="status" aria-live="polite" style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
                                             {examenesDelPeriodo.length === 0
-                                                ? `No se enviaron órdenes de examen ${examPeriodo === 'dia' ? descripcionPeriodo : `en ${descripcionPeriodo}`}.`
-                                                : <>Órdenes enviadas {examPeriodo === 'dia' ? descripcionPeriodo : `en ${descripcionPeriodo}`}: <strong>{examenesDelPeriodo.length}</strong> · con PDF: <strong>{conPdf}</strong> · sin PDF: <strong>{examenesDelPeriodo.length - conPdf}</strong></>}
+                                                ? `No se enviaron órdenes de examen ${descripcionPeriodo}.`
+                                                : <>Órdenes enviadas {descripcionPeriodo}: <strong>{examenesDelPeriodo.length}</strong> · con PDF: <strong>{conPdf}</strong> · sin PDF: <strong>{examenesDelPeriodo.length - conPdf}</strong></>}
                                         </p>
 
                                         {/* TABLA DE ÓRDENES */}
@@ -6731,23 +6619,9 @@ export default function MedicoOcupacionalPage() {
 
                             {/* SUBTAB: RECETARIO Y PRESCRIPCIÓN MÉDICA OCUPACIONAL */}
                             {activeReportSubTab === 'recetas' && (() => {
-                                const term = (recetasSearchNombre || '').trim().toLowerCase();
-                                const filteredRecetas = recetasData.filter(r => {
-                                    const matchNombre = !term ||
-                                        (r.paciente || '').toLowerCase().includes(term) ||
-                                        (r.cedula || '').includes(term) ||
-                                        (r.numero_receta || '').toLowerCase().includes(term) ||
-                                        (r.cie || '').toLowerCase().includes(term);
-                                    const matchFecha = !recetasSearchFecha || r.fecha === recetasSearchFecha;
-                                    return matchNombre && matchFecha;
-                                });
-
-                                const currentSelectedReceta = (term && filteredRecetas.length > 0)
-                                    ? filteredRecetas[0]
-                                    : (filteredRecetas.find(r => String(r.id) === String(selectedRecetaId)) ||
-                                       filteredRecetas[0] ||
-                                       recetasData.find(r => String(r.id) === String(selectedRecetaId)) ||
-                                       recetasData[0]);
+                                // Recetas emitidas en el día o mes elegido
+                                const filteredRecetas = recetasData.filter(r => enPeriodo(r.fecha, recetaPeriodo));
+                                const currentSelectedReceta = filteredRecetas.find(r => String(r.id) === String(selectedRecetaId)) || filteredRecetas[0] || null;
 
                                 const handlePrintCurrentReceta = () => {
                                     if (!currentSelectedReceta) {
@@ -6760,7 +6634,7 @@ export default function MedicoOcupacionalPage() {
 
                                 return (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        {/* TARJETA DE CONTROL: BUSCADOR DE EXPEDIENTE / PACIENTE FUERA DEL VISOR */}
+                                        {/* TARJETA DE CONTROL: PERÍODO Y RECETAS EMITIDAS */}
                                         <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
                                                 <div>
@@ -6773,59 +6647,44 @@ export default function MedicoOcupacionalPage() {
                                                     </p>
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                                    {/* Buscador de paciente por nombre o cédula */}
-                                                    <div style={{ position: 'relative' }}>
-                                                        <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                                                        <input
-                                                            aria-label="Buscar paciente por nombre o cédula"
-                                                            type="text"
-                                                            placeholder="Buscar paciente por nombre o cédula..."
-                                                            value={recetasSearchNombre}
-                                                            onChange={(e) => setRecetasSearchNombre(e.target.value)}
-                                                            style={{
-                                                                border: '1px solid var(--border)',
-                                                                borderRadius: '8px',
-                                                                padding: '8px 12px 8px 32px',
-                                                                fontSize: '12px',
-                                                                minWidth: '280px',
-                                                                outline: 'none',
-                                                                background: '#ffffff'
-                                                            }}
-                                                        />
-                                                        {recetasSearchNombre && (
-                                                            <button aria-label="Limpiar búsqueda"
-                                                                type="button"
-                                                                onClick={() => setRecetasSearchNombre('')}
-                                                                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                                {/* PERÍODO DE EMISIÓN DE LAS RECETAS */}
+                                                <PeriodoSelector value={recetaPeriodo} onChange={setRecetaPeriodo} que="de emisión de las recetas" />
+                                            </div>
 
-                                                    {/* Filtro por fecha */}
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <CalendarDays size={16} color="var(--accent)" />
-                                                        <input
-                                                            aria-label="Filtrar por fecha"
-                                                            type="date"
-                                                            value={recetasSearchFecha}
-                                                            onChange={(e) => setRecetasSearchFecha(e.target.value)}
-                                                            style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 10px', fontSize: '11.5px', outline: 0, background: '#fff' }}
-                                                        />
-                                                        {recetasSearchFecha && (
-                                                            <button
-                                                                className="action-button action-button--light"
-                                                                style={{ padding: '6px 10px', fontSize: '11px' }}
-                                                                onClick={() => setRecetasSearchFecha('')}
-                                                                title="Quitar filtro de fecha"
-                                                            >
-                                                                Limpiar
-                                                            </button>
-                                                        )}
+                                            {/* Recetas emitidas en el período */}
+                                            <div style={{ marginTop: '14px' }}>
+                                                <span role="status" aria-live="polite" style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
+                                                    {filteredRecetas.length === 0
+                                                        ? `No se emitieron recetas ${describirPeriodo(recetaPeriodo)}.`
+                                                        : `${filteredRecetas.length} ${filteredRecetas.length === 1 ? 'receta emitida' : 'recetas emitidas'} ${describirPeriodo(recetaPeriodo)}`}
+                                                </span>
+                                                {filteredRecetas.length > 0 && (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
+                                                        {filteredRecetas.map(receta => {
+                                                            const seleccionada = currentSelectedReceta?.id === receta.id;
+                                                            return (
+                                                                <button
+                                                                    key={receta.id}
+                                                                    type="button"
+                                                                    aria-pressed={seleccionada}
+                                                                    onClick={() => setSelectedRecetaId(receta.id)}
+                                                                    style={{
+                                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textAlign: 'left',
+                                                                        padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                                                                        border: seleccionada ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
+                                                                        background: seleccionada ? 'var(--primary-soft)' : '#f8fafc'
+                                                                    }}
+                                                                >
+                                                                    <span style={{ minWidth: 0 }}>
+                                                                        <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>{receta.paciente || 'Sin nombre'}</strong>
+                                                                        <small style={{ color: '#64748b', fontSize: '11px' }}>C.I. {receta.cedula || '—'} · {receta.numero_receta} · {receta.estado}</small>
+                                                                    </span>
+                                                                    <small style={{ color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>{formatFecha(receta.fecha)}</small>
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </article>
 
@@ -7053,67 +6912,19 @@ export default function MedicoOcupacionalPage() {
                                         {/* PANEL DE CONTROL SUPERIOR */}
                                         <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '18px 20px', background: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                                                {/* BÚSQUEDA DE PACIENTE O CÉDULA */}
-                                                <div style={{ position: 'relative', flex: '1', minWidth: '260px', maxWidth: '420px' }}>
-                                                    <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                                                    <input
-                                                        aria-label="Buscar paciente por nombre o cédula"
-                                                        type="text"
-                                                        placeholder="Buscar paciente por nombre o cédula..."
-                                                        value={matrixSearchTerm}
-                                                        onChange={(e) => handleMatrixSearch(e.target.value)}
-                                                        style={{
-                                                            width: '100%',
-                                                            padding: '9px 12px 9px 36px',
-                                                            borderRadius: '8px',
-                                                            border: '1px solid #cbd5e1',
-                                                            fontSize: '12px',
-                                                            outline: 'none',
-                                                            transition: 'all 0.2s',
-                                                            background: '#f8fafc'
-                                                        }}
-                                                    />
+                                                <div>
+                                                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{meta.title}</h3>
+                                                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b' }}>
+                                                        {activeReportSubTab === 'examenes_periodicos'
+                                                            ? 'Matriz anual: elija el año en el visor.'
+                                                            : `${meta.count} ${meta.count === 1 ? 'registro' : 'registros'} ${describirPeriodo(matrizPeriodo)}`}
+                                                    </p>
                                                 </div>
 
-                                                {/* FILTRO DE FECHA */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                                        <input
-                                                            aria-label="Filtrar por fecha"
-                                                            type="date"
-                                                            value={matrixDateFilter}
-                                                            onChange={(e) => setMatrixDateFilter(e.target.value)}
-                                                            title="Filtrar por fecha"
-                                                            style={{
-                                                                padding: '8px 12px',
-                                                                borderRadius: '8px',
-                                                                border: '1px solid #cbd5e1',
-                                                                fontSize: '12px',
-                                                                background: '#f8fafc',
-                                                                color: '#334155',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    {matrixDateFilter && (
-                                                        <button
-                                                            onClick={() => setMatrixDateFilter('')}
-                                                            title="Limpiar filtro de fecha"
-                                                            style={{
-                                                                border: '1px solid #e2e8f0',
-                                                                background: '#ffffff',
-                                                                color: '#64748b',
-                                                                borderRadius: '8px',
-                                                                padding: '8px 12px',
-                                                                fontSize: '11px',
-                                                                cursor: 'pointer',
-                                                                fontWeight: '600'
-                                                            }}
-                                                        >
-                                                            Limpiar fecha
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                {/* PERÍODO DE LOS REGISTROS (la matriz de exámenes periódicos es anual y tiene su propio año) */}
+                                                {activeReportSubTab !== 'examenes_periodicos' && (
+                                                    <PeriodoSelector value={matrizPeriodo} onChange={setMatrizPeriodo} que="de los registros de la matriz" />
+                                                )}
                                             </div>
 
                                             {/* SUBTABS DE CATEGORÍA SI TIENE */}

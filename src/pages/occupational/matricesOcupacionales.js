@@ -443,6 +443,12 @@ export const MATRICES = {
 export const MATRIZ_KEYS = Object.keys(MATRICES);
 
 // Vista de exámenes periódicos: { '2026': [12 meses] }
+/** Fecha principal del registro (la del evento o, si no tiene, la de registro) para filtrar por período */
+export const fechaPrincipal = (row) => String(
+    row.fecha || row.fecha_diagnostico || row.fecha_accidente || row.fecha_ingreso || row.fecha_aparicion
+    || row.fecha_reintegro || row.fecha_salida || row.fecha_resultados || row.created_at || ''
+).slice(0, 10);
+
 export const buildExamenesPeriodicosByYear = (rows) => {
     const byYear = {};
     rows.forEach(r => {
@@ -461,7 +467,7 @@ export const buildExamenesPeriodicosByYear = (rows) => {
 export const buildVulnerablesByGroup = (rows) => {
     const groups = Object.fromEntries(VULNERABLE_GRUPOS.map(g => [g.key, []]));
     rows.forEach(r => {
-        groups[r.grupo].push({ id: r.id, nombre: r.nombre, edad: r.edad, patologia: r.patologia });
+        groups[r.grupo].push({ id: r.id, nombre: r.nombre, edad: r.edad, patologia: r.patologia, fechaPeriodo: r.fechaPeriodo });
     });
     return groups;
 };
