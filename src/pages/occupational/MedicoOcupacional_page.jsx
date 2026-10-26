@@ -17,6 +17,7 @@ import OfficialFichaIngresoModal, { printOfficialIngresoForm, compileOfficialIng
 import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetiroFormHtml } from './OfficialFichaRetiroModal';
 import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
 import MatrizRegistroModal from './MatrizRegistroModal';
+import ResultadoExamenModal, { abrirPdfProtegido, abrirResultadoPdf } from './ResultadoExamenModal';
 import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup } from './matricesOcupacionales';
 
 const uebBannerLogo = logoUeb;
@@ -70,6 +71,8 @@ const DEPARTMENTS = [
     'Financiero y Contabilidad',
     'Otra Área / Departamento'
 ];
+
+const MESES_REPORTE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Tipo de ficha ocupacional: clave en el servidor <-> etiqueta del formulario
 const TIPO_FICHA_LABEL = { ingreso: 'Ingreso', periodico: 'Periódico', retiro: 'Retiro', reintegro: 'Reintegro', gestante: 'Gestante', discapacidad: 'Discapacidad' };
@@ -276,7 +279,12 @@ export default function MedicoOcupacionalPage() {
 
     // State for Exámenes Ocupacionales
     const [examSearchTerm, setExamSearchTerm] = useState('');
-    const [examFilterStatus, setExamFilterStatus] = useState('todos');
+    const [examFilterStatus, setExamFilterStatus] = useState('todos'); // 'todos' | 'con_pdf' | 'sin_pdf'
+    // Período del reporte de órdenes: un día o un mes/año
+    const [examPeriodo, setExamPeriodo] = useState('mes');
+    const [examDia, setExamDia] = useState(localDateStr());
+    const [examMes, setExamMes] = useState(new Date().getMonth() + 1);
+    const [examAnio, setExamAnio] = useState(new Date().getFullYear());
     const [examForm, setExamForm] = useState({
         pacienteCedula: '',
         pacienteNombre: '',
@@ -286,7 +294,7 @@ export default function MedicoOcupacionalPage() {
         prioridad: 'Normal',
         observaciones: ''
     });
-    const [examResultModal, setExamResultModal] = useState({ show: false, item: null, resultadoText: '', estado: 'Realizado' });
+    const [isResultadoExamenOpen, setIsResultadoExamenOpen] = useState(false);
 
     // Evolución & Historical Tracking State
     // Cada departamento ve solo su historial; el médico coordinador ve todas las áreas
@@ -478,12 +486,9 @@ export default function MedicoOcupacionalPage() {
     // State for Exámenes & Laboratorio Ocupacional
     const [activeLabCatTab, setActiveLabCatTab] = useState('todos');
     const [labItemSearchModal, setLabItemSearchModal] = useState('');
-    const [examReportDate, setExamReportDate] = useState(localDateStr());
-    const [useExamDateFilter, setUseExamDateFilter] = useState(true);
     const [selectedExams, setSelectedExams] = useState(['Hemograma Completo', 'Audiometría Tonal Ocupacional', 'Colesterol', 'Triglicéridos']);
     const [customExamNotes, setCustomExamNotes] = useState('');
 
-    const [examOrdersData, setExamOrdersData] = useState([]);
 
     // State for Matriz de Enfermedades Catastróficas o Huérfanas (UEB 2026)
     const [catastrophicSearchTerm, setCatastrophicSearchTerm] = useState('');
@@ -804,35 +809,31 @@ export default function MedicoOcupacionalPage() {
     const fetchExamOrders = async () => {
         try {
             const res = await api.get('/medicina-ocupacional/orden-examen');
-            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-                const mapped = res.data.data.map(o => {
-                    const p = o.paciente || {};
-                    const d = p.datos_identificacion || p.datosIdentificacion || {};
-                    const nombre = d.primer_nombre
-                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
-                        : (p.name || 'Servidor');
-                    const examenesNombres = (o.tipos_examen || o.tiposExamen || []).map(t => t.tipo_examen?.detalle_tipo || t.tipoExamen?.detalle_tipo || 'Examen').concat((o.otros || []).map(ot => ot.detalle_otro_examen));
-                    return {
-                        id: o.id,
-                        fecha: o.fecha,
-                        paciente: nombre,
-                        cedula: d.numero_identificacion || p.cedula || 'N/D',
-                        examen: examenesNombres.length > 0 ? examenesNombres.join(', ') : 'Exámenes Ocupacionales',
-                        motivo: o.observaciones || 'Vigilancia Epidemiológica de Salud Ocupacional',
-                        laboratorio: 'Laboratorio Ocupacional Institucional',
-                        prioridad: 'Normal',
-                        estado: o.estado || 'Pendiente',
-                        selectedExams: examenesNombres,
-                        otrosExamenes: (o.otros || []).map(ot => ot.detalle_otro_examen).join(', ')
-                    };
-                });
-                setExamenesData(prev => {
-                    const ids = new Set(mapped.map(m => m.id));
-                    return [...mapped, ...prev.filter(pr => !ids.has(pr.id))];
-                });
-            }
+            const mapped = (Array.isArray(res.data?.data) ? res.data.data : []).map(o => {
+                const p = o.paciente || {};
+                const d = p.datos_identificacion || p.datosIdentificacion || {};
+                const nombre = [d.primer_nombre, d.segundo_nombre, d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' ') || p.name || '';
+                const examenesNombres = (o.tipos_examen || o.tiposExamen || []).map(t => t.tipo_examen?.detalle_tipo || t.tipoExamen?.detalle_tipo).filter(Boolean)
+                    .concat((o.otros || []).map(ot => ot.detalle_otro_examen).filter(Boolean));
+                return {
+                    id: o.id,
+                    fecha: o.fecha,
+                    paciente: nombre,
+                    cedula: d.numero_cedula || '',
+                    examen: examenesNombres.join(', '),
+                    motivo: o.observaciones || '',
+                    laboratorio: 'Laboratorio Ocupacional Institucional',
+                    estado: o.estado || 'Pendiente',
+                    tieneResultado: Boolean(o.tiene_resultado),
+                    resultadoNombre: o.resultado_pdf_nombre || '',
+                    resultadoFecha: o.resultado_subido_at || '',
+                    selectedExams: examenesNombres,
+                    otrosExamenes: (o.otros || []).map(ot => ot.detalle_otro_examen).join(', ')
+                };
+            });
+            setExamenesData(mapped);
         } catch (err) {
-            console.log("Exam orders backend offline or empty");
+            console.error('No se pudieron cargar las órdenes de examen:', err);
         }
     };
 
@@ -1021,228 +1022,6 @@ export default function MedicoOcupacionalPage() {
     };
 
     // Handlers for Exámenes & Laboratorio
-    const filteredExamOrders = examOrdersData.filter(item => {
-        const matchesDate = !useExamDateFilter || item.fecha === examReportDate;
-        const matchesSearch = (item.paciente || '').toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-            (item.cedula || '').includes(examSearchTerm) ||
-            (item.examen || '').toLowerCase().includes(examSearchTerm.toLowerCase());
-        const matchesStatus = examFilterStatus === 'todos' || item.estado.toLowerCase() === examFilterStatus.toLowerCase();
-        return matchesDate && matchesSearch && matchesStatus;
-    });
-
-    const handlePrintExamOrderDocument = (item) => {
-        const printWindow = window.open('', '_blank', 'width=1000,height=900');
-        if (!printWindow) {
-            alert('Por favor permita las ventanas emergentes para imprimir la orden de examen.');
-            return;
-        }
-
-        const patientName = (item.paciente || '').toUpperCase();
-        const cedula = item.cedula || 'N/D';
-        const edad = item.edad || 'N/D';
-        const fechaStr = item.fecha || localDateStr();
-        const activeExams = item.selectedExams || ['Hemograma Completo', 'Audiometría Tonal Ocupacional'];
-        const notes = item.otrosExamenes || customExamNotes || 'Ninguna observación adicional.';
-
-        let categoriesHtml = '';
-        Object.entries(LAB_EXAM_CATEGORIES).forEach(([catKey, category]) => {
-            let itemsGridHtml = '';
-            category.items.forEach(examItem => {
-                const isChecked = activeExams.includes(examItem);
-                itemsGridHtml += `
-                    <div style="display: flex; align-items: center; gap: 4px; font-size: 8.5px; padding: 1px 0;">
-                        <span style="font-weight: bold; font-family: monospace; font-size: 10px;">${escapeHtml(isChecked ? '( X )' : '(   )')}</span>
-                        <span style="${escapeHtml(isChecked ? 'font-weight: bold; color: #0b3c5d;' : 'color: #334155;')}">${escapeHtml(examItem)}</span>
-                    </div>
-                `;
-            });
-
-            categoriesHtml += `
-                <div style="border: 1px solid #000; margin-bottom: 6px; page-break-inside: avoid;">
-                    <div style="background-color: #000; color: #fff; font-weight: bold; font-size: 9px; padding: 2px 6px; text-transform: uppercase;">
-                        ${escapeHtml(category.title)}
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 8px; padding: 4px 6px; background: #fff;">
-                        ${itemsGridHtml}
-                    </div>
-                </div>
-            `;
-        });
-
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <meta charset="UTF-8"/>
-                <title>ORDEN DE EXAMEN DE LABORATORIO - UEB</title>
-                <style>
-                    @page { size: A4 portrait; margin: 8mm 10mm; }
-                    * { box-sizing: border-box; }
-                    body { font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: #000; background: #fff; margin: 0; padding: 0; }
-                    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; }
-                    .header-table td { padding: 4px 8px; vertical-align: middle; border: 1px solid #000; }
-                    .logo-title { font-size: 14px; font-weight: 900; color: #0b3c5d; margin: 0; }
-                    .logo-sub { font-size: 8px; font-weight: 800; color: #0284c7; }
-                    .order-title { font-size: 12px; font-weight: 900; text-align: center; text-transform: uppercase; background: #f1f5f9; padding: 6px; }
-                    .patient-card { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #000; font-size: 9.5px; }
-                    .patient-card td { padding: 4px 6px; border: 1px solid #000; }
-                    .patient-label { font-weight: bold; background: #f8fafc; text-transform: uppercase; width: 15%; }
-                    @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-                </style>
-            </head>
-            <body>
-                <div style="padding: 2px;">
-                    <table class="header-table">
-                        <tr>
-                            <td style="width: 140px; text-align: center; vertical-align: middle;">
-                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
-                            </td>
-                            <td class="order-title">
-                                UNIVERSIDAD ESTATAL DE BOLÍVAR<br/>
-                                <span style="font-size: 10px; font-weight: bold;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</span><br/>
-                                <span style="font-size: 11px; color: #0b3c5d;">ORDEN DE EXAMEN DE LABORATORIO CLÍNICO</span>
-                            </td>
-                            <td style="width: 140px; text-align: center; vertical-align: middle;">
-                                <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
-                            </td>
-                        </tr>
-                    </table>
-
-                    <table class="patient-card">
-                        <tr>
-                            <td class="patient-label">PACIENTE:</td>
-                            <td style="font-weight: bold; width: 45%;">${escapeHtml(patientName)}</td>
-                            <td class="patient-label">CÉDULA:</td>
-                            <td style="font-weight: bold;">${escapeHtml(cedula)}</td>
-                        </tr>
-                        <tr>
-                            <td class="patient-label">FECHA:</td>
-                            <td>${escapeHtml(fechaStr)}</td>
-                            <td class="patient-label">EDAD / SEXO:</td>
-                            <td>${escapeHtml(edad)} / M-F</td>
-                        </tr>
-                        <tr>
-                            <td class="patient-label">MÉDICO:</td>
-                            <td>Dr. Jorge Morales Torres (Salud Ocupacional)</td>
-                            <td class="patient-label">LABORATORIO:</td>
-                            <td>${escapeHtml(item.laboratorio || 'Laboratorio Central Universitario UEB')}</td>
-                        </tr>
-                    </table>
-
-                    <div style="margin-bottom: 6px; font-weight: bold; font-size: 9.5px; text-transform: uppercase; color: #0b3c5d; border-bottom: 1px solid #000; padding-bottom: 2px;">
-                        Exámenes Clínicos Solicitados
-                    </div>
-
-                    ${categoriesHtml}
-
-                    <div style="margin-top: 6px; border: 1px solid #000; padding: 4px 6px; font-size: 8.5px; background: #fafafa;">
-                        <strong>OBSERVACIONES / OTROS EXÁMENES:</strong> ${escapeHtml(notes)}
-                    </div>
-
-                    <div style="margin-top: 25px; display: flex; justify-content: space-around; text-align: center;">
-                        <div style="width: 220px; border-top: 1px solid #000; padding-top: 4px; font-size: 8.5px;">
-                            <strong>Dr. Jorge Morales Torres</strong><br/>
-                            MÉDICO SALUD OCUPACIONAL<br/>
-                            <span style="color: #64748b;">MSP / MDT / UEB</span>
-                        </div>
-                        <div style="width: 220px; border-top: 1px solid #000; padding-top: 4px; font-size: 8.5px;">
-                            <strong>Firma del Paciente / Funcionario</strong><br/>
-                            C.I.: ${escapeHtml(cedula)}
-                        </div>
-                    </div>
-                </div>
-
-                <script>window.onload = function() { setTimeout(function() { window.print(); }, 300); };</script>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-    };
-
-    const handlePrintDailyExamsReport = () => {
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Por favor permita las ventanas emergentes para imprimir.');
-            return;
-        }
-
-        const rows = filteredExamOrders.map((ord, idx) => `
-            <tr>
-                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${escapeHtml(idx + 1)}</td>
-                <td style="padding: 6px; border: 1px solid #000; font-weight: bold;">${escapeHtml(ord.paciente)}<br/><small>C.I: ${escapeHtml(ord.cedula)}</small></td>
-                <td style="padding: 6px; border: 1px solid #000;">${escapeHtml(ord.examen)}</td>
-                <td style="padding: 6px; border: 1px solid #000;">${escapeHtml(ord.motivo)}</td>
-                <td style="padding: 6px; border: 1px solid #000; text-align: center;">${escapeHtml(ord.estado)}</td>
-            </tr>
-        `).join('');
-
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-                <title>Reporte Diario de Exámenes UEB</title>
-                <style>
-                    body { font-family: Arial; font-size: 11px; padding: 15px; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    th { background: #0b3c5d; color: #fff; border: 1px solid #000; padding: 6px; }
-                </style>
-            </head>
-            <body>
-                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0b3c5d; padding-bottom: 8px; margin-bottom: 12px;">
-                    <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario" style="max-height: 48px; object-fit: contain;" />
-                    <div style="text-align: center;">
-                        <h2 style="margin: 0; font-size: 13px; color: #002040;">UNIVERSIDAD ESTATAL DE BOLÍVAR</h2>
-                        <h3 style="margin: 2px 0; font-size: 11px; color: #0b3c5d;">DIRECCIÓN DE BIENESTAR UNIVERSITARIO · SALUD OCUPACIONAL</h3>
-                        <p style="margin: 2px 0 0 0; font-size: 10px; font-weight: bold; color: #0284c7;">REPORTE DE ÓRDENES DE EXÁMENES DE LABORATORIO</p>
-                    </div>
-                    <img src="${escapeHtml(logoUebTexto)}" alt="UEB" style="max-height: 40px; object-fit: contain;" />
-                </div>
-                <p><strong>Fecha de Reporte:</strong> ${escapeHtml(useExamDateFilter ? examReportDate : 'Todas las Fechas (Histórico)')} | <strong>Total Registros:</strong> ${escapeHtml(filteredExamOrders.length)}</p>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>N°</th>
-                            <th>Paciente</th>
-                            <th>Exámenes Solicitados</th>
-                            <th>Motivo Ocupacional</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows ? rows : '<tr><td colspan="5" style="text-align:center;">No hay órdenes para la fecha seleccionada.</td></tr>'}</tbody>
-                </table>
-                <script>window.onload = function() { window.print(); };</script>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-    };
-
-    const handleSaveExamOrderRecord = (e) => {
-        e.preventDefault();
-        const pacienteName = patientSelected
-            ? `${patientSelected.nombres} ${patientSelected.apellidos}`.trim()
-            : 'Paciente Seleccionado';
-
-        const newOrder = {
-            id: Date.now(),
-            fecha: localDateStr(),
-            paciente: pacienteName,
-            cedula: patientSelected?.cedula || '0201234567',
-            edad: patientSelected?.edad ? `${patientSelected.edad} años` : '35 años',
-            medicoSolicitante: 'Dr. Jorge Morales Torres',
-            selectedExams: [...selectedExams],
-            otrosExamenes: customExamNotes,
-            examen: selectedExams.length > 0 ? selectedExams.slice(0, 3).join(', ') + (selectedExams.length > 3 ? '...' : '') : 'Exámenes Generales',
-            motivo: 'Evaluación Ocupacional Periódica',
-            laboratorio: 'Laboratorio Central Universitario UEB',
-            prioridad: 'Normal',
-            estado: 'Pendiente'
-        };
-
-        setExamOrdersData([newOrder, ...examOrdersData]);
-        setIsExamModalOpen(false);
-        setCustomExamNotes('');
-    };
 
     const matchesDateFilter = (recordDateStr, filterVal) => {
         if (!filterVal || !recordDateStr) return true;
@@ -4820,33 +4599,21 @@ export default function MedicoOcupacionalPage() {
         printHtmlDocument(html, `Ficha Ocupacional - ${item.paciente}`);
     };
 
-    const filteredExamenes = examenesData.filter(item => {
-        const matchesSearch = (item.paciente || '').toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-            (item.cedula || '').includes(examSearchTerm) ||
-            (item.examen || '').toLowerCase().includes(examSearchTerm.toLowerCase()) ||
-            (item.laboratorio || '').toLowerCase().includes(examSearchTerm.toLowerCase());
-
-        if (!matchesSearch) return false;
-
-        if (examFilterStatus === 'pendiente') {
-            return item.estado === 'Pendiente';
-        }
-        if (examFilterStatus === 'realizado') {
-            return item.estado === 'Realizado';
-        }
+    const enPeriodoExamen = (fecha) => {
+        const f = String(fecha || '').slice(0, 10);
+        return examPeriodo === 'dia' ? f === examDia : f.slice(0, 7) === `${examAnio}-${String(examMes).padStart(2, '0')}`;
+    };
+    const examenesDelPeriodo = examenesData.filter(item => enPeriodoExamen(item.fecha));
+    const filteredExamenes = examenesDelPeriodo.filter(item => {
+        const termino = examSearchTerm.trim().toLowerCase();
+        const coincide = !termino || (item.paciente || '').toLowerCase().includes(termino)
+            || (item.cedula || '').includes(termino)
+            || (item.examen || '').toLowerCase().includes(termino);
+        if (!coincide) return false;
+        if (examFilterStatus === 'con_pdf') return item.tieneResultado;
+        if (examFilterStatus === 'sin_pdf') return !item.tieneResultado;
         return true;
     });
-
-    const handleOpenExamModal = () => {
-        if (patientSelected) {
-            setExamForm(prev => ({
-                ...prev,
-                pacienteCedula: patientSelected.cedula || '',
-                pacienteNombre: patientSelected.nombre_completo || `${patientSelected.nombres || ''} ${patientSelected.apellidos || ''}`.trim()
-            }));
-        }
-        setIsExamModalOpen(true);
-    };
 
     const handleSaveExamOrder = async (e) => {
         e.preventDefault();
@@ -4891,24 +4658,6 @@ export default function MedicoOcupacionalPage() {
             prioridad: 'Normal',
             observaciones: ''
         });
-    };
-
-    const handleSaveExamResult = (e) => {
-        e.preventDefault();
-        if (!examResultModal.item) return;
-
-        setExamenesData(prev => prev.map(item => {
-            if (item.id === examResultModal.item.id) {
-                return {
-                    ...item,
-                    estado: examResultModal.estado,
-                    resultado: examResultModal.resultadoText || 'Informe emitido por laboratorio'
-                };
-            }
-            return item;
-        }));
-
-        setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' });
     };
 
     const handleSearchFarmacia = async (query = '') => {
@@ -5557,8 +5306,8 @@ export default function MedicoOcupacionalPage() {
                                 <div className="page-hero__icon"><ClipboardList size={34} /></div>
                             </section>
 
-                            {/* TARJETA DE ACCIÓN DIRECTA CON TAMAÑO ACOTADO */}
-                            <div style={{ display: 'flex', gap: '16px' }}>
+                            {/* TARJETAS DE ACCIÓN DIRECTA CON TAMAÑO ACOTADO */}
+                            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                                 <button
                                     className="vitals-action-card vitals-action-card--primary"
                                     onClick={() => openPatientSearch('exam')}
@@ -5569,6 +5318,19 @@ export default function MedicoOcupacionalPage() {
                                     <span className="vitals-action-card__content">
                                         <small>Emisión de Orden</small>
                                         <strong>Nueva Orden de Examen</strong>
+                                    </span>
+                                    <span className="vitals-action-card__arrow"><ChevronRight size={20} /></span>
+                                </button>
+                                <button
+                                    className="vitals-action-card vitals-action-card--primary"
+                                    onClick={() => setIsResultadoExamenOpen(true)}
+                                    style={{ maxWidth: '380px', width: '100%' }}
+                                >
+                                    <span className="vitals-action-card__glow"></span>
+                                    <span className="vitals-action-card__icon"><Upload size={24} /></span>
+                                    <span className="vitals-action-card__content">
+                                        <small>Resultados de Laboratorio</small>
+                                        <strong>Subir Resultado de Exámenes</strong>
                                     </span>
                                     <span className="vitals-action-card__arrow"><ChevronRight size={20} /></span>
                                 </button>
@@ -6796,162 +6558,186 @@ export default function MedicoOcupacionalPage() {
                             )}
 
                             {/* SUBTAB: REPORTE DE EXÁMENES & LABORATORIO */}
-                            {activeReportSubTab === 'examenes' && (
+                            {activeReportSubTab === 'examenes' && (() => {
+                                const conPdf = examenesDelPeriodo.filter(e => e.tieneResultado).length;
+                                const anioActual = new Date().getFullYear();
+                                const anios = Array.from({ length: 5 }, (_, i) => anioActual - i);
+                                const descripcionPeriodo = examPeriodo === 'dia'
+                                    ? `el ${formatFecha(examDia)}`
+                                    : `${MESES_REPORTE[examMes - 1].toLowerCase()} de ${examAnio}`;
+                                const filtros = [
+                                    ['todos', `Todas (${examenesDelPeriodo.length})`, FileText],
+                                    ['sin_pdf', `Sin PDF (${examenesDelPeriodo.length - conPdf})`, AlertTriangle],
+                                    ['con_pdf', `Con PDF (${conPdf})`, CheckCircle]
+                                ];
+                                const controlStyle = { border: '1px solid var(--border)', borderRadius: '8px', padding: '7px 10px', fontSize: '12px', background: '#ffffff' };
+                                return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
                                             <div>
                                                 <span className="eyebrow">DIAGNÓSTICO OCUPACIONAL</span>
-                                                <h3>Matriz & Reporte de Exámenes Médicos</h3>
-                                                <p>Consulte el historial acumulado de órdenes diagnósticas, estados de resultados y exporte la matriz oficial.</p>
+                                                <h3>Órdenes de Exámenes Enviadas</h3>
+                                                <p>Consulte las solicitudes de examen emitidas en un día o en un mes y si ya tienen adjunto el PDF de resultados.</p>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <button className="action-button action-button--primary" onClick={handleOpenExamModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '34px', fontSize: '12px' }}>
-                                                    <Plus size={14} /> Nueva Orden
-                                                </button>
-                                                <button className="action-button action-button--accent" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '34px', fontSize: '12px' }}>
-                                                    <Printer size={14} /> Imprimir Matriz
-                                                </button>
+
+                                            {/* PERÍODO: DÍA O MES */}
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                                                <div role="group" aria-label="Consultar por" style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
+                                                    {[['dia', 'Por día'], ['mes', 'Por mes']].map(([valor, texto]) => (
+                                                        <button
+                                                            key={valor}
+                                                            type="button"
+                                                            aria-pressed={examPeriodo === valor}
+                                                            onClick={() => setExamPeriodo(valor)}
+                                                            style={{
+                                                                padding: '6px 12px', fontSize: '11.5px', fontWeight: 600, border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                                                background: examPeriodo === valor ? '#ffffff' : 'transparent',
+                                                                color: examPeriodo === valor ? 'var(--primary)' : 'var(--text-muted)',
+                                                                boxShadow: examPeriodo === valor ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                            }}
+                                                        >
+                                                            {texto}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {examPeriodo === 'dia' ? (
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <CalendarDays size={16} color="var(--accent)" />
+                                                        <input aria-label="Día de envío de las órdenes" type="date" value={examDia} onChange={e => setExamDia(e.target.value)} style={controlStyle} />
+                                                    </label>
+                                                ) : (
+                                                    <>
+                                                        <select aria-label="Mes de envío de las órdenes" value={examMes} onChange={e => setExamMes(Number(e.target.value))} style={controlStyle}>
+                                                            {MESES_REPORTE.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                                                        </select>
+                                                        <select aria-label="Año de envío de las órdenes" value={examAnio} onChange={e => setExamAnio(Number(e.target.value))} style={controlStyle}>
+                                                            {anios.map(a => <option key={a} value={a}>{a}</option>)}
+                                                        </select>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </article>
 
                                     <div className="card" style={{ borderRadius: '16px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', background: '#ffffff' }}>
-                                        {/* BARRA DE FILTROS & ACCIONES */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
-                                            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto' }}>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${examFilterStatus === 'todos' ? 'active' : ''}`}
-                                                    onClick={() => setExamFilterStatus('todos')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <FileText size={15} /> Todos los Exámenes
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${examFilterStatus === 'pendiente' ? 'active' : ''}`}
-                                                    onClick={() => setExamFilterStatus('pendiente')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <AlertTriangle size={15} /> Pendientes
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`history-tab ${examFilterStatus === 'realizado' ? 'active' : ''}`}
-                                                    onClick={() => setExamFilterStatus('realizado')}
-                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '12px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
-                                                >
-                                                    <CheckCircle size={15} /> Realizados
-                                                </button>
+                                        {/* ESTADO DEL PDF, BÚSQUEDA Y CONTEO */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
+                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                {filtros.map(([valor, texto, Icono]) => (
+                                                    <button
+                                                        key={valor}
+                                                        type="button"
+                                                        aria-pressed={examFilterStatus === valor}
+                                                        className={`history-tab ${examFilterStatus === valor ? 'active' : ''}`}
+                                                        onClick={() => setExamFilterStatus(valor)}
+                                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                                                    >
+                                                        <Icono size={14} /> {texto}
+                                                    </button>
+                                                ))}
                                             </div>
-                                        </div>
-
-                                        {/* BUSCADOR Y CONTEO */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', gap: '12px', flexWrap: 'wrap' }}>
-                                            <div className="patient-search-input" style={{ width: '100%', maxWidth: '400px' }}>
+                                            <div className="patient-search-input" style={{ width: '100%', maxWidth: '340px', margin: 0 }}>
                                                 <Search size={16} />
                                                 <input
-                                                    aria-label="Buscar por paciente, cédula, examen o laboratorio"
+                                                    aria-label="Buscar por paciente, cédula o examen"
                                                     type="text"
-                                                    placeholder="Buscar por paciente, cédula, examen o laboratorio..."
+                                                    placeholder="Buscar por paciente, cédula o examen..."
                                                     value={examSearchTerm}
                                                     onChange={e => setExamSearchTerm(e.target.value)}
                                                 />
                                             </div>
-                                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-                                                Exámenes filtrados: <strong>{filteredExamenes.length}</strong>
-                                            </div>
                                         </div>
+                                        <p role="status" aria-live="polite" style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
+                                            {examenesDelPeriodo.length === 0
+                                                ? `No se enviaron órdenes de examen ${examPeriodo === 'dia' ? descripcionPeriodo : `en ${descripcionPeriodo}`}.`
+                                                : <>Órdenes enviadas {examPeriodo === 'dia' ? descripcionPeriodo : `en ${descripcionPeriodo}`}: <strong>{examenesDelPeriodo.length}</strong> · con PDF: <strong>{conPdf}</strong> · sin PDF: <strong>{examenesDelPeriodo.length - conPdf}</strong></>}
+                                        </p>
 
-                                        {/* TABLA DE EXÁMENES */}
+                                        {/* TABLA DE ÓRDENES */}
                                         <div className="table-responsive">
                                             <table className="table" style={{ width: '100%' }}>
                                                 <thead>
                                                     <tr>
-                                                        <th>Fecha Orden</th>
+                                                        <th>Fecha de envío</th>
                                                         <th>Paciente / Cédula</th>
-                                                        <th>Examen Requerido</th>
-                                                        <th>Motivo / Indicación</th>
-                                                        <th>Laboratorio Destino</th>
-                                                        <th>Estado</th>
-                                                        <th>Resultado / Informe</th>
+                                                        <th>Exámenes solicitados</th>
+                                                        <th>Observaciones</th>
+                                                        <th>PDF de resultados</th>
                                                         <th style={{ textAlign: 'right' }}>Acciones</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {filteredExamenes.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13.5px' }}>
-                                                                No hay órdenes de examen médico registradas en este apartado.
+                                                            <td colSpan="6" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
+                                                                No hay órdenes que coincidan con los filtros.
                                                             </td>
                                                         </tr>
-                                                    ) : (
-                                                        filteredExamenes.map(item => (
-                                                            <tr key={item.id}>
-                                                                <td>{formatFecha(item.fecha)}</td>
-                                                                <td>
-                                                                    <strong>{item.paciente}</strong>
-                                                                    <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {item.cedula}</small>
-                                                                </td>
-                                                                <td>
-                                                                    <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '8px', fontSize: '11.5px', fontWeight: '600' }}>
-                                                                        {item.examen}
+                                                    ) : filteredExamenes.map(item => (
+                                                        <tr key={item.id}>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</td>
+                                                            <td>
+                                                                <strong>{item.paciente}</strong>
+                                                                <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {item.cedula}</small>
+                                                            </td>
+                                                            <td style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600 }}>{item.examen || '—'}</td>
+                                                            <td style={{ fontSize: '12px', color: '#334155' }}>{item.motivo || '—'}</td>
+                                                            <td>
+                                                                {item.tieneResultado ? (
+                                                                    <span style={{ display: 'inline-flex', flexDirection: 'column', gap: '2px' }}>
+                                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803d', fontSize: '11.5px', fontWeight: 700 }}>
+                                                                            <CheckCircle size={13} /> Adjuntado
+                                                                        </span>
+                                                                        {item.resultadoFecha && <small style={{ color: '#64748b', fontSize: '11px' }}>el {formatFecha(item.resultadoFecha)}</small>}
                                                                     </span>
-                                                                </td>
-                                                                <td style={{ fontSize: '12.5px', color: '#334155' }}>{item.motivo}</td>
-                                                                <td style={{ fontSize: '12px', color: '#64748b' }}>{item.laboratorio}</td>
-                                                                <td>
-                                                                    <span style={{
-                                                                        padding: '5px 12px',
-                                                                        borderRadius: '20px',
-                                                                        fontSize: '11.5px',
-                                                                        fontWeight: '700',
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '6px',
-                                                                        background: item.estado === 'Realizado' ? '#f0fdf4' : '#fffbeb',
-                                                                        color: item.estado === 'Realizado' ? '#15803d' : '#b45309',
-                                                                        border: item.estado === 'Realizado' ? '1px solid #dcfce7' : '1px solid #fef3c7'
-                                                                    }}>
-                                                                        {item.estado === 'Realizado' ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
-                                                                        {item.estado}
+                                                                ) : (
+                                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#b45309', fontSize: '11.5px', fontWeight: 700 }}>
+                                                                        <AlertTriangle size={13} /> Pendiente
                                                                     </span>
-                                                                </td>
-                                                                <td style={{ maxWidth: '220px', fontSize: '12px', color: '#0f172a', fontWeight: '500' }}>
-                                                                    {item.resultado}
-                                                                </td>
-                                                                <td style={{ textAlign: 'right' }}>
-                                                                    <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="action-button action-button--light"
-                                                                            style={{ padding: '6px 10px', fontSize: '11.5px', borderRadius: '8px' }}
-                                                                            onClick={() => alert(`Generando orden en PDF del examen (${item.examen}) para ${item.paciente}`)}
-                                                                            title="Imprimir Orden PDF"
-                                                                        >
-                                                                            <Printer size={13} /> Orden
-                                                                        </button>
+                                                                )}
+                                                            </td>
+                                                            <td style={{ textAlign: 'right' }}>
+                                                                <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="action-button action-button--light"
+                                                                        style={{ padding: '6px 10px', fontSize: '11.5px', borderRadius: '8px' }}
+                                                                        onClick={() => abrirPdfProtegido(`/medicina-ocupacional/orden-examen/${item.id}/pdf`, 'No se pudo generar la orden en PDF.')}
+                                                                    >
+                                                                        <Printer size={13} /> Orden
+                                                                    </button>
+                                                                    {item.tieneResultado ? (
                                                                         <button
                                                                             type="button"
                                                                             className="action-button action-button--primary"
                                                                             style={{ padding: '6px 10px', fontSize: '11.5px', borderRadius: '8px' }}
-                                                                            onClick={() => setExamResultModal({ show: true, item, resultadoText: item.resultado !== 'Pendiente de emisión por laboratorio' ? item.resultado : '', estado: 'Realizado' })}
-                                                                            title="Cargar / Editar Resultado"
+                                                                            onClick={() => abrirResultadoPdf(item.id)}
+                                                                            title={item.resultadoNombre}
                                                                         >
-                                                                            <Upload size={13} /> Resultado
+                                                                            <FileText size={13} /> Ver PDF
                                                                         </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    )}
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="action-button action-button--accent"
+                                                                            style={{ padding: '6px 10px', fontSize: '11.5px', borderRadius: '8px' }}
+                                                                            onClick={() => setIsResultadoExamenOpen(true)}
+                                                                        >
+                                                                            <Upload size={13} /> Subir PDF
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                                );
+                            })()}
 
                             {/* SUBTAB: RECETARIO Y PRESCRIPCIÓN MÉDICA OCUPACIONAL */}
                             {activeReportSubTab === 'recetas' && (() => {
@@ -7268,176 +7054,6 @@ export default function MedicoOcupacionalPage() {
                             )}
 
                             {/* SUBTAB: EXÁMENES & LABORATORIO OCUPACIONAL */}
-                            {activeReportSubTab === 'examenes' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <article className="nurse-card span-12" style={{ borderRadius: '14px', padding: '20px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
-                                            <div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span className="eyebrow" style={{ color: '#0284c7' }}>LABORATORIO CLÍNICO & VIGILANCIA</span>
-                                                    <span style={{ background: '#e0f2fe', color: '#0369a1', fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '12px' }}>FORMATO UEB</span>
-                                                </div>
-                                                <h3 style={{ margin: '4px 0', fontSize: '18px', color: '#0b3c5d' }}>Órdenes de Exámenes de Laboratorio Clínico</h3>
-                                                <p style={{ margin: 0, color: '#64748b', fontSize: '12px' }}>
-                                                    Emita la orden médica con la cuadrícula oficial de 11 categorías o revise las órdenes generadas por fecha de emisión.
-                                                </p>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                <button
-                                                    className="action-button action-button--accent"
-                                                    onClick={() => setIsExamModalOpen(true)}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0b3c5d', color: '#ffffff', fontWeight: 'bold' }}
-                                                >
-                                                    <FileText size={15} /> Emitir Nueva Orden de Examen
-                                                </button>
-                                                <button
-                                                    className="action-button action-button--light"
-                                                    onClick={handlePrintDailyExamsReport}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                                                >
-                                                    <Printer size={15} /> Imprimir Reporte de Órdenes
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </article>
-
-                                    {/* FILTROS Y BÚSQUEDA DE ÓRDENES */}
-                                    <div className="nurse-card span-12" style={{ borderRadius: '14px', padding: '16px 20px', background: '#ffffff' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
-                                                <div className="patient-search-input" style={{ maxWidth: '320px', margin: 0 }}>
-                                                    <Search size={16} />
-                                                    <input
-                                                        aria-label="Buscar por paciente, cédula o examen"
-                                                        type="text"
-                                                        placeholder="Buscar por paciente, cédula o examen..."
-                                                        value={examSearchTerm}
-                                                        onChange={(e) => setExamSearchTerm(e.target.value)}
-                                                    />
-                                                    {examSearchTerm && (
-                                                        <button aria-label="Limpiar búsqueda" onClick={() => setExamSearchTerm('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
-                                                            <X size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-
-                                                {/* SELECTOR DE FECHA CON OPCIÓN HISTÓRICO */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                                    <CalendarDays size={16} color="#0284c7" />
-                                                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155' }}>Fecha Emisión:</span>
-                                                    <input
-                                                        aria-label="Fecha Emisión"
-                                                        type="date"
-                                                        disabled={!useExamDateFilter}
-                                                        value={examReportDate}
-                                                        onChange={(e) => setExamReportDate(e.target.value)}
-                                                        style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', opacity: useExamDateFilter ? 1 : 0.5 }}
-                                                    />
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b', cursor: 'pointer', marginLeft: '4px' }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={!useExamDateFilter}
-                                                            onChange={(e) => setUseExamDateFilter(!e.target.checked)}
-                                                        />
-                                                        Ver Histórico
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <span style={{ fontSize: '12px', color: '#64748b' }}>Estado:</span>
-                                                <select
-                                                    aria-label="Estado"
-                                                    value={examFilterStatus}
-                                                    onChange={(e) => setExamFilterStatus(e.target.value)}
-                                                    style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 0 }}
-                                                >
-                                                    <option value="todos">Todos los Estados</option>
-                                                    <option value="pendiente">Pendientes</option>
-                                                    <option value="completado">Completados</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* TABLA DE ÓRDENES DE EXÁMENES GENERADAS */}
-                                    <div className="nurse-card span-12" style={{ borderRadius: '14px', overflow: 'hidden', padding: 0 }}>
-                                        <div style={{ padding: '16px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <h4 style={{ margin: 0, fontSize: '14px', color: '#0b3c5d', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <Stethoscope size={16} /> Órdenes Registradas ({filteredExamOrders.length})
-                                            </h4>
-                                            {useExamDateFilter && (
-                                                <span style={{ fontSize: '11px', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '6px', fontWeight: '600' }}>
-                                                    Filtrado por Fecha: {examReportDate}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div style={{ overflowX: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                                                <thead>
-                                                    <tr style={{ background: '#0b3c5d', color: '#ffffff' }}>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>N°</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Fecha</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Paciente / Cédula</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Exámenes Solicitados</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Motivo Ocupacional</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold' }}>Estado</th>
-                                                        <th style={{ padding: '10px 14px', fontWeight: 'bold', textAlign: 'right' }}>Acciones</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {filteredExamOrders.length > 0 ? (
-                                                        filteredExamOrders.map((ord, idx) => (
-                                                            <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                                                                <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#64748b' }}>{idx + 1}</td>
-                                                                <td style={{ padding: '10px 14px', color: '#334155' }}>{formatFecha(ord.fecha)}</td>
-                                                                <td style={{ padding: '10px 14px' }}>
-                                                                    <div style={{ fontWeight: 'bold', color: '#0b3c5d' }}>{ord.paciente}</div>
-                                                                    <div style={{ fontSize: '11px', color: '#64748b' }}>C.I: {ord.cedula}</div>
-                                                                </td>
-                                                                <td style={{ padding: '10px 14px', color: '#1e293b', maxWidth: '280px' }}>
-                                                                    <div style={{ fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                        {ord.examen}
-                                                                    </div>
-                                                                </td>
-                                                                <td style={{ padding: '10px 14px', color: '#475569' }}>{ord.motivo}</td>
-                                                                <td style={{ padding: '10px 14px' }}>
-                                                                    <span style={{
-                                                                        padding: '3px 8px',
-                                                                        borderRadius: '12px',
-                                                                        fontSize: '11px',
-                                                                        fontWeight: 'bold',
-                                                                        background: ord.estado === 'Completado' ? '#dcfce7' : '#fef3c7',
-                                                                        color: ord.estado === 'Completado' ? '#15803d' : '#b45309'
-                                                                    }}>
-                                                                        {ord.estado}
-                                                                    </span>
-                                                                </td>
-                                                                <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                                                                    <button
-                                                                        className="action-button action-button--accent"
-                                                                        onClick={() => handlePrintExamOrderDocument(ord)}
-                                                                        style={{ padding: '4px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                                    >
-                                                                        <Printer size={12} /> Orden PDF
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                                                                No se encontraron órdenes de examen registradas para esta fecha o criterio de búsqueda.
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             {/* VISTA UNIFICADA DE MATRICES ESTADÍSTICAS OFICIALES CON VISOR PDF */}
                             {activeTab === 'reportes' && isMatricesCat && (() => {
@@ -8943,55 +8559,11 @@ export default function MedicoOcupacionalPage() {
             )}
 
             {/* MODAL REGISTRAR / EDITAR RESULTADO DE EXAMEN */}
-            {examResultModal.show && (
-                <div className="clinical-modal show">
-                    <div className="clinical-modal__backdrop" onClick={() => setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' })}></div>
-                    <div className="clinical-modal__dialog clinical-modal__dialog--compact" style={{ maxWidth: '580px' }}>
-                        <header className="clinical-modal__header">
-                            <div className="clinical-modal__patient">
-                                <span className="clinical-modal__avatar"><Upload size={18} /></span>
-                                <div>
-                                    <span>Informe Diagnóstico</span>
-                                    <h2>Cargar Resultado de Examen Médico</h2>
-                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                                        {examResultModal.item?.examen} — {examResultModal.item?.paciente}
-                                    </p>
-                                </div>
-                            </div>
-                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' })}><X size={16} /></button>
-                        </header>
-
-                        <div className="clinical-modal__body">
-                            <form onSubmit={handleSaveExamResult}>
-                                <div className="field" style={{ marginBottom: '14px' }}>
-                                    <label htmlFor="medicoocupac-estado-del-examen">Estado del Examen *</label>
-                                    <select id="medicoocupac-estado-del-examen"
-                                        value={examResultModal.estado}
-                                        onChange={e => setExamResultModal({ ...examResultModal, estado: e.target.value })}
-                                        style={{ fontWeight: '600' }}
-                                    >
-                                        <option value="Realizado">Realizado / Completado</option>
-                                        <option value="Pendiente">Pendiente de Procesamiento</option>
-                                    </select>
-                                </div>
-                                <div className="field" style={{ marginBottom: '16px' }}>
-                                    <label htmlFor="medicoocupac-resultado-dictamen-clinico">Resultado / Dictamen Clínico *</label>
-                                    <textarea id="medicoocupac-resultado-dictamen-clinico"
-                                        rows={4}
-                                        required
-                                        value={examResultModal.resultadoText}
-                                        onChange={e => setExamResultModal({ ...examResultModal, resultadoText: e.target.value })}
-                                        placeholder="Ingrese el resultado del laboratorio o informe médico (ej: Audición conservación bilateral normal, Capacidad vital forzada 95%, etc.)..."
-                                    />
-                                </div>
-                                <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                    <button type="button" className="action-button action-button--light" onClick={() => setExamResultModal({ show: false, item: null, resultadoText: '', estado: 'Realizado' })}>Cancelar</button>
-                                    <button type="submit" className="action-button action-button--primary">Guardar Resultado</button>
-                                </footer>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+            {isResultadoExamenOpen && (
+                <ResultadoExamenModal
+                    onClose={() => setIsResultadoExamenOpen(false)}
+                    onUploaded={fetchExamOrders}
+                />
             )}
             {/* MODAL AGENDAR NUEVA CITA OCUPACIONAL */}
             {isAgendarCitaModalOpen && (
