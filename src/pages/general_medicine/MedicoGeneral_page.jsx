@@ -16,6 +16,7 @@ import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioT
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
+import { formatFecha } from '../../utils/fecha';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -2570,7 +2571,7 @@ const MedicoGeneral_page = () => {
                 const estado = (cita.estado || 'programada').toUpperCase();
                 const horario = `${cita.hora_inicio || ''} - ${cita.hora_fin || ''}`;
                 const motivo = cita.motivo || 'Consulta en Medicina General';
-                const fechaCita = cita.fecha ? String(cita.fecha).slice(0, 10) : citasDate;
+                const fechaCita = formatFecha(cita.fecha || citasDate);
 
                 let estadoBadgeColor = '#1e40af';
                 if (cita.estado === 'confirmada') estadoBadgeColor = '#065f46';

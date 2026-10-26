@@ -21,6 +21,7 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { buildGeneralReportHtml } from './reports/generalReport';
 import { buildCurativasNarrative, buildFacultyNarrative, buildGenderNarrative, buildProcedimientosMorbilidadNarrative, buildProcedimientosPreventivosNarrative, defaultFacultyCareers } from './reports/narratives';
 import { clasificarTipoPaciente, esPersonalAdministrativo } from '../../utils/tipoPaciente';
+import { formatFecha } from '../../utils/fecha';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -3423,7 +3424,7 @@ const Odontologo_page = () => {
                     <td>${escapeHtml(idx + 1)}</td>
                     <td class="left-align font-bold">${escapeHtml(fullName)}</td>
                     <td>${escapeHtml(cedula)}</td>
-                    <td>${escapeHtml(cita.fecha)}</td>
+                    <td>${escapeHtml(formatFecha(cita.fecha))}</td>
                     <td>${escapeHtml(cita.hora_inicio)} - ${escapeHtml(cita.hora_fin)}</td>
                     <td class="left-align">${escapeHtml(cita.motivo || '—')}</td>
                     <td class="font-bold status-${escapeHtml(cita.estado)}">${escapeHtml(statusUpper)}</td>
@@ -3822,7 +3823,7 @@ const Odontologo_page = () => {
                 const estado = (cita.estado || 'programada').toUpperCase();
                 const horario = `${cita.hora_inicio || ''} - ${cita.hora_fin || ''}`;
                 const motivo = cita.motivo || 'Consulta en Odontología';
-                const fechaCita = cita.fecha ? String(cita.fecha).slice(0, 10) : citasDate;
+                const fechaCita = formatFecha(cita.fecha || citasDate);
 
                 let estadoBadgeColor = '#1e40af';
                 if (cita.estado === 'confirmada') estadoBadgeColor = '#065f46';

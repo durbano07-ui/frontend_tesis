@@ -33,6 +33,7 @@ import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { compileRecetaFormHtmlString } from './reports/recetaTemplate';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
+import { formatFecha } from '../../utils/fecha';
 
 const COUNTRIES = [
     'Ecuador', 'Colombia', 'Perú', 'Venezuela', 'Argentina', 'Chile', 'Bolivia', 'Brasil',
@@ -5130,7 +5131,7 @@ export default function MedicoOcupacionalPage() {
             const formattedDate = reportCitasFecha ? reportCitasFecha : 'Todas las fechas';
 
             const filteredReportCitas = citasList.filter(cita => {
-                const matchesFecha = !reportCitasFecha || cita.fecha === reportCitasFecha;
+                const matchesFecha = !reportCitasFecha || String(cita.fecha || '').slice(0, 10) === reportCitasFecha;
                 const matchesEstado = reportCitasEstado === 'all' || (cita.estado || '').toLowerCase() === reportCitasEstado.toLowerCase();
                 return matchesFecha && matchesEstado;
             });
@@ -5170,7 +5171,7 @@ export default function MedicoOcupacionalPage() {
                             <span style="font-size: 7.5px; color: #64748b;">${escapeHtml(puesto)}</span>
                         </td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${escapeHtml(cedula)}</td>
-                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${escapeHtml(cita.fecha || formattedDate)}</td>
+                        <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px;">${escapeHtml(formatFecha(cita.fecha) || formattedDate)}</td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8.5px; font-weight: 600;">${escapeHtml(horario)}</td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8.5px;"><strong>${escapeHtml(tipoEval)}:</strong> ${escapeHtml(motivo)}</td>
                         <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 8px;">
