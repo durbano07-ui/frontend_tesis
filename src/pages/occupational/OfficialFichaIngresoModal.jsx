@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { extraerIdentificacion, extraerGineco, extraerHabitos, extraerAntecedentesFamiliares, extraerFactoresRiesgo, extraerConstantes, extraerExamenFisico, extraerLaboratorios, extraerDiagnosticos, extraerRecomendaciones, extraerProfesional, primero } from './fichaComun';
 
 /**
  * Función que extrae y normaliza de forma exhaustiva todos los campos clínicos,
@@ -15,363 +16,55 @@ import { escapeHtml } from '../../utils/escapeHtml';
  */
 export const extractFichaFields = (record = {}) => {
     const r = record || {};
-    const p = r.patientSelected || r.paciente_data || {};
+    // Solo datos registrados en el sistema; lo que falta queda en blanco (ver ./fichaComun.js)
+    const {
+        pac, ced, p1Ape, p2Ape, p1Nom, p2Nom, edad, sexo, puesto, cargo, ciuo, actividades,
+        tel, rel, grpSangre, lat, orientacion, idGen, disc, ruc, estSalud, numHC, numArch
+    } = extraerIdentificacion(r);
+    const antClin = primero(r.antecedentesClinicos, r.antecedentesPersonales, r.detalle_antecedente);
+    const antQuir = primero(r.antecedentesQuirurgicos);
+    const gin = extraerGineco(r, sexo);
+    const hab = extraerHabitos(r);
+    const antFam = extraerAntecedentesFamiliares(r);
+    const factRiesgo = extraerFactoresRiesgo(r, cargo, actividades);
+    const actExtra = primero(r.actividadesExtraLaborales);
+    const enfAct = primero(r.enfermedadActual, r.detalle_enfermedad_actual);
+    const orgSist = r.organosSistemas || { normal: false, descripcion: primero(r.detalle_revision_organos) };
+    const constantes = extraerConstantes(r);
+    const exLab = extraerLaboratorios(r);
+    const diags = extraerDiagnosticos(r);
+    const recs = extraerRecomendaciones(r);
+    const sinCalificar = { calificado: false, fecha: '', especificaciones: '', observaciones: '' };
+    const accTrab = r.accidentesTrabajo || sinCalificar;
+    const enfProf = r.enfermedadesProfesionales || sinCalificar;
+    const aptStr = String(r.aptitudLaboral || r.aptitud || '').toLowerCase();
 
-    // 1. Identificación y Nombres
-    const pac = r.paciente || r.nombre_completo || 
-        ([r.primerNombre || r.primer_apellido || p.primer_nombre || p.nombres,
-          r.segundoNombre || r.segundo_nombre || p.segundo_nombre,
-          r.primerApellido || r.primer_apellido || p.primer_apellido || p.apellidos,
-          r.segundoApellido || r.segundo_apellido || p.segundo_apellido].filter(Boolean).join(' ')) ||
-        (p.nombres ? `${p.nombres} ${p.apellidos || ''}`.trim() : '') ||
-        'MERCHAN ORTIZ SILVIA TATIANA';
+    const fecIngreso = primero(r.fechaIngreso, r.fecha_ingreso, r.fecha);
+    const motivo = primero(r.motivoConsulta, r.detalle_motivo, r.motivo);
+    const exFisico = extraerExamenFisico(r);
 
-    // Desglose de apellidos y nombres
-    let p1Ape = r.primerApellido || r.primer_apellido || p.primer_apellido;
-    let p2Ape = r.segundoApellido || r.segundo_apellido || p.segundo_apellido;
-    let p1Nom = r.primerNombre || r.primer_nombre || p.primer_nombre;
-    let p2Nom = r.segundoNombre || r.segundo_nombre || p.segundo_nombre;
-
-    if (!p1Ape && (r.apellidos || p.apellidos)) {
-        const apes = (r.apellidos || p.apellidos).trim().split(/\s+/);
-        p1Ape = apes[0] || '';
-        p2Ape = apes.slice(1).join(' ') || '';
-    }
-    if (!p1Nom && (r.nombres || p.nombres)) {
-        const noms = (r.nombres || p.nombres).trim().split(/\s+/);
-        p1Nom = noms[0] || '';
-        p2Nom = noms.slice(1).join(' ') || '';
-    }
-    if (!p1Ape && pac) {
-        const parts = pac.trim().split(/\s+/);
-        if (parts.length >= 4) {
-            p1Ape = parts[0];
-            p2Ape = parts[1];
-            p1Nom = parts[2];
-            p2Nom = parts.slice(3).join(' ');
-        } else if (parts.length === 3) {
-            p1Ape = parts[0];
-            p2Ape = parts[1];
-            p1Nom = parts[2];
-            p2Nom = '';
-        } else if (parts.length === 2) {
-            p1Ape = parts[0];
-            p2Ape = '';
-            p1Nom = parts[1];
-            p2Nom = '';
-        } else {
-            p1Ape = parts[0] || 'MERCHAN';
-            p2Ape = 'ORTIZ';
-            p1Nom = 'SILVIA';
-            p2Nom = 'TATIANA';
-        }
+    // Empleos anteriores: los registrados, o el texto de antecedentes laborales de la atención
+    let empAnt = Array.isArray(r.empleosAnteriores) ? r.empleosAnteriores : [];
+    if (empAnt.length === 0 && r.antecedentesOcupacionales) {
+        empAnt = [{
+            empresa: '', puesto: r.antecedentesOcupacionales, actividades: '', tiempo: '',
+            riesgos: { fisico: false, mecanico: false, quimico: false, biologico: false, ergonomico: false, psicosocial: false },
+            observaciones: ''
+        }];
     }
 
-    const ced = r.cedula || r.ci || r.identificacion || p.cedula || p.ci || '010672364-6';
-
-    // Cálculo de edad si no viene directo
-    let edad = r.edad || p.edad;
-    const fecNac = r.fecha_nacimiento || p.fecha_nacimiento || r.fechaNacimiento;
-    if (!edad && fecNac) {
-        const birth = new Date(fecNac);
-        const now = new Date();
-        edad = now.getFullYear() - birth.getFullYear();
-        if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) {
-            edad--;
-        }
-    }
-    if (!edad) edad = 31;
-
-    // Sexo / Género
-    let sexo = (r.sexo || r.genero || p.sexo || p.genero || 'F').toUpperCase();
-    if (sexo.startsWith('M') || sexo === 'HOMBRE' || sexo === 'MASCULINO') sexo = 'M';
-    else if (sexo.startsWith('F') || sexo === 'MUJER' || sexo === 'FEMENINO') sexo = 'F';
-
-    const puesto = r.puesto || r.cargo || r.puestoTrabajo || r.puesto_trabajo || p.puestoTrabajo || p.cargo || 'PROFESOR OCASIONAL TIEMPO COMPLETO';
-    const cargo = r.cargo || puesto;
-    const ciuo = r.ciuo || p.ciuo || 'C02';
-    const actividades = r.actividades || r.actividades_puesto || p.actividades || 'DOCENCIA E INVESTIGACIÓN';
-    const fecIngreso = r.fechaIngreso || r.fecha_ingreso || r.fecha || new Date().toISOString().split('T')[0];
-    const tel = r.telefono || r.celular || p.celular || p.telefono || '0982753658';
-    const rel = r.religion || p.religion || 'Católica';
-    const grpSangre = r.grupoSanguineo || r.grupo_sanguineo || r.tipo_sangre || r.tipoSangre || r.vitalSigns?.tipoSangre || p.tipo_sangre || 'ORH+';
-    const lat = (r.lateralidad || p.lateralidad || 'DIESTRO').toUpperCase();
-    const orientacion = r.orientacionSexual || r.orientacion_sexual || p.orientacion_sexual || 'Heterosexual';
-    const idGen = r.identidadGenero || r.identidad_genero || p.identidad_genero || (sexo === 'F' ? 'Femenino' : 'Masculino');
-    
-    // Discapacidad
-    let disc = r.discapacidad;
-    if (!disc || typeof disc !== 'object') {
-        const tieneDisc = Boolean(r.tiene_discapacidad || p.tiene_discapacidad || r.discapacidad === true);
-        disc = {
-            tiene: tieneDisc,
-            tipo: r.tipo_discapacidad || p.tipo_discapacidad || '',
-            porcentaje: r.porcentaje_discapacidad || p.porcentaje_discapacidad || ''
-        };
-    }
-
-    // Datos institucionales
-    const ruc = r.ruc || r.empresa_ruc || '0260000920001';
-    const estSalud = r.establecimiento || r.establecimiento_salud || 'DEPARTAMENTO MEDICO U.E.B';
-    const numHC = r.numHistoriaClinica || r.historia_clinica || ced;
-    const numArch = r.numArchivo || r.numero_archivo || 'S/N';
-
-    // Motivo de consulta
-    const motivo = r.motivoConsulta || r.detalle_motivo || r.motivo || 'EVALUACIÓN MÉDICA OCUPACIONAL PARA EL INGRESO AL PUESTO DE TRABAJO';
-
-    // Antecedentes Clínicos y Quirúrgicos
-    const antClin = r.antecedentesClinicos || r.antecedentesPersonales || r.detalle_antecedente ||
-        'QUERATOCONO BINOCULAR, RINITIS ALERGICA. VACUNAS: 3 DOSIS PARA COVID-19, INFLUENZA';
-    const antQuir = r.antecedentesQuirurgicos || 'CIRUGIA DE QUERATOCONO HACE 12 AÑOS. ALERGIA: AL FRÍO AL POLVO ENTRE OTROS';
-
-    // Gineco-obstétricos (Adaptado automáticamente para hombres o mujeres)
-    let gin = r.ginecoObstetricos;
-    if (!gin) {
-        if (sexo === 'M') {
-            gin = {
-                menarquia: 'NO APLICA',
-                ciclos: 'NO APLICA',
-                fum: 'NO APLICA',
-                gestas: 0,
-                partos: 0,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 0,
-                hijosMuertos: 0,
-                vidaSexualActiva: false,
-                planificacionFamiliar: false,
-                tipoPlanificacion: 'NO APLICA',
-                papanicolaou: { realizada: false, tiempo: 'NO APLICA', resultado: 'NO APLICA' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
-            };
-        } else {
-            gin = {
-                menarquia: '11 AÑOS',
-                ciclos: 'REGULARES',
-                fum: '2026/02/13',
-                gestas: 0,
-                partos: 0,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 0,
-                hijosMuertos: 0,
-                vidaSexualActiva: false,
-                planificacionFamiliar: false,
-                tipoPlanificacion: '',
-                papanicolaou: { realizada: true, tiempo: '3 MESES', resultado: 'NORMAL' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
-            };
-        }
-    }
-
-    // Hábitos
-    let hab = r.habitosToxicos;
-    if (!hab) {
-        hab = {
-            tabaco: Boolean(r.tabaco),
-            alcohol: Boolean(r.alcohol),
-            drogas: Boolean(r.drogas),
-            actividadFisica: r.actividadFisica || { tiene: true, cual: 'GYM 2 HORAS / CAMINATA', tiempo: 'LUNES A VIERNES' },
-            medicacionHabitual: r.medicacionHabitual || { tiene: false, cual: '', tiempo: '' }
-        };
-    }
-
-    // Empleos Anteriores
-    let empAnt = r.empleosAnteriores;
-    if (!empAnt || !Array.isArray(empAnt) || empAnt.length === 0) {
-        if (r.antecedentesOcupacionales) {
-            empAnt = [{
-                empresa: 'EMPRESA / INSTITUCIÓN PREVIA',
-                puesto: r.antecedentesOcupacionales,
-                actividades: 'LABORES INHERENTES AL CARGO',
-                tiempo: '2 AÑOS',
-                riesgos: { fisico: true, mecanico: false, quimico: false, biologico: false, ergonomico: true, psicosocial: false },
-                observaciones: 'NINGUNA'
-            }];
-        } else {
-            empAnt = [{
-                empresa: 'UNIVERSIDAD CATÓLICA DE CUENCA',
-                puesto: 'DOCENTE',
-                actividades: 'DOCENCIA',
-                tiempo: '14 MESES',
-                riesgos: { fisico: true, mecanico: false, quimico: true, biologico: false, ergonomico: false, psicosocial: false },
-                observaciones: 'NINGUNA'
-            }];
-        }
-    }
-
-    const accTrab = r.accidentesTrabajo || { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' };
-    const enfProf = r.enfermedadesProfesionales || { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' };
-
-    // Antecedentes Familiares
-    let antFam = r.antecedentesFamiliares;
-    if (!antFam || typeof antFam !== 'object') {
-        antFam = {
-            cardiovascular: true,
-            descripcion: typeof r.antecedentesFamiliares === 'string' ? r.antecedentesFamiliares : 'ABUELO MATERNO CON HIPERTENSION ARTERIAL'
-        };
-    }
-
-    // Factores de Riesgo
-    let factRiesgo = r.factoresRiesgo;
-    if (!factRiesgo || Array.isArray(factRiesgo)) {
-        const arr = Array.isArray(factRiesgo) ? factRiesgo : [];
-        factRiesgo = {
-            puesto: cargo,
-            actividades: actividades,
-            fisico: arr.some(x => x.toLowerCase().includes('físic') || x.toLowerCase().includes('fisic')) ? ['Temperaturas altas/bajas', 'Ruido moderado'] : ['Temperaturas altas', 'Temperaturas bajas'],
-            mecanico: arr.some(x => x.toLowerCase().includes('mecán') || x.toLowerCase().includes('mecan')) ? ['Caídas al mismo nivel'] : ['Caídas al mismo nivel', 'Caídas a diferente nivel'],
-            quimico: arr.some(x => x.toLowerCase().includes('quím') || x.toLowerCase().includes('quim')) ? ['Gases / Polvos'] : [],
-            biologico: arr.some(x => x.toLowerCase().includes('biol')) ? ['Virus / Bacterias'] : ['Virus'],
-            ergonomico: arr.some(x => x.toLowerCase().includes('ergon')) ? ['Posiciones estáticas', 'Movimientos repetitivos'] : ['Posiciones estáticas'],
-            psicosocial: arr.some(x => x.toLowerCase().includes('psico')) ? ['Carga mental', 'Inestabilidad'] : ['Inestabilidad laboral'],
-            medidasPreventivas: '1.- TEMPERATURAS BAJAS y ALTAS: Uso de ropa adecuada dependiendo el clima. 2.- Caídas al mismo y distinto nivel: Capacitación de forma correcta para subir o bajar escalones. 3.- Virus: Capacitación en medidas de bioseguridad para evitar el contagio. 4.- Posiciones estáticas: Realizar pausas activas o ejercicios de estiramiento para evitar permanecer en posición sentada por tiempos prolongados. 5.- Inestabilidad Laboral: Reunión con el Patrono y talento humano para buscar una estabilidad laboral.'
-        };
-    }
-
-    const actExtra = r.actividadesExtraLaborales || 'NO';
-    const enfAct = r.enfermedadActual || r.detalle_enfermedad_actual || 'PACIENTE ACUDE PARA UNA VALORACIÓN MÉDICA OCUPACIONAL, AL MOMENTO NO REFIERE NINGUNA MOLESTIA.';
-    const orgSist = r.organosSistemas || (r.detalle_revision_organos ? { normal: true, descripcion: r.detalle_revision_organos } : { normal: true, descripcion: 'Aparatos y sistemas aparentemente normales.' });
-
-    // Constantes Vitales
-    const vs = r.vitalSigns || {};
-    const paVal = r.constantes?.pa || (vs.paSystolic && vs.paDiastolic ? `${vs.paSystolic}/${vs.paDiastolic}` : (r.presion_arterial_sistolica ? `${r.presion_arterial_sistolica}/${r.presion_arterial_diastolica || 80}` : '120/70'));
-    const tempVal = r.constantes?.temp || vs.temp || r.temperatura || '36';
-    const fcVal = r.constantes?.fc || vs.fc || r.frecuencia_cardiaca || '76';
-    const satO2Val = r.constantes?.satO2 || vs.spo2 || r.saturacion_oxigeno || '96';
-    const frVal = r.constantes?.fr || vs.fr || r.frecuencia_respiratoria || '20';
-    const pesoVal = r.constantes?.peso || vs.peso || r.peso || '63';
-    let tallaVal = r.constantes?.talla || vs.talla || r.talla || '1.60';
-    if (parseFloat(tallaVal) > 3) tallaVal = (parseFloat(tallaVal) / 100).toFixed(2);
-    
-    let imcVal = r.constantes?.imc || vs.imc || r.imc;
-    if (!imcVal && parseFloat(pesoVal) && parseFloat(tallaVal)) {
-        const tM = parseFloat(tallaVal);
-        imcVal = (parseFloat(pesoVal) / (tM * tM)).toFixed(2);
-    }
-    if (!imcVal) imcVal = '24.61';
-
-    const perimVal = r.constantes?.perimetroAbd || r.perimetro_abdominal || '-';
-
-    const constantes = {
-        pa: paVal,
-        temp: tempVal,
-        fc: fcVal,
-        satO2: satO2Val,
-        fr: frVal,
-        peso: pesoVal,
-        talla: tallaVal,
-        imc: imcVal,
-        perimetroAbd: perimVal
+    // Aptitud dictada en la atención
+    const restricciones = primero(r.restriccionesOcupacionales);
+    const apt = r.aptitudDetalle || {
+        apto: aptStr === 'apto',
+        aptoObservacion: aptStr.includes('restric') || aptStr.includes('observ') || aptStr.includes('adaptac'),
+        aptoLimitaciones: aptStr.includes('restric') || aptStr.includes('adaptac'),
+        noApto: aptStr.includes('no apto') || aptStr === 'no_apto',
+        observacion: restricciones,
+        limitacion: restricciones
     };
 
-    // Examen Físico
-    let exFisico = 'NO SE EVIDENCIA SIGNOS PATOLOGICOS';
-    if (typeof r.examenFisico === 'string') exFisico = r.examenFisico;
-    else if (r.examenFisico?.descripcion) exFisico = r.examenFisico.descripcion;
-    else if (r.detalle_examen_fisico) exFisico = r.detalle_examen_fisico;
-
-    // Laboratorios
-    let exLab = r.examenesLab || r.laboratorios;
-    if (!exLab || !Array.isArray(exLab) || exLab.length === 0) {
-        exLab = [
-            { examen: 'BIOMETRIA/QUIMICA', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
-            { examen: 'RX ESTANDAR DE TORAX', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
-            { examen: 'COPRO / EMO', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' }
-        ];
-    }
-
-    // Diagnósticos
-    let diags = r.diagnosticos;
-    if (!diags || !Array.isArray(diags) || diags.length === 0) {
-        if (r.diagnosticos_medicina && Array.isArray(r.diagnosticos_medicina)) {
-            diags = r.diagnosticos_medicina.map((dm, idx) => ({
-                num: idx + 1,
-                desc: dm.detalle_diagnostico || 'DIAGNÓSTICO MÉDICO OCUPACIONAL',
-                cie: dm.cie10 || 'Z00.0',
-                pre: Boolean(dm.presuntivo),
-                def: Boolean(dm.definitivo)
-            }));
-        } else if (r.diagnosticoCie) {
-            const cieStr = r.diagnosticoCie;
-            const cieCode = cieStr.includes('-') ? cieStr.split('-')[0].trim() : (cieStr.match(/^[A-Z][0-9]+/i) ? cieStr.match(/^[A-Z][0-9]+/i)[0] : 'Z00.0');
-            const cieDesc = cieStr.includes('-') ? cieStr.split('-')[1].trim().toUpperCase() : cieStr.toUpperCase();
-            diags = [{ num: 1, desc: cieDesc, cie: cieCode, pre: false, def: true }];
-        } else {
-            diags = [
-                { num: 1, desc: 'QUERATOCONO', cie: 'H186', pre: false, def: true },
-                { num: 2, desc: 'RINITIS ALERGICA', cie: 'J304', pre: true, def: false }
-            ];
-        }
-    }
-
-    // Aptitud
-    let apt = r.aptitudDetalle;
-    if (!apt) {
-        const aptStr = (r.aptitudLaboral || r.aptitud || 'Apto').toLowerCase();
-        if (aptStr.includes('restric') || aptStr.includes('observ') || aptStr.includes('adaptac')) {
-            apt = {
-                apto: false,
-                aptoObservacion: true,
-                aptoLimitaciones: true,
-                noApto: false,
-                observacion: r.restriccionesOcupacionales || 'Revisión periódica ocupacional en 6 meses',
-                limitacion: r.restriccionesOcupacionales || 'Uso adecuado de los Equipos de Proteccion Individual (EPP)'
-            };
-        } else if (aptStr.includes('no')) {
-            apt = {
-                apto: false,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: true,
-                observacion: r.restriccionesOcupacionales || 'Incapacidad médica temporal para las funciones asignadas',
-                limitacion: 'No realizar actividades de esfuerzo biomecánico'
-            };
-        } else {
-            apt = {
-                apto: true,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: false,
-                observacion: 'Ninguna',
-                limitacion: 'Uso adecuado de los Equipos de Proteccion Individual'
-            };
-        }
-    }
-
-    // Recomendaciones y Plan de Tratamiento
-    let recs = r.recomendaciones;
-    if (!recs || !Array.isArray(recs) || recs.length === 0) {
-        recs = [];
-        if (r.planTratamiento || r.detalle_plan_terapeutico) {
-            recs.push((r.planTratamiento || r.detalle_plan_terapeutico).toUpperCase());
-        }
-        if (r.prescripcionesList && Array.isArray(r.prescripcionesList) && r.prescripcionesList.length > 0) {
-            r.prescripcionesList.forEach(m => {
-                recs.push(`FARMACOTERAPIA: ${m.detalle_medicamento} (${m.dosis}, cada ${m.frecuencia}h x ${m.duracion} días)`.toUpperCase());
-            });
-        }
-        recs.push(
-            'DIETA HIPOCALÓRICA Y SALUDABLE',
-            'INGESTA DE LÍQUIDOS A LIBRE DEMANDA',
-            'PAUSAS ACTIVAS Y EJERCICIOS ERGONÓMICOS CADA 2 HORAS',
-            'LAVADO CORRECTO DE MANOS Y MEDIDAS DE BIOSEGURIDAD',
-            'EN CASO DE PRESENTAR ALGUNA MOLESTIA ACUDIR AL MÉDICO OCUPACIONAL DE LA UEB',
-            'PENDIENTE RESULTADOS DE EXÁMENES DE LABORATORIO Y DE IMAGEN'
-        );
-    }
-
-    // Profesional
-    const prof = r.profesional || {
-        fecha: r.fecha || '2026/03/09',
-        hora: r.hora || '11:38',
-        nombre: r.doctor_nombre || 'DR. JORGE MORALES',
-        codigo: r.doctor_codigo || '1804486288'
-    };
+    const prof = extraerProfesional(r, fecIngreso);
 
     return {
         pac, ced, p1Ape, p2Ape, p1Nom, p2Nom, edad, sexo, puesto, cargo, ciuo, actividades,
@@ -661,9 +354,9 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                         </table>
                         <div style="padding: 3px 6px; font-size: 7.5px; background: #fafafa; border-top: 1px solid #000;">
                             <strong>PAPANICOLAOU:</strong> ${gin.papanicolaou?.realizada ? `SÍ (${escapeHtml(gin.papanicolaou.tiempo)} - ${escapeHtml(gin.papanicolaou.resultado)})` : 'NO'} |
-                            <strong>COLPOSCOPIA:</strong> ${escapeHtml(gin.colposcopia?.resultado || 'NO APLICA')} |
-                            <strong>MAMOGRAFÍA:</strong> ${escapeHtml(gin.mamografia?.resultado || 'NO APLICA')} |
-                            <strong>ECO-MAMARIO:</strong> ${escapeHtml(gin.ecoMamario?.resultado || 'NO APLICA')}
+                            <strong>COLPOSCOPIA:</strong> ${escapeHtml(gin.colposcopia?.resultado || '')} |
+                            <strong>MAMOGRAFÍA:</strong> ${escapeHtml(gin.mamografia?.resultado || '')} |
+                            <strong>ECO-MAMARIO:</strong> ${escapeHtml(gin.ecoMamario?.resultado || '')}
                         </div>
                     </td>
                 </tr>
@@ -706,7 +399,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                         <td>${escapeHtml(item.actividades)}</td>
                         <td>${escapeHtml(item.tiempo)}</td>
                         <td style="font-size: 7px;">${escapeHtml(item.riesgos?.fisico ? '[FÍSICO] ' : '')}${escapeHtml(item.riesgos?.quimico ? '[QUÍMICO] ' : '')}${escapeHtml(item.riesgos?.mecanico ? '[MECÁNICO] ' : '')}</td>
-                        <td>${escapeHtml(item.observaciones || 'NINGUNA')}</td>
+                        <td>${escapeHtml(item.observaciones || '')}</td>
                     </tr>
                 `).join('')}
                 <tr>
@@ -755,7 +448,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td style="padding: 4px 8px; font-weight: bold; background: #fafafa;">
-                        ${escapeHtml(antFam.descripcion || '1.- ENFERMEDAD CARDIO-VASCULAR: ABUELO MATERNO CON HIPERTENSION ARTERIAL')}
+                        ${escapeHtml(antFam.descripcion || '')}
                     </td>
                 </tr>
             </table>
@@ -773,8 +466,8 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td style="width: 20%;">QUÍMICO</td>
                 </tr>
                 <tr style="font-size: 7.5px;">
-                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.puesto || 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN')}</td>
-                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.actividades || 'DOCENCIA')}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.puesto || '')}</td>
+                    <td class="font-bold uppercase">${escapeHtml(factRiesgo.actividades || '')}</td>
                     <td>
                         <span class="check-box checked">X</span> Temperaturas altas<br />
                         <span class="check-box checked">X</span> Temperaturas bajas<br />
@@ -976,7 +669,7 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 ${exLab.map((item, idx) => `
                     <tr key="${escapeHtml(idx)}" class="text-center">
                         <td class="text-left font-bold">${escapeHtml(item.examen)}</td>
-                        <td>${escapeHtml(item.fecha || 'PENDIENTE')}</td>
+                        <td>${escapeHtml(item.fecha || '')}</td>
                         <td class="font-bold" style="color: #0284c7;">${escapeHtml(item.resultado)}</td>
                     </tr>
                 `).join('')}
@@ -1034,8 +727,8 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 </tr>
                 <tr>
                     <td colspan="4" style="padding: 3px 6px; font-size: 7.5px;">
-                        <strong>Observación:</strong> ${escapeHtml(apt.observacion || 'Ninguna')}<br />
-                        <strong>Limitación o restricciones laborales:</strong> ${escapeHtml(apt.limitacion || 'Uso adecuado de los Equipos de Protección Individual.')}
+                        <strong>Observación:</strong> ${escapeHtml(apt.observacion || '')}<br />
+                        <strong>Limitación o restricciones laborales:</strong> ${escapeHtml(apt.limitacion || '')}
                     </td>
                 </tr>
             </table>
@@ -1468,9 +1161,9 @@ export default function OfficialFichaIngresoModal({
                                             </table>
                                             <div style={{ padding: '5px 8px', fontSize: '9px', background: '#fafafa', borderTop: '1px solid #000' }}>
                                                 <strong>PAPANICOLAOU:</strong> {gin.papanicolaou?.realizada ? `SÍ (${gin.papanicolaou.tiempo} - ${gin.papanicolaou.resultado})` : 'NO'} |
-                                                <strong> COLPOSCOPIA:</strong> {gin.colposcopia?.resultado || 'NO APLICA'} |
-                                                <strong> MAMOGRAFÍA:</strong> {gin.mamografia?.resultado || 'NO APLICA'} |
-                                                <strong> ECO-MAMARIO:</strong> {gin.ecoMamario?.resultado || 'NO APLICA'}
+                                                <strong> COLPOSCOPIA:</strong> {gin.colposcopia?.resultado || ''} |
+                                                <strong> MAMOGRAFÍA:</strong> {gin.mamografia?.resultado || ''} |
+                                                <strong> ECO-MAMARIO:</strong> {gin.ecoMamario?.resultado || ''}
                                             </div>
                                         </td>
                                     </tr>
@@ -1522,7 +1215,7 @@ export default function OfficialFichaIngresoModal({
                                                 {item.riesgos?.fisico && <span style={{ background: '#fee2e2', padding: '2px 4px', borderRadius: '4px', marginRight: '3px' }}>FÍSICO</span>}
                                                 {item.riesgos?.quimico && <span style={{ background: '#e0f2fe', padding: '2px 4px', borderRadius: '4px' }}>QUÍMICO</span>}
                                             </td>
-                                            <td style={{ border: '1px solid #000', padding: '5px' }}>{item.observaciones || 'NINGUNA'}</td>
+                                            <td style={{ border: '1px solid #000', padding: '5px' }}>{item.observaciones || ''}</td>
                                         </tr>
                                     ))}
                                     <tr>
@@ -1570,7 +1263,7 @@ export default function OfficialFichaIngresoModal({
                                     </tr>
                                     <tr>
                                         <td style={{ border: '1px solid #000', padding: '8px', fontWeight: 'bold', background: '#fafafa', fontSize: '10px' }}>
-                                            {antFam.descripcion || '1.- ENFERMEDAD CARDIO-VASCULAR: ABUELO MATERNO CON HIPERTENSION ARTERIAL'}
+                                            {antFam.descripcion || ''}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1593,10 +1286,10 @@ export default function OfficialFichaIngresoModal({
                                     </tr>
                                     <tr style={{ fontSize: '9px' }}>
                                         <td style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                            {factRiesgo.puesto || 'FACULTAD DE CIENCIAS DE LA EDUCACIÓN'}
+                                            {factRiesgo.puesto || ''}
                                         </td>
                                         <td style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                            {factRiesgo.actividades || 'DOCENCIA'}
+                                            {factRiesgo.actividades || ''}
                                         </td>
                                         <td style={{ border: '1px solid #000', padding: '6px' }}>
                                             <div><strong>[X] Temperaturas altas</strong></div>
@@ -1829,7 +1522,7 @@ export default function OfficialFichaIngresoModal({
                                     {exLab.map((item, idx) => (
                                         <tr key={idx} style={{ textAlign: 'center', fontSize: '10px' }}>
                                             <td style={{ border: '1px solid #000', padding: '5px', textAlign: 'left', fontWeight: 'bold' }}>{item.examen}</td>
-                                            <td style={{ border: '1px solid #000', padding: '5px' }}>{item.fecha || 'PENDIENTE'}</td>
+                                            <td style={{ border: '1px solid #000', padding: '5px' }}>{item.fecha || ''}</td>
                                             <td style={{ border: '1px solid #000', padding: '5px', fontWeight: 'bold', color: '#0284c7' }}>{item.resultado}</td>
                                         </tr>
                                     ))}
@@ -1892,8 +1585,8 @@ export default function OfficialFichaIngresoModal({
                                     </tr>
                                     <tr>
                                         <td colSpan={4} style={{ border: '1px solid #000', padding: '6px 8px', fontSize: '9.5px' }}>
-                                            <div><strong>Observación:</strong> {apt.observacion || 'Ninguna'}</div>
-                                            <div style={{ marginTop: '3px' }}><strong>Limitación o restricciones laborales:</strong> {apt.limitacion || 'Uso adecuado de los Equipos de Protección Individual.'}</div>
+                                            <div><strong>Observación:</strong> {apt.observacion || ''}</div>
+                                            <div style={{ marginTop: '3px' }}><strong>Limitación o restricciones laborales:</strong> {apt.limitacion || ''}</div>
                                         </td>
                                     </tr>
                                 </tbody>

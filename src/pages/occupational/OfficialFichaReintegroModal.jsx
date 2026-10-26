@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Printer, Download, X, FileSpreadsheet } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { extraerIdentificacion, extraerGineco, extraerHabitos, extraerAntecedentesFamiliares, extraerFactoresRiesgo, extraerConstantes, extraerExamenFisico, extraerLaboratorios, extraerDiagnosticos, extraerRecomendaciones, extraerProfesional, primero } from './fichaComun';
 
 /**
  * Función que extrae y normaliza de forma exhaustiva todos los campos clínicos,
@@ -11,357 +12,59 @@ import { escapeHtml } from '../../utils/escapeHtml';
  */
 export const extractFichaReintegroFields = (record = {}) => {
     const r = record || {};
-    const p = r.patientSelected || r.paciente_data || {};
+    // Solo datos registrados en el sistema; lo que falta queda en blanco (ver ./fichaComun.js)
+    const {
+        pac, ced, p1Ape, p2Ape, p1Nom, p2Nom, edad, sexo, puesto, cargo, ciuo, actividades,
+        tel, rel, grpSangre, lat, orientacion, idGen, disc, ruc, estSalud, numHC, numArch
+    } = extraerIdentificacion(r);
+    const antClin = primero(r.antecedentesClinicos, r.antecedentesPersonales, r.detalle_antecedente);
+    const antQuir = primero(r.antecedentesQuirurgicos);
+    const gin = extraerGineco(r, sexo);
+    const hab = extraerHabitos(r);
+    const antFam = extraerAntecedentesFamiliares(r);
+    const factRiesgo = extraerFactoresRiesgo(r, cargo, actividades);
+    const actExtra = primero(r.actividadesExtraLaborales);
+    const enfAct = primero(r.enfermedadActual, r.detalle_enfermedad_actual);
+    const orgSist = r.organosSistemas || { normal: false, descripcion: primero(r.detalle_revision_organos) };
+    const constantes = extraerConstantes(r);
+    const exLab = extraerLaboratorios(r);
+    const diags = extraerDiagnosticos(r);
+    const recs = extraerRecomendaciones(r);
+    const sinCalificar = { calificado: false, fecha: '', especificaciones: '', observaciones: '' };
+    const accTrab = r.accidentesTrabajo || sinCalificar;
+    const enfProf = r.enfermedadesProfesionales || sinCalificar;
+    const aptStr = String(r.aptitudLaboral || r.aptitud || '').toLowerCase();
 
-    // 1. Identificación y Nombres
-    const pac = r.paciente || r.nombre_completo || 
-        ([r.primerNombre || r.primer_apellido || p.primer_nombre || p.nombres,
-          r.segundoNombre || r.segundo_nombre || p.segundo_nombre,
-          r.primerApellido || r.primer_apellido || p.primer_apellido || p.apellidos,
-          r.segundoApellido || r.segundo_apellido || p.segundo_apellido].filter(Boolean).join(' ')) ||
-        (p.nombres ? `${p.nombres} ${p.apellidos || ''}`.trim() : '') ||
-        'AGUALONGO AREVALO MYRIAN DEL ROCIO';
-
-    // Desglose de apellidos y nombres
-    let p1Ape = r.primerApellido || r.primer_apellido || p.primer_apellido;
-    let p2Ape = r.segundoApellido || r.segundo_apellido || p.segundo_apellido;
-    let p1Nom = r.primerNombre || r.primer_nombre || p.primer_nombre;
-    let p2Nom = r.segundoNombre || r.segundo_nombre || p.segundo_nombre;
-
-    if (!p1Ape && (r.apellidos || p.apellidos)) {
-        const apes = (r.apellidos || p.apellidos).trim().split(/\s+/);
-        p1Ape = apes[0] || '';
-        p2Ape = apes.slice(1).join(' ') || '';
-    }
-    if (!p1Nom && (r.nombres || p.nombres)) {
-        const noms = (r.nombres || p.nombres).trim().split(/\s+/);
-        p1Nom = noms[0] || '';
-        p2Nom = noms.slice(1).join(' ') || '';
-    }
-    if (!p1Ape && pac) {
-        const parts = pac.trim().split(/\s+/);
-        if (parts.length >= 4) {
-            p1Ape = parts[0];
-            p2Ape = parts[1];
-            p1Nom = parts[2];
-            p2Nom = parts.slice(3).join(' ');
-        } else if (parts.length === 3) {
-            p1Ape = parts[0];
-            p2Ape = parts[1];
-            p1Nom = parts[2];
-            p2Nom = '';
-        } else if (parts.length === 2) {
-            p1Ape = parts[0];
-            p2Ape = '';
-            p1Nom = parts[1];
-            p2Nom = '';
-        } else {
-            p1Ape = parts[0] || 'AGUALONGO';
-            p2Ape = 'AREVALO';
-            p1Nom = 'MYRIAN';
-            p2Nom = 'DEL ROCIO';
-        }
-    }
-
-    const ced = r.cedula || r.ci || r.identificacion || p.cedula || p.ci || '0201575900';
-
-    // Cálculo de edad si no viene directo
-    let edad = r.edad || p.edad;
-    const fecNac = r.fecha_nacimiento || p.fecha_nacimiento || r.fechaNacimiento;
-    if (!edad && fecNac) {
-        const birth = new Date(fecNac);
-        const now = new Date();
-        edad = now.getFullYear() - birth.getFullYear();
-        if (now.getMonth() < birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) {
-            edad--;
-        }
-    }
-    if (!edad) edad = 41;
-
-    // Sexo / Género
-    let sexo = (r.sexo || r.genero || p.sexo || p.genero || 'F').toUpperCase();
-    if (sexo.startsWith('M') || sexo === 'HOMBRE' || sexo === 'MASCULINO') sexo = 'M';
-    else if (sexo.startsWith('F') || sexo === 'MUJER' || sexo === 'FEMENINO') sexo = 'F';
-
-    // Datos del Puesto y Reintegro
-    const puesto = r.puesto || r.cargo || r.puestoTrabajo || r.puesto_trabajo || p.puestoTrabajo || p.cargo || 'DOCENTE OCASIONAL / SERVIDOR';
-    const cargo = r.cargo || puesto;
-    const ciuo = r.ciuo || p.ciuo || 'C06';
-    const actividades = r.actividades || r.actividades_puesto || p.actividades || 'DOCENCIA UNIVERSITARIA Y ATENCIÓN A ESTUDIANTES';
-
-    // Campos específicos del Reintegro Laboral (Soportando tabla reintegro_ueb_medicoocupacional)
-    const fecSalida = r.fechaUltimoDia || r.fecha_salida || r.fechaSalida || r.fecha_ultimo_dia || '2025-10-13';
-    const fecReintegro = r.fechaReintegro || r.fecha_reintegro || r.fecha || '2026-01-19';
-    const causaSalida = r.causaSalida || r.detalle_motivo_salida || r.motivoSalida || 'LICENCIA POR MATERNIDAD';
-    
-    // Cálculo de días si no viene directo
-    let diasAusencia = r.dias || r.dias_reposo || r.dias_ausencia;
+    const fecSalida = primero(r.fechaUltimoDia, r.fecha_salida, r.fechaSalida, r.fecha_ultimo_dia);
+    const fecReintegro = primero(r.fechaReintegro, r.fecha_reintegro, r.fecha);
+    const causaSalida = primero(r.causaSalida, r.detalle_motivo_salida, r.motivoSalida);
+    let diasAusencia = primero(r.dias, r.dias_reposo, r.dias_ausencia);
     if (!diasAusencia && fecSalida && fecReintegro) {
-        const d1 = new Date(fecSalida);
-        const d2 = new Date(fecReintegro);
-        const diffTime = Math.abs(d2 - d1);
-        diasAusencia = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        diasAusencia = Math.ceil(Math.abs(new Date(fecReintegro) - new Date(fecSalida)) / (1000 * 60 * 60 * 24));
     }
-    if (!diasAusencia) diasAusencia = 95;
+    const motivo = primero(r.motivo, r.motivoConsulta, r.detalle_motivo);
 
-    const tel = r.telefono || r.celular || p.celular || p.telefono || '0982753658';
-    const rel = r.religion || p.religion || 'Católica';
-    const grpSangre = r.grupoSanguineo || r.grupo_sanguineo || r.tipo_sangre || r.tipoSangre || r.vitalSigns?.tipoSangre || p.tipo_sangre || 'ORH+';
-    const lat = (r.lateralidad || p.lateralidad || 'DIESTRO').toUpperCase();
-    const orientacion = r.orientacionSexual || r.orientacion_sexual || p.orientacion_sexual || 'Heterosexual';
-    const idGen = r.identidadGenero || r.identidad_genero || p.identidad_genero || (sexo === 'F' ? 'Femenino' : 'Masculino');
-    
-    // Discapacidad
-    let disc = r.discapacidad;
-    if (!disc || typeof disc !== 'object') {
-        const tieneDisc = Boolean(r.tiene_discapacidad || p.tiene_discapacidad || r.discapacidad === true);
-        disc = {
-            tiene: tieneDisc,
-            tipo: r.tipo_discapacidad || p.tipo_discapacidad || '',
-            porcentaje: r.porcentaje_discapacidad || p.porcentaje_discapacidad || ''
-        };
-    }
+    const exFisicoDesc = extraerExamenFisico(r);
+    const extremidadesDesc = primero(r.examenFisico?.extremidades);
 
-    // Datos institucionales
-    const ruc = r.ruc || r.empresa_ruc || '0260000920001';
-    const estSalud = r.establecimiento || r.establecimiento_salud || 'DEPARTAMENTO MEDICO U.E.B';
-    const numHC = r.numHistoriaClinica || r.historia_clinica || ced;
-    const numArch = r.numArchivo || r.numero_archivo || 'REI-2026-001';
-
-    // Motivo de consulta
-    const motivo = r.motivo || r.motivoConsulta || r.detalle_motivo || 
-        `EVALUACIÓN MÉDICA OCUPACIONAL DE REINTEGRO EN EL PUESTO DE TRABAJO TRAS ${diasAusencia} DÍAS DE ${causaSalida}.`;
-
-    // Antecedentes Clínicos y Quirúrgicos
-    const antClin = r.antecedentesClinicos || r.antecedentesPersonales || r.detalle_antecedente ||
-        'PACIENTE SIN ANTECEDENTES CRÓNICOS DEGENERATIVOS RELEVANTES. VACUNACIÓN COMPLETA.';
-    const antQuir = r.antecedentesQuirurgicos || (sexo === 'F' ? 'PARTO EUTÓCICO SIN COMPLICACIONES. NO OTRAS CIRUGÍAS.' : 'NO REFIERE CIRUGÍAS PREVIAS.');
-
-    // Gineco-obstétricos
-    let gin = r.ginecoObstetricos;
-    if (!gin) {
-        if (sexo === 'M') {
-            gin = {
-                menarquia: 'NO APLICA',
-                ciclos: 'NO APLICA',
-                fum: 'NO APLICA',
-                gestas: 0,
-                partos: 0,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 0,
-                hijosMuertos: 0,
-                vidaSexualActiva: false,
-                planificacionFamiliar: false,
-                tipoPlanificacion: '',
-                lactanciaActiva: false,
-                papanicolaou: { realizada: false, tiempo: '', resultado: 'NO APLICA' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
-            };
-        } else {
-            gin = {
-                menarquia: '12 AÑOS',
-                ciclos: 'REGULARES',
-                fum: r.fum || '2025-01-10',
-                gestas: 1,
-                partos: 1,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 1,
-                hijosMuertos: 0,
-                vidaSexualActiva: true,
-                planificacionFamiliar: true,
-                tipoPlanificacion: 'PRESERVATIVO',
-                lactanciaActiva: causaSalida.toLowerCase().includes('maternidad') || Boolean(r.lactante),
-                papanicolaou: { realizada: true, tiempo: '6 MESES', resultado: 'NEGATIVO (NORMAL)' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: true, tiempo: '1 AÑO', resultado: 'NORMAL' }
-            };
-        }
-    }
-
-    // Hábitos Tóxicos
-    let hab = r.habitosToxicos || r.habitos;
-    if (!hab) {
-        hab = {
-            tabaco: false,
-            alcohol: false,
-            drogas: false,
-            actividadFisica: { tiene: true, cual: 'CAMINATA LIGERA', tiempo: '3 VECES POR SEMANA' },
-            medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
-        };
-    }
-
-    // Antecedentes Familiares
-    let antFam = r.antecedentesFamiliares;
-    if (!antFam) {
-        antFam = {
-            cardiovascular: false,
-            diabetes: false,
-            oncologico: false,
-            hipertension: false,
-            descripcion: 'PADRES VIVOS SIN ENFERMEDADES CRÓNICAS DEGNERATIVAS RELEVANTES.'
-        };
-    }
-
-    // Factores de Riesgo del Puesto al que se reintegra
-    let factRiesgo = r.factoresRiesgo;
-    if (!factRiesgo || typeof factRiesgo !== 'object' || Array.isArray(factRiesgo)) {
-        const arr = Array.isArray(factRiesgo) ? factRiesgo : [];
-        factRiesgo = {
-            puesto: puesto,
-            actividades: actividades,
-            fisico: arr.filter(f => typeof f === 'string' && f.toLowerCase().includes('físic')),
-            mecanico: arr.filter(f => typeof f === 'string' && f.toLowerCase().includes('mecánic')),
-            quimico: [],
-            biologico: ['Virus estacionales'],
-            ergonomico: ['Bipedestación y sedestación combinada', 'Uso de computador'],
-            psicosocial: ['Exigencia docente y atención de usuarios'],
-            medidasPreventivas: '1.- Pausas activas cada 2 horas de labor. 2.- Disposición de asiento ergonómico con soporte lumbar. 3.- Hidratación constante durante la jornada y lactario habilitado si aplica.'
-        };
-    }
-
-    // Actividades Extralaborales
-    const actExtra = r.actividadesExtraLaborales || 'NO';
-
-    // Enfermedad Actual y Evolución de Reintegro
-    const enfAct = r.enfermedadActual || r.detalle_enfermedad_actual || 
-        `Paciente acude para la valoración médica ocupacional de reintegro tras ${diasAusencia} días de ausencia por ${causaSalida}. Al momento se encuentra en buenas condiciones generales, niega sintomatología aguda invalidante y refiere aptitud para reincorporarse a sus actividades.`;
-
-    // Revisión de Órganos y Sistemas
-    let orgSist = r.organosSistemas;
-    if (!orgSist) {
-        orgSist = {
-            normal: true,
-            descripcion: 'Aparatos y sistemas aparentemente normales, sin secuelas agudas.'
-        };
-    }
-
-    // Constantes Vitales al Reintegro
-    const vs = r.vitalSigns || {};
-    const paVal = r.constantes?.pa || (vs.paSystolic && vs.paDiastolic ? `${vs.paSystolic}/${vs.paDiastolic}` : (r.presion_arterial_sistolica ? `${r.presion_arterial_sistolica}/${r.presion_arterial_diastolica || 77}` : '118/77'));
-    const tempVal = r.constantes?.temp || vs.temp || r.temperatura || '36.5';
-    const fcVal = r.constantes?.fc || vs.fc || r.frecuencia_cardiaca || '76';
-    const satO2Val = r.constantes?.satO2 || vs.spo2 || r.saturacion_oxigeno || '98';
-    const frVal = r.constantes?.fr || vs.fr || r.frecuencia_respiratoria || '18';
-    const pesoVal = r.constantes?.peso || vs.peso || r.peso || '54';
-    let tallaVal = r.constantes?.talla || vs.talla || r.talla || '1.55';
-    if (parseFloat(tallaVal) > 3) tallaVal = (parseFloat(tallaVal) / 100).toFixed(2);
-    
-    let imcVal = r.constantes?.imc || vs.imc || r.imc;
-    if (!imcVal && parseFloat(pesoVal) && parseFloat(tallaVal)) {
-        const tM = parseFloat(tallaVal);
-        imcVal = (parseFloat(pesoVal) / (tM * tM)).toFixed(2);
-    }
-    if (!imcVal) imcVal = '22.48';
-
-    const perimVal = r.constantes?.perimetroAbd || r.perimetro_abdominal || '76';
-
-    const constantes = {
-        pa: paVal,
-        temp: tempVal,
-        fc: fcVal,
-        satO2: satO2Val,
-        fr: frVal,
-        peso: pesoVal,
-        talla: tallaVal,
-        imc: imcVal,
-        perimetroAbd: perimVal,
-        novedades: r.constantes?.novedades || ''
-    };
-
-    // Examen Físico de Reintegro
-    let exFisicoDesc = 'NO SE EVIDENCIA SIGNOS PATOLÓGICOS INCAPACITANTES.';
-    let extremidadesDesc = 'DOLOR LEVE DE TOBILLO CON MOVILIDAD ARTICULAR CONSERVADA.';
-    if (typeof r.examenFisico === 'string') {
-        exFisicoDesc = r.examenFisico;
-        extremidadesDesc = r.examenFisico;
-    } else if (r.examenFisico && typeof r.examenFisico === 'object') {
-        if (r.examenFisico.descripcion) exFisicoDesc = r.examenFisico.descripcion;
-        if (r.examenFisico.extremidades) extremidadesDesc = r.examenFisico.extremidades;
-    } else if (r.detalle_examen_fisico) {
-        exFisicoDesc = r.detalle_examen_fisico;
-    }
-
-    // Laboratorios y Exámenes Paraclínicos de Reintegro
-    let exLab = r.examenesLab || r.laboratorios;
-    if (!exLab || !Array.isArray(exLab) || exLab.length === 0) {
-        exLab = [
-            { examen: 'BIOMETRIA HEMATICA COMPLETA', fecha: fecReintegro, resultado: 'DENTRO DE LÍMITES NORMALES' },
-            { examen: 'QUIMICA SANGUÍNEA Y GLUCOSA', fecha: fecReintegro, resultado: 'VALORES NORMALES' },
-            { examen: 'EMO COMPLETO', fecha: fecReintegro, resultado: 'NEGATIVO' },
-            { examen: 'COPROPARASITARIO', fecha: fecReintegro, resultado: 'NEGATIVO' },
-            { examen: 'EVALUACIÓN CLÍNICA / IMAGEN DE CONTROL', fecha: fecReintegro, resultado: 'ALTA MÉDICA DEFINITIVA' }
-        ];
-    }
-
-    // Diagnósticos CIE-10
-    let diags = r.diagnosticos;
-    if (!diags || !Array.isArray(diags) || diags.length === 0) {
-        if (r.diagnosticos_medicina && Array.isArray(r.diagnosticos_medicina)) {
-            diags = r.diagnosticos_medicina.map((dm, idx) => ({
-                num: idx + 1,
-                desc: dm.detalle_diagnostico || 'EVALUACIÓN MÉDICA DE REINTEGRO',
-                cie: dm.cie10 || 'Z02.7',
-                pre: Boolean(dm.presuntivo),
-                def: Boolean(dm.definitivo)
-            }));
-        } else if (r.diagnostico) {
-            diags = [
-                { num: 1, desc: r.diagnostico.toUpperCase(), cie: 'Z02.7', pre: false, def: true }
-            ];
-        } else {
-            diags = [
-                { num: 1, desc: 'SEGUIMIENTO POSTPARTO DE RUTINA', cie: 'Z39.2', pre: false, def: true },
-                { num: 2, desc: 'ATENCIÓN Y EXAMEN DE MADRE EN PERÍODO DE LACTANCIA', cie: 'Z39.1', pre: false, def: true }
-            ];
-        }
-    }
-
-    // Dictamen de Aptitud para el Reintegro Laboral
-    let aptitudReintegro = r.aptitudDetalle || {};
-    const aptRaw = (r.aptitud || 'Apto').toLowerCase();
-    const esAptoTotal = aptRaw === 'apto' || aptRaw.includes('total') || aptRaw === 'aprobado' || (r.tipo === 'Total' && aptRaw !== 'no apto');
-    const esConAdaptacion = aptRaw.includes('adaptación') || aptRaw.includes('restricción') || aptRaw.includes('observación');
-    const esReubicacion = aptRaw.includes('reubicación') || Boolean(aptitudReintegro.reubicacion && aptitudReintegro.reubicacion !== 'NINGUNA');
-    const esProgresivo = r.tipo === 'Progresivo' || aptRaw.includes('progresivo');
-    const esNoApto = aptRaw.includes('no apto') || aptRaw.includes('pendiente') || aptRaw.includes('evaluación');
-
+    // Dictamen de aptitud para el reintegro registrado en la atención
+    const aptitudReintegro = r.aptitudDetalle || {};
+    const esProgresivo = r.tipo === 'Progresivo' || aptStr.includes('progresivo');
+    const esConAdaptacion = aptStr.includes('adaptación') || aptStr.includes('restric') || aptStr.includes('observación');
+    const esReubicacion = aptStr.includes('reubicación') || Boolean(aptitudReintegro.reubicacion && aptitudReintegro.reubicacion !== 'NINGUNA');
     const aptitudDictamen = {
-        total: esAptoTotal && !esConAdaptacion && !esReubicacion,
+        total: aptStr === 'apto' || (r.tipo === 'Total' && aptStr !== '' && !aptStr.includes('no apto')),
         conAdaptacion: esConAdaptacion || esProgresivo,
         reubicacion: esReubicacion,
         progresivo: esProgresivo,
-        noApto: esNoApto,
-        tipoReintegro: r.tipo || (esAptoTotal ? 'Total' : 'Progresivo'),
-        observacion: aptitudReintegro.observacion || r.observaciones || 'Se autoriza el reintegro a sus labores habituales en la institución.',
-        limitacion: aptitudReintegro.limitacion || 'Evitar sobreesfuerzos físicos y realizar pausas activas programadas.',
-        especificacionReubicacion: aptitudReintegro.reubicacion || 'NINGUNA'
+        noApto: aptStr.includes('no apto') || aptStr === 'no_apto',
+        tipoReintegro: primero(r.tipo === 'Total' || r.tipo === 'Progresivo' ? r.tipo : ''),
+        observacion: primero(aptitudReintegro.observacion, r.observaciones, r.restriccionesOcupacionales),
+        limitacion: primero(aptitudReintegro.limitacion),
+        especificacionReubicacion: primero(aptitudReintegro.reubicacion)
     };
 
-    // Recomendaciones Ocupacionales de Reintegro
-    let recs = r.recomendaciones;
-    if (!recs || !Array.isArray(recs) || recs.length === 0) {
-        recs = [
-            '1.- MEDIDAS GENERALES DE SALUD E HIGIENE OCUPACIONAL',
-            '2.- ALIMENTACIÓN SALUDABLE Y PAUSAS ACTIVAS CADA 2 HORAS',
-            '3.- EVITAR REALIZAR ESFUERZOS FÍSICOS DESPROPORCIONADOS O LEVANTAMIENTO MANUAL DE CARGAS PESADAS',
-            '4.- CONSUMO ADECUADO DE LÍQUIDOS E HIDRATACIÓN EN LA JORNADA LABORAL',
-            '5.- EN CASO DE PRESENTAR DOLOR, RECIDIVA O SÍNTOMAS ACUDIR DE FORMA INMEDIATA AL DISPENSARIO MÉDICO DE LA U.E.B',
-            '6.- ACCESO A ESPACIO ADECUADO Y PERMISOS DE LACTANCIA CONFORME A LA NORMATIVA LEGAL VIGENTE (SI APLICA)'
-        ];
-    }
-
-    // Profesional Evaluador
-    const prof = r.profesional || {
-        fecha: fecReintegro,
-        hora: r.hora || '11:30',
-        nombre: r.doctor_nombre || 'DR. JORGE MORALES',
-        codigo: r.doctor_codigo || '1804486288'
-    };
+    const prof = extraerProfesional(r, fecReintegro);
 
     return {
         pac, ced, p1Ape, p2Ape, p1Nom, p2Nom, edad, sexo, puesto, cargo, ciuo, actividades,
@@ -561,7 +264,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>${escapeHtml(lat)}</td>
                 <td>${escapeHtml(orientacion)}</td>
                 <td>${escapeHtml(idGen)}</td>
-                <td colspan="2">${disc.tiene ? `SÍ (${escapeHtml(disc.porcentaje || '35')}% - ${escapeHtml(disc.tipo || 'Física')})` : 'NO'}</td>
+                <td colspan="2">${disc.tiene ? `SÍ (${escapeHtml(disc.porcentaje || '')}% - ${escapeHtml(disc.tipo || '')})` : 'NO'}</td>
             </tr>
         </table>
 
@@ -632,7 +335,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>${escapeHtml(gin.hijosVivos)}</td>
                 <td>${escapeHtml(gin.planificacionFamiliar ? gin.tipoPlanificacion || 'SÍ' : 'NO')}</td>
                 <td class="font-bold" style="color: ${escapeHtml(gin.lactanciaActiva ? '#15803d' : '#000')};">${escapeHtml(gin.lactanciaActiva ? 'SÍ (ACTIVA)' : 'NO')}</td>
-                <td>${escapeHtml(gin.papanicolaou?.resultado || 'NORMAL')}</td>
+                <td>${escapeHtml(gin.papanicolaou?.resultado || '')}</td>
             </tr>
         </table>
 
@@ -685,7 +388,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>${escapeHtml(antFam.cardiovascular ? 'SÍ' : 'NO')}</td>
                 <td>${escapeHtml(antFam.diabetes ? 'SÍ' : 'NO')}</td>
                 <td>${escapeHtml(antFam.hipertension ? 'SÍ' : 'NO')}</td>
-                <td class="text-left">${escapeHtml(antFam.descripcion || 'SIN ANTECEDENTES FAMILIARES DE GRAVEDAD.')}</td>
+                <td class="text-left">${escapeHtml(antFam.descripcion || '')}</td>
             </tr>
         </table>
 
@@ -709,7 +412,7 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>${factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : 'Atención al usuario'}</td>
             </tr>
             <tr>
-                <td colspan="6" style="padding: 4px;"><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> ${escapeHtml(factRiesgo.medidasPreventivas || 'Pausas activas y control ergonómico.')}</td>
+                <td colspan="6" style="padding: 4px;"><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> ${escapeHtml(factRiesgo.medidasPreventivas || '')}</td>
             </tr>
         </table>
 
@@ -886,8 +589,8 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
             <tr style="border: none;">
                 <td style="width: 50%; border: none; text-align: center; vertical-align: bottom;">
                     <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 3px;">
-                        <div style="font-weight: bold; font-size: 8.5px;">${escapeHtml(prof.nombre || 'DR. JORGE MORALES')}</div>
-                        <div style="font-size: 7.5px;">MÉDICO OCUPACIONAL · CÓD. MSP / REG: ${escapeHtml(prof.codigo || '1804486288')}</div>
+                        <div style="font-weight: bold; font-size: 8.5px;">${escapeHtml(prof.nombre || '')}</div>
+                        <div style="font-size: 7.5px;">MÉDICO OCUPACIONAL · CÓD. MSP / REG: ${escapeHtml(prof.codigo || '')}</div>
                         <div style="font-size: 7px; color: #475569;">DEPARTAMENTO MÉDICO - UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                     </div>
                 </td>
@@ -1191,7 +894,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{lat}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{orientacion}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{idGen}</td>
-                                            <td colSpan="2" style={{ border: '1px solid #000', padding: '4px' }}>{disc.tiene ? `SÍ (${disc.porcentaje || '35'}% - ${disc.tipo || 'Física'})` : 'NO'}</td>
+                                            <td colSpan="2" style={{ border: '1px solid #000', padding: '4px' }}>{disc.tiene ? `SÍ (${disc.porcentaje || ''}% - ${disc.tipo || ''})` : 'NO'}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1270,7 +973,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{gin.hijosVivos}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{gin.planificacionFamiliar ? gin.tipoPlanificacion || 'SÍ' : 'NO'}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold', color: gin.lactanciaActiva ? '#15803d' : '#000' }}>{gin.lactanciaActiva ? 'SÍ (ACTIVA)' : 'NO'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{gin.papanicolaou?.resultado || 'NORMAL'}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{gin.papanicolaou?.resultado || ''}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1322,7 +1025,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{antFam.cardiovascular ? 'SÍ' : 'NO'}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{antFam.diabetes ? 'SÍ' : 'NO'}</td>
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{antFam.hipertension ? 'SÍ' : 'NO'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'left' }}>{antFam.descripcion || 'SIN ANTECEDENTES FAMILIARES DE GRAVEDAD.'}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px', textAlign: 'left' }}>{antFam.descripcion || ''}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1348,7 +1051,7 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                             <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : 'Atención al usuario'}</td>
                                         </tr>
                                         <tr>
-                                            <td colSpan="6" style={{ border: '1px solid #000', padding: '5px' }}><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> {factRiesgo.medidasPreventivas || 'Pausas activas y control ergonómico.'}</td>
+                                            <td colSpan="6" style={{ border: '1px solid #000', padding: '5px' }}><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> {factRiesgo.medidasPreventivas || ''}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1552,8 +1255,8 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                         <tr>
                                             <td style={{ width: '50%', border: 'none', textAlign: 'center', verticalAlign: 'bottom' }}>
                                                 <div style={{ borderTop: '1px solid #000', width: '80%', margin: '0 auto', paddingTop: '4px' }}>
-                                                    <div style={{ fontWeight: 'bold', fontSize: '10px' }}>{prof.nombre || 'DR. JORGE MORALES'}</div>
-                                                    <div style={{ fontSize: '8.5px' }}>MÉDICO OCUPACIONAL · CÓD. MSP / REG: {prof.codigo || '1804486288'}</div>
+                                                    <div style={{ fontWeight: 'bold', fontSize: '10px' }}>{prof.nombre || ''}</div>
+                                                    <div style={{ fontSize: '8.5px' }}>MÉDICO OCUPACIONAL · CÓD. MSP / REG: {prof.codigo || ''}</div>
                                                     <div style={{ fontSize: '8px', color: '#475569' }}>DEPARTAMENTO MÉDICO - UNIVERSIDAD ESTATAL DE BOLÍVAR</div>
                                                 </div>
                                             </td>

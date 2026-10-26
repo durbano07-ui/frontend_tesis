@@ -71,6 +71,10 @@ const DEPARTMENTS = [
     'Otra Área / Departamento'
 ];
 
+// Tipo de ficha ocupacional: clave en el servidor <-> etiqueta del formulario
+const TIPO_FICHA_LABEL = { ingreso: 'Ingreso', periodico: 'Periódico', retiro: 'Retiro', reintegro: 'Reintegro', gestante: 'Gestante', discapacidad: 'Discapacidad' };
+const TIPO_FICHA_CLAVE = Object.fromEntries(Object.entries(TIPO_FICHA_LABEL).map(([k, v]) => [v, k]));
+
 // Tipos de atención del parte diario: mismos íconos y colores que en Psicología
 const TIPOS_ATENCION_DIARIO = {
     primaria: { texto: 'Atención Primaria', Icon: HeartHandshake, bg: 'var(--primary-soft)', color: 'var(--primary)' },
@@ -263,1034 +267,12 @@ export default function MedicoOcupacionalPage() {
         restricciones: ''
     });
 
-    // Mock/Saved Lists
-    const [fichasData, setFichasData] = useState([
-        {
-            id: 'merchan-silvia',
-            fecha: '2026-03-09',
-            primerApellido: 'MERCHAN',
-            segundoApellido: 'ORTIZ',
-            primerNombre: 'SILVIA',
-            segundoNombre: 'TATIANA',
-            paciente: 'MERCHAN ORTIZ SILVIA TATIANA',
-            cedula: '010672364-6',
-            tipo: 'Ingreso',
-            puesto: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
-            cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
-            ciuo: 'C02',
-            actividades: 'DOCENCIA',
-            aptitud: 'Apto',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            ciiu: 'S/N',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '010672364-6',
-            numArchivo: 'S/N',
-            sexo: 'F',
-            edad: 31,
-            religion: 'Católica',
-            grupoSanguineo: 'ORH+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Femenino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2026-03-09',
-            telefono: '0982753658',
-            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL PARA EL INGRESO AL PUESTO DE TRABAJO',
-            antecedentesClinicos: 'QUERATOCONO BINOCULAR, RINITIS ALERGICA                    VACUNAS: 3 DOSIS PARA COVID-19, INFLUENZA',
-            antecedentesQuirurgicos: 'CIRUGIA DE QUERATOCONO HACE 12 AÑOS                    ALERGIA: AL FRÍO AL POLVO ENTRE OTROS',
-            ginecoObstetricos: {
-                menarquia: '11 AÑOS',
-                ciclos: 'REGULARES',
-                fum: '2026-02-13',
-                gestas: 0,
-                partos: 0,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 0,
-                hijosMuertos: 0,
-                vidaSexualActiva: false,
-                planificacionFamiliar: false,
-                tipoPlanificacion: '',
-                papanicolaou: { realizada: true, tiempo: '3 MESES', resultado: 'NORMAL' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
-            },
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'GYM 2 HORAS', tiempo: 'LUNES A VIERNES' },
-                medicacionHabitual: { tiene: true, cual: 'LEVOCETERIZINA 5 MG', tiempo: 'PRN' }
-            },
-            empleosAnteriores: [
-                {
-                    empresa: 'UNIVERSIDAD CATÓLICA DE CUENCA',
-                    puesto: 'DOCENTE',
-                    actividades: 'DOCENCIA',
-                    tiempo: '14 MESES',
-                    riesgos: { fisico: true, mecanico: false, quimico: true, biologico: false, ergonomico: false, psicosocial: false },
-                    observaciones: 'NINGUNA'
-                }
-            ],
-            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' },
-            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA' },
-            antecedentesFamiliares: {
-                cardiovascular: true,
-                descripcion: 'ABUELO MATERNO CON HIPERTENSION ARTERIAL'
-            },
-            factoresRiesgo: {
-                puesto: 'FACULTAD DE CIENCIAS  DE LA EDUCACIÓN',
-                actividades: 'DOCENCIA',
-                fisico: ['Temperaturas altas', 'Temperaturas bajas'],
-                mecanico: ['Caídas al mismo nivel', 'Caídas a diferente nivel'],
-                quimico: [],
-                biologico: ['Virus'],
-                ergonomico: ['Posiciones estáticas'],
-                psicosocial: ['Inestabilidad laboral'],
-                medidasPreventivas: '1.- TEMPERATURAS BAJAS y ALTAS  : Uso de rropa adecuada dependindo el clima  . 2.- Caídas al mismo y distinto nivel:Capacitación de forma correcta para subir o bajar escalones   4.- Virus: Capacitación en medidas de bioseguridad para evitar el contagio.  5.- Posiciones estáticas:  Realizar pausas activas o ejercicios de estiramiento para evitar permanecer en posición sentada por tirmpos prolongados. 6.- Inestabilidad Laboral : Reunion con el Patrono y talento humano  para buscar una estabiliadad laboral'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE FEMENINA   DE  31  AÑOS DE EDAD ACUDE PARA UNA VALORACION PREOCUPACIONAL, AL MOMENTO NO REFIERE NINGUNA MOLESTIA.',
-            organosSistemas: {
-                normal: true,
-                descripcion: 'Aparatos y sistemas aparentemente normales.'
-            },
-            constantes: {
-                pa: '120/70',
-                temp: '36',
-                fc: '76',
-                satO2: '96',
-                fr: '20',
-                peso: '63',
-                talla: '1.60',
-                imc: '24.61',
-                perimetroAbd: '-'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'NO SE EVIDENCIA SIGNOS PATOLOGICOS'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA/QUIMICA', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
-                { examen: 'RX STABDRA DE TORAX', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' },
-                { examen: 'COPRO / EMO', fecha: 'PENDIENTE', resultado: 'PENDIENTE RESULTADOS' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'QUERATOCONO', cie: 'H186', pre: false, def: true },
-                { num: 2, desc: 'RINITIS ALERGICA', cie: 'J304', pre: true, def: false }
-            ],
-            aptitudDetalle: {
-                apto: true,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: false,
-                observacion: 'Ninguna',
-                limitacion: 'Uso adecuado de los Euipos de Proteccion  Individual'
-            },
-            recomendaciones: [
-                'DIETA  HIPOCALORICA',
-                'INGESTA DE LIQUIDOS A  LIBRE DEMANDA',
-                'LAVADO CORRECTO DE MANOS',
-                'EN CASO DE PRESENTAR ALGUNA MOLESTIA ACUDIR AL MEDICO OCUPACIONAL DE LA UEB',
-                'PENDIENTE RESULTADOS DE EXÁMENES DE LABORATORIO Y DE IMEGEN'
-            ],
-            profesional: {
-                fecha: '2026-03-09',
-                hora: '11:38',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 1,
-            fecha: '2026-09-10',
-            primerApellido: 'PÉREZ',
-            segundoApellido: 'GÓMEZ',
-            primerNombre: 'JUAN',
-            segundoNombre: 'CARLOS',
-            paciente: 'Juan Carlos Pérez Gómez',
-            cedula: '1723456789',
-            tipo: 'Ingreso',
-            puesto: 'ANALISTA DE SISTEMAS E INFRAESTRUCTURA TIC',
-            cargo: 'ANALISTA DE SISTEMAS E INFRAESTRUCTURA TIC',
-            ciuo: 'C03',
-            actividades: 'ADMINISTRACIÓN DE SERVIDORES Y SOPORTE TÉCNICO A CAMPUS',
-            aptitud: 'Apto',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '1723456789',
-            numArchivo: 'TIC-042',
-            sexo: 'M',
-            edad: 29,
-            religion: 'Católica',
-            grupoSanguineo: 'O+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Masculino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2026-09-10',
-            telefono: '0991234567',
-            motivoConsulta: 'EVALUACIÓN MÉDICA PREOCUPACIONAL PARA INGRESO AL ÁREA DE TIC',
-            antecedentesClinicos: 'NINGUNO DE RELEVANCIA CLÍNICA. NO ALERGIAS MEDICAMENTOSAS. VACUNAS COMPLETAS.',
-            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS.',
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'CICLISMO DE MONTAÑA', tiempo: 'FINES DE SEMANA (3H)' },
-                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
-            },
-            antecedentesFamiliares: {
-                cardiovascular: false,
-                descripcion: 'PADRES VIVOS SIN ENFERMEDADES CRÓNICAS DEGNERATIVAS RELEVANTES.'
-            },
-            factoresRiesgo: {
-                puesto: 'DIRECCIÓN DE TECNOLOGÍAS DE INFORMACIÓN (TIC)',
-                actividades: 'MANTENIMIENTO DE SERVIDORES Y CABLEADO ESTRUCTURADO',
-                fisico: ['Ruido en centro de cómputo / datacenter'],
-                mecanico: ['Caídas al mismo nivel'],
-                quimico: [],
-                biologico: ['Virus'],
-                ergonomico: ['Sedestación prolongada', 'Movimientos repetitivos en digitación'],
-                psicosocial: ['Carga mental'],
-                medidasPreventivas: '1.- Uso de protección auditiva al ingresar a salas de servidores. 2.- Pausas activas visuales cada 50 minutos. 3.- Silla ergonómica regulable con apoyo lumbar.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE MASCULINO DE 29 AÑOS REFIERE SENTIRSE EN BUEN ESTADO DE SALUD. NIEGA SÍNTOMAS ACTUALES.',
-            organosSistemas: { normal: true, descripcion: 'Órganos de los sentidos y sistemas cardio-respiratorio sin alteraciones.' },
-            constantes: {
-                pa: '118/78',
-                temp: '36.4',
-                fc: '72',
-                satO2: '98',
-                fr: '18',
-                peso: '69',
-                talla: '1.71',
-                imc: '23.60',
-                perimetroAbd: '82'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'Paciente alerta y orientado. Cabeza y cuello normoconfigurados. Tórax simétrico, campos pulmonares limpios. Abdomen suave y depresible. Columna vertebral con arcos de movilidad conservados.'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA HEMÁTICA Y GLUCOSA', fecha: '2026-09-08', resultado: 'VALORES DENTRO DE LÍMITES NORMALES' },
-                { examen: 'RX DE TÓRAX POSTEROANTERIOR', fecha: '2026-09-08', resultado: 'SIN LESIONES PLEUROPULMONARES ACTIVAS' },
-                { examen: 'OPTOMETRÍA OCUPACIONAL', fecha: '2026-09-08', resultado: 'AGUDEZA VISUAL 20/20 AMBOS OJOS' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'EXAMEN MÉDICO GENERAL DE INGRESO LABORAL', cie: 'Z00.0', pre: false, def: true }
-            ],
-            aptitudDetalle: {
-                apto: true,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: false,
-                observacion: 'Ninguna',
-                limitacion: 'Uso de Equipos de Protección Individual y seguimiento ergonómico'
-            },
-            recomendaciones: [
-                'PAUSAS ACTIVAS VISUALES REGLA 20-20-20 FRENTE AL MONITOR',
-                'MANTENER POSTURA ERGONÓMICA EN EL PUESTO DE TRABAJO',
-                'HIDRATACIÓN CONTINUA DURANTE LA JORNADA',
-                'CONTROL MÉDICO OCUPACIONAL ANUAL'
-            ],
-            profesional: {
-                fecha: '2026-09-10',
-                hora: '09:15',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 2,
-            fecha: '2026-09-12',
-            primerApellido: 'RODRIGUEZ',
-            segundoApellido: 'ALMEIDA',
-            primerNombre: 'MARIA',
-            segundoNombre: 'FERNANDA',
-            paciente: 'Maria Fernanda Rodriguez Almeida',
-            cedula: '1712345678',
-            tipo: 'Periódico',
-            puesto: 'TÉCNICO DE LABORATORIO DE BIOQUÍMICA',
-            cargo: 'TÉCNICO DE LABORATORIO DE BIOQUÍMICA',
-            ciuo: 'C05',
-            actividades: 'PREPARACIÓN DE REACTIVOS Y PROCESAMIENTO DE MUESTRAS',
-            aptitud: 'Apto con Restricción',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '1712345678',
-            numArchivo: 'LAB-108',
-            sexo: 'F',
-            edad: 42,
-            religion: 'Católica',
-            grupoSanguineo: 'A+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Femenino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2022-04-15',
-            telefono: '0984567890',
-            motivoConsulta: 'EVALUACIÓN MÉDICA PERIÓDICA ANUAL DE CONTROL OCUPACIONAL',
-            antecedentesClinicos: 'LUMBALGIA MECÁNICA CRÓNICA EN TRATAMIENTO CONSERVADOR. GASTRITIS LEVE.',
-            antecedentesQuirurgicos: 'CESÁREA HACE 8 AÑOS SIN COMPLICACIONES. ALERGIA: A LA PENICILINA.',
-            ginecoObstetricos: {
-                menarquia: '12 AÑOS',
-                ciclos: 'REGULARES',
-                fum: '2026-08-28',
-                gestas: 2,
-                partos: 1,
-                cesareas: 1,
-                abortos: 0,
-                hijosVivos: 2,
-                hijosMuertos: 0,
-                vidaSexualActiva: true,
-                planificacionFamiliar: true,
-                tipoPlanificacion: 'DIU',
-                papanicolaou: { realizada: true, tiempo: '6 MESES', resultado: 'NEGATIVO (NORMAL)' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: true, tiempo: '1 AÑO', resultado: 'BIRADS 1' },
-                ecoMamario: { realizada: false, resultado: 'NO APLICA' }
-            },
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'NATACIÓN Y TERAPIA FÍSICA', tiempo: '2 VECES POR SEMANA' },
-                medicacionHabitual: { tiene: true, cual: 'MELOXICAM 15 MG (EN CRISIS)', tiempo: 'PRN' }
-            },
-            antecedentesFamiliares: {
-                cardiovascular: true,
-                descripcion: 'MADRE HIPERTENSA. PADRE CON DIABETES MELLITUS TIPO 2 EN TRATAMIENTO.'
-            },
-            factoresRiesgo: {
-                puesto: 'LABORATORIO DE CIENCIAS QUÍMICAS',
-                actividades: 'MANIPULACIÓN DE PIPETAS, REACTIVOS QUÍMICOS Y MICROSCOPÍA',
-                fisico: ['Iluminación focalizada'],
-                mecanico: ['Cortes por material de vidrio', 'Caídas al mismo nivel'],
-                quimico: ['Vapores de solventes orgánicos', 'Ácidos diluidos'],
-                biologico: ['Bacterias y cultivos microbianos'],
-                ergonomico: ['Bipedestación prolongada', 'Manipulación de cargas manuales > 8kg'],
-                psicosocial: ['Exigencia de precisión'],
-                medidasPreventivas: '1.- Uso continuo de bata de laboratorio, guantes de nitrilo y gafas de seguridad. 2.- No levantar reactivos que superen los 5 kg individualmente. 3.- Banco ergonómico de laboratorio regulable.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE REFIERE EPISODIOS INTERMITENTES DE DOLOR LUMBAR TRAS JORNADAS CON BIPEDESTACIÓN PROLONGADA EN LABORATORIO.',
-            organosSistemas: { normal: true, descripcion: 'Aparato locomotor con contractura paravertebral lumbar. Resto normal.' },
-            constantes: {
-                pa: '122/80',
-                temp: '36.5',
-                fc: '78',
-                satO2: '97',
-                fr: '19',
-                peso: '64',
-                talla: '1.63',
-                imc: '24.09',
-                perimetroAbd: '79'
-            },
-            examenFisico: {
-                normal: false,
-                descripcion: 'Columna lumbosacra con dolor a la palpación en masa paravertebral L4-L5 bilateral. Maniobra de Lasègue negativa bilateral. Fuerza y reflejos conservados en miembros inferiores.'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA Y QUÍMICA HEPÁTICA/RENAL', fecha: '2026-09-02', resultado: 'NORMAL' },
-                { examen: 'RX COLUMNA LUMBOSACRA AP Y LATERAL', fecha: '2026-09-02', resultado: 'LEVE DISMINUCIÓN ESPACIO L5-S1' },
-                { examen: 'EMO COMPLETO', fecha: '2026-09-02', resultado: 'NEGATIVO' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'LUMBALGIA MECÁNICA NO ESPECIFICADA', cie: 'M54.5', pre: false, def: true }
-            ],
-            aptitudDetalle: {
-                apto: false,
-                aptoObservacion: true,
-                aptoLimitaciones: true,
-                noApto: false,
-                observacion: 'Requiere adaptaciones ergonómicas en puesto de laboratorio',
-                limitacion: 'Restricción de levantamiento de cargas mayores a 5 kg. Alternar bipedestación con sedestación.'
-            },
-            recomendaciones: [
-                'NO LEVANTAR CARGAS SUPERIORES A 5 KG DE FORMA UNILATERAL',
-                'ALTERNAR POSICIONES DE PIE Y SENTADA MEDIANTE TABURETE ERGONÓMICO DE LABORATORIO',
-                'CONTINUAR TERAPIA DE FORTALECIMIENTO DE LA FAJA ABDOMINOLUMBAR',
-                'USO DE FAJA LUMBAR DURANTE ACTIVIDADES DE ALMACÉN DE REACTIVOS',
-                'CONTROL EN EL DEPARTAMENTO MÉDICO EN 6 MESES'
-            ],
-            profesional: {
-                fecha: '2026-09-12',
-                hora: '10:40',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 3,
-            fecha: '2026-09-14',
-            primerApellido: 'LÓPEZ',
-            segundoApellido: 'MENDOZA',
-            primerNombre: 'CARLOS',
-            segundoNombre: 'ALBERTO',
-            paciente: 'Carlos Alberto López Mendoza',
-            cedula: '1798765432',
-            tipo: 'Retiro',
-            puesto: 'TÉCNICO DE MANTENIMIENTO E INFRAESTRUCTURA',
-            cargo: 'TÉCNICO DE MANTENIMIENTO E INFRAESTRUCTURA',
-            ciuo: 'C07',
-            actividades: 'MANTENIMIENTO PREVENTIVO, ELÉCTRICO Y DE EDIFICACIONES EN CAMPUS',
-            aptitud: 'Satisfactorio',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            ciiu: 'S/N',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '1798765432',
-            numArchivo: 'RET-2026-003',
-            sexo: 'M',
-            edad: 46,
-            religion: 'Católica',
-            grupoSanguineo: 'O+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Masculino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2021-06-01',
-            fechaRetiro: '2026-09-14',
-            tiempoServicio: '5 AÑOS 3 MESES',
-            causaRetiro: 'FINALIZACIÓN DE CONTRATO LABORAL POR PLAZO FIJO',
-            telefono: '0998765432',
-            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO / CESE LABORAL POR CULMINACIÓN DE CONTRATO',
-            antecedentesClinicos: 'HIPERTENSIÓN ARTERIAL GRADO I CONTROLADA CON TRATAMIENTO. NO ALERGIAS MEDICAMENTOSAS.',
-            antecedentesQuirurgicos: 'HERNIORRAFIA INGUINAL DERECHA HACE 6 AÑOS SIN COMPLICACIONES NI SECUELAS.',
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'CAMINATA DIARIA', tiempo: '45 MINUTOS AL DÍA' },
-                medicacionHabitual: { tiene: true, cual: 'LOSARTÁN 50 MG', tiempo: 'CADA 24 HORAS' }
-            },
-            empleosAnteriores: [
-                {
-                    empresa: 'CONSTRUCTORA GUAYAQUIL S.A.',
-                    puesto: 'TÉCNICO DE INSTALACIONES',
-                    actividades: 'INSTALACIONES ELÉCTRICAS',
-                    tiempo: '4 AÑOS',
-                    riesgos: { fisico: true, mecanico: true, quimico: false, biologico: false, ergonomico: true, psicosocial: false },
-                    observaciones: 'NINGUNA'
-                }
-            ],
-            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'NINGUNA NOVEDAD DURANTE SU PERIODO EN LA UEB' },
-            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ENFERMEDADES OCUPACIONALES DIAGNOSTICADAS' },
-            antecedentesFamiliares: {
-                cardiovascular: true,
-                descripcion: 'PADRE CON ANTECEDENTE DE HIPERTENSIÓN ARTERIAL.'
-            },
-            factoresRiesgo: {
-                puesto: 'UNIDAD DE MANTENIMIENTO CAMPUS MATRIZ',
-                actividades: 'MANTENIMIENTO PREVENTIVO Y CORRECTIVO',
-                fisico: ['Ruido de herramientas', 'Vibraciones'],
-                mecanico: ['Caídas al mismo y distinto nivel', 'Golpes o cortes por herramientas manuales'],
-                quimico: ['Polvo ambiental y partículas en suspensión'],
-                biologico: ['Virus estacionales'],
-                ergonomico: ['Manipulación manual de cargas', 'Posturas forzadas'],
-                psicosocial: ['Exigencia de tiempo de respuesta'],
-                medidasPreventivas: '1.- Uso constante de calzado dieléctrico con punta reforzada, guantes de protección mecánica, protección auditiva y casco de seguridad. 2.- Capacitación en técnicas de levantamiento de cargas. 3.- Se verificó cumplimiento regular de pausas activas durante su permanencia.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE MASCULINO DE 46 AÑOS DE EDAD ACUDE PARA EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO. AL MOMENTO SE ENCUENTRA ASINTOMÁTICO, SIN REFERENCIA DE ACCIDENTES NI ENFERMEDADES OCUPACIONALES DURANTE SU TIEMPO LABORAL.',
-            organosSistemas: {
-                normal: true,
-                descripcion: 'Aparatos respiratorio, cardiovascular y osteoarticular sin alteraciones patológicas atribuibles a su puesto.'
-            },
-            constantes: {
-                pa: '122/78',
-                temp: '36.5',
-                fc: '74',
-                satO2: '97',
-                fr: '18',
-                peso: '74',
-                talla: '1.68',
-                imc: '26.22',
-                perimetroAbd: '86'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'Paciente consciente, orientado y en buen estado general. Cabeza y cuello normosómicos. Agudeza visual conservada con lentes correctores. Tórax simétrico, campos pulmonares limpios y murmullo vesicular presente. Corazón rítmico normofonético. Abdomen blando, depresible, no doloroso, cicatriz de herniorrafia inguinal derecha antigua sin eventración. Extremidades con tono, fuerza 5/5 y arcos de movilidad articular completos. Sin evidencia de secuelas laborales.'
-            },
-            examenesLab: [
-                { examen: 'AUDIOMETRÍA TONAL DE RETIRO', fecha: '2026-09-12', resultado: 'AUDICIÓN NORMAL BILATERAL SIN DESPLAZAMIENTO DEL UMBRAL AUDITIVO' },
-                { examen: 'RX TÓRAX POSTEROANTERIOR DE RETIRO', fecha: '2026-09-12', resultado: 'CAMPOS PULMONARES Y SENOS COSTOFRENICOS LIBRES. SILUETA NORMAL' },
-                { examen: 'BIOMETRIA HEMATICA Y QUIMICA', fecha: '2026-09-12', resultado: 'GLUCOSA: 94 MG/DL, COLESTEROL: 185 MG/DL, TRIGLICÉRIDOS: 140 MG/DL' },
-                { examen: 'EVALUACIÓN ESPINOMETRICA / OSTEOMUSCULAR', fecha: '2026-09-12', resultado: 'COLUMNA VERTEBRAL SIN ALTERACIONES FUNCIONALES NI LIMITACIÓN' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'EXAMEN MÉDICO DE RETIRO OCUPACIONAL', cie: 'Z02.7', pre: false, def: true },
-                { num: 2, desc: 'HIPERTENSIÓN ESENCIAL (PRIMARIA) CONTROLADA (PATOLOGÍA COMÚN)', cie: 'I10', pre: false, def: true }
-            ],
-            condSalida: {
-                satisfactorio: true,
-                conPatologiaComun: false,
-                conSecuelaLaboral: false,
-                observacion: 'El servidor concluye su relación laboral en condiciones físicas y de salud satisfactorias, sin enfermedades profesionales ni secuelas originadas por el trabajo.',
-                recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción laboral.'
-            },
-            recomendaciones: [
-                'CONTINUAR CON CONTROLES MÉDICOS PERIÓDICOS DE SU HIPERTENSIÓN ARTERIAL CON SU MÉDICO DE CABECERA',
-                'MANTENER DIETA HIPOSÓDICA Y HÁBITOS DE VIDA SALUDABLE CON ACTIVIDAD FÍSICA AERÓBICA REGULAR',
-                'SE ENTREGA CONSTANCIA OFICIAL DE EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO AL TRABAJADOR'
-            ],
-            profesional: {
-                fecha: '2026-09-14',
-                hora: '10:30',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 4,
-            fecha: '2026-09-15',
-            primerApellido: 'ALARCÓN',
-            segundoApellido: 'QUINATOA',
-            primerNombre: 'PEDRO',
-            segundoNombre: 'JAVIER',
-            paciente: 'Pedro Javier Alarcón Quinatoa',
-            cedula: '2015066720',
-            tipo: 'Ingreso',
-            puesto: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
-            cargo: 'PROFESOR OCASIONAL TIEMPO COMPLETO',
-            ciuo: 'C02',
-            actividades: 'DOCENCIA UNIVERSITARIA, CÁTEDRA E INVESTIGACIÓN FORMATIVA',
-            aptitud: 'Apto',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '2015066720',
-            numArchivo: 'DOC-2026-088',
-            sexo: 'M',
-            edad: 38,
-            religion: 'Católica',
-            grupoSanguineo: 'O+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Masculino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2026-09-15',
-            telefono: '0983112233',
-            motivoConsulta: 'EVALUACIÓN MÉDICA PREOCUPACIONAL PARA EL INGRESO A LA DOCENCIA UNIVERSITARIA',
-            antecedentesClinicos: 'NO REFIERE ENFERMEDADES CRÓNICAS DEGNERATIVAS. VACUNACIÓN COMPLETA COVID-19 E INFLUENZA.',
-            antecedentesQuirurgicos: 'APENDICECTOMÍA HACE 10 AÑOS SIN SECUELAS. NO ALERGIAS MEDICAMENTOSAS.',
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'FÚTBOL Y TROTE', tiempo: '2 VECES POR SEMANA (2H)' },
-                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
-            },
-            empleosAnteriores: [
-                {
-                    empresa: 'COLEGIO NACIONAL BOLÍVAR',
-                    puesto: 'DOCENTE DE MATEMÁTICAS',
-                    actividades: 'DOCENCIA Y EVALUACIÓN',
-                    tiempo: '5 AÑOS',
-                    riesgos: { fisico: true, mecanico: false, quimico: false, biologico: false, ergonomico: true, psicosocial: true },
-                    observaciones: 'NINGUNA'
-                }
-            ],
-            antecedentesFamiliares: {
-                cardiovascular: true,
-                descripcion: 'PADRE FALLECIDO POR INFARTO AGUDO DE MIOCARDIO. MADRE HIPERTENSA CONTROLADA.'
-            },
-            factoresRiesgo: {
-                puesto: 'FACULTAD DE CIENCIAS DE LA SALUD Y EDUCACIÓN',
-                actividades: 'DOCENCIA UNIVERSITARIA EN AULAS Y LABORATORIOS',
-                fisico: ['Ruido ambiental en aulas', 'Variaciones térmicas'],
-                mecanico: ['Caídas al mismo y distinto nivel por escaleras'],
-                quimico: [],
-                biologico: ['Virus respiratorios estacionales'],
-                ergonomico: ['Bipedestación prolongada durante clases', 'Uso continuo de la voz'],
-                psicosocial: ['Carga mental y atención a estudiantes'],
-                medidasPreventivas: '1.- Técnicas de impostación y descanso vocal. 2.- Pausas activas y cambio postural durante clases magistrales. 3.- Ropa adecuada a los cambios de clima en el campus.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE MASCULINO DE 38 AÑOS ACUDE PARA RECONOCIMIENTO PREOCUPACIONAL. SE ENCUENTRA ASINTOMÁTICO.',
-            organosSistemas: { normal: true, descripcion: 'Aparatos y sistemas evaluados dentro de límites normales.' },
-            constantes: {
-                pa: '124/82',
-                temp: '36.6',
-                fc: '74',
-                satO2: '97',
-                fr: '18',
-                peso: '74',
-                talla: '1.72',
-                imc: '25.01',
-                perimetroAbd: '86'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'Paciente consciente, orientado. Oídos y faringe normales, cuerdas vocales sin ronquera evidente. Corazón rítmico, ruidos bien timbrados. Pulmones ventilados. Abdomen blando no doloroso. Pulsos periféricos simétricos.'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA HEMÁTICA COMPLETA', fecha: '2026-09-11', resultado: 'NORMAL (LEUCOCITOS 6.800, HB 15.2)' },
-                { examen: 'GLUCOSA Y PERFIL LIPÍDICO', fecha: '2026-09-11', resultado: 'GLUCOSA 91 MG/DL, COLESTEROL 188 MG/DL' },
-                { examen: 'RX TÓRAX POSTEROANTERIOR', fecha: '2026-09-11', resultado: 'CAMPOS PULMONARES Y SILUETA CARDÍACA NORMALES' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'EVALUACIÓN MÉDICA GENERAL OCUPACIONAL (PREOCUPACIONAL)', cie: 'Z00.0', pre: false, def: true }
-            ],
-            aptitudDetalle: {
-                apto: true,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: false,
-                observacion: 'Ninguna',
-                limitacion: 'Uso adecuado de los Equipos de Protección Individual y cuidado de la voz'
-            },
-            recomendaciones: [
-                'TÉCNICAS DE HIGIENE VOCAL E HIDRATACIÓN ABUNDANTE DURANTE DICTADO DE CLASES',
-                'PAUSAS ACTIVAS DE 5 MINUTOS TRAS CADA HORA DE CÁTEDRA',
-                'CONTROL CARDIOVASCULAR ANUAL POR ANTECEDENTE FAMILIAR',
-                'SEGUIMIENTO MÉDICO PERIÓDICO EN LA UNIDAD DE SALUD OCUPACIONAL'
-            ],
-            profesional: {
-                fecha: '2026-09-15',
-                hora: '11:20',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 5,
-            fecha: '2026-09-16',
-            primerApellido: 'RAMOS',
-            segundoApellido: 'GRIJALVA',
-            primerNombre: 'CYNTHIA',
-            segundoNombre: 'GABRIELA',
-            paciente: 'Cynthia Gabriela Ramos Grijalva',
-            cedula: '1803869492',
-            tipo: 'Periódico',
-            puesto: 'DOCENTE TITULAR A TIEMPO COMPLETO',
-            cargo: 'DOCENTE TITULAR A TIEMPO COMPLETO',
-            ciuo: 'C02',
-            actividades: 'DOCENCIA DE PREGRADO, INVESTIGACIÓN Y GESTIÓN ACADÉMICA',
-            aptitud: 'Apto',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '1803869492',
-            numArchivo: 'DOC-2026-014',
-            sexo: 'F',
-            edad: 34,
-            religion: 'Católica',
-            grupoSanguineo: 'A+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Femenino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2021-03-01',
-            telefono: '0995544332',
-            motivoConsulta: 'EVALUACIÓN MÉDICA PERIÓDICA ANUAL DE CONTROL OCUPACIONAL',
-            antecedentesClinicos: 'ASTIGMATISMO MIÓPICO BILATERAL CORREGIDO CON LENTES. CEFALEAS TENSIONALES OCASIONALES.',
-            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS. ALERGIA: AL POLVO Y ÁCAROS.',
-            ginecoObstetricos: {
-                menarquia: '12 AÑOS',
-                ciclos: 'REGULARES',
-                fum: '2026-08-25',
-                gestas: 1,
-                partos: 1,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 1,
-                hijosMuertos: 0,
-                vidaSexualActiva: true,
-                planificacionFamiliar: true,
-                tipoPlanificacion: 'PRESERVATIVO',
-                papanicolaou: { realizada: true, tiempo: '6 MESES', resultado: 'NORMAL' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: true, tiempo: '1 AÑO', resultado: 'NORMAL' }
-            },
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'PILATES Y YOGA', tiempo: '3 VECES POR SEMANA' },
-                medicacionHabitual: { tiene: true, cual: 'PARACETAMOL 500 MG', tiempo: 'PRN (DOLOR CEFÁLICO)' }
-            },
-            antecedentesFamiliares: {
-                cardiovascular: false,
-                descripcion: 'ABUELA MATERNA CON DIABETES MELLITUS TIPO 2.'
-            },
-            factoresRiesgo: {
-                puesto: 'FACULTAD DE CIENCIAS AGROPECUARIAS',
-                actividades: 'DOCENCIA TEÓRICA Y FORMULACIÓN DE PROYECTOS EN COMPUTADOR',
-                fisico: ['Iluminación de pantallas de visualización de datos (PVD)'],
-                mecanico: ['Caídas al mismo nivel'],
-                quimico: [],
-                biologico: ['Virus estacionales'],
-                ergonomico: ['Sedestación prolongada en escritorio', 'Uso repetitivo de mouse y teclado'],
-                psicosocial: ['Exigencia académica y plazos de entrega'],
-                medidasPreventivas: '1.- Regla 20-20-20 para descanso de acomodación ocular. 2.- Soporte ergonómico de muñeca y pantalla a nivel de los ojos. 3.- Pausas activas con estiramientos cervicales.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'PACIENTE REFIERE LEVE FATIGA OCULAR AL FINALIZAR JORNADAS PROLONGADAS DE REVISIÓN DIGITAL DE TRABAJOS DE TITULACIÓN.',
-            organosSistemas: { normal: true, descripcion: 'Órganos de los sentidos: leve hiperemia conjuntival bilateral. Resto sin patología.' },
-            constantes: {
-                pa: '115/75',
-                temp: '36.4',
-                fc: '72',
-                satO2: '98',
-                fr: '17',
-                peso: '58',
-                talla: '1.62',
-                imc: '22.10',
-                perimetroAbd: '74'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'Consciente y orientada. Ojos simétricos con uso de lentes correctores. Cuello móvil con leve tensión paravertebral trapecial bilateral. Ruidos cardíacos y respiratorios limpios. Abdomen blando no doloroso. Extremidades íntegras.'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA HEMÁTICA', fecha: '2026-09-05', resultado: 'NORMAL' },
-                { examen: 'QUÍMICA SANGUÍNEA (GLUCOSA, UREA, CREATININA)', fecha: '2026-09-05', resultado: 'VALORES NORMALES' },
-                { examen: 'EVALUACIÓN OFTALMOLÓGICA', fecha: '2026-09-05', resultado: 'AGUDEZA CORREGIDA 20/20' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'ASTENOPIA / FATIGA VISUAL OCUPACIONAL', cie: 'H53.1', pre: false, def: true },
-                { num: 2, desc: 'CERVICALGIA TENSIONAL LEVE', cie: 'M54.2', pre: true, def: false }
-            ],
-            aptitudDetalle: {
-                apto: true,
-                aptoObservacion: false,
-                aptoLimitaciones: false,
-                noApto: false,
-                observacion: 'Ninguna',
-                limitacion: 'Uso de lentes de descanso con filtro de luz azul y pausas activas'
-            },
-            recomendaciones: [
-                'APLICAR REGLA 20-20-20: CADA 20 MINUTOS MIRAR A 20 PIES (6 METROS) DURANTE 20 SEGUNDOS',
-                'USO DE LÁGRIMAS ARTIFICIALES LUBRICANTES SEGÚN REQUERIMIENTO',
-                'EJERCICIOS DE ESTIRAMIENTO DE CUELLO Y HOMBROS 3 VECES AL DÍA',
-                'CONTROL OCUPACIONAL ANUAL DE AGUDEZA VISUAL'
-            ],
-            profesional: {
-                fecha: '2026-09-16',
-                hora: '12:00',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        {
-            id: 6,
-            fecha: '2026-09-18',
-            primerApellido: 'VALDIVIESO',
-            segundoApellido: 'CÁRDENAS',
-            primerNombre: 'MARIANA',
-            segundoNombre: 'DE JESÚS',
-            paciente: 'Mariana de Jesús Valdivieso Cárdenas',
-            cedula: '0201948571',
-            tipo: 'Retiro',
-            puesto: 'ASISTENTE ADMINISTRATIVA DE VICERRECTORADO',
-            cargo: 'ASISTENTE ADMINISTRATIVA DE VICERRECTORADO',
-            ciuo: 'C04',
-            actividades: 'GESTIÓN DOCUMENTAL, ARCHIVO DIGITAL Y ATENCIÓN A USUARIOS',
-            aptitud: 'Satisfactorio',
-            estado: 'Completado',
-            empresa: 'UNIVERSIDAD ESTATAL DE BOLIVAR',
-            ruc: '0260000920001',
-            ciiu: 'S/N',
-            establecimiento: 'DEPARTAMENTO MEDICO U.E.B',
-            numHistoriaClinica: '0201948571',
-            numArchivo: 'RET-2026-006',
-            sexo: 'F',
-            edad: 34,
-            religion: 'Católica',
-            grupoSanguineo: 'A+',
-            lateralidad: 'DIESTRO',
-            orientacionSexual: 'Heterosexual',
-            identidadGenero: 'Femenino',
-            discapacidad: { tiene: false, tipo: '', porcentaje: '' },
-            fechaIngreso: '2022-01-10',
-            fechaRetiro: '2026-09-18',
-            tiempoServicio: '4 AÑOS 8 MESES',
-            causaRetiro: 'RENUNCIA VOLUNTARIA POR MOTIVOS PERSONALES',
-            telefono: '0981948571',
-            motivoConsulta: 'EVALUACIÓN MÉDICA OCUPACIONAL DE RETIRO / CESE LABORAL POR RENUNCIA VOLUNTARIA',
-            antecedentesClinicos: 'GASTRITIS CRÓNICA SUPERFICIAL. ASTIGMATISMO MIOPE CORREGIDO CON LENTES. NO ALERGIAS MEDICAMENTOSAS.',
-            antecedentesQuirurgicos: 'NO REFIERE CIRUGÍAS PREVIAS.',
-            ginecoObstetricos: {
-                menarquia: '12 AÑOS',
-                ciclos: 'REGULARES',
-                fum: '2026-09-02',
-                gestas: 1,
-                partos: 1,
-                cesareas: 0,
-                abortos: 0,
-                hijosVivos: 1,
-                hijosMuertos: 0,
-                vidaSexualActiva: true,
-                planificacionFamiliar: true,
-                tipoPlanificacion: 'PRESERVATIVO',
-                papanicolaou: { realizada: true, tiempo: '5 MESES', resultado: 'NEGATIVO (NORMAL)' },
-                colposcopia: { realizada: false, resultado: 'NO APLICA' },
-                mamografia: { realizada: false, resultado: 'NO APLICA' },
-                ecoMamario: { realizada: true, tiempo: '1 AÑO', resultado: 'NORMAL SIN HALLAZGOS' }
-            },
-            habitosToxicos: {
-                tabaco: false,
-                alcohol: false,
-                drogas: false,
-                actividadFisica: { tiene: true, cual: 'PILATES Y CAMINATA', tiempo: '3 VECES POR SEMANA' },
-                medicacionHabitual: { tiene: false, cual: '', tiempo: '' }
-            },
-            accidentesTrabajo: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ANTECEDENTES DE ACCIDENTES LABORALES EN LA UEB' },
-            enfermedadesProfesionales: { calificado: false, fecha: '', especificaciones: '', observaciones: 'SIN ENFERMEDADES OCUPACIONALES REGISTRADAS' },
-            antecedentesFamiliares: {
-                cardiovascular: false,
-                descripcion: 'MADRE VIVA SANA. PADRE CON HIPERTENSIÓN ARTERIAL.'
-            },
-            factoresRiesgo: {
-                puesto: 'VICERRECTORADO ACADÉMICO',
-                actividades: 'GESTIÓN DOCUMENTAL Y REDACCIÓN EN COMPUTADOR',
-                fisico: ['Iluminación de pantallas de visualización de datos (PVD)'],
-                mecanico: ['Caídas al mismo nivel'],
-                quimico: [],
-                biologico: ['Virus estacionales'],
-                ergonomico: ['Sedestación prolongada', 'Movimientos repetitivos de digitación'],
-                psicosocial: ['Atención al público'],
-                medidasPreventivas: '1.- Uso de descansapies y soporte ergonómico para teclado y mouse. 2.- Pausas activas visuales y musculares. 3.- Higiene postural.'
-            },
-            actividadesExtraLaborales: 'NO',
-            enfermedadActual: 'FUNCIONARIA EN PROCESO DE CESE POR RENUNCIA VOLUNTARIA ACUDE A EVALUACIÓN MÉDICA OCUPACIONAL. ASINTOMÁTICA AL MOMENTO DE LA CONSULTA.',
-            organosSistemas: {
-                normal: true,
-                descripcion: 'Aparatos y sistemas evaluados sin sintomatología aguda ni secuelas laborales.'
-            },
-            constantes: {
-                pa: '116/74',
-                temp: '36.4',
-                fc: '70',
-                satO2: '98',
-                fr: '17',
-                peso: '59',
-                talla: '1.61',
-                imc: '22.76',
-                perimetroAbd: '75'
-            },
-            examenFisico: {
-                normal: true,
-                descripcion: 'Paciente lúcida, orientada temporo-espacialmente. Mucosas húmedas y normocoloreadas. Cuello sin adenopatías ni bocio, movimientos de flexo-extensión y rotación conservados. Cardiopulmonar normal sin ruidos sobreagregados. Abdomen suave, depresible, no doloroso a la palpación profunda. Miembros superiores e inferiores íntegros, reflejos osteotendinosos presentes y simétricos, fuerza muscular 5/5. Sin signos de síndrome de túnel carpiano (Phalen y Tinel negativos bilateral).'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA HEMÁTICA DE RETIRO', fecha: '2026-09-15', resultado: 'VALORES HEMATOLÓGICOS DENTRO DE LÍMITES NORMALES' },
-                { examen: 'QUÍMICA SANGUÍNEA Y EMO', fecha: '2026-09-15', resultado: 'GLUCOSA: 88 MG/DL, FUNCIÓN RENAL NORMAL, EMO SIN ALTERACIONES' },
-                { examen: 'AUDIOMETRÍA OCUPACIONAL DE SALIDA', fecha: '2026-09-15', resultado: 'CAPACIDAD AUDITIVA BILATERAL CONSERVADA (NORMOUDIENTE)' },
-                { examen: 'EVALUACIÓN DE MIEMBROS SUPERIORES', fecha: '2026-09-15', resultado: 'MANIOBRAS DE PHALEN Y TINEL NEGATIVAS BILATERAL' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'EXAMEN MÉDICO DE RETIRO OCUPACIONAL', cie: 'Z02.7', pre: false, def: true },
-                { num: 2, desc: 'ASTIGMATISMO MIOPE (PATOLOGÍA COMÚN CORREGIDA)', cie: 'H52.2', pre: false, def: true }
-            ],
-            condSalida: {
-                satisfactorio: true,
-                conPatologiaComun: false,
-                conSecuelaLaboral: false,
-                observacion: 'La servidora concluye sus funciones en la institución en óptimas condiciones de salud, sin secuelas ni afecciones vinculadas a sus labores.',
-                recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción o cese.'
-            },
-            recomendaciones: [
-                'CONTINUAR CON ESTILO DE VIDA SALUDABLE Y CHEQUEOS MÉDICOS PREVENTIVOS ANUALES',
-                'SEGUIMIENTO OFTALMOLÓGICO ANUAL PARA CONTROL DE LENTES CORRECTORES',
-                'SE EMITE Y ENTREGA CERTIFICADO MÉDICO DE RETIRO A LA INTERESADA'
-            ],
-            profesional: {
-                fecha: '2026-09-18',
-                hora: '11:15',
-                nombre: 'DR. JORGE MORALES',
-                codigo: '1804486288'
-            }
-        },
-        { id: 7, fecha: '2026-09-19', paciente: 'Patricia Guamán Paredes', cedula: '0201889923', tipo: 'Gestante', puesto: 'Docente Ocasional', aptitud: 'Apto con Restricción', estado: 'Completado' },
-        { id: 8, fecha: '2026-09-20', paciente: 'Sofía Paredes Montero', cedula: '0202114455', tipo: 'Lactante', puesto: 'Analista Financiera', aptitud: 'Apto', estado: 'Completado' },
-        { id: 9, fecha: '2026-09-21', paciente: 'Roberto Silva Saltos', cedula: '0201654321', tipo: 'Discapacidad', puesto: 'Especialista en TIC', aptitud: 'Apto con Adaptación', estado: 'Completado' },
-        { id: 10, fecha: '2026-09-22', paciente: 'Daniela Ortiz Ramos', cedula: '0201778899', tipo: 'Discapacidad', puesto: 'Bibliotecaria Universitaria', aptitud: 'Apto', estado: 'Completado' },
-        { id: 11, fecha: '2026-09-23', paciente: 'Carlos Manuel Domínguez', cedula: '0201393659', tipo: 'Discapacidad', puesto: 'Docente de Agronomía', aptitud: 'Apto con Restricción', estado: 'Completado' }
-    ]);
+    // Fichas emitidas: se cargan del servidor (GET /medicina-ocupacional/fichas)
+    const [fichasData, setFichasData] = useState([]);
 
-    const [reintegrosData, setReintegrosData] = useState([
-        {
-            id: 1,
-            fecha: '2026-01-19',
-            primerApellido: 'AGUALONGO',
-            segundoApellido: 'AREVALO',
-            primerNombre: 'MYRIAN',
-            segundoNombre: 'DEL ROCIO',
-            paciente: 'AGUALONGO AREVALO MYRIAN DEL ROCIO',
-            cedula: '0201575900',
-            sexo: 'F',
-            edad: 41,
-            puesto: 'C06',
-            fechaUltimoDia: '2025-10-13',
-            fechaReintegro: '2026-01-19',
-            dias: 95,
-            causaSalida: 'LICENCIA POR MATERNIDAD',
-            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO EN EL PUESTO DE TRABAJO',
-            enfermedadActual: 'Paciente acude para la valoracion medica de reintegro, al momento en buenas condiciones generales niega molestias.',
-            constantes: {
-                pa: '118/77',
-                temp: '34,8',
-                fc: '100',
-                satO2: '92',
-                fr: '20',
-                peso: '52',
-                talla: '1,46',
-                imc: '30,00',
-                novedades: ''
-            },
-            examenFisico: {
-                extremidades: 'DOLOR DE TOBILLO'
-            },
-            examenesLab: [
-                { examen: 'BIOMETRIA', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
-                { examen: 'QUIMICA', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
-                { examen: 'COPROPARASITARIO', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
-                { examen: 'EMO', fecha: '', resultado: 'PENDIENTE RESULTADOS DE EXÁMENES' },
-                { examen: 'RX DE AP Y LATERAL DE TOBILLO', fecha: '', resultado: 'NO APLICA' }
-            ],
-            diagnosticos: [
-                { num: 1, desc: 'SEGUIMIENTO POSTPARTO DE RUTINA', cie: 'Z392', pre: false, def: true },
-                { num: 2, desc: 'ATENCION Y EXAMEN DE MADRE EN PERIODO DE LACTANCIA', cie: 'Z391', pre: false, def: true }
-            ],
-            diagnostico: 'SEGUIMIENTO POSTPARTO DE RUTINA / ATENCION MADRE EN PERIODO LACTANCIA',
-            tipo: 'Total',
-            aptitud: 'Apto',
-            aptitudDetalle: {
-                apto: true,
-                observacion: 'NINGUNA',
-                limitacion: 'NINGUNA',
-                reubicacion: 'NINGUNA'
-            },
-            recomendaciones: [
-                '1.- MEDIDAS GENERALES',
-                '2.- ALIMENTACION SALUDABLE',
-                '3.- EVITAR REALIZAR ESFUERZO FISICO',
-                '4.- CONSUMO DE LIQUIDOS',
-                '5.- EN CASO DE PRESENTAR ALGUNA MOLESTIA ACUDIR AL MEDICO OCUPACIONAL DE LA U.E.B'
-            ],
-            profesional: {
-                fecha: '2026-01-19',
-                hora: '11:29',
-                nombre: 'JORGE MORALES',
-                codigo: '20191823'
-            },
-            estado: 'Aprobado'
-        },
-        {
-            id: 2,
-            fecha: '2026-09-08',
-            primerApellido: 'GÓMEZ',
-            segundoApellido: 'CHÁVEZ',
-            primerNombre: 'ANA',
-            segundoNombre: 'MARÍA',
-            paciente: 'GÓMEZ CHÁVEZ ANA MARÍA',
-            cedula: '1755443322',
-            sexo: 'F',
-            edad: 36,
-            puesto: 'Secretaria General',
-            fechaUltimoDia: '2026-08-20',
-            fechaReintegro: '2026-09-08',
-            dias: 15,
-            causaSalida: 'INCAPACIDAD TEMPORAL',
-            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO POR PATOLOGÍA OSTEOMUSCULAR',
-            enfermedadActual: 'Paciente con evolución favorable post reposo médico por dolor articular.',
-            constantes: { pa: '120/80', temp: '36,5', fc: '76', satO2: '98', fr: '18', peso: '60', talla: '1,60', imc: '23,44', novedades: '' },
-            examenFisico: { extremidades: 'Movilidad articular conservada, maniobra de Phalen negativa.' },
-            examenesLab: [{ examen: 'ELECTROMIOGRAFIA', fecha: '2026-09-01', resultado: 'NORMAL' }],
-            diagnosticos: [{ num: 1, desc: 'SDR DE TÚNEL CARPIANO', cie: 'G560', pre: false, def: true }],
-            diagnostico: 'SDR de Túnel Carpiano',
-            tipo: 'Total',
-            aptitud: 'Apto con Adaptación',
-            aptitudDetalle: { apto: false, limitacion: 'Evitar digitación continua > 2 horas sin pausa', observacion: 'Pausas activas', reubicacion: 'NINGUNA' },
-            recomendaciones: ['1.- Pausas activas cada 2 horas', '2.- Uso de mousepad ergonómico', '3.- Control médico en 6 meses'],
-            profesional: { fecha: '2026-09-08', hora: '09:15', nombre: 'JORGE MORALES', codigo: '20191823' },
-            estado: 'Aprobado'
-        },
-        {
-            id: 3,
-            fecha: '2026-09-11',
-            primerApellido: 'TORRES',
-            segundoApellido: 'MENDOZA',
-            primerNombre: 'LUIS',
-            segundoNombre: 'ALBERTO',
-            paciente: 'TORRES MENDOZA LUIS ALBERTO',
-            cedula: '1744332211',
-            sexo: 'M',
-            edad: 45,
-            puesto: 'Operario de Bodega',
-            fechaUltimoDia: '2026-08-10',
-            fechaReintegro: '2026-09-11',
-            dias: 30,
-            causaSalida: 'CIRUGIA / REPOSO MEDICO',
-            motivo: 'EVALUACIÓN MÉDICA DE REINTEGRO PROGRESIVO',
-            enfermedadActual: 'Paciente acude tras reposo por lumbalgia mecánica severa.',
-            constantes: { pa: '125/82', temp: '36,6', fc: '80', satO2: '97', fr: '19', peso: '78', talla: '1,70', imc: '26,99', novedades: '' },
-            examenFisico: { extremidades: 'Fuerza muscular 4/5 en miembros inferiores.' },
-            examenesLab: [{ examen: 'RMN COLUMNA LUMBAR', fecha: '2026-08-15', resultado: 'HERNIA DISCAL L4-L5' }],
-            diagnosticos: [{ num: 1, desc: 'HERNIA DISCAL L4-L5', cie: 'M512', pre: false, def: true }],
-            diagnostico: 'Hernia Discal L4-L5',
-            tipo: 'Progresivo',
-            aptitud: 'En Evaluación',
-            aptitudDetalle: { apto: false, limitacion: 'No levantar cargas superiores a 10 kg', observacion: 'Reubicación temporal', reubicacion: 'Actividades de supervisión' },
-            recomendaciones: ['1.- Evitar levantamiento de cargas pesadas', '2.- Fisioterapia de mantenimiento', '3.- Reevaluación en 30 días'],
-            profesional: { fecha: '2026-09-11', hora: '10:30', nombre: 'JORGE MORALES', codigo: '20191823' },
-            estado: 'Pendiente'
-        }
-    ]);
+    const [reintegrosData, setReintegrosData] = useState([]);
 
-    const [examenesData, setExamenesData] = useState([
-        {
-            id: 1,
-            fecha: '2026-09-05',
-            paciente: 'Roberto Silva',
-            cedula: '1723456789',
-            examen: 'Audiometría Tonal Ocupacional',
-            motivo: 'Vigilancia por Exposición a Ruido en Talleres',
-            laboratorio: 'Laboratorio Ocupacional Institucional',
-            prioridad: 'Normal',
-            estado: 'Realizado',
-            resultado: 'Audición conservación bilateral normal (0-20 dB)'
-        },
-        {
-            id: 2,
-            fecha: '2026-09-13',
-            paciente: 'Elena Morales',
-            cedula: '1718902341',
-            examen: 'Espirometría Simple Ocupacional',
-            motivo: 'Control de Exposición a Polvos & Solventes',
-            laboratorio: 'Centro Diagnóstico Convenio',
-            prioridad: 'Alta',
-            estado: 'Pendiente',
-            resultado: 'Pendiente de emisión por laboratorio'
-        },
-        {
-            id: 3,
-            fecha: '2026-09-14',
-            paciente: 'Carlos Mendoza Ruiz',
-            cedula: '1723456789',
-            examen: 'Biometría Hemática + Perfil Lipídico',
-            motivo: 'Evaluación Periódica Anual',
-            laboratorio: 'Laboratorio Central Universitario',
-            prioridad: 'Normal',
-            estado: 'Realizado',
-            resultado: 'Glucosa: 88 mg/dL | Colesterol Total: 175 mg/dL (Valores Normales)'
-        }
-    ]);
+    const [examenesData, setExamenesData] = useState([]);
 
     // State for Exámenes Ocupacionales
     const [examSearchTerm, setExamSearchTerm] = useState('');
@@ -1501,53 +483,7 @@ export default function MedicoOcupacionalPage() {
     const [selectedExams, setSelectedExams] = useState(['Hemograma Completo', 'Audiometría Tonal Ocupacional', 'Colesterol', 'Triglicéridos']);
     const [customExamNotes, setCustomExamNotes] = useState('');
 
-    const [examOrdersData, setExamOrdersData] = useState([
-        {
-            id: 1,
-            fecha: localDateStr(),
-            paciente: 'Carlos Eduardo Ramírez',
-            cedula: '0201234567',
-            edad: '38 años',
-            medicoSolicitante: 'Dr. Jorge Morales Torres',
-            selectedExams: ['Hemograma Completo', 'Audiometría Tonal Ocupacional', 'Colesterol', 'Triglicéridos'],
-            otrosExamenes: '',
-            examen: 'Hemograma Completo, Colesterol, Triglicéridos...',
-            motivo: 'Examen Periódico Ocupacional / Control Anual',
-            laboratorio: 'Laboratorio Central Universitario UEB',
-            prioridad: 'Normal',
-            estado: 'Completado'
-        },
-        {
-            id: 2,
-            fecha: localDateStr(),
-            paciente: 'Ana Lucía Benavides',
-            cedula: '0209876543',
-            edad: '29 años',
-            medicoSolicitante: 'Dr. Jorge Morales Torres',
-            selectedExams: ['Espirometría Simple Ocupacional', 'Hemograma Completo', 'Glucosa'],
-            otrosExamenes: '',
-            examen: 'Espirometría Simple, Hemograma, Glucosa',
-            motivo: 'Evaluación Espirométrica por Exposición a Polvos',
-            laboratorio: 'Laboratorio Central Universitario UEB',
-            prioridad: 'Alta',
-            estado: 'Pendiente'
-        },
-        {
-            id: 3,
-            fecha: '2026-09-14',
-            paciente: 'Roberto Carlos Mendoza',
-            cedula: '0987654321',
-            edad: '44 años',
-            medicoSolicitante: 'Dr. Jorge Morales Torres',
-            selectedExams: ['Hemograma Completo', 'Glucosa', 'Urea', 'Creatinina', 'Colesterol', 'HDL Colesterol', 'Triglicéridos', 'Físico, Químico y Sedimento'],
-            otrosExamenes: '',
-            examen: '8 Exámenes (Perfil Periódico Ocupacional Base)',
-            motivo: 'Control Clínico Anual de Salud Ocupacional',
-            laboratorio: 'Laboratorio Central Universitario UEB',
-            prioridad: 'Normal',
-            estado: 'Completado'
-        }
-    ]);
+    const [examOrdersData, setExamOrdersData] = useState([]);
 
     // State for Matriz de Enfermedades Catastróficas o Huérfanas (UEB 2026)
     const [catastrophicSearchTerm, setCatastrophicSearchTerm] = useState('');
@@ -1611,13 +547,7 @@ export default function MedicoOcupacionalPage() {
         cantidad: '50'
     });
 
-    const [periodicosData, setPeriodicosData] = useState([
-        { id: 1, mes: 'AGOSTO', anio: 2022, cantidad: 5 },
-        { id: 2, mes: 'SEPTIEMBRE', anio: 2022, cantidad: 68 },
-        { id: 3, mes: 'OCTUBRE', anio: 2022, cantidad: 74 },
-        { id: 4, mes: 'NOVIEMBRE', anio: 2022, cantidad: 55 },
-        { id: 5, mes: 'DICIEMBRE', anio: 2022, cantidad: 37 }
-    ]);
+    const [periodicosData, setPeriodicosData] = useState([]);
 
     // State for Matriz de Enfermedades Nuevas - Incidencia (UEB)
     const [nuevasSearchTerm, setNuevasSearchTerm] = useState('');
@@ -1630,14 +560,7 @@ export default function MedicoOcupacionalPage() {
         fechaAparecimiento: localDateStr()
     });
 
-    const [nuevasData, setNuevasData] = useState([
-        { id: 1, numero: 1, paciente: 'CHELA YAZUMA TEODORO', cedula: '0201234567', patologiaNueva: 'BRONQUITIS', fechaAparecimiento: '8/12/2022', anio: 2022 },
-        { id: 2, numero: 2, paciente: 'GAROFALO PAREDES PIEDAD DEL CARMEN', cedula: '0202345678', patologiaNueva: 'POLIARTROSIS', fechaAparecimiento: '9/6/2021', anio: 2021 },
-        { id: 3, numero: 3, paciente: 'GARCIA VELOZ RUTH ALICIA', cedula: '0203456789', patologiaNueva: 'ARTRITIS REUMATOIDE', fechaAparecimiento: '9/21/2022', anio: 2022 },
-        { id: 4, numero: 4, paciente: 'PAZOS MONTERO HECTOR DAVID', cedula: '0204567890', patologiaNueva: 'TRASTORNO DEL DISCO LUMBAR', fechaAparecimiento: '11/9/2022', anio: 2022 },
-        { id: 5, numero: 5, paciente: 'ARROYO MUÑOZ LICETH ALEXANDRA', cedula: '0205678901', patologiaNueva: 'HIPERPLASIA ENDOMETRIAL', fechaAparecimiento: '11/11/2022', anio: 2022 },
-        { id: 6, numero: 6, paciente: 'GAIBOR CARDENAS GLADYS VANESSA', cedula: '0206789012', patologiaNueva: 'MIOMAS UTERINOS', fechaAparecimiento: '12/15/2022', anio: 2022 }
-    ]);
+    const [nuevasData, setNuevasData] = useState([]);
 
     // State for Matriz de Riesgo Psicosocial (Ansiedad y Depresión UEB 2026)
     const [psicosocialSearchTerm, setPsicosocialSearchTerm] = useState('');
@@ -1751,7 +674,7 @@ export default function MedicoOcupacionalPage() {
     const matrixIframeRef = useRef(null);
     const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
     const [matrixDateFilter, setMatrixDateFilter] = useState('');
-    const [selectedFichaWorkerId, setSelectedFichaWorkerId] = useState('merchan-silvia');
+    const [selectedFichaWorkerId, setSelectedFichaWorkerId] = useState(null);
     const [selectedRecetaId, setSelectedRecetaId] = useState(1001);
     const [genReportMonth, setGenReportMonth] = useState(new Date().getMonth() + 1);
     const [genReportYear, setGenReportYear] = useState(new Date().getFullYear());
@@ -1767,103 +690,8 @@ export default function MedicoOcupacionalPage() {
         setToast({ show: true, message });
         setTimeout(() => setToast({ show: false, message: '' }), 3400);
     };
-    const initialRecetas = [
-        {
-            id: 1001,
-            numero_receta: 'REC-2026-001',
-            fecha: todayStr,
-            paciente: 'Juan Carlos Pérez Mendoza',
-            cedula: '1723456789',
-            hcl: 'HCL-1723456789',
-            sexo: 'M',
-            estado_enfermedad: 'Agudo',
-            fecha_nacimiento: '1988-05-12',
-            edad_anios: 38,
-            edad_meses: 4,
-            cie: 'J00 - Rinofaringitis Aguda',
-            peso: '74.5',
-            talla: '172',
-            alergias_si: false,
-            alergias_detalle: 'Ninguna conocida',
-            puesto: 'Docente universitario',
-            prescriptor_nombre: 'Dr. Fernando Vaca',
-            prescriptor_acess: 'ACESS-MED-84920',
-            valido_verificado: 'Lcda. María Silva',
-            signos_alarma: 'Dificultad respiratoria, fiebre persistente mayor a 38.5°C por más de 48 horas.',
-            recomendaciones_no_farmacologicas: 'Reposo relativo por 48 horas, abundante hidratación (2 a 3 litros de agua al día), evitar cambios bruscos de temperatura.',
-            lineas: [
-                {
-                    detalle_medicamento: 'Paracetamol 500mg Comprimidos',
-                    dosis: '500mg (1 comprimido)',
-                    frecuencia: '8',
-                    duracion: '3',
-                    via: 'Oral',
-                    cantidad_texto: '9 (Nueve comprimidos)',
-                    disponible_farmacia: 'farmacia',
-                    manana: true,
-                    mediodia: true,
-                    tarde: false,
-                    noche: true
-                },
-                {
-                    detalle_medicamento: 'Loratadina 10mg Comprimidos',
-                    dosis: '10mg (1 comprimido)',
-                    frecuencia: '24',
-                    duracion: '5',
-                    via: 'Oral',
-                    cantidad_texto: '5 (Cinco comprimidos)',
-                    disponible_farmacia: 'farmacia',
-                    manana: false,
-                    mediodia: false,
-                    tarde: false,
-                    noche: true
-                }
-            ],
-            estado: 'Dispensado en Farmacia'
-        },
-        {
-            id: 1002,
-            numero_receta: 'REC-2026-002',
-            fecha: '2026-09-14',
-            paciente: 'Ana María Torres Valencia',
-            cedula: '1802938475',
-            hcl: 'HCL-1802938475',
-            sexo: 'F',
-            estado_enfermedad: 'Crónico',
-            fecha_nacimiento: '1992-11-20',
-            edad_anios: 33,
-            edad_meses: 10,
-            cie: 'M54.5 - Lumbalgia no especificada',
-            peso: '62.0',
-            talla: '160',
-            alergias_si: true,
-            alergias_detalle: 'AINEs (Ketorolaco)',
-            puesto: 'Analista de Talento Humano',
-            prescriptor_nombre: 'Dr. Fernando Vaca',
-            prescriptor_acess: 'ACESS-MED-84920',
-            valido_verificado: 'Lcda. María Silva',
-            signos_alarma: 'Pérdida de fuerza o sensibilidad en miembros inferiores, dolor insoportable que no cede.',
-            recomendaciones_no_farmacologicas: 'Pausas activas cada 45 minutos en oficina, higiene postural al sentarse, termoterapia local caliente 20 min.',
-            lineas: [
-                {
-                    detalle_medicamento: 'Ibuprofeno 400mg Tabletas',
-                    dosis: '400mg (1 tableta)',
-                    frecuencia: '8',
-                    duracion: '5',
-                    via: 'Oral',
-                    cantidad_texto: '15 (Quince tabletas)',
-                    disponible_farmacia: 'farmacia',
-                    manana: true,
-                    mediodia: true,
-                    tarde: false,
-                    noche: true
-                }
-            ],
-            estado: 'Dispensado en Farmacia'
-        }
-    ];
 
-    const [recetasData, setRecetasData] = useState(initialRecetas);
+    const [recetasData, setRecetasData] = useState([]);
     const [recetasSearchNombre, setRecetasSearchNombre] = useState('');
     const [recetasSearchFecha, setRecetasSearchFecha] = useState('');
     const [selectedRecetaPreview, setSelectedRecetaPreview] = useState(null);
@@ -2008,103 +836,38 @@ export default function MedicoOcupacionalPage() {
         }
     };
 
-    const fetchReintegros = async () => {
-        try {
-            const res = await api.get('/medicina-ocupacional/reintegro-ueb');
-            if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
-                const mapped = res.data.data.map(r => {
-                    const p = r.paciente || {};
-                    const d = p.datos_identificacion || p.datosIdentificacion || {};
-                    const nombre = d.primer_nombre
-                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim()
-                        : (p.name || 'Servidor');
-                    const diasCalc = r.fecha_salida && r.fecha_reintegro
-                        ? Math.ceil(Math.abs(new Date(r.fecha_reintegro) - new Date(r.fecha_salida)) / (1000 * 60 * 60 * 24))
-                        : 30;
-                    return {
-                        id: r.id,
-                        fecha: r.fecha_reintegro || r.created_at?.slice(0, 10),
-                        fechaReintegro: r.fecha_reintegro,
-                        fechaUltimoDia: r.fecha_salida,
-                        paciente: nombre,
-                        cedula: d.numero_identificacion || p.cedula || '0201575900',
-                        puesto: p.cargo || 'Servidor Universitario',
-                        dias: diasCalc,
-                        causaSalida: r.detalle_motivo_salida,
-                        diagnostico: r.detalle_motivo_salida,
-                        tipo: 'Total',
-                        aptitud: 'Apto',
-                        estado: 'Aprobado',
-                        patientSelected: { ...p, ...d, nombres: d.primer_nombre, apellidos: d.primer_apellido, cedula: d.numero_identificacion }
-                    };
-                });
-                setReintegrosData(prev => {
-                    const ids = new Set(mapped.map(m => m.id));
-                    return [...mapped, ...prev.filter(pr => !ids.has(pr.id))];
-                });
-            }
-        } catch (err) {
-            console.log("Reintegros backend offline or empty");
-        }
-    };
-
+    // Fichas emitidas en las atenciones: contenido clínico guardado + identificación real del trabajador
     const fetchFichasBackend = async () => {
         try {
-            const [ingresosRes, cesesRes] = await Promise.all([
-                api.get('/medicina-ocupacional/personal-nuevo').catch(() => ({ data: { data: [] } })),
-                api.get('/medicina-ocupacional/cese-funciones').catch(() => ({ data: { data: [] } }))
-            ]);
-
-            const newItems = [];
-            if (Array.isArray(ingresosRes.data?.data)) {
-                ingresosRes.data.data.forEach(item => {
-                    const p = item.paciente || {};
-                    const d = p.datos_identificacion || p.datosIdentificacion || {};
-                    const nombre = d.primer_nombre ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim() : (p.name || 'Servidor');
-                    newItems.push({
-                        id: 'ing_' + item.id,
-                        fecha: item.fecha_ingreso,
-                        fechaIngreso: item.fecha_ingreso,
-                        paciente: nombre,
-                        cedula: d.numero_identificacion || p.cedula || 'N/D',
-                        tipo: 'Ingreso',
-                        puesto: p.cargo || 'Servidor UEB',
-                        aptitud: 'Apto',
-                        estado: 'Completado',
-                        patientSelected: { ...p, ...d }
-                    });
-                });
-            }
-            if (Array.isArray(cesesRes.data?.data)) {
-                cesesRes.data.data.forEach(item => {
-                    const p = item.paciente || {};
-                    const d = p.datos_identificacion || p.datosIdentificacion || {};
-                    const nombre = d.primer_nombre ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.primer_apellido || ''} ${d.segundo_apellido || ''}`.trim() : (p.name || 'Servidor');
-                    newItems.push({
-                        id: 'ces_' + item.id,
-                        fecha: item.fecha_salida,
-                        fechaRetiro: item.fecha_salida,
-                        paciente: nombre,
-                        cedula: d.numero_identificacion || p.cedula || 'N/D',
-                        tipo: 'Retiro',
-                        puesto: p.cargo || 'Servidor UEB',
-                        causaRetiro: item.detalle_motivo_salida,
-                        aptitud: 'Satisfactorio',
-                        estado: 'Completado',
-                        patientSelected: { ...p, ...d }
-                    });
-                });
-            }
-            if (newItems.length > 0) {
-                setFichasData(prev => {
-                    const ids = new Set(newItems.map(m => m.id));
-                    return [...newItems, ...prev.filter(pr => !ids.has(pr.id))];
-                });
-            }
+            const res = await api.get('/medicina-ocupacional/fichas');
+            const fichas = (Array.isArray(res.data?.data) ? res.data.data : []).map(f => {
+                const contenido = f.contenido || {};
+                const paciente = f.paciente || {};
+                return {
+                    ...contenido,
+                    id: `ficha-${f.id}`,
+                    fecha: f.fecha,
+                    tipo: TIPO_FICHA_LABEL[f.tipo] || f.tipo,
+                    tipoFicha: f.tipo,
+                    paciente: paciente.nombre_completo || '',
+                    cedula: paciente.cedula || '',
+                    puesto: paciente.puestoTrabajo || '',
+                    profesional: {
+                        ...(contenido.profesional || {}),
+                        nombre: contenido.profesional?.nombre || f.doctor?.nombre || '',
+                        codigo: contenido.profesional?.codigo || f.doctor?.cedula || ''
+                    },
+                    patientSelected: paciente,
+                    estado: 'Completado'
+                };
+            });
+            setFichasData(fichas.filter(f => f.tipoFicha !== 'reintegro'));
+            setReintegrosData(fichas.filter(f => f.tipoFicha === 'reintegro'));
         } catch (err) {
-            console.log("Fichas backend offline or empty");
+            console.error('No se pudieron cargar las fichas ocupacionales:', err);
         }
     };
+    const fetchReintegros = fetchFichasBackend;
 
     // --- Matrices estadísticas guardadas en el backend ---
     const [matrixRows, setMatrixRows] = useState({});
@@ -5700,21 +4463,15 @@ export default function MedicoOcupacionalPage() {
     );
 
     const getActiveFichaList = () => {
-        if (fichaSubTab === 'reintegro') {
-            return filteredReintegros.length > 0 ? filteredReintegros : reintegrosData;
-        }
-        if (fichaSubTab === 'cese') {
-            const retiro = filteredFichas.filter(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
-            return retiro.length > 0 ? retiro : fichasData.filter(f => f.tipo === 'Retiro' || f.tipo === 'Cese');
-        }
-        const ingreso = filteredFichas.filter(f => f.tipo === 'Ingreso' || f.tipo === 'Periódico' || f.tipo === 'Preocupacional');
-        return ingreso.length > 0 ? ingreso : fichasData;
+        if (fichaSubTab === 'reintegro') return filteredReintegros;
+        if (fichaSubTab === 'cese') return filteredFichas.filter(f => f.tipo === 'Retiro');
+        return filteredFichas.filter(f => f.tipo !== 'Retiro');
     };
 
     const activeFichas = getActiveFichaList();
     const selectedFichaRecord = (fichaSearchTerm.trim() && activeFichas.length > 0)
         ? activeFichas[0]
-        : (activeFichas.find(f => String(f.id) === String(selectedFichaWorkerId)) || activeFichas[0] || fichasData[0]);
+        : (activeFichas.find(f => String(f.id) === String(selectedFichaWorkerId)) || activeFichas[0] || null);
 
     const compileCurrentFicha077Html = (record = selectedFichaRecord, forPrint = false) => {
         const target = record || selectedFichaRecord;
@@ -9417,66 +8174,42 @@ export default function MedicoOcupacionalPage() {
                                         type="button"
                                         onClick={() => {
                                             if (!validarConsultaCompleta()) return;
-                                            const newRecord = {
-                                                id: Date.now(),
-                                                fecha: localDateStr(),
-                                                fechaIngreso: localDateStr(),
-                                                paciente: patientSelected ? `${patientSelected.nombres || ''} ${patientSelected.apellidos || ''}`.trim() : 'Paciente Ocupacional',
-                                                primerApellido: patientSelected?.apellidos ? patientSelected.apellidos.trim().split(/\s+/)[0] : '',
-                                                segundoApellido: patientSelected?.apellidos ? patientSelected.apellidos.trim().split(/\s+/).slice(1).join(' ') : '',
-                                                primerNombre: patientSelected?.nombres ? patientSelected.nombres.trim().split(/\s+/)[0] : '',
-                                                segundoNombre: patientSelected?.nombres ? patientSelected.nombres.trim().split(/\s+/).slice(1).join(' ') : '',
-                                                cedula: patientSelected?.cedula || patientSelected?.ci || '1723456789',
-                                                tipo: tipoFicha,
-                                                puesto: puestoTrabajo || patientSelected?.puestoTrabajo || patientSelected?.cargo || 'Servidor/Docente',
-                                                cargo: puestoTrabajo || patientSelected?.puestoTrabajo || patientSelected?.cargo || 'Servidor/Docente',
-                                                ciuo: patientSelected?.ciuo || 'C02',
-                                                actividades: patientSelected?.actividades || 'ACTIVIDADES ADMINISTRATIVAS Y DOCENCIA',
-                                                area: areaTrabajo || patientSelected?.area || 'Campus Matriz',
-                                                sexo: patientSelected?.sexo || 'M',
-                                                edad: patientSelected?.edad || 32,
-                                                religion: patientSelected?.religion || 'Católica',
-                                                grupoSanguineo: vitalSigns.tipoSangre || patientSelected?.tipo_sangre || 'NO REGISTRADO',
-                                                lateralidad: patientSelected?.lateralidad || 'DIESTRO',
-                                                orientacionSexual: patientSelected?.orientacion_sexual || 'Heterosexual',
-                                                identidadGenero: patientSelected?.identidad_genero || (patientSelected?.sexo === 'F' ? 'Femenino' : 'Masculino'),
-                                                discapacidad: patientSelected?.discapacidad || { tiene: false, tipo: '', porcentaje: '' },
-                                                telefono: patientSelected?.celular || patientSelected?.telefono || '0987654321',
-                                                motivoConsulta: motivoConsulta || 'EVALUACIÓN MÉDICA OCUPACIONAL PARA EL PUESTO DE TRABAJO',
-                                                enfermedadActual: enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DEL EXAMEN.',
-                                                antecedentesClinicos: antecedentesPersonales || 'NINGUNO RELEVANTE REFERIDO POR EL PACIENTE',
-                                                antecedentesPersonales: antecedentesPersonales || 'NINGUNO RELEVANTE',
-                                                antecedentesOcupacionales: antecedentesOcupacionales || 'NO REFIERE',
-                                                factoresRiesgo: factoresRiesgo.length > 0 ? factoresRiesgo : ['Ergonómico', 'Físico'],
-                                                examenFisico: {
-                                                    normal: !examenFisico || examenFisico.toLowerCase().includes('normal'),
-                                                    descripcion: examenFisico || 'NO SE EVIDENCIA SIGNOS PATOLÓGICOS'
-                                                },
-                                                constantes: {
-                                                    pa: vitalSigns.paSystolic && vitalSigns.paDiastolic ? `${vitalSigns.paSystolic}/${vitalSigns.paDiastolic}` : '120/80',
-                                                    temp: vitalSigns.temp || '36.5',
-                                                    fc: vitalSigns.fc || '75',
-                                                    satO2: vitalSigns.spo2 || '98',
-                                                    fr: vitalSigns.fr || '18',
-                                                    peso: vitalSigns.peso || '70',
-                                                    talla: vitalSigns.talla ? (parseFloat(vitalSigns.talla) > 3 ? (parseFloat(vitalSigns.talla) / 100).toFixed(2) : vitalSigns.talla) : '1.70',
-                                                    imc: vitalSigns.imc || '24.2',
-                                                    perimetroAbd: '-'
-                                                },
+                                            // Contenido clínico de la ficha: solo lo registrado en esta atención (la identificación
+                                            // del trabajador se toma de su perfil al consultar la ficha en Reportes)
+                                            const hoy = localDateStr();
+                                            const tallaM = parseFloat(vitalSigns.talla) > 3 ? parseFloat(vitalSigns.talla) / 100 : parseFloat(vitalSigns.talla);
+                                            const imc = parseFloat(vitalSigns.peso) && tallaM ? (parseFloat(vitalSigns.peso) / (tallaM * tallaM)).toFixed(2) : '';
+                                            const [cieCodigo, ...cieDesc] = diagnosticoCie.split('-');
+                                            const aptitud = { apto: 'Apto', apto_restriccion: 'Apto con Restricción', no_apto: 'No Apto' }[aptitudLaboral];
+                                            const contenidoFicha = {
+                                                tipoAtencion,
+                                                motivoConsulta,
+                                                enfermedadActual,
+                                                antecedentesPersonales,
+                                                antecedentesOcupacionales,
+                                                factoresRiesgo,
+                                                examenFisico: { normal: examenFisico.toLowerCase().includes('normal'), descripcion: examenFisico },
                                                 vitalSigns: { ...vitalSigns },
-                                                diagnosticoCie: diagnosticoCie || 'Z00.0 - Examen médico general',
-                                                diagnosticos: diagnosticoCie ? [
-                                                    {
-                                                        num: 1,
-                                                        desc: diagnosticoCie.includes('-') ? diagnosticoCie.split('-')[1].trim().toUpperCase() : diagnosticoCie.toUpperCase(),
-                                                        cie: diagnosticoCie.includes('-') ? diagnosticoCie.split('-')[0].trim().toUpperCase() : 'Z00.0',
-                                                        pre: false,
-                                                        def: true
-                                                    }
-                                                ] : [
-                                                    { num: 1, desc: 'EXAMEN MÉDICO GENERAL OCUPACIONAL', cie: 'Z00.0', pre: false, def: true }
-                                                ],
-                                                aptitud: aptitudLaboral === 'apto' ? 'Apto' : aptitudLaboral === 'apto_restriccion' ? 'Apto con Restricción' : 'No Apto',
+                                                constantes: {
+                                                    pa: `${vitalSigns.paSystolic}/${vitalSigns.paDiastolic}`,
+                                                    temp: vitalSigns.temp,
+                                                    fc: vitalSigns.fc,
+                                                    satO2: vitalSigns.spo2,
+                                                    fr: vitalSigns.fr,
+                                                    peso: vitalSigns.peso,
+                                                    talla: tallaM ? tallaM.toFixed(2) : '',
+                                                    imc,
+                                                    perimetroAbd: ''
+                                                },
+                                                diagnosticoCie,
+                                                diagnosticos: [{
+                                                    num: 1,
+                                                    desc: (cieDesc.length ? cieDesc.join('-') : diagnosticoCie).trim().toUpperCase(),
+                                                    cie: cieDesc.length ? cieCodigo.trim().toUpperCase() : '',
+                                                    pre: false,
+                                                    def: true
+                                                }],
+                                                aptitud,
                                                 aptitudLaboral,
                                                 restriccionesOcupacionales,
                                                 aptitudDetalle: {
@@ -9484,45 +8217,45 @@ export default function MedicoOcupacionalPage() {
                                                     aptoObservacion: aptitudLaboral === 'apto_restriccion',
                                                     aptoLimitaciones: aptitudLaboral === 'apto_restriccion',
                                                     noApto: aptitudLaboral === 'no_apto',
-                                                    observacion: restriccionesOcupacionales || 'Ninguna',
-                                                    limitacion: restriccionesOcupacionales || 'Uso adecuado de los Equipos de Protección Individual (EPP)'
+                                                    observacion: restriccionesOcupacionales,
+                                                    limitacion: restriccionesOcupacionales
                                                 },
-                                                planTratamiento: planTratamiento || 'MEDIDAS HIGIÉNICO DIETÉTICAS Y ERGONÓMICAS',
+                                                planTratamiento,
                                                 prescripcionesList: [...prescripcionesList],
                                                 recomendaciones: [
-                                                    planTratamiento || 'PAUSAS ACTIVAS CADA 2 HORAS EN LA JORNADA LABORAL',
-                                                    'USO ADECUADO Y PERMANENTE DE EQUIPOS DE PROTECCIÓN INDIVIDUAL (EPP)',
-                                                    'INGESTA ADECUADA DE LÍQUIDOS Y HÁBITOS DE VIDA SALUDABLES',
-                                                    'EN CASO DE PRESENTAR SÍNTOMAS ACUDIR AL DISPENSARIO MÉDICO DE LA UEB',
-                                                    ...(prescripcionesList.length > 0 ? prescripcionesList.map(p => `TRATAMIENTO: ${p.detalle_medicamento} (${p.dosis}, cada ${p.frecuencia}h x ${p.duracion} días)`) : [])
+                                                    planTratamiento.toUpperCase(),
+                                                    ...prescripcionesList.map(p => `TRATAMIENTO: ${p.detalle_medicamento} (${p.dosis}, cada ${p.frecuencia}h x ${p.duracion} días)`)
                                                 ],
                                                 profesional: {
-                                                    fecha: localDateStr(),
+                                                    fecha: hoy,
                                                     hora: new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }),
-                                                    nombre: user?.nombre || 'DR. JORGE MORALES',
-                                                    codigo: user?.cedula || '1804486288'
+                                                    nombre: user?.name || '',
+                                                    codigo: user?.numero_cedula || ''
                                                 },
-                                                fechaRetiro: localDateStr(),
-                                                fechaReintegro: localDateStr(),
-                                                fechaUltimoDia: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                                                dias: 30,
-                                                causaSalida: motivoConsulta || 'REPOSO MÉDICO AUTORIZADO',
-                                                causaRetiro: motivoConsulta || 'CULMINACIÓN DE RELACIÓN LABORAL',
-                                                tiempoServicio: 'SEGÚN EXPEDIENTE INSTITUCIONAL',
-                                                condSalida: {
-                                                    satisfactorio: aptitudLaboral === 'apto',
-                                                    conPatologiaComun: aptitudLaboral === 'apto_restriccion',
-                                                    conSecuelaLaboral: aptitudLaboral === 'no_apto',
-                                                    observacion: restriccionesOcupacionales || 'El trabajador no presenta enfermedades profesionales ni secuelas originadas por el trabajo en la institución.',
-                                                    recomendacionLegal: 'El trabajador finaliza sus labores en la institución en condiciones físicas y de salud adecuadas para su reinserción o cese.'
-                                                },
-                                                patientSelected: patientSelected ? { ...patientSelected } : null,
-                                                estado: 'Completado'
+                                                ...(tipoFicha === 'Retiro' && {
+                                                    fechaRetiro: hoy,
+                                                    causaRetiro: motivoConsulta,
+                                                    condSalida: {
+                                                        satisfactorio: aptitudLaboral === 'apto',
+                                                        conPatologiaComun: aptitudLaboral === 'apto_restriccion',
+                                                        conSecuelaLaboral: aptitudLaboral === 'no_apto',
+                                                        observacion: restriccionesOcupacionales,
+                                                        recomendacionLegal: ''
+                                                    }
+                                                }),
+                                                ...(tipoFicha === 'Reintegro' && { fechaReintegro: hoy, causaSalida: motivoConsulta }),
+                                                ...(tipoFicha !== 'Retiro' && tipoFicha !== 'Reintegro' && { fechaIngreso: hoy })
                                             };
-                                            setFichasData(prev => [newRecord, ...prev]);
-                                            if (tipoFicha === 'Reintegro') {
-                                                setReintegrosData(prev => [newRecord, ...prev]);
-                                            }
+
+                                            // Ficha completa en el servidor: es la que se consulta e imprime en Reportes
+                                            api.post('/medicina-ocupacional/fichas', {
+                                                id_usuario_paciente: patientSelected.id,
+                                                tipo: TIPO_FICHA_CLAVE[tipoFicha],
+                                                fecha: hoy,
+                                                contenido: contenidoFicha
+                                            }).then(() => fetchFichasBackend()).catch((err) => {
+                                                alert(`La ficha NO se guardó: ${err.response?.data?.message || 'No se pudo conectar con el servidor.'}`);
+                                            });
 
                                             // Persistencia al backend si el paciente está registrado
                                             if (patientSelected?.id) {
@@ -9566,18 +8299,11 @@ export default function MedicoOcupacionalPage() {
                                                         id_usuario_paciente: patientSelected.id,
                                                         fecha_ingreso: localDateStr()
                                                     }).catch(() => {});
-                                                } else if (tipoFicha === 'Retiro' || tipoFicha === 'Cese') {
+                                                } else if (tipoFicha === 'Retiro') {
                                                     api.post('/medicina-ocupacional/cese-funciones', {
                                                         id_usuario_paciente: patientSelected.id,
                                                         fecha_salida: localDateStr(),
-                                                        detalle_motivo_salida: motivoConsulta || 'Cese laboral institucional'
-                                                    }).catch(() => {});
-                                                } else if (tipoFicha === 'Reintegro') {
-                                                    api.post('/medicina-ocupacional/reintegro-ueb', {
-                                                        id_usuario_paciente: patientSelected.id,
-                                                        fecha_salida: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
-                                                        fecha_reintegro: localDateStr(),
-                                                        detalle_motivo_salida: motivoConsulta || 'Reintegro a funciones laborales'
+                                                        detalle_motivo_salida: motivoConsulta
                                                     }).catch(() => {});
                                                 }
 
@@ -9625,8 +8351,8 @@ export default function MedicoOcupacionalPage() {
                                                 const newRecetaRecord = {
                                                     id: Date.now() + 1,
                                                     fecha: localDateStr(),
-                                                    paciente: patientSelected ? `${patientSelected.nombres} ${patientSelected.apellidos}` : 'Paciente Trabajo',
-                                                    cedula: patientSelected?.cedula || '1723456789',
+                                                    paciente: `${patientSelected.nombres || ''} ${patientSelected.apellidos || ''}`.trim(),
+                                                    cedula: patientSelected?.cedula || '',
                                                     puesto: patientSelected?.puestoTrabajo || 'Servidor/Docente',
                                                     medicamentos: medicamentosTexto,
                                                     lineas: [...prescripcionesList],
