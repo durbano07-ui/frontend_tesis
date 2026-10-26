@@ -4115,7 +4115,7 @@ const Psicologo_page = () => {
                                                                 const cedula = pIdent.numero_cedula || '—';
                                                                 return (
                                                                     <tr key={cita.id || idx}>
-                                                                        <td style={{ fontWeight: 'bold' }}>{cita.fecha}</td>
+                                                                        <td style={{ fontWeight: 'bold' }}>{formatFecha(cita.fecha)}</td>
                                                                         <td>{cita.hora_inicio} - {cita.hora_fin}</td>
                                                                         <td>{fullName}</td>
                                                                         <td>{cedula}</td>

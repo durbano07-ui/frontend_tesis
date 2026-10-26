@@ -7744,7 +7744,7 @@ export default function MedicoOcupacionalPage() {
                                                     ) : (
                                                         filteredExamenes.map(item => (
                                                             <tr key={item.id}>
-                                                                <td>{item.fecha}</td>
+                                                                <td>{formatFecha(item.fecha)}</td>
                                                                 <td>
                                                                     <strong>{item.paciente}</strong>
                                                                     <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {item.cedula}</small>
@@ -8246,7 +8246,7 @@ export default function MedicoOcupacionalPage() {
                                                         filteredExamOrders.map((ord, idx) => (
                                                             <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9', background: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
                                                                 <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#64748b' }}>{idx + 1}</td>
-                                                                <td style={{ padding: '10px 14px', color: '#334155' }}>{ord.fecha}</td>
+                                                                <td style={{ padding: '10px 14px', color: '#334155' }}>{formatFecha(ord.fecha)}</td>
                                                                 <td style={{ padding: '10px 14px' }}>
                                                                     <div style={{ fontWeight: 'bold', color: '#0b3c5d' }}>{ord.paciente}</div>
                                                                     <div style={{ fontSize: '11px', color: '#64748b' }}>C.I: {ord.cedula}</div>
