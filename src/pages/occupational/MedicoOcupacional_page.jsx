@@ -27,7 +27,7 @@ const localDateStr = (d = new Date()) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, ChevronDown, ChevronUp, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
+import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, ChevronDown, ChevronUp, FlaskConical, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -70,6 +70,14 @@ const DEPARTMENTS = [
     'Financiero y Contabilidad',
     'Otra Área / Departamento'
 ];
+
+// Tipos de atención del parte diario: mismos íconos y colores que en Psicología
+const TIPOS_ATENCION_DIARIO = {
+    primaria: { texto: 'Atención Primaria', Icon: HeartHandshake, bg: 'var(--primary-soft)', color: 'var(--primary)' },
+    secundaria: { texto: 'Atención Subsecuente', Icon: TrendingUp, bg: 'var(--accent-soft)', color: 'var(--accent)' },
+    certificadomedico: { texto: 'Certificado Médico', Icon: FileCheck, bg: '#fef3c7', color: '#a55a05' },
+    validacion: { texto: 'Validación', Icon: CheckCircle, bg: '#e9f8f2', color: 'var(--success)' },
+};
 
 // Signos vitales obligatorios en la atención ocupacional: [nombre, mínimo, máximo]
 const RANGOS_SIGNOS_OCUPACIONAL = {
@@ -5119,6 +5127,18 @@ export default function MedicoOcupacionalPage() {
         printIframeDocument(diarioIframeRef, () => compileParteDiarioHtmlString(false));
     };
 
+    // Igual que en Psicología: el reporte se abre primero en otra pestaña y desde allí se imprime
+    const abrirReporteEnPestana = (html) => {
+        const reportWindow = window.open('', '_blank');
+        if (!reportWindow) {
+            showSystemToast('Permita las ventanas emergentes del sitio para ver el reporte.');
+            return;
+        }
+        reportWindow.document.write(html);
+        reportWindow.document.close();
+    };
+    const handleVerReporteParteDiario = () => abrirReporteEnPestana(compileParteDiarioHtmlString(true));
+
     // Plantilla de la receta: ver ./reports/recetaTemplate.js (ISO/IEC 25010, modularidad)
 
     const handlePrintRecetaForm = (receta) => {
@@ -5293,6 +5313,7 @@ export default function MedicoOcupacionalPage() {
     const handlePrintReporteCitas = () => {
         printIframeDocument(citasIframeRef, () => compileCitasReportHtmlString(false));
     };
+    const handleVerReporteCitas = () => abrirReporteEnPestana(compileCitasReportHtmlString(true));
 
     const defaultUEBCareers = {
         'CIENCIAS DE LA SALUD': ['ENFERMERÍA', 'TERAPIA FÍSICA'],
@@ -6574,7 +6595,7 @@ export default function MedicoOcupacionalPage() {
                         onClick={() => { setActiveTab('examenes'); setIsSidebarOpen(false); }}
                     >
                         <span className="navigation__indicator"></span>
-                        <span className="navigation__icon"><ClipboardList size={18} /></span>
+                        <span className="navigation__icon"><FlaskConical size={18} /></span>
                         <span className="navigation__text">Exámenes</span>
                     </button>
 
@@ -6592,7 +6613,7 @@ export default function MedicoOcupacionalPage() {
                         onClick={() => { setActiveTab('diario'); setIsSidebarOpen(false); }}
                     >
                         <span className="navigation__indicator"></span>
-                        <span className="navigation__icon"><CalendarCheck size={18} /></span>
+                        <span className="navigation__icon"><ClipboardList size={18} /></span>
                         <span className="navigation__text">Parte Diario</span>
                     </button>
 
@@ -7236,7 +7257,7 @@ export default function MedicoOcupacionalPage() {
                                                 />
                                             </label>
                                             <button
-                                                onClick={handlePrintParteDiario}
+                                                onClick={handleVerReporteParteDiario}
                                                 className="action-button action-button--accent"
                                                 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                             >
@@ -7288,20 +7309,40 @@ export default function MedicoOcupacionalPage() {
                                         </div>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', marginBottom: '10px', border: '1px dashed var(--border)', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                <strong style={{ color: 'var(--text-secondary)', marginRight: '4px' }}>Leyenda:</strong>
+                                                {Object.values(TIPOS_ATENCION_DIARIO).map(t => (
+                                                    <div key={t.texto} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '6px', background: t.bg, color: t.color }}>
+                                                            <t.Icon size={12} />
+                                                        </span>
+                                                        <span>{t.texto}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
                                             {parteDiarioList.map((item, idx) => {
                                                 const patientIdent = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion || item.paciente?.identification;
                                                 const patientName = patientIdent
                                                     ? `${patientIdent.primer_nombre || ''} ${patientIdent.segundo_nombre || ''} ${patientIdent.apellido_paterno || patientIdent.primer_apellido || ''} ${patientIdent.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
                                                     : item.paciente?.nombre_completo || item.paciente?.name || 'Paciente registrado';
+                                                const tipo = TIPOS_ATENCION_DIARIO[item.tipo_atencion];
+                                                const Icono = tipo?.Icon || ClipboardList;
+                                                const curativoPreventivo = item.tipo_atencion2 || item.tipo;
                                                 return (
                                                     <div key={idx} className="list-card" style={{ background: '#fafbfd' }}>
-                                                        <div className="list-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                                                            <ClipboardList size={16} />
+                                                        <div className="list-card__icon" style={{ background: tipo?.bg || 'var(--primary-soft)', color: tipo?.color || 'var(--primary)' }}>
+                                                            <Icono size={16} />
                                                         </div>
                                                         <div className="list-card__content">
                                                             <strong>{patientName}</strong>
-                                                            <p>Consulta: {(item.tipo_atencion || 'general').toUpperCase()} · Diagnóstico: {item.detalle_diagnostico || 'Evaluación general'}</p>
+                                                            <p>Atención: {(item.tipo_atencion || 'general').toUpperCase()} · Diagnóstico: {item.detalle_diagnostico || 'Evaluación general'}</p>
                                                         </div>
+                                                        {curativoPreventivo && (
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                                {String(curativoPreventivo).toUpperCase()}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -7334,10 +7375,10 @@ export default function MedicoOcupacionalPage() {
                                     </label>
                                     <button
                                         type="button"
-                                        onClick={handlePrintReporteCitas}
+                                        onClick={handleVerReporteCitas}
                                         className="action-button action-button--accent"
                                         style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                                        title="Imprimir reporte de citas agendadas, completadas y canceladas"
+                                        title="Ver reporte de citas agendadas, completadas y canceladas"
                                     >
                                         <Printer size={14} /> Ver Reporte de Citas
                                     </button>
