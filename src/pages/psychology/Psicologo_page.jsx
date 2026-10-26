@@ -677,8 +677,8 @@ const Psicologo_page = () => {
                 cedula: newPatientForm.cedula,
                 nombre_completo: newPatientForm.nombre_completo,
                 tipo_documento: newPatientForm.tipo_documento,
-                pais_origen: newPatientForm.pais_origen,
-                id_tipo_usuario: parseInt(newPatientForm.id_tipo_usuario || 2)
+                pais_origen: newPatientForm.pais_origen
+                // Sin tipo de usuario: lo confirma el propio paciente al iniciar sesión
             });
 
             const patientData = response.data.data;
@@ -4477,24 +4477,6 @@ const Psicologo_page = () => {
                                 </div>
 
                                 <div className="clinical-fields-grid">
-                                    <div className="premium-field-card" style={{ gridColumn: newPatientForm.tipo_documento === 'pasaporte' ? 'span 1' : 'span 2' }}>
-                                        <div className="field-header">
-                                            <div className="field-header__left">
-                                                <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 id="psicologo-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente <span className="field-req-star">*</span></h4>
-                                            </div>
-                                        </div>
-                                        <select aria-labelledby="psicologo-tipo-de-paciente-titulo"
-                                            value={newPatientForm.id_tipo_usuario || 2}
-                                            onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
-                                            required
-                                        >
-                                            <option value={2}>Estudiante Universitario</option>
-                                            <option value={3}>Docente / Profesor</option>
-                                            <option value={4}>Personal Administrativo</option>
-                                            <option value={5}>Servidor Público / Código de Trabajo</option>
-                                        </select>
-                                    </div>
 
                                     {newPatientForm.tipo_documento === 'pasaporte' && (
                                         <div className="premium-field-card">

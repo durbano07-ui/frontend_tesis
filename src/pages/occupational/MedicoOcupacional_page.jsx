@@ -6323,8 +6323,8 @@ export default function MedicoOcupacionalPage() {
                 cedula: newPatientForm.cedula,
                 nombre_completo: newPatientForm.nombre_completo,
                 tipo_documento: newPatientForm.tipo_documento,
-                pais_origen: newPatientForm.pais_origen,
-                id_tipo_usuario: parseInt(newPatientForm.id_tipo_usuario || 4)
+                pais_origen: newPatientForm.pais_origen
+                // Sin tipo de usuario: lo confirma el propio paciente al iniciar sesión
             });
 
             const patientData = response.data.data;
@@ -6335,7 +6335,7 @@ export default function MedicoOcupacionalPage() {
                 nombre_completo: patientData.nombre_completo || newPatientForm.nombre_completo,
                 cedula: patientData.numero_cedula || newPatientForm.cedula,
                 tipo_documento: newPatientForm.tipo_documento,
-                id_tipo_usuario: newPatientForm.id_tipo_usuario,
+                id_tipo_usuario: null,
                 correo: finalEmail,
                 puestoTrabajo: patientData.puestoTrabajo || 'Servidor / Empleado',
                 areaTrabajo: patientData.areaTrabajo || 'General'
@@ -6353,7 +6353,7 @@ export default function MedicoOcupacionalPage() {
                 nombre_completo: fullName,
                 cedula: newPatientForm.cedula,
                 tipo_documento: newPatientForm.tipo_documento || 'cedula',
-                id_tipo_usuario: newPatientForm.id_tipo_usuario || 4,
+                id_tipo_usuario: null,
                 correo: newPatientForm.correo ? `${newPatientForm.correo}@ueb.edu.ec` : '',
                 puestoTrabajo: 'Servidor / Empleado',
                 areaTrabajo: 'General'
@@ -9457,25 +9457,6 @@ export default function MedicoOcupacionalPage() {
 
                                 {/* Tipo de Paciente y País de Origen */}
                                 <div className="clinical-fields-grid">
-                                    <div className="premium-field-card" style={{ gridColumn: newPatientForm.tipo_documento === 'pasaporte' ? 'span 1' : 'span 2' }}>
-                                        <div className="field-header">
-                                            <div className="field-header__left">
-                                                <span className="field-header__icon"><UserCheck size={15} /></span>
-                                                <h4 id="medicoocupac-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
-                                            </div>
-                                            <span className="field-badge-req">Requerido</span>
-                                        </div>
-                                        <select aria-labelledby="medicoocupac-tipo-de-paciente-titulo"
-                                            value={newPatientForm.id_tipo_usuario || 4}
-                                            onChange={(e) => setNewPatientForm({ ...newPatientForm, id_tipo_usuario: parseInt(e.target.value) })}
-                                            required
-                                        >
-                                            <option value={4}>Personal Administrativo</option>
-                                            <option value={3}>Docente / Profesor</option>
-                                            <option value={5}>Servidor Público / Código de Trabajo</option>
-                                            <option value={2}>Estudiante Universitario</option>
-                                        </select>
-                                    </div>
 
                                     {newPatientForm.tipo_documento === 'pasaporte' && (
                                         <div className="premium-field-card">

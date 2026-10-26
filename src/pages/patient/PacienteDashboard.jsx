@@ -451,9 +451,9 @@ const PacienteDashboard = () => {
                     id_ciclo: data.career_study.id_ciclo || '',
                     id_tipo_usuario: data.career_study.id_tipo_usuario || ''
                 });
-            } else {
-                setAcademicForm(prev => ({ ...prev, id_tipo_usuario: '2' })); // Pre-select Estudiante
             }
+            // Sin preselección: antes se marcaba "Estudiante" por defecto y docentes o administrativos
+            // quedaban registrados como estudiantes al avanzar sin fijarse.
 
             if (data.demographic) {
                 setDemographicForm(prev => ({
@@ -534,7 +534,11 @@ const PacienteDashboard = () => {
     useEffect(() => {
         const onCedulaCorregida = () => fetchProfile();
         window.addEventListener('cedula-corregida', onCedulaCorregida);
-        return () => window.removeEventListener('cedula-corregida', onCedulaCorregida);
+        window.addEventListener('tipo-usuario-confirmado', onCedulaCorregida);
+        return () => {
+            window.removeEventListener('cedula-corregida', onCedulaCorregida);
+            window.removeEventListener('tipo-usuario-confirmado', onCedulaCorregida);
+        };
     }, []);
 
     // Fetch catalogs
@@ -1518,7 +1522,7 @@ const PacienteDashboard = () => {
 
                     <div class="section-title">Información Institucional</div>
                     <div class="info-grid">
-                        <div class="info-item"><span class="info-label">Tipo de Usuario:</span><span class="info-val">${escapeHtml(profile?.career_study?.tipo_usuario?.nombre || 'Estudiante')}</span></div>
+                        <div class="info-item"><span class="info-label">Tipo de Usuario:</span><span class="info-val">${escapeHtml(profile?.career_study?.tipo_usuario?.nombre || 'Sin confirmar')}</span></div>
                         <div class="info-item"><span class="info-label">Facultad:</span><span class="info-val">${escapeHtml(profile?.career_study?.facultad?.nombre || '—')}</span></div>
                         <div class="info-item"><span class="info-label">Carrera:</span><span class="info-val">${escapeHtml(profile?.career_study?.carrera?.nombre || '—')}</span></div>
                         <div class="info-item"><span class="info-label">Ciclo / Semestre:</span><span class="info-val">${escapeHtml(profile?.career_study?.ciclo?.numero || '—')} (Paralelo: ${escapeHtml(profile?.career_study?.paralelo || '—')})</span></div>
@@ -3237,7 +3241,7 @@ const PacienteDashboard = () => {
                                                             alignItems: 'center',
                                                             gap: '6px'
                                                         }}>
-                                                            <span>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante Regular'}</span>
+                                                            <span>{profile?.career_study?.tipo_usuario?.nombre || 'Sin confirmar'}</span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -5029,7 +5033,7 @@ const PacienteDashboard = () => {
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
                                             <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
-                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Estudiante'}</strong>
+                                            <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Sin confirmar'}</strong>
                                         </div>
                                         {profile?.career_study?.facultad && (
                                             <div>

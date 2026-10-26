@@ -381,9 +381,8 @@ const Enfermero_page = () => {
                 cedula: newPatientForm.cedula,
                 nombre_completo: newPatientForm.nombre_completo,
                 tipo_documento: newPatientForm.tipo_documento,
-                pais_origen: newPatientForm.pais_origen,
-                id_tipo_usuario: newPatientForm.id_tipo_usuario || 2,
-                tipo: newPatientForm.tipo
+                pais_origen: newPatientForm.pais_origen
+                // Sin tipo de usuario: lo confirma el propio paciente al iniciar sesión
             });
 
             const patientData = response.data.data;
@@ -2121,37 +2120,6 @@ const Enfermero_page = () => {
                             </div>
 
                             <div className="clinical-fields-grid">
-                                <div className="premium-field-card" style={{ gridColumn: newPatientForm.tipo_documento === 'pasaporte' ? 'span 1' : 'span 2' }}>
-                                    <div className="field-header">
-                                        <div className="field-header__left">
-                                            <span className="field-header__icon"><UserRound size={15} /></span>
-                                            <h4 id="enfermero-tipo-de-paciente-titulo" className="field-header__title">Tipo de Paciente</h4>
-                                        </div>
-                                        <span className="field-badge-req">Requerido</span>
-                                    </div>
-                                    <select aria-labelledby="enfermero-tipo-de-paciente-titulo"
-                                        value={newPatientForm.id_tipo_usuario || 2}
-                                        onChange={(e) => {
-                                            const selectedId = Number(e.target.value);
-                                            const roleMap = {
-                                                2: 'Estudiante',
-                                                3: 'Docente',
-                                                4: 'Administrativo',
-                                                5: 'Servidor Público / Código de Trabajo'
-                                            };
-                                            setNewPatientForm({
-                                                ...newPatientForm,
-                                                id_tipo_usuario: selectedId,
-                                                tipo: roleMap[selectedId] || 'Estudiante'
-                                            });
-                                        }}
-                                    >
-                                        <option value={2}>Estudiante Universitario</option>
-                                        <option value={3}>Docente / Profesor</option>
-                                        <option value={4}>Personal Administrativo</option>
-                                        <option value={5}>Servidor Público / Código de Trabajo</option>
-                                    </select>
-                                </div>
 
                                 {newPatientForm.tipo_documento === 'pasaporte' && (
                                     <div className="premium-field-card">
