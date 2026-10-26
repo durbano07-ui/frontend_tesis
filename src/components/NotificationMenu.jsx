@@ -72,7 +72,9 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
             const todayStr = localToday();
             const endpoint = isPatient ? '/citas-medicas/mis-citas' : '/citas-medicas/doctor/citas';
             const citasRes = await api.get(endpoint);
-            const citas = citasRes.data?.data || [];
+            // Las atenciones sin cita previa (creadas por el sistema al atender) cuentan en los
+            // reportes, pero no generan notificaciones: solo las citas agendadas notifican.
+            const citas = (citasRes.data?.data || []).filter(c => c.origen !== 'atencion_directa');
 
             const generatedNotifs = [];
 
