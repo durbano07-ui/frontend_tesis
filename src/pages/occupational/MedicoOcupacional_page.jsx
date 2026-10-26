@@ -71,6 +71,18 @@ const DEPARTMENTS = [
     'Otra Área / Departamento'
 ];
 
+// Signos vitales obligatorios en la atención ocupacional: [nombre, mínimo, máximo]
+const RANGOS_SIGNOS_OCUPACIONAL = {
+    paSystolic: ['la PA sistólica', 60, 250],
+    paDiastolic: ['la PA diastólica', 30, 150],
+    fc: ['la frecuencia cardiaca', 30, 220],
+    fr: ['la frecuencia respiratoria', 8, 60],
+    temp: ['la temperatura', 34, 43],
+    talla: ['la talla', 50, 250],
+    peso: ['el peso', 2, 300],
+    spo2: ['la saturación SpO2', 50, 100],
+};
+
 export default function MedicoOcupacionalPage() {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
@@ -215,6 +227,7 @@ export default function MedicoOcupacionalPage() {
     const [aptitudLaboral, setAptitudLaboral] = useState('apto'); // 'apto' | 'apto_restriccion' | 'no_apto'
     const [restriccionesOcupacionales, setRestriccionesOcupacionales] = useState('');
     const [planTratamiento, setPlanTratamiento] = useState('');
+    const [consultaErrores, setConsultaErrores] = useState({});
 
     // Form: New Patient
     const [newPatientForm, setNewPatientForm] = useState({
@@ -1916,19 +1929,6 @@ export default function MedicoOcupacionalPage() {
             motivo: '',
             prioridad: 'Normal'
         });
-    };
-
-    const handleUpdateCitaStatus = async (id, newStatus) => {
-        const accion = { cancelada: 'cancelar', confirmada: 'confirmar', completada: 'completar' }[newStatus];
-        if (!accion) return;
-        try {
-            await api.patch(`/citas-medicas/${id}/${accion}`);
-            setCitasList(prev => prev.map(c => c.id === id ? { ...c, estado: newStatus } : c));
-        } catch (err) {
-            // p. ej. la cita ya pasó su margen de atención y quedó como "No asistió"
-            alert(err.response?.data?.message || 'No se pudo actualizar la cita');
-            fetchCitas();
-        }
     };
 
     const fetchCitas = async () => {
@@ -6219,7 +6219,9 @@ export default function MedicoOcupacionalPage() {
         setIsPatientSearchOpen(true);
     };
 
-    const selectPatient = async (p) => {
+    const selectPatient = async (p, target = patientSearchTarget) => {
+        // Cada atención empieza con el formulario limpio (antes quedaban los datos del paciente anterior)
+        if (target === 'consulta') resetConsultaForm();
         setPatientSelected(p);
         setPatientId(p.id || p.cedula);
         setIsPatientSearchOpen(false);
@@ -6252,11 +6254,11 @@ export default function MedicoOcupacionalPage() {
             }
         }
 
-        if (patientSearchTarget === 'evolucion') {
+        if (target === 'evolucion') {
             return;
         }
 
-        if (patientSearchTarget === 'exam') {
+        if (target === 'exam') {
             setExamForm(prev => ({
                 ...prev,
                 pacienteCedula: p.cedula || '',
@@ -6270,6 +6272,77 @@ export default function MedicoOcupacionalPage() {
         setTipoAtencion('primaria');
         setIsConsultaModalOpen(true);
     };
+
+    const resetConsultaForm = () => {
+        setVitalSigns({ paSystolic: '', paDiastolic: '', fc: '', fr: '', temp: '', spo2: '', peso: '', talla: '', imc: '', glucosa: '' });
+        setTipoFicha('Ingreso');
+        setMotivoConsulta('');
+        setEnfermedadActual('');
+        setAntecedentesOcupacionales('');
+        setExamenFisico('');
+        setDiagnosticoCie('');
+        setPlanTratamiento('');
+        setAptitudLaboral('apto');
+        setRestriccionesOcupacionales('');
+        setConsultaErrores({});
+    };
+
+    // Campos obligatorios de cada paso del stepper (los pasos 6 y 7 son opcionales)
+    const validarPasoConsulta = (paso) => {
+        const e = {};
+        const vacio = (v) => !String(v ?? '').trim();
+        if (paso === 0) {
+            Object.entries(RANGOS_SIGNOS_OCUPACIONAL).forEach(([k, [nombre, min, max]]) => {
+                const v = vitalSigns[k];
+                if (vacio(v)) e[k] = `Ingrese ${nombre}.`;
+                else if (!(Number(v) >= min && Number(v) <= max)) e[k] = `Valor fuera de rango (${min} a ${max}).`;
+            });
+            if (!e.paSystolic && !e.paDiastolic && Number(vitalSigns.paDiastolic) >= Number(vitalSigns.paSystolic)) {
+                e.paDiastolic = 'Debe ser menor que la PA sistólica.';
+            }
+        }
+        if (paso === 1) {
+            if (vacio(motivoConsulta)) e.motivoConsulta = 'Ingrese el motivo de la atención.';
+            if (vacio(enfermedadActual)) e.enfermedadActual = 'Describa la enfermedad o sintomatología actual (o indique "Asintomático").';
+        }
+        if (paso === 2 && vacio(examenFisico)) e.examenFisico = 'Registre los hallazgos del examen físico.';
+        if (paso === 3) {
+            if (vacio(diagnosticoCie)) e.diagnosticoCie = 'Ingrese el diagnóstico CIE-10.';
+            if (vacio(planTratamiento)) e.planTratamiento = 'Ingrese el plan de tratamiento o las indicaciones.';
+        }
+        if (paso === 4 && aptitudLaboral === 'apto_restriccion' && vacio(restriccionesOcupacionales)) {
+            e.restriccionesOcupacionales = 'Detalle las restricciones del puesto.';
+        }
+        return e;
+    };
+
+    const handleSiguientePasoConsulta = () => {
+        const e = validarPasoConsulta(consultaActiveStep);
+        setConsultaErrores(e);
+        if (Object.keys(e).length === 0) setConsultaActiveStep(prev => prev + 1);
+    };
+
+    // Antes de emitir la ficha se revisan todos los pasos y se lleva al primero incompleto
+    const validarConsultaCompleta = () => {
+        if (!patientSelected?.id) {
+            alert('Seleccione un paciente registrado antes de emitir la ficha.');
+            return false;
+        }
+        for (let paso = 0; paso < 5; paso++) {
+            const e = validarPasoConsulta(paso);
+            if (Object.keys(e).length > 0) {
+                setConsultaErrores(e);
+                setConsultaActiveStep(paso);
+                return false;
+            }
+        }
+        setConsultaErrores({});
+        return true;
+    };
+
+    const errorConsulta = (campo) => consultaErrores[campo]
+        ? <small role="alert" style={{ display: 'block', marginTop: '4px', color: '#dc2626', fontSize: '11px', fontWeight: 600 }}>{consultaErrores[campo]}</small>
+        : null;
 
     const handleCancelConsulta = () => {
         setConfirmModal({
@@ -7143,9 +7216,8 @@ export default function MedicoOcupacionalPage() {
                                                                     {['programada', 'confirmada'].includes(cita.estado) && (
                                                                         <button
                                                                             onClick={() => {
-                                                                                setPatientSelected({ nombres: patientName, apellidos: '', cedula, puestoTrabajo: cita.paciente?.puesto || 'Servidor' });
-                                                                                setIsConsultaModalOpen(true);
-                                                                                handleUpdateCitaStatus(cita.id, 'completada');
+                                                                                // La cita se completa sola al registrar la atención (parte diario), no al abrir el formulario
+                                                                                selectPatient({ ...cita.paciente, nombres: patientName, apellidos: '', cedula, puestoTrabajo: cita.paciente?.puesto || 'Servidor' }, 'consulta');
                                                                             }}
                                                                             className="action-button action-button--primary"
                                                                             style={{ padding: '5px 10px', fontSize: '11px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -8557,7 +8629,7 @@ export default function MedicoOcupacionalPage() {
                                             <div
                                                 role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                 className={`stepper-step ${consultaActiveStep === idx ? 'active' : ''} ${consultaActiveStep > idx ? 'completed' : ''}`}
-                                                onClick={() => setConsultaActiveStep(idx)}
+                                                onClick={() => { setConsultaErrores({}); setConsultaActiveStep(idx); }}
                                             >
                                                 <div className="stepper-step__circle">{idx + 1}</div>
                                                 <span className="stepper-step__label">{step.label}</span>
@@ -8566,6 +8638,13 @@ export default function MedicoOcupacionalPage() {
                                         </React.Fragment>
                                     ))}
                                 </div>
+
+                                {Object.keys(consultaErrores).length > 0 && (
+                                    <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 16px', borderRadius: '10px', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', fontWeight: '600' }}>
+                                        <AlertTriangle size={16} color="#dc2626" />
+                                        <span>Complete los campos obligatorios marcados en rojo para continuar.</span>
+                                    </div>
+                                )}
 
                                 {/* CONTENIDO DEL PASO ACTIVO */}
                                 <div className="anamnesis-section-card" style={{ border: 'none', boxShadow: 'none' }}>
@@ -8577,36 +8656,44 @@ export default function MedicoOcupacionalPage() {
                                                 </h3>
                                                 <div className="clinical-fields-grid">
                                                     <label className="field">
-                                                        <span>PA SISTÓLICA (MMHG)</span>
-                                                        <input type="number" step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" />
+                                                        <span>PA SISTÓLICA (MMHG) *</span>
+                                                        <input type="number" step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
+                                                        {errorConsulta('paSystolic')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>PA DIASTÓLICA (MMHG)</span>
-                                                        <input type="number" step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" />
+                                                        <span>PA DIASTÓLICA (MMHG) *</span>
+                                                        <input type="number" step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
+                                                        {errorConsulta('paDiastolic')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>FRECUENCIA CARDIACA (LPM)</span>
-                                                        <input type="number" value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" />
+                                                        <span>FRECUENCIA CARDIACA (LPM) *</span>
+                                                        <input type="number" value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
+                                                        {errorConsulta('fc')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>FRECUENCIA RESPIRATORIA (RPM)</span>
-                                                        <input type="number" value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" />
+                                                        <span>FRECUENCIA RESPIRATORIA (RPM) *</span>
+                                                        <input type="number" value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
+                                                        {errorConsulta('fr')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>TEMPERATURA (°C)</span>
-                                                        <input type="number" step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" />
+                                                        <span>TEMPERATURA (°C) *</span>
+                                                        <input type="number" step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
+                                                        {errorConsulta('temp')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>TALLA (CM)</span>
-                                                        <input type="number" step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" />
+                                                        <span>TALLA (CM) *</span>
+                                                        <input type="number" step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
+                                                        {errorConsulta('talla')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>PESO (KG)</span>
-                                                        <input type="number" step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" />
+                                                        <span>PESO (KG) *</span>
+                                                        <input type="number" step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
+                                                        {errorConsulta('peso')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>SATURACIÓN SPO2 (%)</span>
-                                                        <input type="number" value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" />
+                                                        <span>SATURACIÓN SPO2 (%) *</span>
+                                                        <input type="number" value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
+                                                        {errorConsulta('spo2')}
                                                     </label>
 
                                                     <div className="premium-field-card" style={{ gridColumn: 'span 2', marginTop: '8px', padding: '14px', border: '1px solid rgba(0,32,64,0.08)' }}>
@@ -8673,24 +8760,28 @@ export default function MedicoOcupacionalPage() {
                                                         </small>
                                                     </label>
                                                     <label className="field">
-                                                        <span>Motivo de la Atención Médica</span>
+                                                        <span>Motivo de la Atención Médica *</span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
+                                                            aria-invalid={!!consultaErrores.motivoConsulta}
                                                             value={motivoConsulta}
                                                             onChange={e => setMotivoConsulta(e.target.value)}
                                                             placeholder="Ej: Evaluación preocupacional, molestias osteomusculares, control de reintegro..."
                                                         />
+                                                        {errorConsulta('motivoConsulta')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>Enfermedad o Sintomatología Actual</span>
+                                                        <span>Enfermedad o Sintomatología Actual *</span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
+                                                            aria-invalid={!!consultaErrores.enfermedadActual}
                                                             value={enfermedadActual}
                                                             onChange={e => setEnfermedadActual(e.target.value)}
                                                             placeholder="Detalle de síntomas, tiempo de evolución, intensidad..."
                                                         />
+                                                        {errorConsulta('enfermedadActual')}
                                                     </label>
                                                 </div>
                                             </div>
@@ -8713,14 +8804,16 @@ export default function MedicoOcupacionalPage() {
                                                         />
                                                     </label>
                                                     <label className="field">
-                                                        <span>Examen Físico Dirigido por Sistemas</span>
+                                                        <span>Examen Físico Dirigido por Sistemas *</span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
+                                                            aria-invalid={!!consultaErrores.examenFisico}
                                                             value={examenFisico}
                                                             onChange={e => setExamenFisico(e.target.value)}
                                                             placeholder="Hallazgos en cabeza, cuello, tórax, postura, miembros superiores e inferiores..."
                                                         />
+                                                        {errorConsulta('examenFisico')}
                                                     </label>
                                                 </div>
                                             </div>
@@ -8733,23 +8826,27 @@ export default function MedicoOcupacionalPage() {
                                                 </h3>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                                     <label className="field">
-                                                        <span>Diagnóstico Principal (Código CIE-10)</span>
+                                                        <span>Diagnóstico Principal (Código CIE-10) *</span>
                                                         <input
                                                             type="text"
+                                                            aria-invalid={!!consultaErrores.diagnosticoCie}
                                                             value={diagnosticoCie}
                                                             onChange={e => setDiagnosticoCie(e.target.value)}
                                                             placeholder="Ej: M54.5 - Lumbalgia no especificada / Z57.1 - Exposición Ocupacional a Ruido"
                                                         />
+                                                        {errorConsulta('diagnosticoCie')}
                                                     </label>
                                                     <label className="field">
-                                                        <span>Plan de Tratamiento / Indicaciones Médicas</span>
+                                                        <span>Plan de Tratamiento / Indicaciones Médicas *</span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
+                                                            aria-invalid={!!consultaErrores.planTratamiento}
                                                             value={planTratamiento}
                                                             onChange={e => setPlanTratamiento(e.target.value)}
                                                             placeholder="Tratamiento farmacológico, recomendaciones biomecánicas, pausas activas..."
                                                         />
+                                                        {errorConsulta('planTratamiento')}
                                                     </label>
                                                 </div>
                                             </div>
@@ -8815,14 +8912,16 @@ export default function MedicoOcupacionalPage() {
 
                                                 {aptitudLaboral === 'apto_restriccion' && (
                                                     <label className="field">
-                                                        <span>Detalle de Restricciones & Adaptaciones del Puesto</span>
+                                                        <span>Detalle de Restricciones & Adaptaciones del Puesto *</span>
                                                         <textarea
                                                             rows={3}
                                                             style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border)', fontFamily: 'inherit' }}
+                                                            aria-invalid={!!consultaErrores.restriccionesOcupacionales}
                                                             value={restriccionesOcupacionales}
                                                             onChange={e => setRestriccionesOcupacionales(e.target.value)}
                                                             placeholder="Ej: No levantar cargas mayores a 10kg, realizar pausas activas de 5 min por hora..."
                                                         />
+                                                        {errorConsulta('restriccionesOcupacionales')}
                                                     </label>
                                                 )}
                                             </div>
@@ -9047,7 +9146,7 @@ export default function MedicoOcupacionalPage() {
                             <button
                                 type="button"
                                 disabled={consultaActiveStep === 0}
-                                onClick={() => setConsultaActiveStep(prev => prev - 1)}
+                                onClick={() => { setConsultaErrores({}); setConsultaActiveStep(prev => prev - 1); }}
                                 className="action-button action-button--light"
                             >
                                 Atrás
@@ -9059,14 +9158,16 @@ export default function MedicoOcupacionalPage() {
                                 {consultaActiveStep < stepsList.length - 1 ? (
                                     <button
                                         type="button"
-                                        onClick={() => setConsultaActiveStep(prev => prev + 1)}
+                                        onClick={handleSiguientePasoConsulta}
                                         className="action-button action-button--primary"
                                     >
                                         Siguiente
                                     </button>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={() => {
+                                            if (!validarConsultaCompleta()) return;
                                             const newRecord = {
                                                 id: Date.now(),
                                                 fecha: localDateStr(),
@@ -9086,7 +9187,7 @@ export default function MedicoOcupacionalPage() {
                                                 sexo: patientSelected?.sexo || 'M',
                                                 edad: patientSelected?.edad || 32,
                                                 religion: patientSelected?.religion || 'Católica',
-                                                grupoSanguineo: vitalSigns.tipoSangre || patientSelected?.tipo_sangre || 'ORH+',
+                                                grupoSanguineo: vitalSigns.tipoSangre || patientSelected?.tipo_sangre || 'NO REGISTRADO',
                                                 lateralidad: patientSelected?.lateralidad || 'DIESTRO',
                                                 orientacionSexual: patientSelected?.orientacion_sexual || 'Heterosexual',
                                                 identidadGenero: patientSelected?.identidad_genero || (patientSelected?.sexo === 'F' ? 'Femenino' : 'Masculino'),
@@ -9096,7 +9197,7 @@ export default function MedicoOcupacionalPage() {
                                                 enfermedadActual: enfermedadActual || 'PACIENTE ASINTOMÁTICO AL MOMENTO DEL EXAMEN.',
                                                 antecedentesClinicos: antecedentesPersonales || 'NINGUNO RELEVANTE REFERIDO POR EL PACIENTE',
                                                 antecedentesPersonales: antecedentesPersonales || 'NINGUNO RELEVANTE',
-                                                antecedentesOcupacionales: antecedentesOcupacionales || 'LABORES PREVIAS EN EL ÁREA',
+                                                antecedentesOcupacionales: antecedentesOcupacionales || 'NO REFIERE',
                                                 factoresRiesgo: factoresRiesgo.length > 0 ? factoresRiesgo : ['Ergonómico', 'Físico'],
                                                 examenFisico: {
                                                     normal: !examenFisico || examenFisico.toLowerCase().includes('normal'),
@@ -9239,6 +9340,7 @@ export default function MedicoOcupacionalPage() {
                                                     detalle_diagnostico: diagnosticoCie || `Evaluación ocupacional (${tipoFicha})`
                                                 }).then(() => {
                                                     fetchParteDiario();
+                                                    fetchCitas(); // la cita agendada de hoy queda completada
                                                 }).catch((err) => {
                                                     console.error('Error al registrar parte diario:', err);
                                                     const msg = err.response?.data?.message || 'No se pudo conectar con el servidor.';
