@@ -17,7 +17,7 @@ import OfficialFichaIngresoModal, { printOfficialIngresoForm, compileOfficialIng
 import OfficialFichaRetiroModal, { printOfficialRetiroForm, compileOfficialRetiroFormHtml } from './OfficialFichaRetiroModal';
 import OfficialFichaReintegroModal, { printOfficialReintegroForm, compileOfficialReintegroFormHtml } from './OfficialFichaReintegroModal';
 import MatrizRegistroModal from './MatrizRegistroModal';
-import ResultadoExamenModal, { abrirPdfProtegido, abrirResultadoPdf } from './ResultadoExamenModal';
+import ResultadoExamenModal, { abrirResultadoPdf } from './ResultadoExamenModal';
 import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup } from './matricesOcupacionales';
 
 const uebBannerLogo = logoUeb;
@@ -6697,14 +6697,6 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ textAlign: 'right' }}>
                                                                 <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="action-button action-button--light"
-                                                                        style={{ padding: '6px 10px', fontSize: '11.5px', borderRadius: '8px' }}
-                                                                        onClick={() => abrirPdfProtegido(`/medicina-ocupacional/orden-examen/${item.id}/pdf`, 'No se pudo generar la orden en PDF.')}
-                                                                    >
-                                                                        <Printer size={13} /> Orden
-                                                                    </button>
                                                                     {item.tieneResultado ? (
                                                                         <button
                                                                             type="button"
