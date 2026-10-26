@@ -1231,6 +1231,16 @@
     background: #b91c1c;
 }
 
+/* Último paso de los modales clínicos ("Guardar y finalizar") */
+.action-button--success {
+    background: var(--success);
+    color: #fff;
+}
+
+.action-button--success:hover {
+    background: #0b5a3f;
+}
+
 .action-button:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);

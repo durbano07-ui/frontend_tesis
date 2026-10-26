@@ -27,7 +27,7 @@ const localDateStr = (d = new Date()) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-import { Menu, LogOut, Search, X, Save, History, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
+import { Menu, LogOut, Search, X, History, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -184,7 +184,7 @@ export default function MedicoOcupacionalPage() {
     const [patientId, setPatientId] = useState('');
 
     // Clinical Draft Hook
-    const { isOffline, saveDraft, loadDraft, clearDraft } = useClinicalDraft('ocupacional', user?.id, patientId);
+    const { isOffline, saveDraft, loadDraft, clearDraft, draftLastSaved } = useClinicalDraft('ocupacional', user?.id, patientId);
 
     // Vital Signs State
     const [vitalSigns, setVitalSigns] = useState({
@@ -8539,9 +8539,11 @@ export default function MedicoOcupacionalPage() {
                                 </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span className="header-autosave-badge" title="Borrador respaldado automáticamente">
-                                    <CheckCircle size={13} color="#f87171" /> Guardado {new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                </span>
+                                {draftLastSaved && !isOffline && (
+                                    <span className="header-autosave-badge" title={`Borrador respaldado automáticamente a las ${draftLastSaved}`}>
+                                        <CheckCircle size={13} color="#f87171" /> Guardado {draftLastSaved}
+                                    </span>
+                                )}
                                 <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelConsulta}><X size={15} /></button>
                             </div>
                         </header>
@@ -9040,25 +9042,27 @@ export default function MedicoOcupacionalPage() {
                             </div>
                         </div>
 
+                        {/* FOOTER DE PASOS (mismo diseño que Psicología, Medicina General y Odontología) */}
                         <footer className="clinical-modal__actions" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)' }}>
                             <button
+                                type="button"
                                 disabled={consultaActiveStep === 0}
                                 onClick={() => setConsultaActiveStep(prev => prev - 1)}
                                 className="action-button action-button--light"
-                                style={{ opacity: consultaActiveStep === 0 ? 0.5 : 1, cursor: consultaActiveStep === 0 ? 'not-allowed' : 'pointer' }}
                             >
-                                Anterior
+                                Atrás
                             </button>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="button" className="action-button action-button--light" onClick={handleCancelConsulta}>
-                                    Cerrar
+                                <button type="button" className="action-button action-button--danger" onClick={handleCancelConsulta}>
+                                    Cancelar
                                 </button>
                                 {consultaActiveStep < stepsList.length - 1 ? (
                                     <button
+                                        type="button"
                                         onClick={() => setConsultaActiveStep(prev => prev + 1)}
                                         className="action-button action-button--primary"
                                     >
-                                        Siguiente Paso
+                                        Siguiente
                                     </button>
                                 ) : (
                                     <button
@@ -9283,9 +9287,9 @@ export default function MedicoOcupacionalPage() {
                                             alert(`¡Atención Médica Ocupacional registrada exitosamente! Ficha (${tipoFicha}) emitida${prescripcionesList.length > 0 ? ' y receta enviada al Recetario' : ''}.`);
                                             setIsConsultaModalOpen(false);
                                         }}
-                                        className="action-button action-button--accent"
+                                        className="action-button action-button--success"
                                     >
-                                        <Save size={16} style={{ marginRight: '6px' }} /> Finalizar & Emitir Ficha
+                                        Finalizar y emitir ficha
                                     </button>
                                 )}
                             </div>
