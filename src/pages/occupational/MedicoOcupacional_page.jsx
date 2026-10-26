@@ -27,7 +27,7 @@ const localDateStr = (d = new Date()) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-import { Menu, LogOut, Search, X, History, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
+import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, ChevronDown, ChevronUp, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, FileSpreadsheet, MapPin, Clock, UserCheck, UserX, Mail, BarChart3, Pill, Trash2, Briefcase, RefreshCw, Upload, AlertOctagon, Building2, Loader2 } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
@@ -1303,6 +1303,8 @@ export default function MedicoOcupacionalPage() {
     const esCoordinador = (user?.roles || []).some(r => (typeof r === 'string' ? r : r?.name) === 'medico_coordinador');
     const [activeBookArea, setActiveBookArea] = useState(esCoordinador ? 'medicina' : 'ocupacional');
     const [activeBookRecord, setActiveBookRecord] = useState(null);
+    const [evolutionViewMode, setEvolutionViewMode] = useState('tratamientos'); // 'tratamientos' | 'todas'
+    const [expandedTreatments, setExpandedTreatments] = useState({});
     const [historyPage, setHistoryPage] = useState(1);
     const HISTORY_PER_PAGE = 5;
 
@@ -6512,6 +6514,20 @@ export default function MedicoOcupacionalPage() {
         });
     };
 
+    // Pestaña Evolución: tratamientos del área (cada atención primaria inicia uno; el más reciente está en curso)
+    const registrosEvolucion = areaHistories[activeBookArea] || [];
+    const tratamientosEvolucion = activeBookArea === 'ocupacional'
+        ? agruparTratamientos(registrosEvolucion).map((g, i) => ({ ...g, id: g.sinPrimaria ? 'sin-primaria' : `trat-${g.numero}`, enCurso: i === 0 && !g.sinPrimaria }))
+        : [];
+    const tratamientoDeRegistro = new Map();
+    tratamientosEvolucion.forEach(t => t.registros.forEach(r => tratamientoDeRegistro.set(r, t)));
+    const nivelRegistro = (r) => r.type === 'diario'
+        ? { texto: r.tipo_atencion === 'secundaria' ? 'Subsecuente' : 'Primaria', primaria: r.tipo_atencion !== 'secundaria' }
+        : { texto: r.type === 'signos' ? 'Signos' : 'Evolución', primaria: false };
+    const detalleRegistro = (r) => r.detalle_evolucion || r.detalle_diagnostico
+        || (r.type === 'signos' && r.presion_arterial_sistolica ? `PA ${Number(r.presion_arterial_sistolica)}/${Number(r.presion_arterial_diastolica)} mmHg` : 'Ver detalles');
+    const tituloTratamiento = (t) => t.sinPrimaria ? 'Registros sin atención primaria' : `Tratamiento #${t.numero}`;
+
     const stepsList = [
         { label: 'Signos Vitales', icon: Activity },
         { label: 'Motivo y Enfermedad', icon: User },
@@ -6567,7 +6583,7 @@ export default function MedicoOcupacionalPage() {
                         onClick={() => { setActiveTab('evolucion'); setIsSidebarOpen(false); }}
                     >
                         <span className="navigation__indicator"></span>
-                        <span className="navigation__icon"><History size={18} /></span>
+                        <span className="navigation__icon"><TrendingUp size={18} /></span>
                         <span className="navigation__text">Evolución</span>
                     </button>
 
@@ -6760,12 +6776,21 @@ export default function MedicoOcupacionalPage() {
                     {/* PESTAÑA 5: SEGUIMIENTO & EVOLUCIÓN CLÍNICA */}
                     {activeTab === 'evolucion' && (
                         <div>
+                            <section className="page-hero" style={{ marginBottom: '20px' }}>
+                                <div>
+                                    <span className="page-hero__label"><TrendingUp size={14} style={{ marginRight: '6px', display: 'inline' }} /> Seguimiento Clínico</span>
+                                    <h2>Evolución y Seguimiento de Pacientes</h2>
+                                    <p>Consulte el expediente clínico, historial de atenciones ocupacionales y el seguimiento continuo de cada trabajador atendido.</p>
+                                </div>
+                                <div className="page-hero__icon"><TrendingUp size={34} /></div>
+                            </section>
+
                             <section className="nurse-card patient-selector-card" style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                         <div className="nurse-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><User size={20} /></div>
                                         <div>
-                                            <h3>Paciente para Evolución</h3>
+                                            <h3 style={{ margin: 0 }}>Paciente de Seguimiento</h3>
                                             <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '12px' }}>
                                                 {patientSelected ? (
                                                     <strong>{`${patientSelected.nombres || patientSelected.nombre_completo || ''} ${patientSelected.apellidos || ''}`.trim()} (Cédula: {patientSelected.cedula || patientSelected.numero_cedula})</strong>
@@ -6775,11 +6800,9 @@ export default function MedicoOcupacionalPage() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button className="action-button action-button--accent" onClick={() => openPatientSearch('evolucion')}>
-                                            <Search size={14} /> Buscar Paciente
-                                        </button>
-                                    </div>
+                                    <button className="action-button action-button--accent" onClick={() => openPatientSearch('evolucion')}>
+                                        <Search size={14} /> Buscar Paciente
+                                    </button>
                                 </div>
                             </section>
 
@@ -6790,115 +6813,287 @@ export default function MedicoOcupacionalPage() {
                                     <p>Busca e introduce un paciente para consultar su evolución clínica.</p>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    {/* Header Card */}
-                                    <div className="card" style={{ borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: '15px' }}>
+                                <div style={{ padding: '10px 0' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
                                         <div>
-                                            <span className="eyebrow">HISTORIAL CLÍNICO</span>
-                                            <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Historial Clínico del Paciente</h3>
-                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                                            <h3 style={{ color: 'var(--primary)', fontWeight: '800', fontSize: '18px', margin: 0 }}>
+                                                {esCoordinador ? 'Historial Clínico del Paciente' : 'Historial Clínico de Medicina Ocupacional'}
+                                            </h3>
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '12px', margin: '4px 0 0' }}>
                                                 {esCoordinador
                                                     ? 'Consulte la evolución y atenciones del paciente agrupadas por área clínica.'
                                                     : 'Cada atención primaria inicia un tratamiento; las atenciones subsecuentes se registran en el tratamiento en curso.'}
                                             </p>
                                         </div>
-
-                                        {/* Liquid Navigation Bar */}
-                                        <div className="liquid-nav" style={{ margin: 0 }}>
-                                            {(esCoordinador ? [
-                                                { key: 'medicina', label: 'Medicina General', icon: <Stethoscope size={15} /> },
-                                                { key: 'psicologia', label: 'Psicología Clínica', icon: <Brain size={15} /> },
-                                                { key: 'odontologia', label: 'Odontología', icon: <Shield size={15} /> },
-                                                { key: 'enfermeria', label: 'Enfermería', icon: <HeartPulse size={15} /> }
-                                            ] : [
-                                                { key: 'ocupacional', label: 'Medicina Ocupacional', icon: <Briefcase size={15} /> }
-                                            ]).map(area => (
-                                                <button
-                                                    key={area.key}
-                                                    className={`liquid-nav__item ${activeBookArea === area.key ? 'active' : ''}`}
-                                                    onClick={() => { setActiveBookArea(area.key); setActiveBookRecord(null); }}
-                                                >
-                                                    {area.icon}
-                                                    <span>{area.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {esCoordinador && (
+                                            <div className="liquid-nav" style={{ margin: 0 }}>
+                                                {[
+                                                    { key: 'medicina', label: 'Medicina General', icon: <Stethoscope size={15} /> },
+                                                    { key: 'psicologia', label: 'Psicología Clínica', icon: <Brain size={15} /> },
+                                                    { key: 'odontologia', label: 'Odontología', icon: <Shield size={15} /> },
+                                                    { key: 'enfermeria', label: 'Enfermería', icon: <HeartPulse size={15} /> }
+                                                ].map(area => (
+                                                    <button
+                                                        key={area.key}
+                                                        className={`liquid-nav__item ${activeBookArea === area.key ? 'active' : ''}`}
+                                                        onClick={() => { setActiveBookArea(area.key); setActiveBookRecord(null); }}
+                                                    >
+                                                        {area.icon}
+                                                        <span>{area.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* Table and Detail Grid */}
-                                    <div className="historial-grid-container" style={{ gridTemplateColumns: activeBookRecord ? '1fr 1fr' : '1fr' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
+                                    {/* Lista y detalle */}
+                                    <div
+                                        className="historial-grid-container"
+                                        style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: activeBookRecord ? 'minmax(0, 1.35fr) minmax(320px, 0.95fr)' : '1fr',
+                                            gap: '20px',
+                                            alignItems: 'start',
+                                            width: '100%'
+                                        }}
+                                    >
+                                        <div style={{ minWidth: 0, width: '100%' }}>
                                             {areaHistoriesLoading ? (
-                                                <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', borderRadius: '14px', background: 'white', boxShadow: 'var(--shadow-sm)' }}>Cargando registros...</div>
-                                            ) : !areaHistories[activeBookArea] || areaHistories[activeBookArea].length === 0 ? (
-                                                <div className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
-                                                    <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                        <FileText size={36} style={{ marginBottom: '10px', opacity: 0.5 }} />
-                                                        <strong style={{ fontSize: '13.5px', color: 'var(--text)' }}>Sin antecedentes registrados</strong>
-                                                        <span style={{ fontSize: '11px', maxWidth: '280px', marginTop: '4px' }}>No se encontraron atenciones previas en el área seleccionada.</span>
-                                                    </div>
+                                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Cargando registros...</div>
+                                            ) : registrosEvolucion.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontStyle: 'italic', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                    No se registran antecedentes en el área seleccionada.
                                                 </div>
                                             ) : (
-                                                (activeBookArea === 'ocupacional'
-                                                    ? agruparTratamientos(areaHistories.ocupacional)
-                                                    : [{ plano: true, registros: areaHistories[activeBookArea] }]
-                                                ).map((grupo, gIdx) => (
-                                                    <div key={grupo.plano ? 'plano' : `trat-${grupo.numero}`} className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
-                                                        {!grupo.plano && (
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-                                                                <div>
-                                                                    <strong style={{ fontSize: '13px', color: 'var(--primary)' }}>
-                                                                        {grupo.sinPrimaria ? 'Registros sin atención primaria' : `Tratamiento ${grupo.numero}`}
-                                                                    </strong>
-                                                                    <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                                                        {grupo.sinPrimaria ? 'Atenciones previas a la primera consulta primaria' : `Inicio: ${grupo.inicio} (atención primaria)`} · {grupo.registros.length} registro(s)
-                                                                    </span>
-                                                                </div>
-                                                                {gIdx === 0 && !grupo.sinPrimaria && (
-                                                                    <span className="evolution-badge evolution-badge--ocupacional">En curso</span>
-                                                                )}
+                                                <div>
+                                                    {/* Conteo y modo de vista */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                                                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                            {activeBookArea === 'ocupacional' && `${tratamientosEvolucion.filter(t => !t.sinPrimaria).length} ${tratamientosEvolucion.filter(t => !t.sinPrimaria).length === 1 ? 'tratamiento registrado' : 'tratamientos registrados'} · `}
+                                                            {registrosEvolucion.length} {registrosEvolucion.length === 1 ? 'registro' : 'registros en total'}
+                                                        </div>
+                                                        {activeBookArea === 'ocupacional' && (
+                                                            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
+                                                                {[['tratamientos', 'Agrupado por Tratamiento'], ['todas', 'Todos los Registros']].map(([modo, texto]) => (
+                                                                    <button
+                                                                        key={modo}
+                                                                        type="button"
+                                                                        aria-pressed={evolutionViewMode === modo}
+                                                                        style={{
+                                                                            padding: '4px 12px', fontSize: '11px', fontWeight: 600, border: 'none', borderRadius: '6px', cursor: 'pointer',
+                                                                            background: evolutionViewMode === modo ? '#ffffff' : 'transparent',
+                                                                            color: evolutionViewMode === modo ? 'var(--primary)' : 'var(--text-muted)',
+                                                                            boxShadow: evolutionViewMode === modo ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                                        }}
+                                                                        onClick={() => setEvolutionViewMode(modo)}
+                                                                    >
+                                                                        {texto}
+                                                                    </button>
+                                                                ))}
                                                             </div>
                                                         )}
-                                                        <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                                                            <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '480px' }}>
+                                                    </div>
+
+                                                    {activeBookArea === 'ocupacional' && evolutionViewMode === 'tratamientos' ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                                            {tratamientosEvolucion.map(treatment => {
+                                                                const isExpanded = expandedTreatments[treatment.id] ?? (treatment.enCurso || tratamientosEvolucion.length === 1);
+                                                                const toggle = () => setExpandedTreatments(prev => ({ ...prev, [treatment.id]: !isExpanded }));
+                                                                return (
+                                                                    <div
+                                                                        key={treatment.id}
+                                                                        style={{
+                                                                            background: '#ffffff',
+                                                                            border: treatment.enCurso ? '1.5px solid rgba(0, 32, 64, 0.22)' : '1px solid #e2e8f0',
+                                                                            borderRadius: '12px',
+                                                                            overflow: 'hidden',
+                                                                            boxShadow: treatment.enCurso ? '0 4px 12px rgba(0, 32, 64, 0.06)' : '0 1px 4px rgba(0,0,0,0.03)',
+                                                                            transition: 'all 0.2s ease'
+                                                                        }}
+                                                                    >
+                                                                        <div
+                                                                            role="button" tabIndex={0} onKeyDown={onKeyActivate} aria-expanded={isExpanded}
+                                                                            style={{
+                                                                                padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                                                                                background: isExpanded ? 'rgba(0, 32, 64, 0.02)' : '#ffffff',
+                                                                                borderBottom: isExpanded ? '1px solid #edf2f7' : 'none',
+                                                                                gap: '12px', flexWrap: 'wrap'
+                                                                            }}
+                                                                            onClick={toggle}
+                                                                        >
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px', minWidth: 0 }}>
+                                                                                <div style={{
+                                                                                    width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                                                                                    background: treatment.enCurso ? 'var(--primary-soft)' : '#f1f5f9',
+                                                                                    color: treatment.enCurso ? 'var(--primary)' : '#475569',
+                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                                }}>
+                                                                                    <Briefcase size={19} />
+                                                                                </div>
+                                                                                <div style={{ minWidth: 0 }}>
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                        <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.4px' }}>
+                                                                                            {tituloTratamiento(treatment)}
+                                                                                        </span>
+                                                                                        {!treatment.sinPrimaria && (treatment.enCurso ? (
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span> En Curso
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 600, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '10px' }}>
+                                                                                                ✓ Cerrado
+                                                                                            </span>
+                                                                                        ))}
+                                                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                            · {treatment.registros.length} {treatment.registros.length === 1 ? 'registro' : 'registros'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <h4 style={{ margin: '3px 0 0', fontSize: '13px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                                        {treatment.sinPrimaria ? 'Atenciones previas a la primera consulta primaria' : detalleRegistro(treatment.registros[treatment.registros.length - 1])}
+                                                                                    </h4>
+                                                                                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                        Inicio: <strong>{formatFecha(treatment.inicio)}</strong>
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="action-button action-button--light"
+                                                                                style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+                                                                                onClick={(e) => { e.stopPropagation(); toggle(); }}
+                                                                            >
+                                                                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                                                <span>{isExpanded ? 'Ocultar Registros' : `Desplegar Registros (${treatment.registros.length})`}</span>
+                                                                            </button>
+                                                                        </div>
+
+                                                                        {isExpanded && (
+                                                                            <div style={{ padding: '8px', background: '#fafbfc' }}>
+                                                                                <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                                                                                    <table style={{ width: '100%', minWidth: '440px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                                        <colgroup>
+                                                                                            <col style={{ width: '58px' }} />
+                                                                                            <col style={{ width: '92px' }} />
+                                                                                            <col style={{ width: '96px' }} />
+                                                                                            <col style={{ width: 'auto' }} />
+                                                                                            <col style={{ width: '92px' }} />
+                                                                                        </colgroup>
+                                                                                        <thead>
+                                                                                            <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                                                <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>N°</th>
+                                                                                                <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                                                <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                                                <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle Clínico</th>
+                                                                                                <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {treatment.registros.map((record, rIdx) => {
+                                                                                                const nivel = nivelRegistro(record);
+                                                                                                return (
+                                                                                                    <tr
+                                                                                                        tabIndex={0} onKeyDown={onKeyActivate}
+                                                                                                        key={`${record.type}-${record.id || rIdx}`}
+                                                                                                        style={{ borderBottom: rIdx === treatment.registros.length - 1 ? 'none' : '1px solid #f1f5f9', background: activeBookRecord === record ? 'rgba(0, 32, 64, 0.05)' : 'transparent', cursor: 'pointer', transition: 'background 0.15s ease' }}
+                                                                                                        onClick={() => setActiveBookRecord(record)}
+                                                                                                    >
+                                                                                                        <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--primary)', fontSize: '11px' }}>#{treatment.registros.length - rIdx}</td>
+                                                                                                        <td style={{ padding: '8px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>{formatFecha(record.fecha || record.created_at)}</td>
+                                                                                                        <td style={{ padding: '8px 10px' }}>
+                                                                                                            <span style={{
+                                                                                                                background: nivel.primaria ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                                                color: nivel.primaria ? 'var(--primary)' : 'var(--accent)',
+                                                                                                                padding: '2px 7px', borderRadius: '5px', fontSize: '11px', fontWeight: 700, display: 'inline-block', whiteSpace: 'nowrap'
+                                                                                                            }}>
+                                                                                                                {nivel.texto}
+                                                                                                            </span>
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', fontSize: '11px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detalleRegistro(record)}>
+                                                                                                            {detalleRegistro(record)}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                                                                                            <button
+                                                                                                                type="button"
+                                                                                                                className="action-button action-button--primary"
+                                                                                                                style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap', width: '100%', maxWidth: '82px' }}
+                                                                                                                onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
+                                                                                                            >
+                                                                                                                Ver Detalle
+                                                                                                            </button>
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                );
+                                                                                            })}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        /* Vista de todos los registros */
+                                                        <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+                                                            <table style={{ width: '100%', minWidth: '480px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                <colgroup>
+                                                                    <col style={{ width: '92px' }} />
+                                                                    <col style={{ width: '118px' }} />
+                                                                    <col style={{ width: '96px' }} />
+                                                                    <col style={{ width: 'auto' }} />
+                                                                    <col style={{ width: '92px' }} />
+                                                                </colgroup>
                                                                 <thead>
-                                                                    <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Fecha</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Especialidad</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Detalle / Diagnóstico</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textAlign: 'right' }}>Acción</th>
+                                                                    <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                        <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                        <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>{activeBookArea === 'ocupacional' ? 'Tratamiento' : 'Registro'}</th>
+                                                                        <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                        <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle / Diagnóstico</th>
+                                                                        <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {grupo.registros.map((record, index) => {
-                                                                        const isActive = activeBookRecord === record;
+                                                                    {registrosEvolucion.map((record, index) => {
+                                                                        const nivel = nivelRegistro(record);
+                                                                        const trat = tratamientoDeRegistro.get(record);
                                                                         return (
                                                                             <tr
                                                                                 tabIndex={0} onKeyDown={onKeyActivate}
                                                                                 key={`${record.type}-${record.id || index}`}
-                                                                                style={{ borderBottom: '1px solid var(--border)', background: isActive ? 'rgba(11, 49, 85, 0.04)' : 'transparent', cursor: 'pointer' }}
+                                                                                style={{ borderBottom: index === registrosEvolucion.length - 1 ? 'none' : '1px solid #f1f5f9', background: activeBookRecord === record ? 'rgba(0, 32, 64, 0.05)' : 'transparent', cursor: 'pointer' }}
                                                                                 onClick={() => setActiveBookRecord(record)}
                                                                             >
-                                                                                <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>{index + 1}</td>
-                                                                                <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text)', whiteSpace: 'nowrap' }}>
-                                                                                    {(record.fecha || record.created_at || '').slice(0, 10)}
+                                                                                <td style={{ padding: '9px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>{formatFecha(record.fecha || record.created_at)}</td>
+                                                                                <td style={{ padding: '9px 10px' }}>
+                                                                                    {activeBookArea !== 'ocupacional' ? (
+                                                                                        <span className={`evolution-badge evolution-badge--${activeBookArea}`}>{record.recordTitle || record.type}</span>
+                                                                                    ) : trat && !trat.sinPrimaria ? (
+                                                                                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>Tratamiento #{trat.numero}</span>
+                                                                                    ) : (
+                                                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>
+                                                                                    )}
                                                                                 </td>
-                                                                                <td style={{ padding: '14px 16px' }}>
-                                                                                    <span className={`evolution-badge evolution-badge--${activeBookArea}`}>
-                                                                                        {record.recordTitle || record.type}
+                                                                                <td style={{ padding: '9px 10px' }}>
+                                                                                    <span style={{
+                                                                                        background: nivel.primaria ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                        color: nivel.primaria ? 'var(--primary)' : 'var(--accent)',
+                                                                                        padding: '2px 7px', borderRadius: '5px', fontSize: '11px', fontWeight: 700, display: 'inline-block', whiteSpace: 'nowrap'
+                                                                                    }}>
+                                                                                        {nivel.texto}
                                                                                     </span>
                                                                                 </td>
-                                                                                <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                                    {record.detalle_evolucion || record.detalle_diagnostico || 'Ver detalles'}
+                                                                                <td style={{ padding: '9px 10px', fontSize: '11px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detalleRegistro(record)}>
+                                                                                    {detalleRegistro(record)}
                                                                                 </td>
-                                                                                <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                                                                <td style={{ padding: '9px 10px', textAlign: 'center' }}>
                                                                                     <button
-                                                                                        className={`action-button ${isActive ? 'action-button--accent' : 'action-button--primary'}`}
-                                                                                        style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px' }}
+                                                                                        type="button"
+                                                                                        className="action-button action-button--primary"
+                                                                                        style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap', width: '100%', maxWidth: '82px' }}
                                                                                         onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
                                                                                     >
-                                                                                        {isActive ? 'Viendo' : 'Ver Detalle'}
+                                                                                        Ver Detalle
                                                                                     </button>
                                                                                 </td>
                                                                             </tr>
@@ -6907,23 +7102,36 @@ export default function MedicoOcupacionalPage() {
                                                                 </tbody>
                                                             </table>
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
 
                                         {/* Detail Column */}
                                         {activeBookRecord && (
-                                            <div className="premium-field-card clinical-detail-card" style={{ padding: '24px', position: 'sticky', top: '20px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 32, 64, 0.05)', paddingBottom: '12px', marginBottom: '16px' }}>
-                                                    <div>
-                                                        <span className="eyebrow" style={{ textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Detalle Clínico</span>
-                                                        <h4 style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--primary)', fontWeight: 800 }}>
+                                            <div style={{ background: '#ffffff', borderRadius: '14px', border: '1.5px solid rgba(0, 32, 64, 0.12)', boxShadow: '0 6px 20px rgba(0, 32, 64, 0.07)', padding: '20px', position: 'sticky', top: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf2f7', paddingBottom: '12px', gap: '10px' }}>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
+                                                            Detalle Clínico de Consulta
+                                                        </span>
+                                                        <h4 style={{ margin: '3px 0 0', fontSize: '14.5px', color: 'var(--primary)', fontWeight: 800 }}>
                                                             {activeBookRecord.recordTitle || 'Ficha de Atención'}
                                                         </h4>
-                                                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                                            Fecha: {(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}
-                                                        </p>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                Fecha: <strong>{formatFecha(activeBookRecord.fecha || activeBookRecord.created_at)}</strong>
+                                                            </span>
+                                                            {tratamientoDeRegistro.get(activeBookRecord) && !tratamientoDeRegistro.get(activeBookRecord).sinPrimaria && (
+                                                                <span style={{
+                                                                    fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+                                                                    background: tratamientoDeRegistro.get(activeBookRecord).enCurso ? '#dcfce7' : '#f1f5f9',
+                                                                    color: tratamientoDeRegistro.get(activeBookRecord).enCurso ? '#15803d' : '#475569'
+                                                                }}>
+                                                                    Tratamiento #{tratamientoDeRegistro.get(activeBookRecord).numero} ({tratamientoDeRegistro.get(activeBookRecord).enCurso ? 'En Curso' : 'Cerrado'})
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <button aria-label="Cerrar detalle"
                                                         className="action-button action-button--light"
@@ -6934,7 +7142,7 @@ export default function MedicoOcupacionalPage() {
                                                     </button>
                                                 </div>
 
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px', flex: 'none' }} className="clinical-modal__body">
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px' }}>
                                                     {(activeBookRecord.type === 'diario') && (
                                                         <>
                                                             <div className="preview-paper-field">
