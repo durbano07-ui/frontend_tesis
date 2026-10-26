@@ -3,6 +3,13 @@ import { FileSpreadsheet, Loader2, Save, Search, X } from 'lucide-react';
 import api from '../../api/axios';
 import { MATRICES, ensureCatalogId } from './matricesOcupacionales';
 
+// Cargo que el médico puede asignar si el paciente no lo ha definido (ids de tipo_usuario)
+const TIPOS_TRABAJADOR = [
+    { id: 3, label: 'Personal Docente' },
+    { id: 4, label: 'Personal Administrativo' },
+    { id: 5, label: 'Código de Trabajo' },
+];
+
 const optionValue = (opt) => (typeof opt === 'string' ? opt : opt.value);
 const optionLabel = (opt) => (typeof opt === 'string' ? opt : opt.label);
 
@@ -22,6 +29,10 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const [searching, setSearching] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    // Tipo de trabajador elegido por el médico cuando el paciente no tiene cargo definido
+    const [cargoTipo, setCargoTipo] = useState('');
+    const pideCargo = config.fields.some(f => f.name === 'cargo');
+    const cargoDefinido = patient?.tipo_usuario_confirmado !== false;
 
     useEffect(() => {
         if (config.noPatient || patient) return undefined;
@@ -47,9 +58,18 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const selectPatient = (p) => {
         setPatient(p);
         setResults([]);
-        if (p.puestoTrabajo && config.fields.some(f => f.name === 'cargo') && !form.cargo) {
-            setForm(prev => ({ ...prev, cargo: p.puestoTrabajo }));
-        }
+        if (!pideCargo) return;
+        // El cargo se toma del sistema; si el paciente no lo definió, el médico lo elige de la lista
+        const definido = p.tipo_usuario_confirmado !== false;
+        setForm(prev => ({ ...prev, cargo: definido ? (p.puestoTrabajo || '') : '' }));
+        setCargoTipo(!definido && TIPOS_TRABAJADOR.some(t => t.id === p.id_tipo_usuario) ? String(p.id_tipo_usuario) : '');
+    };
+
+    const changePatient = () => {
+        setPatient(null);
+        setSearchTerm('');
+        setCargoTipo('');
+        if (pideCargo) setForm(prev => ({ ...prev, cargo: '' }));
     };
 
     const handleSubmit = async (e) => {
@@ -59,12 +79,25 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
             setError('Seleccione un paciente registrado en el sistema.');
             return;
         }
+        if (pideCargo && patient && !cargoDefinido && !cargoTipo) {
+            setError('Seleccione el cargo del paciente.');
+            return;
+        }
         setSaving(true);
         try {
+            let datos = form;
+            if (pideCargo && patient && !cargoDefinido) {
+                // Se guarda en el perfil del paciente para que las próximas matrices ya lo tengan
+                const res = await api.put(`/medicina-ocupacional/patient/${patient.id}/tipo-trabajador`, { id_tipo_usuario: Number(cargoTipo) });
+                const puestoTrabajo = res.data?.data?.puestoTrabajo || '';
+                setPatient(prev => ({ ...prev, tipo_usuario_confirmado: true, puestoTrabajo }));
+                datos = { ...form, cargo: puestoTrabajo };
+                setForm(datos);
+            }
             const catalogId = config.catalog
-                ? await ensureCatalogId(api, config.catalog, config.catalogValue(form))
+                ? await ensureCatalogId(api, config.catalog, config.catalogValue(datos))
                 : undefined;
-            const payload = config.toPayload(form, catalogId);
+            const payload = config.toPayload(datos, catalogId);
             if (!config.noPatient) payload.id_usuario_paciente = patient.id;
             await api.post(config.path, payload);
             onSaved();
@@ -106,7 +139,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                         <strong style={{ fontSize: '13px', color: '#0f172a' }}>{patient.nombres} {patient.apellidos}</strong>
                                         <small style={{ display: 'block', color: '#64748b', fontSize: '11.5px' }}>Cédula: {patient.cedula}</small>
                                     </div>
-                                    <button type="button" className="action-button" onClick={() => { setPatient(null); setSearchTerm(''); }} style={{ fontSize: '11.5px', padding: '6px 12px' }}>
+                                    <button type="button" className="action-button" onClick={changePatient} style={{ fontSize: '11.5px', padding: '6px 12px' }}>
                                         Cambiar
                                     </button>
                                 </div>
@@ -151,8 +184,9 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
 
                     <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         {config.fields.map(f => {
-                            const label = `${f.label}${f.required ? ' *' : ''}`;
                             const style = f.full ? { gridColumn: '1 / -1' } : undefined;
+                            const required = f.required || (f.name === 'cargo' && patient && !cargoDefinido);
+                            const label = <>{f.label}{required && <> <span className="field-req-star">*</span></>}</>;
                             if (f.type === 'checkbox') {
                                 return (
                                     <label key={f.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>
@@ -164,7 +198,24 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                             return (
                                 <label key={f.name} className="field" style={style}>
                                     <span>{label}</span>
-                                    {f.type === 'select' ? (
+                                    {f.name === 'cargo' && !config.noPatient ? (
+                                        !patient ? (
+                                            <input type="text" value="" disabled placeholder="Seleccione primero el paciente" />
+                                        ) : cargoDefinido ? (
+                                            <>
+                                                <input type="text" value={form.cargo} readOnly aria-readonly="true" style={{ background: '#f1f5f9', cursor: 'default' }} />
+                                                <small style={{ color: '#64748b', fontSize: '11px' }}>Registrado en el sistema</small>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <select value={cargoTipo} required onChange={(e) => setCargoTipo(e.target.value)}>
+                                                    <option value="">Seleccione el cargo...</option>
+                                                    {TIPOS_TRABAJADOR.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                                                </select>
+                                                <small style={{ color: '#64748b', fontSize: '11px' }}>El paciente no ha definido su cargo; se guardará en su perfil.</small>
+                                            </>
+                                        )
+                                    ) : f.type === 'select' ? (
                                         <select value={form[f.name]} required={f.required} onChange={(e) => setField(f.name, e.target.value)}>
                                             {f.options.map(opt => (
                                                 <option key={optionValue(opt)} value={optionValue(opt)}>{optionLabel(opt)}</option>
