@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
+import { FileText, Printer, X } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { extraerIdentificacion, extraerGineco, extraerHabitos, extraerAntecedentesFamiliares, extraerFactoresRiesgo, extraerConstantes, extraerExamenFisico, extraerLaboratorios, extraerDiagnosticos, extraerRecomendaciones, extraerProfesional, primero } from './fichaComun';
@@ -730,27 +730,6 @@ export default function OfficialFichaRetiroModal({
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <a
-                            href="/formats/FORMATO_FICHA_MEDICA_RETIRO_CESE_MSP.xlsx"
-                            download="FORMATO_FICHA_MEDICA_RETIRO_CESE_MSP.xlsx"
-                            className="action-button"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: '#166534',
-                                color: '#ffffff',
-                                fontWeight: '700',
-                                padding: '7px 14px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                textDecoration: 'none',
-                                border: 'none'
-                            }}
-                            title="Descargar archivo Excel oficial de Retiro (.xlsx)"
-                        >
-                            <FileSpreadsheet size={15} /> Descargar Excel Retiro (.xlsx)
-                        </a>
                         <button
                             type="button"
                             className="action-button action-button--accent"
@@ -1482,25 +1461,6 @@ export default function OfficialFichaRetiroModal({
                         >
                             Cerrar
                         </button>
-                        <a
-                            href="/formats/FORMATO_FICHA_MEDICA_RETIRO_CESE_MSP.xlsx"
-                            download="FORMATO_FICHA_MEDICA_RETIRO_CESE_MSP.xlsx"
-                            className="action-button"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: '#166534',
-                                color: '#ffffff',
-                                fontWeight: '700',
-                                padding: '7px 14px',
-                                borderRadius: '8px',
-                                fontSize: '12.5px',
-                                textDecoration: 'none'
-                            }}
-                        >
-                            <Download size={15} /> Descargar .xlsx
-                        </a>
                         <button
                             type="button"
                             className="action-button action-button--accent"

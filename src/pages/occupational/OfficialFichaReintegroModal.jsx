@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Printer, Download, X, FileSpreadsheet } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { extraerIdentificacion, extraerGineco, extraerHabitos, extraerAntecedentesFamiliares, extraerFactoresRiesgo, extraerConstantes, extraerExamenFisico, extraerLaboratorios, extraerDiagnosticos, extraerRecomendaciones, extraerProfesional, primero } from './fichaComun';
@@ -659,15 +659,6 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
         extremidadesDesc, exLab, diags, aptitudDictamen, recs, prof
     } = data;
 
-    const handleDownloadExcel = () => {
-        const link = document.createElement('a');
-        link.href = '/formats/FORMATO_FICHA_MEDICA_REINTEGRO_MSP.xlsx';
-        link.download = `FORMATO_FICHA_MEDICA_REINTEGRO_MSP_${ced}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
     return (
         <div className="clinical-modal show" style={{ zIndex: 99999 }}>
             <div className="clinical-modal__backdrop" onClick={onClose}></div>
@@ -688,27 +679,6 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                            type="button"
-                            className="action-button action-button--light"
-                            onClick={handleDownloadExcel}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: '#f0fdf4',
-                                color: '#166534',
-                                fontWeight: '700',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                border: '1px solid #86efac',
-                                cursor: 'pointer'
-                            }}
-                            title="Descargar Formato Excel (.xlsx)"
-                        >
-                            <Download size={14} /> Excel (.xlsx)
-                        </button>
                         <button
                             type="button"
                             className="action-button action-button--primary"

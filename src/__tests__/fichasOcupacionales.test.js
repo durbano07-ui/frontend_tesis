@@ -53,3 +53,13 @@ describe('fichas ocupacionales con datos del sistema', () => {
         expect(f.prof.nombre).toBe('');
     });
 });
+
+describe('receta ocupacional', async () => {
+    const { compileRecetaFormHtmlString } = await import('../pages/occupational/reports/recetaTemplate');
+
+    it('no se rellena con médico, CIE ni indicaciones de ejemplo', () => {
+        const html = compileRecetaFormHtmlString({ id: 5, fecha: '2026-10-25', paciente: 'Luis Bayas', cedula: '0201864329', lineas: [] });
+        ['Fernando Vaca', 'ACESS-MED-84920', 'Z00.0', 'Fiebre persistente', 'Reposo relativo'].forEach(dato => expect(html).not.toContain(dato));
+        expect(html).toContain('0201864329');
+    });
+});

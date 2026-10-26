@@ -8,8 +8,8 @@ import { logoBienestar } from '../../../assets/logoBienestarBase64.js';
 export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
     if (!receta) return '<!DOCTYPE html><html lang="es"><body><p style="padding:40px; text-align:center; color:#64748b; font-family:sans-serif;">Seleccione un paciente / expediente para visualizar su receta médica.</p></body></html>';
 
-    const patientName = receta.paciente || 'Paciente';
-    const cedula = receta.cedula || 'N/D';
+    const patientName = receta.paciente || '';
+    const cedula = receta.cedula || '';
     const fechaStr = receta.fecha ? receta.fecha.split('-').reverse().join(' / ') : 'dd / mm / aaaa';
     const numReceta = receta.numero_receta || `REC-${receta.id || '001'}`;
 
@@ -17,10 +17,10 @@ export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
         <tr>
             <td><strong>${idx + 1}. ${escapeHtml(l.detalle_medicamento)}</strong></td>
             <td style="text-align:center;">${escapeHtml(l.dosis || '-')}</td>
-            <td style="text-align:center;">Cada ${escapeHtml(l.frecuencia || '8')} horas</td>
-            <td style="text-align:center;">${escapeHtml(l.duracion || '3')} días</td>
-            <td style="text-align:center;">${escapeHtml(l.via || 'Oral')}</td>
-            <td style="text-align:center;">${escapeHtml(l.cantidad_texto || '1 caja')}</td>
+            <td style="text-align:center;">Cada ${escapeHtml(l.frecuencia || '')} horas</td>
+            <td style="text-align:center;">${escapeHtml(l.duracion || '')} días</td>
+            <td style="text-align:center;">${escapeHtml(l.via || '')}</td>
+            <td style="text-align:center;">${escapeHtml(l.cantidad_texto || '')}</td>
         </tr>
     `).join('');
 
@@ -38,9 +38,9 @@ export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
         <tr>
             <td><strong>${escapeHtml(l.detalle_medicamento)}</strong></td>
             <td style="text-align:center;">${escapeHtml(l.dosis || '-')}</td>
-            <td style="text-align:center;">Cada ${escapeHtml(l.frecuencia || '8')} horas</td>
-            <td style="text-align:center;">${escapeHtml(l.duracion || '3')} días</td>
-            <td style="text-align:center;">${escapeHtml(l.via || 'Oral')}</td>
+            <td style="text-align:center;">Cada ${escapeHtml(l.frecuencia || '')} horas</td>
+            <td style="text-align:center;">${escapeHtml(l.duracion || '')} días</td>
+            <td style="text-align:center;">${escapeHtml(l.via || '')}</td>
             <td style="text-align:center;">${l.manana ? '✓' : ''}</td>
             <td style="text-align:center;">${l.mediodia ? '✓' : ''}</td>
             <td style="text-align:center;">${l.tarde ? '✓' : ''}</td>
@@ -194,16 +194,16 @@ export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
                             <td colspan="6"><strong>Estado de Enfermedad:</strong> Agudo [${receta.estado_enfermedad === 'Agudo' ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; Crónico [${receta.estado_enfermedad === 'Crónico' ? 'X' : ' '}]</td>
                         </tr>
                         <tr>
-                            <td><strong>Fecha nac:</strong> ${escapeHtml(receta.fecha_nacimiento || 'N/D')}</td>
-                            <td><strong>Edad:</strong> ${escapeHtml(receta.edad_anios || '0')} años ${escapeHtml(receta.edad_meses || '0')} m</td>
-                            <td colspan="4"><strong>CIE:</strong> ${escapeHtml(receta.cie || 'Z00.0')}</td>
+                            <td><strong>Fecha nac:</strong> ${escapeHtml(receta.fecha_nacimiento || '')}</td>
+                            <td><strong>Edad:</strong> ${escapeHtml(receta.edad_anios || '')} años ${escapeHtml(receta.edad_meses || '')} m</td>
+                            <td colspan="4"><strong>CIE:</strong> ${escapeHtml(receta.cie || '')}</td>
                         </tr>
                         <tr>
                             <td colspan="3"><strong>Peso (kg):</strong> ${escapeHtml(receta.peso || '-')}</td>
                             <td colspan="3"><strong>Talla (cm):</strong> ${escapeHtml(receta.talla || '-')}</td>
                         </tr>
                         <tr>
-                            <td colspan="6"><strong>Alergias:</strong> SI [${receta.alergias_si ? 'X' : ' '}] NO [${!receta.alergias_si ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; <strong>ESPECIFICAR:</strong> ${escapeHtml(receta.alergias_detalle || 'Ninguna')}</td>
+                            <td colspan="6"><strong>Alergias:</strong> SI [${receta.alergias_si === true ? 'X' : ' '}] NO [${receta.alergias_si === false ? 'X' : ' '}] &nbsp;&nbsp;&nbsp;&nbsp; <strong>ESPECIFICAR:</strong> ${escapeHtml(receta.alergias_detalle || '')}</td>
                         </tr>
                     </table>
 
@@ -231,13 +231,13 @@ export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
                         <tr>
                             <td style="width:50%; vertical-align:top;">
                                 <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.prescriptor_nombre || 'Dr. Fernando Vaca')}<br/>
-                                <strong>Nro. Reg. Prof ACESS:</strong> ${escapeHtml(receta.prescriptor_acess || 'ACESS-MED-84920')}<br/><br/>
+                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.prescriptor_nombre || '')}<br/>
+                                <strong>Nro. Reg. Prof ACESS:</strong> ${escapeHtml(receta.prescriptor_acess || '')}<br/><br/>
                                 <strong>Firma:</strong> ___________________________________
                             </td>
                             <td style="width:50%; vertical-align:top;">
                                 <strong>VÁLIDO __________ VERIFICADO __________</strong><br/>
-                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.valido_verificado || 'Farmacia Bienestar')}<br/><br/><br/>
+                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.valido_verificado || '')}<br/><br/><br/>
                                 <strong>Firma:</strong> ___________________________________
                             </td>
                         </tr>
@@ -285,13 +285,13 @@ export const compileRecetaFormHtmlString = (receta, forPrint = false) => {
                         <tr>
                             <td style="width:40%; vertical-align:top;">
                                 <strong>DATOS DEL PRESCRIPTOR:</strong><br/>
-                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.prescriptor_nombre || 'Dr. Fernando Vaca')}<br/>
-                                <strong>Nro. Reg. Profesional ACESS:</strong> ${escapeHtml(receta.prescriptor_acess || 'ACESS-MED-84920')}<br/><br/>
+                                <strong>Apellido y Nombre:</strong> ${escapeHtml(receta.prescriptor_nombre || '')}<br/>
+                                <strong>Nro. Reg. Profesional ACESS:</strong> ${escapeHtml(receta.prescriptor_acess || '')}<br/><br/>
                                 <strong>Firma:</strong> ____________________________
                             </td>
                             <td style="width:60%; vertical-align:top;">
-                                <strong>SIGNOS DE ALARMA:</strong> ${escapeHtml(receta.signos_alarma || 'Fiebre persistente, intolerancia oral o reacción alérgica.')}<br/><br/>
-                                <strong>RECOMENDACIONES NO FARMACOLÓGICAS:</strong> ${escapeHtml(receta.recomendaciones_no_farmacologicas || 'Reposo relativo e hidratación continua.')}
+                                <strong>SIGNOS DE ALARMA:</strong> ${escapeHtml(receta.signos_alarma || '')}<br/><br/>
+                                <strong>RECOMENDACIONES NO FARMACOLÓGICAS:</strong> ${escapeHtml(receta.recomendaciones_no_farmacologicas || '')}
                             </td>
                         </tr>
                     </table>

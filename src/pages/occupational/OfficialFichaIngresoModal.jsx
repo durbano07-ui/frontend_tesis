@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Printer, Download, X, FileSpreadsheet } from 'lucide-react';
+import { FileText, Printer, X } from 'lucide-react';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { extraerIdentificacion, extraerGineco, extraerHabitos, extraerAntecedentesFamiliares, extraerFactoresRiesgo, extraerConstantes, extraerExamenFisico, extraerLaboratorios, extraerDiagnosticos, extraerRecomendaciones, extraerProfesional, primero } from './fichaComun';
@@ -78,7 +78,6 @@ export const extractFichaFields = (record = {}) => {
 /**
  * Función utilitaria para imprimir el Formulario Oficial MSP/MDT 077
  * Ficha Médica Ocupacional Preocupacional - Inicio / Periódica
- * Réplica exacta del formato Excel: CH DE INGRESO MERCHAN SILVIA.xlsx
  */
 export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', forPrint = false) => {
     const {
@@ -852,27 +851,6 @@ export default function OfficialFichaIngresoModal({
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <a
-                            href="/formats/CH_DE_INGRESO_MERCHAN_SILVIA.xlsx"
-                            download="CH_DE_INGRESO_MERCHAN_SILVIA.xlsx"
-                            className="action-button"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: '#166534',
-                                color: '#ffffff',
-                                fontWeight: '700',
-                                padding: '7px 14px',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                textDecoration: 'none',
-                                border: 'none'
-                            }}
-                            title="Descargar archivo Excel original (.xlsx)"
-                        >
-                            <FileSpreadsheet size={15} /> Descargar Excel (.xlsx)
-                        </a>
                         <button
                             type="button"
                             className="action-button action-button--accent"
@@ -1651,7 +1629,7 @@ export default function OfficialFichaIngresoModal({
                 {/* PIE DEL MODAL */}
                 <footer className="clinical-modal__actions" style={{ padding: '14px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>
-                        Plantilla oficial: <strong>CH DE INGRESO MERCHAN SILVIA.xlsx</strong> (Formulario MSP 077)
+                        Formulario oficial MSP 077
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
@@ -1661,25 +1639,6 @@ export default function OfficialFichaIngresoModal({
                         >
                             Cerrar
                         </button>
-                        <a
-                            href="/formats/CH_DE_INGRESO_MERCHAN_SILVIA.xlsx"
-                            download="CH_DE_INGRESO_MERCHAN_SILVIA.xlsx"
-                            className="action-button"
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                background: '#166534',
-                                color: '#ffffff',
-                                fontWeight: '700',
-                                padding: '7px 14px',
-                                borderRadius: '8px',
-                                fontSize: '12.5px',
-                                textDecoration: 'none'
-                            }}
-                        >
-                            <Download size={15} /> Descargar .xlsx
-                        </a>
                         <button
                             type="button"
                             className="action-button action-button--accent"

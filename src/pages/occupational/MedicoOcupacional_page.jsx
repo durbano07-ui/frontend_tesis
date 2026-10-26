@@ -675,7 +675,7 @@ export default function MedicoOcupacionalPage() {
     const [matrixSearchTerm, setMatrixSearchTerm] = useState('');
     const [matrixDateFilter, setMatrixDateFilter] = useState('');
     const [selectedFichaWorkerId, setSelectedFichaWorkerId] = useState(null);
-    const [selectedRecetaId, setSelectedRecetaId] = useState(1001);
+    const [selectedRecetaId, setSelectedRecetaId] = useState(null);
     const [genReportMonth, setGenReportMonth] = useState(new Date().getMonth() + 1);
     const [genReportYear, setGenReportYear] = useState(new Date().getFullYear());
     const [reportMensualFecha, setReportMensualFecha] = useState(() => {
@@ -869,6 +869,48 @@ export default function MedicoOcupacionalPage() {
     };
     const fetchReintegros = fetchFichasBackend;
 
+    // Recetario: recetas emitidas en las atenciones ocupacionales
+    const fetchRecetasOcupacionales = async () => {
+        try {
+            const res = await api.get('/medicina-ocupacional/recetas-ocupacionales');
+            const recetas = (Array.isArray(res.data?.data) ? res.data.data : []).map(r => {
+                const paciente = r.paciente || {};
+                const lineas = (r.lineas || []).map(l => ({
+                    detalle_medicamento: l.detalle_medicamento,
+                    dosis: l.detalle_dosis,
+                    frecuencia: l.frecuencia_horas,
+                    duracion: l.duracion_tratamiento_dias,
+                    via: l.detalle_via_administracion,
+                    enFarmacia: Boolean(l.id_producto_farmacia),
+                    despachado: l.estado_despacho === 'despachado',
+                    cantidad_texto: l.id_producto_farmacia ? '' : 'Compra externa'
+                }));
+                const deFarmacia = lineas.filter(l => l.enFarmacia);
+                let estado = 'Pendiente de despacho';
+                if (deFarmacia.length === 0) estado = 'Recetado Externamente';
+                else if (deFarmacia.every(l => l.despachado)) estado = deFarmacia.length === lineas.length ? 'Dispensado en Farmacia' : 'Dispensación Parcial';
+                return {
+                    id: r.id,
+                    numero_receta: `REC-${r.id}`,
+                    fecha: r.fecha,
+                    cie: r.cie || '',
+                    paciente: paciente.nombre_completo || '',
+                    cedula: paciente.cedula || '',
+                    puesto: paciente.puestoTrabajo || '',
+                    sexo: paciente.sexo || '',
+                    fecha_nacimiento: paciente.fecha_nacimiento || '',
+                    prescriptor_nombre: r.doctor?.nombre || '',
+                    lineas,
+                    medicamentos: lineas.map(l => `${l.detalle_medicamento} (${l.dosis}, c/${l.frecuencia}h x ${l.duracion}d)${l.enFarmacia ? '' : ' [COMPRA EXTERNA]'}`).join(' | '),
+                    estado
+                };
+            });
+            setRecetasData(recetas);
+        } catch (err) {
+            console.error('No se pudo cargar el recetario:', err);
+        }
+    };
+
     // --- Matrices estadísticas guardadas en el backend ---
     const [matrixRows, setMatrixRows] = useState({});
     const [matrixLoading, setMatrixLoading] = useState(false);
@@ -957,6 +999,9 @@ export default function MedicoOcupacionalPage() {
         }
         if ((activeTab === 'matrices' || activeTab === 'reportes') && MATRICES[activeReportSubTab]) {
             fetchMatrix(activeReportSubTab);
+        }
+        if (activeTab === 'reportes' && activeReportSubTab === 'recetas') {
+            fetchRecetasOcupacionales();
         }
         if (activeTab === 'reportes' && activeReportSubTab === 'fichas') {
             if (fichaSubTab === 'reintegro') fetchReintegros();
@@ -4433,34 +4478,16 @@ export default function MedicoOcupacionalPage() {
 
     const [fichaSearchTerm, setFichaSearchTerm] = useState('');
 
-    const filteredFichas = fichasData.filter(item => {
-        const matchesSearch = (item.paciente || '').toLowerCase().includes(fichaSearchTerm.toLowerCase()) ||
-            (item.cedula || '').includes(fichaSearchTerm) ||
-            (item.puesto || '').toLowerCase().includes(fichaSearchTerm.toLowerCase());
-
-        if (!matchesSearch) return false;
-
-        if (fichaSubTab === 'ingreso') {
-            return item.tipo === 'Ingreso' || item.tipo === 'Periódico' || item.tipo === 'Preocupacional';
-        }
-        if (fichaSubTab === 'cese') {
-            return item.tipo === 'Retiro' || item.tipo === 'Cese';
-        }
-        if (fichaSubTab === 'embarazadas') {
-            return item.tipo === 'Gestante' || item.tipo === 'Lactante' || item.tipo === 'Embarazo';
-        }
-        if (fichaSubTab === 'discapacidad') {
-            return item.tipo === 'Discapacidad' || item.tipo === 'Adaptación';
-        }
-        return true;
-    });
-
-    const filteredReintegros = reintegrosData.filter(item =>
-        (item.paciente || '').toLowerCase().includes(fichaSearchTerm.toLowerCase()) ||
-        (item.cedula || '').includes(fichaSearchTerm) ||
-        (item.puesto || '').toLowerCase().includes(fichaSearchTerm.toLowerCase()) ||
-        (item.diagnostico || '').toLowerCase().includes(fichaSearchTerm.toLowerCase())
-    );
+    // Búsqueda en vivo por nombre o cédula (sin distinguir mayúsculas ni tildes)
+    const normalizarBusqueda = (texto) => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const coincideFicha = (item) => {
+        const termino = normalizarBusqueda(fichaSearchTerm);
+        if (!termino) return true;
+        return normalizarBusqueda(item.paciente).includes(termino)
+            || String(item.cedula || '').replace(/\D/g, '').includes(termino.replace(/\D/g, '') || '\u0000');
+    };
+    const filteredFichas = fichasData.filter(coincideFicha);
+    const filteredReintegros = reintegrosData.filter(coincideFicha);
 
     const getActiveFichaList = () => {
         if (fichaSubTab === 'reintegro') return filteredReintegros;
@@ -4469,9 +4496,7 @@ export default function MedicoOcupacionalPage() {
     };
 
     const activeFichas = getActiveFichaList();
-    const selectedFichaRecord = (fichaSearchTerm.trim() && activeFichas.length > 0)
-        ? activeFichas[0]
-        : (activeFichas.find(f => String(f.id) === String(selectedFichaWorkerId)) || activeFichas[0] || null);
+    const selectedFichaRecord = activeFichas.find(f => String(f.id) === String(selectedFichaWorkerId)) || activeFichas[0] || null;
 
     const compileCurrentFicha077Html = (record = selectedFichaRecord, forPrint = false) => {
         const target = record || selectedFichaRecord;
@@ -6553,6 +6578,42 @@ export default function MedicoOcupacionalPage() {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Fichas de la pestaña, filtradas mientras se escribe */}
+                                        <div style={{ marginTop: '14px' }}>
+                                            <span role="status" aria-live="polite" style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>
+                                                {activeFichas.length === 0
+                                                    ? (fichaSearchTerm.trim() ? 'Ninguna ficha coincide con la búsqueda.' : 'Aún no hay fichas registradas de este tipo.')
+                                                    : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha' : 'fichas'}${fichaSearchTerm.trim() ? ' encontradas' : ''}`}
+                                            </span>
+                                            {activeFichas.length > 0 && (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
+                                                    {activeFichas.map(ficha => {
+                                                        const seleccionada = selectedFichaRecord?.id === ficha.id;
+                                                        return (
+                                                            <button
+                                                                key={ficha.id}
+                                                                type="button"
+                                                                aria-pressed={seleccionada}
+                                                                onClick={() => setSelectedFichaWorkerId(ficha.id)}
+                                                                style={{
+                                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textAlign: 'left',
+                                                                    padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                                                                    border: seleccionada ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
+                                                                    background: seleccionada ? 'var(--primary-soft)' : '#f8fafc'
+                                                                }}
+                                                            >
+                                                                <span style={{ minWidth: 0 }}>
+                                                                    <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>{ficha.paciente || 'Sin nombre'}</strong>
+                                                                    <small style={{ color: '#64748b', fontSize: '11px' }}>C.I. {ficha.cedula || '—'} · {ficha.tipo}</small>
+                                                                </span>
+                                                                <small style={{ color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>{formatFecha(ficha.fecha)}</small>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
                                     </article>
 
                                     {/* VISOR DE DOCUMENTO OFICIAL FORMATO 077 */}
@@ -8329,36 +8390,28 @@ export default function MedicoOcupacionalPage() {
                                                 }
                                             }
 
-                                            // Guardar también en el Recetario si existen medicamentos prescritos
+                                            // Receta en el servidor: el Recetario la lee de ahí y Farmacia despacha
+                                            // solo los medicamentos del inventario (los de compra externa van sin producto)
                                             if (prescripcionesList.length > 0) {
-                                                const todosEnFarmacia = prescripcionesList.every(i => i.disponible_farmacia === 'farmacia');
-                                                const todosExternos = prescripcionesList.every(i => i.disponible_farmacia === 'no_disponible');
-
-                                                let estadoReceta = 'Dispensación Parcial';
-                                                if (todosEnFarmacia) estadoReceta = 'Dispensado en Farmacia';
-                                                if (todosExternos) estadoReceta = 'Recetado Externamente';
-
-                                                const medicamentosTexto = prescripcionesList.map(i => {
-                                                    let txt = `${i.detalle_medicamento} (${i.dosis}, c/${i.frecuencia}h x ${i.duracion}d)`;
-                                                    if (i.disponible_farmacia === 'no_disponible') {
-                                                        txt += ` [NO DISPONIBLE: ${i.observacion_nodisponible || 'Compra externa / Alternativa enviada'}]`;
-                                                    } else {
-                                                        txt += ` [Dispensar en Farmacia Enfermería]`;
-                                                    }
-                                                    return txt;
-                                                }).join(' | ');
-
-                                                const newRecetaRecord = {
-                                                    id: Date.now() + 1,
+                                                api.post('/medicina-ocupacional/recetas-ocupacionales', {
+                                                    id_usuario_paciente: patientSelected.id,
                                                     fecha: localDateStr(),
-                                                    paciente: `${patientSelected.nombres || ''} ${patientSelected.apellidos || ''}`.trim(),
-                                                    cedula: patientSelected?.cedula || '',
-                                                    puesto: patientSelected?.puestoTrabajo || 'Servidor/Docente',
-                                                    medicamentos: medicamentosTexto,
-                                                    lineas: [...prescripcionesList],
-                                                    estado: estadoReceta
-                                                };
-                                                setRecetasData(prev => [newRecetaRecord, ...prev]);
+                                                    cie: diagnosticoCie,
+                                                    lineas: prescripcionesList.map(p => ({
+                                                        detalle_medicamento: p.detalle_medicamento,
+                                                        detalle_dosis: p.dosis,
+                                                        frecuencia_horas: parseInt(p.frecuencia, 10),
+                                                        duracion_tratamiento_dias: parseInt(p.duracion, 10),
+                                                        detalle_via_administracion: p.via,
+                                                        id_producto_farmacia: p.disponible_farmacia === 'farmacia' ? p.id_producto_farmacia : null,
+                                                        cantidad_cajas: parseInt(p.cantidad_cajas, 10) || 0,
+                                                        cantidad_unidades: parseInt(p.cantidad_unidades, 10) || 0
+                                                    }))
+                                                }).then(() => fetchRecetasOcupacionales()).catch((err) => {
+                                                    const data = err.response?.data;
+                                                    const detalle = data?.errors ? Object.values(data.errors)[0]?.[0] : data?.message;
+                                                    alert(`La receta NO se guardó: ${detalle || 'No se pudo conectar con el servidor.'}`);
+                                                });
                                             }
 
                                             alert(`¡Atención Médica Ocupacional registrada exitosamente! Ficha (${tipoFicha}) emitida${prescripcionesList.length > 0 ? ' y receta enviada al Recetario' : ''}.`);
