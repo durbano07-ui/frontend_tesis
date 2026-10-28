@@ -271,7 +271,8 @@ const MedicoGeneral_page = () => {
         detalle_via_administracion: 'Oral',
         frecuencia_horas: 8,
         duracion_tratamiento_dias: 3,
-        cantidad_cajas: 1,
+        // Las cantidades las define Farmacia al despachar
+        cantidad_cajas: 0,
         cantidad_unidades: 0,
         observaciones: ''
     });
@@ -328,7 +329,7 @@ const MedicoGeneral_page = () => {
             detalle_via_administracion: 'Oral',
             frecuencia_horas: 8,
             duracion_tratamiento_dias: 3,
-            cantidad_cajas: 1,
+            cantidad_cajas: 0,
             cantidad_unidades: 0,
             observaciones: ''
         });
@@ -4933,7 +4934,7 @@ const MedicoGeneral_page = () => {
 
                                                     {/* FORMULARIO DE DETALLE DEL MEDICAMENTO */}
                                                     <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
-                                                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
+                                                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Receta Médica</h4>
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
@@ -4969,7 +4970,8 @@ const MedicoGeneral_page = () => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                                        {/* Sin "Cant. Cajas" ni "Cant. Unidades": las cantidades las define Farmacia al despachar */}
+                                                        <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Frecuencia (Horas)</span>
                                                                 <input
@@ -4988,26 +4990,6 @@ const MedicoGeneral_page = () => {
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, duracion_tratamiento_dias: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="field" style={{ margin: 0 }}>
-                                                                <span>Cant. Cajas</span>
-                                                                <input
-                                                                    aria-label="Cant. Cajas"
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={prescripcionLineForm.cantidad_cajas}
-                                                                    onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, cantidad_cajas: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="field" style={{ margin: 0 }}>
-                                                                <span>Cant. Unidades</span>
-                                                                <input
-                                                                    aria-label="Cant. Unidades"
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={prescripcionLineForm.cantidad_unidades}
-                                                                    onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, cantidad_unidades: e.target.value })}
                                                                 />
                                                             </div>
                                                         </div>
@@ -5053,7 +5035,6 @@ const MedicoGeneral_page = () => {
                                                                         <th style={{ padding: '10px 14px' }}>Medicamento</th>
                                                                         <th style={{ padding: '10px 14px' }}>Dosis & Vía</th>
                                                                         <th style={{ padding: '10px 14px', textAlign: 'center' }}>Frecuencia / Duración</th>
-                                                                        <th style={{ padding: '10px 14px', textAlign: 'center' }}>Cantidad Solicitada</th>
                                                                         <th style={{ padding: '10px 14px', textAlign: 'center' }}>Acción</th>
                                                                     </tr>
                                                                 </thead>
@@ -5071,9 +5052,6 @@ const MedicoGeneral_page = () => {
                                                                             </td>
                                                                             <td style={{ padding: '10px 14px', textAlign: 'center', color: '#475569' }}>
                                                                                 Cada {item.frecuencia_horas}h por {item.duracion_tratamiento_dias} días
-                                                                            </td>
-                                                                            <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '600', color: '#1e293b' }}>
-                                                                                {item.cantidad_cajas} cj / {item.cantidad_unidades} ud
                                                                             </td>
                                                                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                                                                                 <button

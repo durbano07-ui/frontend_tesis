@@ -569,7 +569,7 @@ const Odontologo_page = () => {
     const [fichaForm, setFichaForm] = useState({
         // 1. Motivo Consulta y Antecedentes
         detalle_motivo: '',
-        ultima_visita_fecha: getLocalDateString(),
+        ultima_visita_fecha: '', // la registra el odontólogo; no se asume la fecha de hoy
         algun_tratamiento: 'no',
         detalle_tratamiento: '',
         algun_medicamento: 'no',
@@ -616,7 +616,8 @@ const Odontologo_page = () => {
         detalle_via_administracion: 'Oral',
         frecuencia_horas: 8,
         duracion_tratamiento_dias: 3,
-        cantidad_cajas: 1,
+        // Las cantidades las define Farmacia al despachar
+        cantidad_cajas: 0,
         cantidad_unidades: 0,
         observaciones: ''
     });
@@ -673,7 +674,7 @@ const Odontologo_page = () => {
             detalle_via_administracion: 'Oral',
             frecuencia_horas: 8,
             duracion_tratamiento_dias: 3,
-            cantidad_cajas: 1,
+            cantidad_cajas: 0,
             cantidad_unidades: 0,
             observaciones: ''
         });
@@ -1103,7 +1104,7 @@ const Odontologo_page = () => {
         });
         setFichaForm({
             detalle_motivo: '',
-            ultima_visita_fecha: getLocalDateString(),
+            ultima_visita_fecha: '', // la registra el odontólogo; no se asume la fecha de hoy
             algun_tratamiento: 'no',
             detalle_tratamiento: '',
             algun_medicamento: 'no',
@@ -1170,7 +1171,7 @@ const Odontologo_page = () => {
 
             const initialFormState = {
                 detalle_motivo: motivo?.detalle_motivo || '',
-                ultima_visita_fecha: motivo?.ultima_visita_fecha || today,
+                ultima_visita_fecha: motivo?.ultima_visita_fecha || '',
                 algun_tratamiento: motivo?.algun_tratamiento || 'no',
                 detalle_tratamiento: motivo?.detalle_tratamiento || '',
                 algun_medicamento: motivo?.algun_medicamento || 'no',
@@ -9000,7 +9001,7 @@ const Odontologo_page = () => {
 
                                                     {/* FORMULARIO DE DETALLE DEL MEDICAMENTO */}
                                                     <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
-                                                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
+                                                        <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Receta Médica</h4>
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
@@ -9036,7 +9037,8 @@ const Odontologo_page = () => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                                        {/* Sin "Cant. Cajas" ni "Cant. Unidades": las cantidades las define Farmacia al despachar */}
+                                                        <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
                                                                 <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                                 <input
@@ -9055,26 +9057,6 @@ const Odontologo_page = () => {
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, duracion_tratamiento_dias: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="field" style={{ margin: 0 }}>
-                                                                <span>Cant. Cajas</span>
-                                                                <input
-                                                                    aria-label="Cant. Cajas"
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={prescripcionLineForm.cantidad_cajas}
-                                                                    onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, cantidad_cajas: e.target.value })}
-                                                                />
-                                                            </div>
-                                                            <div className="field" style={{ margin: 0 }}>
-                                                                <span>Cant. Unidades</span>
-                                                                <input
-                                                                    aria-label="Cant. Unidades"
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={prescripcionLineForm.cantidad_unidades}
-                                                                    onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, cantidad_unidades: e.target.value })}
                                                                 />
                                                             </div>
                                                         </div>

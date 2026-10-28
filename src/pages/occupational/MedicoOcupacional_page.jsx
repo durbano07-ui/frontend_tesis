@@ -7345,7 +7345,7 @@ export default function MedicoOcupacionalPage() {
 
                                                 {/* FORMULARIO DE DETALLE DEL MEDICAMENTO */}
                                                 <div style={{ background: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '20px' }}>
-                                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Configurar Medicamento</h4>
+                                                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#334155', fontWeight: '700' }}>Receta Médica</h4>
                                                     <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
                                                         <div className="field" style={{ margin: 0 }}>
                                                             <span>Medicamento Prescrito <span className="field-req-star">*</span></span>
@@ -7381,8 +7381,8 @@ export default function MedicoOcupacionalPage() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Sin "Cant. Cajas": la cantidad de cajas la define Farmacia al despachar */}
-                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                                    {/* Sin "Cant. Cajas" ni "Cant. Unidades": las cantidades las define Farmacia al despachar */}
+                                                    <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                         <div className="field" style={{ margin: 0 }}>
                                                             <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                             <input
@@ -7401,16 +7401,6 @@ export default function MedicoOcupacionalPage() {
                                                                 min="1"
                                                                 value={prescripcionForm.duracion}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, duracion: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div className="field" style={{ margin: 0 }}>
-                                                            <span>Cant. Unidades</span>
-                                                            <input
-                                                                aria-label="Cant. Unidades"
-                                                                type="number"
-                                                                min="0"
-                                                                value={prescripcionForm.cantidad_unidades}
-                                                                onChange={(e) => setPrescripcionForm({ ...prescripcionForm, cantidad_unidades: e.target.value })}
                                                             />
                                                         </div>
                                                     </div>
