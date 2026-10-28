@@ -1156,12 +1156,29 @@ const Odontologo_page = () => {
         setFichaLoading(true);
         try {
             const today = new Date().toISOString().slice(0, 10);
-            const [motivoRes, examenRes, periodontalRes, diarioRes] = await Promise.all([
+            let recetaCargada = true;
+            const [motivoRes, examenRes, periodontalRes, diarioRes, recetaHoyRes] = await Promise.all([
                 api.get('/odontologia/motivo-consulta', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/examen', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/enfermedad-periodontal', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
-                api.get('/odontologia/parte-diario-odontologia', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } }))
+                api.get('/odontologia/parte-diario-odontologia', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
+                // Receta ya guardada hoy: al reabrir la ficha se muestra y no se pierde al volver a guardar
+                api.get('/odontologia/recetas', { params: { id_usuario_paciente: patientId, fecha: getLocalDateString() } })
+                    .catch(() => { recetaCargada = false; return { data: { data: [] } }; })
             ]);
+
+            const lineasRecetaHoy = (recetaHoyRes.data?.data || []).flatMap(r => r.lineas || []).map(l => ({
+                id_temp: `receta-${l.id}`,
+                detalle_medicamento: l.detalle_medicamento,
+                id_producto_farmacia: l.id_producto_farmacia,
+                detalle_dosis: l.detalle_dosis,
+                detalle_via_administracion: l.detalle_via_administracion,
+                frecuencia_horas: l.frecuencia_horas,
+                duracion_tratamiento_dias: l.duracion_tratamiento_dias,
+                cantidad_cajas: 0,
+                cantidad_unidades: 0,
+                observaciones: l.observaciones || ''
+            }));
 
             const motivo = motivoRes.data?.data?.[0] || null;
             const examen = examenRes.data?.data?.[0] || null;
@@ -1182,12 +1199,15 @@ const Odontologo_page = () => {
                 motivo: (motivo && isTodayRecord(motivo.created_at)) ? motivo : null,
                 examen: (examen && isTodayRecord(examen.created_at)) ? examen : null,
                 periodontal: (periodontal && isTodayRecord(periodontal.created_at)) ? periodontal : null,
-                parte_diario: (parteDiario && isTodayRecord(parteDiario.fecha || parteDiario.created_at)) ? parteDiario : null
+                parte_diario: (parteDiario && isTodayRecord(parteDiario.fecha || parteDiario.created_at)) ? parteDiario : null,
+                receta_cargada: recetaCargada
             });
 
             const initialFormState = {
                 detalle_motivo: motivo?.detalle_motivo || '',
-                ultima_visita_fecha: motivo?.ultima_visita_fecha || '',
+                // Solo la de la atención de hoy (formato del input: AAAA-MM-DD); en una cita nueva queda vacía
+                ultima_visita_fecha: (motivo && isTodayRecord(motivo.created_at) && motivo.ultima_visita_fecha)
+                    ? String(motivo.ultima_visita_fecha).slice(0, 10) : '',
                 algun_tratamiento: motivo?.algun_tratamiento || 'no',
                 detalle_tratamiento: motivo?.detalle_tratamiento || '',
                 algun_medicamento: motivo?.algun_medicamento || 'no',
@@ -1212,7 +1232,8 @@ const Odontologo_page = () => {
                 tipo_atencion: parteDiario?.tipo_atencion || 'primaria',
                 tipo_atencion2: parteDiario?.tipo_atencion2 || 'curativo',
                 detalle_diagnostico: parteDiario?.detalle_diagnostico || '',
-                procedimiento: parteDiario?.procedimiento || 'Profilaxis'
+                procedimiento: parteDiario?.procedimiento || 'Profilaxis',
+                prescripcion_lineas: lineasRecetaHoy
             };
 
             const savedDraft = loadDraft();
@@ -1312,6 +1333,11 @@ const Odontologo_page = () => {
                     detalle_diagnostico: fichaForm.detalle_diagnostico || 'Evaluación Odontológica',
                     procedimiento: fichaForm.procedimiento || 'Profilaxis'
                 };
+                // La receta no se enviaba y nunca se guardaba. Si no se pudo leer la receta de hoy,
+                // no se envía para no reemplazarla por una lista vacía.
+                if (fichaRawData.receta_cargada !== false) {
+                    dailyPayload.prescripcion_lineas = (fichaForm.prescripcion_lineas || []).map(({ id_temp, ...linea }) => linea);
+                }
                 if (fichaRawData.parte_diario) {
                     await api.put(`/odontologia/parte-diario-odontologia/${fichaRawData.parte_diario.id}`, dailyPayload);
                 } else {
@@ -4291,7 +4317,8 @@ const Odontologo_page = () => {
                 evolucionRes,
                 diarioRes,
                 odontogramaRes,
-                recetasRes
+                recetasRes,
+                historialOdontogramaRes
             ] = await Promise.all([
                 api.get(`/odontologia/pacientes/${actualPatientId}/perfil`).catch(() => ({ data: { data: selectedPatient || {} } })),
                 api.get('/odontologia/motivo-consulta', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
@@ -4300,7 +4327,8 @@ const Odontologo_page = () => {
                 api.get('/odontologia/historial-evolucion', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/parte-diario-odontologia', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get(`/odontologia/odontograma-paciente/${actualPatientId}`).catch(() => ({ data: { data: null } })),
-                api.get('/odontologia/recetas', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } }))
+                api.get('/odontologia/recetas', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
+                api.get(`/odontologia/odontograma-paciente/${actualPatientId}/historial`).catch(() => ({ data: { data: [] } }))
             ]);
 
             // Fecha local (no UTC) de un registro: una atención a las 23:00 no debe pasar al día siguiente
@@ -4312,9 +4340,9 @@ const Odontologo_page = () => {
                 ? (typeof targetDateOrRecord === 'string' ? targetDateOrRecord : fechaDeRegistro(targetDateOrRecord)).slice(0, 10)
                 : null;
             // Registro de la fecha de la atención o, sin fecha, el más reciente (las listas no vienen ordenadas igual)
-            const registroDeLaAtencion = (lista) => {
+            const registroDeLaAtencion = (lista, fecha = fechaObjetivo) => {
                 const ordenada = [...(lista || [])].sort((a, b) => (b.id || 0) - (a.id || 0));
-                if (fechaObjetivo) return ordenada.find(r => fechaDeRegistro(r) === fechaObjetivo) || {};
+                if (fecha) return ordenada.find(r => fechaDeRegistro(r) === fecha) || {};
                 return ordenada[0] || {};
             };
 
@@ -4346,7 +4374,7 @@ const Odontologo_page = () => {
 
             // Motivo de consulta
             const motivos = motivoRes?.data?.data || [];
-            const activeMotivo = registroDeLaAtencion(motivos);
+            let activeMotivo = registroDeLaAtencion(motivos);
 
             // Antecedentes
             const alergiasList = (patient.alergias || []).map(a => a.nombre_alergia || a.nombre).filter(Boolean);
@@ -4362,11 +4390,11 @@ const Odontologo_page = () => {
 
             // Examen Intra/Extrabucal
             const examenes = examenRes?.data?.data || [];
-            const activeExamen = registroDeLaAtencion(examenes);
+            let activeExamen = registroDeLaAtencion(examenes);
 
             // Periodontal
             const periodontales = periodontalRes?.data?.data || [];
-            const activePeriodontal = registroDeLaAtencion(periodontales);
+            let activePeriodontal = registroDeLaAtencion(periodontales);
 
             // Odontograma mapping (Permanent and Deciduous teeth in FDI system)
             const upperRightPermanent = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -4385,14 +4413,15 @@ const Odontologo_page = () => {
                 ...lowerRightPermanent, ...lowerLeftPermanent
             ];
 
+            // Estado de los dientes a partir de las marcas guardadas (y, para la atención en curso, del odontograma en pantalla)
+            const construirOdontograma = (asignaciones, usarEstadoEnMemoria) => {
             const teethState = {};
             allTeeth.forEach(num => {
                 teethState[num] = { top: 'sano', bottom: 'sano', left: 'sano', right: 'sano', center: 'sano', ausente: false };
             });
 
             // 1. Si es el paciente activo en la sesión actual, tomar su estado de odontograma en memoria React
-            const isCurrentActivePatient = String(actualPatientId) === String(selectedPatient?.id_usuario || selectedPatient?.id || selectedPatient?.id_paciente);
-            if (isCurrentActivePatient && odontogramaState) {
+            if (usarEstadoEnMemoria && odontogramaState) {
                 Object.keys(odontogramaState).forEach(numStr => {
                     const num = parseInt(numStr);
                     if (teethState[num] && odontogramaState[num]) {
@@ -4402,9 +4431,8 @@ const Odontologo_page = () => {
             }
 
             // 2. Recuperar asignaciones guardadas en BD
-            const odData = odontogramaRes?.data?.data || patientOdontograma || null;
-            if (odData && odData.asignaciones && odData.asignaciones.length > 0) {
-                odData.asignaciones.forEach(assign => {
+            if (asignaciones && asignaciones.length > 0) {
+                asignaciones.forEach(assign => {
                     const universalNum = assign.pieza ? assign.pieza.numero_pieza_dental : null;
                     if (!universalNum) return;
 
@@ -4425,13 +4453,29 @@ const Odontologo_page = () => {
                         const carillaName = assign.carilla ? assign.carilla.numero_carilla.toLowerCase() : '';
                         const face = getSvgFaceName(parseInt(fdiNum), carillaName);
                         if (face && teethState[fdiNum]) {
-                            if (!isCurrentActivePatient || teethState[fdiNum][face] === 'sano') {
+                            if (!usarEstadoEnMemoria || teethState[fdiNum][face] === 'sano') {
                                 teethState[fdiNum][face] = stateColor || assign.id_estado;
                             }
                         }
                     }
                 });
             }
+
+            return teethState;
+            };
+
+            const isCurrentActivePatient = String(actualPatientId) === String(selectedPatient?.id_usuario || selectedPatient?.id || selectedPatient?.id_paciente);
+            const odData = odontogramaRes?.data?.data || patientOdontograma || null;
+            const historialOdontograma = historialOdontogramaRes?.data?.data || [];
+            // Odontograma tal como quedó en la última atención hasta esa fecha; sin foto guardada
+            // (atenciones anteriores a este registro) se usa el estado actual.
+            const asignacionesDeFecha = (fecha) => {
+                const fotos = historialOdontograma.filter(h => String(h.fecha).slice(0, 10) <= fecha);
+                return fotos.length ? (fotos[fotos.length - 1].asignaciones || []) : (odData?.asignaciones || []);
+            };
+            let teethState = fechaObjetivo
+                ? construirOdontograma(asignacionesDeFecha(fechaObjetivo), false)
+                : construirOdontograma(odData?.asignaciones || [], isCurrentActivePatient);
 
             const stateColors = {
                 1: '#ef4444',
@@ -4566,6 +4610,7 @@ const Odontologo_page = () => {
             });
 
             // Construir filas según estrictamente la cantidad de citas del tratamiento (1 fila para primarias, N filas para historial)
+            const filasEvolucion = (targetCitas) => {
             let evolutionsRows = '';
             if (targetCitas.length > 0) {
                 evolutionsRows = targetCitas.map(ev => {
@@ -4619,83 +4664,14 @@ const Odontologo_page = () => {
                 `;
             }
 
-            // 2. Generate HTML layout matching the exact printable dental clinical history and evolution sheet
-            const htmlContent = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Historia Clínica Odontológica - Hoja de Evolución</title>
-    <style>
-        @page {
-            size: A4 portrait;
-            margin: 8mm 10mm;
-        }
-        * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #000000;
-            margin: 0;
-            padding: 20px;
-            background-color: #f1f5f9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .page-sheet {
-            background-color: #ffffff;
-            width: 210mm;
-            min-height: 297mm;
-            padding: 10mm 12mm;
-            box-sizing: border-box;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            margin-bottom: 25px;
-        }
-        .page-break {
-            page-break-after: always;
-            break-after: page;
-            height: 0;
-            display: block;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-        @media screen {
-            body {
-                background-color: #cbd5e1;
-                padding: 20px;
-            }
-            .page-sheet {
-                box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-            }
-        }
-        @media print {
-            body {
-                background-color: transparent !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                display: block !important;
-            }
-            .page-sheet {
-                width: 100% !important;
-                min-height: auto !important;
-                padding: 0 !important;
-                box-shadow: none !important;
-                margin: 0 0 20px 0 !important;
-                background-color: transparent !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-        }
-    </style>
-</head>
-<body>
+            return evolutionsRows;
+            };
+            let evolutionsRows = filasEvolucion(targetCitas);
+
+            // Hojas de una atención (historia clínica + hoja de evolución) con los datos vigentes
+            const fechaLegible = (v) => v ? String(v).slice(0, 10).split('-').reverse().join('/') : '';
+            let fechaHoja = fechaObjetivo ? fechaLegible(fechaObjetivo) : printDate;
+            const hojasHtml = () => `
 
     <!-- ========================================== -->
     <!-- HOJA 1: HISTORIA CLÍNICA ODONTOLÓGICA      -->
@@ -4732,7 +4708,7 @@ const Odontologo_page = () => {
                     <strong>EDAD:</strong> ${escapeHtml(patientAge)}
                 </td>
                 <td style="padding: 3px 6px; border: 1px solid #000; width: 13%;">
-                    <strong>FECHA:</strong> ${escapeHtml(printDate)}
+                    <strong>FECHA:</strong> ${escapeHtml(fechaHoja)}
                 </td>
             </tr>
         </table>
@@ -4753,7 +4729,7 @@ const Odontologo_page = () => {
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Cuándo fue su última visita el odontólogo?</td>
-                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(activeMotivo.ultima_visita_fecha || '')}</td>
+                    <td colspan="2" style="border: 1px solid #000; padding: 3px 6px;">${escapeHtml(fechaLegible(activeMotivo.ultima_visita_fecha))}</td>
                 </tr>
                 <tr>
                     <td style="border: 1px solid #000; padding: 3px 6px; background: #e0e0e0; font-weight: bold;">¿Esta Ud. en algún tratamiento?</td>
@@ -5010,6 +4986,103 @@ const Odontologo_page = () => {
         </table>
     </div>
 
+`;
+
+            let cuerpo;
+            if (alcance === 'todo' && targetCitas.length > 0) {
+                // Una historia completa por cita: su motivo, exámenes, odontograma y evolución
+                cuerpo = targetCitas.map(cita => {
+                    const fecha = fechaDeRegistro(cita);
+                    activeMotivo = registroDeLaAtencion(motivos, fecha);
+                    activeExamen = registroDeLaAtencion(examenes, fecha);
+                    activePeriodontal = registroDeLaAtencion(periodontales, fecha);
+                    teethState = construirOdontograma(asignacionesDeFecha(fecha), false);
+                    evolutionsRows = filasEvolucion([cita]);
+                    fechaHoja = fechaLegible(fecha);
+                    return hojasHtml();
+                }).join('\n    <div class="page-break"></div>\n');
+            } else {
+                cuerpo = hojasHtml();
+            }
+
+            // 2. Generate HTML layout matching the exact printable dental clinical history and evolution sheet
+            const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historia Clínica Odontológica - Hoja de Evolución</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+        }
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #000000;
+            margin: 0;
+            padding: 20px;
+            background-color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .page-sheet {
+            background-color: #ffffff;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm 12mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+        }
+        .page-break {
+            page-break-after: always;
+            break-after: page;
+            height: 0;
+            display: block;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        @media screen {
+            body {
+                background-color: #cbd5e1;
+                padding: 20px;
+            }
+            .page-sheet {
+                box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            }
+        }
+        @media print {
+            body {
+                background-color: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                display: block !important;
+            }
+            .page-sheet {
+                width: 100% !important;
+                min-height: auto !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                margin: 0 0 20px 0 !important;
+                background-color: transparent !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+${cuerpo}
     <script>
         window.onload = function() {
             setTimeout(function() {
