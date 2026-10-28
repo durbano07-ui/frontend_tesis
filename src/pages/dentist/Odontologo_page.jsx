@@ -849,7 +849,7 @@ const Odontologo_page = () => {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1); // 1-12
     const [reportYear, setReportYear] = useState(new Date().getFullYear());
-    const [reportInsumosFecha, setReportInsumosFecha] = useState(new Date().toISOString().slice(0, 10));
+    const [reportInsumosFecha, setReportInsumosFecha] = useState(getLocalDateString());
     const [allParteDiarioForDiagnosis, setAllParteDiarioForDiagnosis] = useState([]);
     const [reportLoading, setReportLoading] = useState(false);
 
@@ -2271,13 +2271,12 @@ const Odontologo_page = () => {
     };
 
     const compileInsumosReportHtmlString = () => {
-        // Filtramos consumos para el mes/año seleccionado de forma segura mediante slice
+        // Consumos del día seleccionado
         const filteredConsumos = insumosPacienteList.filter(item => {
             const rawDate = item.fecha || item.created_at || '';
             if (!rawDate) return false;
-            const dateStr = String(rawDate).slice(0, 7); // "YYYY-MM"
-            const targetMonthStr = `${reportYear}-${String(reportMonth).padStart(2, '0')}`;
-            return dateStr === targetMonthStr;
+            // Solo los consumos del día elegido (fecha local; created_at viene en UTC)
+            return (item.fecha ? String(item.fecha).slice(0, 10) : getLocalDateString(new Date(rawDate))) === reportInsumosFecha;
         });
 
         // Agrupamos por paciente
@@ -2287,7 +2286,10 @@ const Odontologo_page = () => {
         };
 
         const getPatientDiagnosis = (patientId) => {
-            const patientParts = allParteDiarioForDiagnosis.filter(p => parseInt(p.id_usuario_paciente) === parseInt(patientId));
+            const delPaciente = allParteDiarioForDiagnosis.filter(p => parseInt(p.id_usuario_paciente) === parseInt(patientId));
+            // Diagnóstico de la atención de ese día; si no hay, el más reciente
+            const delDia = delPaciente.filter(p => String(p.fecha || '').slice(0, 10) === reportInsumosFecha);
+            const patientParts = delDia.length > 0 ? delDia : delPaciente;
             if (patientParts.length > 0) {
                 const sorted = [...patientParts].sort((a, b) => {
                     const dateA = a.fecha || '';
@@ -2321,8 +2323,6 @@ const Odontologo_page = () => {
             totalPorciones[insumo.id] = rows.reduce((acc, row) => acc + (row.consumos[insumo.id] || 0), 0);
         });
 
-        const monthsText = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        const selectedMonthText = monthsText[reportMonth - 1];
 
         // Generar HTML de las filas
         let tableRowsHtml = '';
@@ -2398,7 +2398,7 @@ const Odontologo_page = () => {
             <!DOCTYPE html>
             <html lang="es">
             <head>
-                <title>Reporte de Insumos - ${escapeHtml(selectedMonthText)} ${escapeHtml(reportYear)}</title>
+                <title>Reporte de Insumos - ${escapeHtml(reportInsumosFecha.split('-').reverse().join('/'))}</title>
                 <style>
                     @page { size: landscape; margin: 10mm; }
                     body { font-family: Arial, sans-serif; font-size: 10px; color: #000; margin: 0; padding: 20px; }
@@ -2427,7 +2427,7 @@ const Odontologo_page = () => {
                         <div><strong>ODONTÓLOGO/A:</strong> ${escapeHtml(doctorNameText)}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div><strong>MES/AÑO:</strong> ${escapeHtml(selectedMonthText.toUpperCase())} ${escapeHtml(reportYear)}</div>
+                        <div><strong>FECHA:</strong> ${escapeHtml(reportInsumosFecha.split('-').reverse().join('/'))}</div>
                     </div>
                 </div>
 
@@ -2435,7 +2435,7 @@ const Odontologo_page = () => {
                     <thead>
                         <tr>
                             <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 35px; font-weight: bold;">N. Pacientes</th>
-                            <th style="border: 1px solid #000; padding: 4px; text-align: left; min-width: 130px; font-weight: bold;">Nombre de Usuario</th>
+                            <th style="border: 1px solid #000; padding: 4px; text-align: left; min-width: 130px; font-weight: bold;">Nombre del Paciente</th>
                             ${insumoHeaders}
                             <th style="border: 1px solid #000; padding: 4px; text-align: left; min-width: 150px; font-weight: bold;">Diagnóstico</th>
                         </tr>
@@ -7120,7 +7120,7 @@ ${cuerpo}
                                                                 <div><strong>ODONTÓLOGO UNIDAD OPERATIVA:</strong> {user?.name ? user.name.toUpperCase() : 'PROFESIONAL RESPONSABLE'}</div>
                                                             </div>
                                                             <div style={{ textAlign: 'right' }}>
-                                                                <div><strong>MES/AÑO:</strong> {reportMonth.toString().padStart(2, '0')}/{reportYear}</div>
+                                                                <div><strong>FECHA:</strong> {reportInsumosFecha.split('-').reverse().join('/')}</div>
                                                             </div>
                                                         </div>
 
@@ -7130,7 +7130,7 @@ ${cuerpo}
                                                                 <thead>
                                                                     <tr>
                                                                         <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', width: '40px', fontWeight: 'bold' }}>N. Pacientes</th>
-                                                                        <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', minWidth: '150px', fontWeight: 'bold' }}>Nombre de Usuario</th>
+                                                                        <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left', minWidth: '150px', fontWeight: 'bold' }}>Nombre del Paciente</th>
 
                                                                         {/* Encabezados verticales dinámicos para cada insumo */}
                                                                         {insumosCatalogo.map(insumo => (
@@ -7146,13 +7146,12 @@ ${cuerpo}
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Filtramos consumos para el mes/año seleccionado de forma segura mediante slice
+                                                                        // Consumos del día seleccionado
                                                                         const filteredConsumos = insumosPacienteList.filter(item => {
                                                                             const rawDate = item.fecha || item.created_at || '';
                                                                             if (!rawDate) return false;
-                                                                            const dateStr = String(rawDate).slice(0, 7); // "YYYY-MM"
-                                                                            const targetMonthStr = `${reportYear}-${String(reportMonth).padStart(2, '0')}`;
-                                                                            return dateStr === targetMonthStr;
+                                                                            // Solo los consumos del día elegido (fecha local; created_at viene en UTC)
+                                                                            return (item.fecha ? String(item.fecha).slice(0, 10) : getLocalDateString(new Date(rawDate))) === reportInsumosFecha;
                                                                         });
 
                                                                         // Agrupamos por paciente
@@ -7162,7 +7161,10 @@ ${cuerpo}
                                                                         };
 
                                                                         const getPatientDiagnosis = (patientId) => {
-                                                                            const patientParts = allParteDiarioForDiagnosis.filter(p => parseInt(p.id_usuario_paciente) === parseInt(patientId));
+                                                                            const delPaciente = allParteDiarioForDiagnosis.filter(p => parseInt(p.id_usuario_paciente) === parseInt(patientId));
+            // Diagnóstico de la atención de ese día; si no hay, el más reciente
+            const delDia = delPaciente.filter(p => String(p.fecha || '').slice(0, 10) === reportInsumosFecha);
+            const patientParts = delDia.length > 0 ? delDia : delPaciente;
                                                                             if (patientParts.length > 0) {
                                                                                 const sorted = [...patientParts].sort((a, b) => {
                                                                                     const dateA = a.fecha || '';
