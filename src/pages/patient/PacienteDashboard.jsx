@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
@@ -1008,6 +1008,37 @@ const PacienteDashboard = () => {
             });
         }
     }, [selectedRolDoctor]);
+
+    // El tipo de usuario ya confirmado (TipoUsuarioModal) se muestra seleccionado; para cambiarlo
+    // primero se pide confirmación, así no se modifica por un clic accidental.
+    const tipoUsuarioSelectRef = useRef(null);
+    const [tipoUsuarioDesbloqueado, setTipoUsuarioDesbloqueado] = useState(false);
+    const tipoUsuarioBloqueado = !!profile?.career_study?.id_tipo_usuario && !tipoUsuarioDesbloqueado;
+
+    useEffect(() => {
+        setTipoUsuarioDesbloqueado(false);
+    }, [profile?.career_study?.id_tipo_usuario]);
+
+    const pedirCambioTipoUsuario = (e) => {
+        if (!tipoUsuarioBloqueado) return;
+        if (e.type === 'keydown' && e.key === 'Tab') return;
+        e.preventDefault();
+        setConfirmModal({
+            show: true,
+            title: 'Modificar Tipo de Usuario',
+            message: '¿Estás seguro de querer modificar este campo?',
+            confirmText: 'Sí, modificar',
+            cancelText: 'No',
+            onConfirm: () => {
+                setTipoUsuarioDesbloqueado(true);
+                setTimeout(() => {
+                    const select = tipoUsuarioSelectRef.current;
+                    select?.focus();
+                    try { select?.showPicker?.(); } catch { /* el navegador no permite abrirlo por código */ }
+                }, 0);
+            }
+        });
+    };
 
     const isProfileComplete = () => {
         const hasIdent = !!profile?.identification?.numero_cedula;
@@ -2436,7 +2467,10 @@ const PacienteDashboard = () => {
                                                 </div>
                                             </div>
                                             <select aria-labelledby="pacientedash-tipo-de-usuario-institucional-titulo"
+                                                ref={tipoUsuarioSelectRef}
                                                 value={academicForm.id_tipo_usuario}
+                                                onMouseDown={pedirCambioTipoUsuario}
+                                                onKeyDown={pedirCambioTipoUsuario}
                                                 onChange={e => {
                                                     const nextType = e.target.value;
                                                     setAcademicForm({
