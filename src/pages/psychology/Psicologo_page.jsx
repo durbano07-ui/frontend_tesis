@@ -2197,7 +2197,21 @@ const Psicologo_page = () => {
         });
     };
 
-    const handleDownloadHistoriaClinicaPdf = async (patientId, recordId) => {
+    // Ver detalle: la historia se arma por parte diario; una sesión de evolución usa el parte de su fecha
+    const handleVerDetalleConsulta = (registro) => {
+        const pid = selectedPatient?.id_usuario || selectedPatient?.id;
+        const diario = registro?.type === 'diario'
+            ? registro
+            : (areaHistories.psicologia || []).find(r => r.type === 'diario' && String(r.fecha || '').slice(0, 10) === String(registro?.fecha || '').slice(0, 10));
+        handleDownloadHistoriaClinicaPdf(pid, diario?.id ?? registro?.id);
+    };
+
+    /**
+     * recordId: parte diario de la consulta a imprimir (Ver detalle). opciones.alcance === 'todo': una
+     * historia clínica y hoja de evolución por cada consulta del paciente (Ver todo el historial).
+     */
+    const handleDownloadHistoriaClinicaPdf = async (patientId, recordId, opciones = {}) => {
+        const { alcance } = opciones;
         showSystemToast("Generando reporte imprimible...");
         const actualPatientId = patientId || selectedPatient?.id_usuario || selectedPatient?.id;
         try {
@@ -2282,52 +2296,234 @@ const Psicologo_page = () => {
             // If the record is not found (e.g. evolucion type), fall back to last record
             const idx = consultationIndex >= 0 ? consultationIndex : sortedDiarios.length - 1;
 
-            const closestMotivo = getByIndex(motivoRes.data.data, idx);
-            const motivos = closestMotivo ? [closestMotivo] : [];
+            // Historia clínica y hoja de evolución de la consulta n.º idx (orden cronológico)
+            const paginasDeConsulta = (idx) => {
+                const closestMotivo = getByIndex(motivoRes.data.data, idx);
+                const motivos = closestMotivo ? [closestMotivo] : [];
 
-            const allPsicoPersonal = psicoRes.data.data.filter(item => item.tipo === 'personal');
-            const closestPsicoPersonal = getByIndex(allPsicoPersonal, idx);
-            const psico_personal = closestPsicoPersonal ? [closestPsicoPersonal] : [];
+                const allPsicoPersonal = psicoRes.data.data.filter(item => item.tipo === 'personal');
+                const closestPsicoPersonal = getByIndex(allPsicoPersonal, idx);
+                const psico_personal = closestPsicoPersonal ? [closestPsicoPersonal] : [];
 
-            const allPsicoFamiliar = psicoRes.data.data.filter(item => item.tipo === 'familiar');
-            const closestPsicoFamiliar = getByIndex(allPsicoFamiliar, idx);
-            const psico_familiar = closestPsicoFamiliar ? [closestPsicoFamiliar] : [];
+                const allPsicoFamiliar = psicoRes.data.data.filter(item => item.tipo === 'familiar');
+                const closestPsicoFamiliar = getByIndex(allPsicoFamiliar, idx);
+                const psico_familiar = closestPsicoFamiliar ? [closestPsicoFamiliar] : [];
 
-            const closestLaboral = getByIndex(laboralRes.data.data, idx);
-            const laborales = closestLaboral ? [closestLaboral] : [];
+                const closestLaboral = getByIndex(laboralRes.data.data, idx);
+                const laborales = closestLaboral ? [closestLaboral] : [];
 
-            const closestSocial = getByIndex(socialRes.data.data, idx);
-            const sociales = closestSocial ? [closestSocial] : [];
+                const closestSocial = getByIndex(socialRes.data.data, idx);
+                const sociales = closestSocial ? [closestSocial] : [];
 
-            const closestSexual = getByIndex(sexualRes.data.data, idx);
-            const sexuales = closestSexual ? [closestSexual] : [];
+                const closestSexual = getByIndex(sexualRes.data.data, idx);
+                const sexuales = closestSexual ? [closestSexual] : [];
 
-            const closestPatologia = getByIndex(patologiaRes.data.data, idx);
-            const patologias = closestPatologia ? [closestPatologia] : [];
+                const closestPatologia = getByIndex(patologiaRes.data.data, idx);
+                const patologias = closestPatologia ? [closestPatologia] : [];
 
-            const closestMental = getByIndex(mentalRes.data.data, idx);
-            const mental = closestMental || {};
+                const closestMental = getByIndex(mentalRes.data.data, idx);
+                const mental = closestMental || {};
 
-            const closestPrueba = getByIndex(pruebasRes.data.data, idx);
-            const pruebas = closestPrueba ? [closestPrueba] : [];
+                const closestPrueba = getByIndex(pruebasRes.data.data, idx);
+                const pruebas = closestPrueba ? [closestPrueba] : [];
 
-            const closestAnalisis = getByIndex(analisisRes.data.data, idx);
-            const analisis = closestAnalisis ? [closestAnalisis] : [];
+                const closestAnalisis = getByIndex(analisisRes.data.data, idx);
+                const analisis = closestAnalisis ? [closestAnalisis] : [];
 
-            const closestConclusion = getByIndex(conclusionesRes.data.data, idx);
-            const conclusiones = closestConclusion ? [closestConclusion] : [];
+                const closestConclusion = getByIndex(conclusionesRes.data.data, idx);
+                const conclusiones = closestConclusion ? [closestConclusion] : [];
 
-            const closestDiagnostico = getByIndex(diagnosticoRes.data.data, idx);
-            const diagnosticos = closestDiagnostico ? [closestDiagnostico] : [];
+                const closestDiagnostico = getByIndex(diagnosticoRes.data.data, idx);
+                const diagnosticos = closestDiagnostico ? [closestDiagnostico] : [];
 
-            const closestPronostico = getByIndex(pronosticoRes.data.data, idx);
-            const pronosticos = closestPronostico ? [closestPronostico] : [];
+                const closestPronostico = getByIndex(pronosticoRes.data.data, idx);
+                const pronosticos = closestPronostico ? [closestPronostico] : [];
 
-            const closestRecomendacion = getByIndex(recomendacionRes.data.data, idx);
-            const recomendaciones = closestRecomendacion ? [closestRecomendacion] : [];
+                const closestRecomendacion = getByIndex(recomendacionRes.data.data, idx);
+                const recomendaciones = closestRecomendacion ? [closestRecomendacion] : [];
 
-            const closestEvolucion = getByIndex(evolucionRes.data.data, idx);
-            const evoluciones = closestEvolucion ? [closestEvolucion] : [];
+                const closestEvolucion = getByIndex(evolucionRes.data.data, idx);
+                const evoluciones = closestEvolucion ? [closestEvolucion] : [];
+                const consulta = sortedDiarios[idx];
+                const fechaConsulta = consulta ? String(consulta.fecha || consulta.created_at || '').slice(0, 10).split('-').reverse().join('/') : '';
+                return `
+    <div class="page-break"></div>
+    <div class="page-sheet">
+
+    <!-- PAGINA 2: HISTORIA CLÍNICA PSICOLÓGICA -->
+    <table class="header-table">
+        <tr>
+            <td class="header-title">Historia Clínica Psicológica${fechaConsulta ? ` — Consulta del ${fechaConsulta}` : ''}</td>
+            <td class="header-logo-container">
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+            </td>
+        </tr>
+    </table>
+
+    <div class="clinical-history-section-header">1 Motivo de Consulta</div>
+    <div class="clinical-history-section-content">
+        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">2 Fuentes de Información</div>
+    <div class="clinical-history-section-content">
+        Familiar, entrevista con paciente.
+    </div>
+
+    <div class="clinical-history-section-header">3 Psicoanamnesis Personal</div>
+    <div class="clinical-history-section-content">
+        ${psico_personal.length > 0 ? psico_personal.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">4 Psicoanamnesis Familiar</div>
+    <div class="clinical-history-section-content">
+        ${psico_familiar.length > 0 ? psico_familiar.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">5 Historia Laboral</div>
+    <div class="clinical-history-section-content">
+        ${laborales.length > 0 ? laborales.map(l => `<div>• ${escapeHtml(l.detalle_laboral)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">6 Historia Social</div>
+    <div class="clinical-history-section-content">
+        ${sociales.length > 0 ? sociales.map(s => `<div>• ${escapeHtml(s.detalle_social)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">7 Historia Sexual</div>
+    <div class="clinical-history-section-content">
+        ${sexuales.length > 0 ? sexuales.map(s => `<div>• ${escapeHtml(s.detalle_sexual)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">8 Patologías</div>
+    <div class="clinical-history-section-content">
+        ${patologias.length > 0 ? patologias.map(p => `<div>• ${escapeHtml(p.detalle_patologia)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">9 Examen Estado Mental</div>
+    <table class="data-table" style="margin-bottom: 12px;">
+        <tbody>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">APARIENCIA</td>
+                <td style="width: 30%;">${escapeHtml(mental.apariencia || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">ORIENTACIÓN</td>
+                <td style="width: 30%;">${escapeHtml(mental.orientacion || '—')}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc;">ACTITUD</td>
+                <td>${escapeHtml(mental.actitud || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc;">ATENCIÓN</td>
+                <td>${escapeHtml(mental.atencion || '—')}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc;">JUICIO</td>
+                <td>${escapeHtml(mental.juicio || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc;">MEMORIA</td>
+                <td>${escapeHtml(mental.memoria || '—')}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc;">SUEÑO</td>
+                <td>${escapeHtml(mental.sueno || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc;">LENGUAJE</td>
+                <td>${escapeHtml(mental.lenguaje || '—')}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc;">APETITO</td>
+                <td>${escapeHtml(mental.apetito || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc;">PENSAMIENTO</td>
+                <td>${escapeHtml(mental.pensamiento || '—')}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; background-color: #f8fafc;">AFECTIVIDAD</td>
+                <td>${escapeHtml(mental.afectividad || '—')}</td>
+                <td style="font-weight: bold; background-color: #f8fafc;">CONDUCTA MOTORA</td>
+                <td>${escapeHtml(mental.conducta_motora || '—')}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="clinical-history-section-header">10 Pruebas Psicológicas Aplicadas</div>
+    <div class="clinical-history-section-content">
+        ${pruebas.length > 0 ? pruebas.map(p => `<div>• ${escapeHtml(p.detalle_prueba_aplicada)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    </div>
+    <div class="page-break"></div>
+    <div class="page-sheet">
+
+    <!-- PAGINA 3: EVALUACIÓN Y RESULTADOS -->
+    <table class="header-table">
+        <tr>
+            <td class="header-title">Evaluación Psicológica y Resultados</td>
+            <td class="header-logo-container">
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+            </td>
+        </tr>
+    </table>
+
+    <div class="clinical-history-section-header">11 Análisis e Interpretación de Resultados</div>
+    <div class="clinical-history-section-content">
+        ${analisis.length > 0 ? analisis.map(a => `<div>• ${escapeHtml(a.detalle_analisis_resultados)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">12 Conclusiones</div>
+    <div class="clinical-history-section-content">
+        ${conclusiones.length > 0 ? conclusiones.map(c => `<div>• ${escapeHtml(c.detalle_conclusion)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">13 Diagnóstico</div>
+    <div class="clinical-history-section-content">
+        ${diagnosticos.length > 0 ? diagnosticos.map(d => `<div>• ${escapeHtml(d.detalle_diagnostico)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">14 Pronóstico</div>
+    <div class="clinical-history-section-content">
+        ${pronosticos.length > 0 ? pronosticos.map(p => `<div>• ${escapeHtml(p.detalle_pronostico)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">15 Recomendaciones</div>
+    <div class="clinical-history-section-content">
+        ${recomendaciones.length > 0 ? recomendaciones.map(r => `<div>• ${escapeHtml(r.detalle_recomendacion)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    </div>
+    <div class="page-break"></div>
+    <div class="page-sheet">
+
+    <!-- PAGINA 4: HOJA DE EVOLUCIÓN PSICOLOGÍA -->
+    <table class="header-table">
+        <tr>
+            <td class="header-title">Hoja de Evolución Psicología</td>
+            <td class="header-logo-container">
+                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
+            </td>
+        </tr>
+    </table>
+
+    <table class="data-table">
+        <thead>
+            <tr class="form-label">
+                <th style="width: 15%;">Fecha</th>
+                <th style="width: 15%;">Sesión Nº</th>
+                <th style="width: 70%;">Evolución</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${evoluciones.length > 0 ? evoluciones.map(ev => `
+                <tr style="font-size: 10px; vertical-align: top;">
+                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha || (ev.created_at ? ev.created_at.slice(0, 10) : ''))}</td>
+                    <td class="text-center" style="padding: 10px 5px; font-weight: bold;">Sesión #${escapeHtml(ev.sesion_numero)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
+        </tbody>
+    </table>
+    </div>
+`;
+            };
+            const paginas = alcance === 'todo' && sortedDiarios.length > 0
+                ? sortedDiarios.map((_, i) => paginasDeConsulta(i)).join('')
+                : paginasDeConsulta(idx);
 
             // 2. Generate HTML layout matching the psychology printable sheet
             const htmlContent = `
@@ -2614,178 +2810,7 @@ const Psicologo_page = () => {
     </table>
 
     </div>
-    <div class="page-break"></div>
-    <div class="page-sheet">
-
-    <!-- PAGINA 2: HISTORIA CLÍNICA PSICOLÓGICA -->
-    <table class="header-table">
-        <tr>
-            <td class="header-title">Historia Clínica Psicológica</td>
-            <td class="header-logo-container">
-                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
-            </td>
-        </tr>
-    </table>
-
-    <div class="clinical-history-section-header">1 Motivo de Consulta</div>
-    <div class="clinical-history-section-content">
-        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">2 Fuentes de Información</div>
-    <div class="clinical-history-section-content">
-        Familiar, entrevista con paciente.
-    </div>
-
-    <div class="clinical-history-section-header">3 Psicoanamnesis Personal</div>
-    <div class="clinical-history-section-content">
-        ${psico_personal.length > 0 ? psico_personal.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">4 Psicoanamnesis Familiar</div>
-    <div class="clinical-history-section-content">
-        ${psico_familiar.length > 0 ? psico_familiar.map(p => `<div>• ${escapeHtml(p.detalle_psicoanamnesis)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">5 Historia Laboral</div>
-    <div class="clinical-history-section-content">
-        ${laborales.length > 0 ? laborales.map(l => `<div>• ${escapeHtml(l.detalle_laboral)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">6 Historia Social</div>
-    <div class="clinical-history-section-content">
-        ${sociales.length > 0 ? sociales.map(s => `<div>• ${escapeHtml(s.detalle_social)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">7 Historia Sexual</div>
-    <div class="clinical-history-section-content">
-        ${sexuales.length > 0 ? sexuales.map(s => `<div>• ${escapeHtml(s.detalle_sexual)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">8 Patologías</div>
-    <div class="clinical-history-section-content">
-        ${patologias.length > 0 ? patologias.map(p => `<div>• ${escapeHtml(p.detalle_patologia)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">9 Examen Estado Mental</div>
-    <table class="data-table" style="margin-bottom: 12px;">
-        <tbody>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">APARIENCIA</td>
-                <td style="width: 30%;">${escapeHtml(mental.apariencia || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc; width: 20%;">ORIENTACIÓN</td>
-                <td style="width: 30%;">${escapeHtml(mental.orientacion || '—')}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc;">ACTITUD</td>
-                <td>${escapeHtml(mental.actitud || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc;">ATENCIÓN</td>
-                <td>${escapeHtml(mental.atencion || '—')}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc;">JUICIO</td>
-                <td>${escapeHtml(mental.juicio || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc;">MEMORIA</td>
-                <td>${escapeHtml(mental.memoria || '—')}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc;">SUEÑO</td>
-                <td>${escapeHtml(mental.sueno || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc;">LENGUAJE</td>
-                <td>${escapeHtml(mental.lenguaje || '—')}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc;">APETITO</td>
-                <td>${escapeHtml(mental.apetito || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc;">PENSAMIENTO</td>
-                <td>${escapeHtml(mental.pensamiento || '—')}</td>
-            </tr>
-            <tr>
-                <td style="font-weight: bold; background-color: #f8fafc;">AFECTIVIDAD</td>
-                <td>${escapeHtml(mental.afectividad || '—')}</td>
-                <td style="font-weight: bold; background-color: #f8fafc;">CONDUCTA MOTORA</td>
-                <td>${escapeHtml(mental.conducta_motora || '—')}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="clinical-history-section-header">10 Pruebas Psicológicas Aplicadas</div>
-    <div class="clinical-history-section-content">
-        ${pruebas.length > 0 ? pruebas.map(p => `<div>• ${escapeHtml(p.detalle_prueba_aplicada)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    </div>
-    <div class="page-break"></div>
-    <div class="page-sheet">
-
-    <!-- PAGINA 3: EVALUACIÓN Y RESULTADOS -->
-    <table class="header-table">
-        <tr>
-            <td class="header-title">Evaluación Psicológica y Resultados</td>
-            <td class="header-logo-container">
-                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
-            </td>
-        </tr>
-    </table>
-
-    <div class="clinical-history-section-header">11 Análisis e Interpretación de Resultados</div>
-    <div class="clinical-history-section-content">
-        ${analisis.length > 0 ? analisis.map(a => `<div>• ${escapeHtml(a.detalle_analisis_resultados)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">12 Conclusiones</div>
-    <div class="clinical-history-section-content">
-        ${conclusiones.length > 0 ? conclusiones.map(c => `<div>• ${escapeHtml(c.detalle_conclusion)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">13 Diagnóstico</div>
-    <div class="clinical-history-section-content">
-        ${diagnosticos.length > 0 ? diagnosticos.map(d => `<div>• ${escapeHtml(d.detalle_diagnostico)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">14 Pronóstico</div>
-    <div class="clinical-history-section-content">
-        ${pronosticos.length > 0 ? pronosticos.map(p => `<div>• ${escapeHtml(p.detalle_pronostico)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">15 Recomendaciones</div>
-    <div class="clinical-history-section-content">
-        ${recomendaciones.length > 0 ? recomendaciones.map(r => `<div>• ${escapeHtml(r.detalle_recomendacion)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    </div>
-    <div class="page-break"></div>
-    <div class="page-sheet">
-
-    <!-- PAGINA 4: HOJA DE EVOLUCIÓN PSICOLOGÍA -->
-    <table class="header-table">
-        <tr>
-            <td class="header-title">Hoja de Evolución Psicología</td>
-            <td class="header-logo-container">
-                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 48px; width: auto; max-width: 140px; object-fit: contain;" />
-            </td>
-        </tr>
-    </table>
-
-    <table class="data-table">
-        <thead>
-            <tr class="form-label">
-                <th style="width: 15%;">Fecha</th>
-                <th style="width: 15%;">Sesión Nº</th>
-                <th style="width: 70%;">Evolución</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${evoluciones.length > 0 ? evoluciones.map(ev => `
-                <tr style="font-size: 10px; vertical-align: top;">
-                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha || (ev.created_at ? ev.created_at.slice(0, 10) : ''))}</td>
-                    <td class="text-center" style="padding: 10px 5px; font-weight: bold;">Sesión #${escapeHtml(ev.sesion_numero)}</td>
-                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
-        </tbody>
-    </table>
-    </div>
+${paginas}
 </body>
 </html>
             `;
@@ -3352,12 +3377,23 @@ const Psicologo_page = () => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <button
-                                            className="action-button action-button--accent"
-                                            onClick={() => { setModalSearchCedula(''); setModalSearchResults([]); setIsPatientSearchOpen(true); }}
-                                        >
-                                            <Search size={14} /> Buscar Paciente
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                            {selectedPatient && (
+                                                <button
+                                                    type="button"
+                                                    className="action-button action-button--primary"
+                                                    onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, null, { alcance: 'todo' })}
+                                                >
+                                                    <FileText size={14} /> Ver todo el historial del paciente
+                                                </button>
+                                            )}
+                                            <button
+                                                className="action-button action-button--accent"
+                                                onClick={() => { setModalSearchCedula(''); setModalSearchResults([]); setIsPatientSearchOpen(true); }}
+                                            >
+                                                <Search size={14} /> Buscar Paciente
+                                            </button>
+                                        </div>
                                     </div>
                                 </section>
 
@@ -3611,9 +3647,11 @@ const Psicologo_page = () => {
                                                                                                                     alignItems: 'center',
                                                                                                                     justifyContent: 'center'
                                                                                                                 }}
+                                                                                                                title="Abrir la ficha con toda la información de esta consulta"
                                                                                                                 onClick={(e) => {
                                                                                                                     e.stopPropagation();
                                                                                                                     setActiveBookRecord(cita);
+                                                                                                                    handleVerDetalleConsulta(cita);
                                                                                                                 }}
                                                                                                             >
                                                                                                                 Ver Detalle
@@ -3716,9 +3754,11 @@ const Psicologo_page = () => {
                                                                                                 width: '100%',
                                                                                                 maxWidth: '82px'
                                                                                             }}
+                                                                                            title="Abrir la ficha con toda la información de esta consulta"
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
                                                                                                 setActiveBookRecord(record);
+                                                                                                handleVerDetalleConsulta(record);
                                                                                             }}
                                                                                         >
                                                                                             Ver Detalle
@@ -3783,15 +3823,6 @@ const Psicologo_page = () => {
                                                         </div>
 
                                                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                                                            <button
-                                                                type="button"
-                                                                className="action-button action-button--accent"
-                                                                style={{ fontSize: '11px', minHeight: '30px', padding: '0 10px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                                                                onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, activeBookRecord?.id)}
-                                                                title="Descargar Historia Clínica PDF"
-                                                            >
-                                                                <FileText size={13} /> PDF
-                                                            </button>
                                                             <button
                                                                 type="button"
                                                                 className="action-button action-button--light"

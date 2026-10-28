@@ -905,6 +905,7 @@ export default function MedicoOcupacionalPage() {
                 else if (deFarmacia.every(l => l.despachado)) estado = deFarmacia.length === lineas.length ? 'Dispensado en Farmacia' : 'Dispensación Parcial';
                 return {
                     id: r.id,
+                    id_usuario_paciente: r.id_usuario_paciente,
                     numero_receta: `REC-${r.id}`,
                     fecha: r.fecha,
                     cie: r.cie || '',
@@ -920,10 +921,27 @@ export default function MedicoOcupacionalPage() {
                 };
             });
             setRecetasData(recetas);
+            return recetas;
         } catch (err) {
             console.error('No se pudo cargar el recetario:', err);
             showSystemToast(`No se pudo cargar el recetario: ${err.response?.data?.message || 'sin conexión con el servidor'}.`);
+            return null;
         }
+    };
+
+    // "Ver receta" de una atención en la pestaña Evolución: recetas ocupacionales del paciente ese día
+    const handleVerRecetaAtencion = async (record) => {
+        const recetas = await fetchRecetasOcupacionales();
+        if (!recetas) return;
+        const fecha = String(record?.fecha || record?.created_at || '').slice(0, 10);
+        const delDia = recetas.filter(r =>
+            String(r.id_usuario_paciente) === String(patientSelected?.id) && String(r.fecha || '').slice(0, 10) === fecha
+        );
+        if (delDia.length === 0) {
+            showSystemToast('Esta atención no tiene receta registrada.');
+            return;
+        }
+        delDia.forEach(handlePrintRecetaForm);
     };
 
     // --- Matrices estadísticas guardadas en el backend ---
@@ -5516,7 +5534,7 @@ export default function MedicoOcupacionalPage() {
                                                                                             <col style={{ width: '92px' }} />
                                                                                             <col style={{ width: '96px' }} />
                                                                                             <col style={{ width: 'auto' }} />
-                                                                                            <col style={{ width: '92px' }} />
+                                                                                            <col style={{ width: '178px' }} />
                                                                                         </colgroup>
                                                                                         <thead>
                                                                                             <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
@@ -5552,14 +5570,27 @@ export default function MedicoOcupacionalPage() {
                                                                                                             {detalleRegistro(record)}
                                                                                                         </td>
                                                                                                         <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                                                                                            <button
-                                                                                                                type="button"
-                                                                                                                className="action-button action-button--primary"
-                                                                                                                style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap', width: '100%', maxWidth: '82px' }}
-                                                                                                                onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
-                                                                                                            >
-                                                                                                                Ver Detalle
-                                                                                                            </button>
+                                                                                                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                                                <button
+                                                                                                                    type="button"
+                                                                                                                    className="action-button action-button--primary"
+                                                                                                                    style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                                                    onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
+                                                                                                                >
+                                                                                                                    Ver Detalle
+                                                                                                                </button>
+                                                                                                                {record.type !== 'signos' && (
+                                                                                                                    <button
+                                                                                                                        type="button"
+                                                                                                                        className="action-button action-button--accent"
+                                                                                                                        style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                                                        title="Ver la receta emitida en esta atención"
+                                                                                                                        onClick={(e) => { e.stopPropagation(); handleVerRecetaAtencion(record); }}
+                                                                                                                    >
+                                                                                                                        Ver Receta
+                                                                                                                    </button>
+                                                                                                                )}
+                                                                                                            </div>
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                 );
@@ -5582,7 +5613,7 @@ export default function MedicoOcupacionalPage() {
                                                                     <col style={{ width: '118px' }} />
                                                                     <col style={{ width: '96px' }} />
                                                                     <col style={{ width: 'auto' }} />
-                                                                    <col style={{ width: '92px' }} />
+                                                                    <col style={{ width: '178px' }} />
                                                                 </colgroup>
                                                                 <thead>
                                                                     <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
@@ -5627,14 +5658,27 @@ export default function MedicoOcupacionalPage() {
                                                                                     {detalleRegistro(record)}
                                                                                 </td>
                                                                                 <td style={{ padding: '9px 10px', textAlign: 'center' }}>
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="action-button action-button--primary"
-                                                                                        style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap', width: '100%', maxWidth: '82px' }}
-                                                                                        onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
-                                                                                    >
-                                                                                        Ver Detalle
-                                                                                    </button>
+                                                                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="action-button action-button--primary"
+                                                                                            style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                            onClick={(e) => { e.stopPropagation(); setActiveBookRecord(record); }}
+                                                                                        >
+                                                                                            Ver Detalle
+                                                                                        </button>
+                                                                                        {record.type !== 'signos' && (
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                className="action-button action-button--accent"
+                                                                                                style={{ fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                                title="Ver la receta emitida en esta atención"
+                                                                                                onClick={(e) => { e.stopPropagation(); handleVerRecetaAtencion(record); }}
+                                                                                            >
+                                                                                                Ver Receta
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </td>
                                                                             </tr>
                                                                         );

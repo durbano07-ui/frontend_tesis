@@ -50,6 +50,20 @@ const COUNTRIES = [
     'Vietnam', 'Yemen', 'Yibuti', 'Zambia', 'Zimbabue'
 ];
 
+// Fecha local AAAA-MM-DD: con toISOString (UTC) una atención después de las 19:00 quedaba con la fecha de mañana
+const fechaLocalHoy = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Fecha local de un registro clínico (fecha propia o, si no tiene, la de creación)
+const fechaLocalDe = (r) => {
+    if (r?.fecha) return String(r.fecha).slice(0, 10);
+    if (!r?.created_at) return '';
+    const d = new Date(r.created_at);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const getAnatomicalRegion = (x, y) => {
     if (x === null || y === null || x === undefined || y === undefined) return '';
     const side = x < 50 ? "Frente" : "Espalda";
@@ -603,7 +617,8 @@ const MedicoGeneral_page = () => {
         if (!patientId) return;
         setFichaLoading(true);
         try {
-            const today = new Date().toISOString().slice(0, 10);
+            const today = fechaLocalHoy();
+            let recetaCargada = true;
             const [
                 signosRes,
                 motivoRes,
@@ -614,7 +629,8 @@ const MedicoGeneral_page = () => {
                 diagRes,
                 planRes,
                 dailyRes,
-                bloodTypeRes
+                bloodTypeRes,
+                recetaHoyRes
             ] = await Promise.all([
                 api.get('/medicina-general/signos-vitales', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/motivo-consulta', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
@@ -625,7 +641,10 @@ const MedicoGeneral_page = () => {
                 api.get('/medicina-general/diagnosticos', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/planes-terapeuticos', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/parte-diario', { params: { id_usuario_paciente: patientId } }).catch(() => ({ data: { data: [] } })),
-                api.get(`/medicina-general/patient/${patientId}/blood-type`).catch(() => ({ data: { data: null } }))
+                api.get(`/medicina-general/patient/${patientId}/blood-type`).catch(() => ({ data: { data: null } })),
+                // Receta ya guardada hoy: se muestra y no se pierde al volver a guardar la atención
+                api.get('/medicina-general/recetas', { params: { id_usuario_paciente: patientId, fecha: today } })
+                    .catch(() => { recetaCargada = false; return { data: { data: [] } }; })
             ]);
 
             const getArrayData = (res) => (res && res.data && Array.isArray(res.data.data)) ? res.data.data : [];
@@ -659,7 +678,8 @@ const MedicoGeneral_page = () => {
                 diagnostico: null,
                 plan: null,
                 parte_diario: null,
-                bloodType
+                bloodType,
+                receta_cargada: recetaCargada
             });
 
             const initialFormState = {
@@ -685,7 +705,19 @@ const MedicoGeneral_page = () => {
                 definitivo: false,
                 detalle_plan_terapeutico: '',
                 tipo_atencion: 'primaria',
-                tipo: 'curativo'
+                tipo: 'curativo',
+                prescripcion_lineas: (recetaHoyRes.data?.data || []).flatMap(r => r.lineas || []).map(l => ({
+                    id_temp: `receta-${l.id}`,
+                    detalle_medicamento: l.detalle_medicamento,
+                    id_producto_farmacia: l.id_producto_farmacia,
+                    detalle_dosis: l.detalle_dosis,
+                    detalle_via_administracion: l.detalle_via_administracion,
+                    frecuencia_horas: l.frecuencia_horas,
+                    duracion_tratamiento_dias: l.duracion_tratamiento_dias,
+                    cantidad_cajas: 0,
+                    cantidad_unidades: 0,
+                    observaciones: l.observaciones || ''
+                }))
             };
 
             const savedDraft = loadDraft();
@@ -724,7 +756,7 @@ const MedicoGeneral_page = () => {
         if (!selectedPatient) return false;
         setFichaSaving(true);
         const patientId = selectedPatient?.id_usuario || selectedPatient?.id_usuario_paciente || selectedPatient?.user_id || selectedPatient?.id;
-        const today = new Date().toISOString().slice(0, 10);
+        const today = fechaLocalHoy();
 
         try {
             if (sectionKey === 'signos') {
@@ -880,6 +912,11 @@ const MedicoGeneral_page = () => {
                     tipo: fichaForm.tipo,
                     detalle_diagnostico: fichaForm.detalle_diagnostico
                 };
+                // La receta no se enviaba y nunca se guardaba. Si no se pudo leer la receta de hoy,
+                // no se envía para no reemplazarla por una lista vacía.
+                if (fichaRawData.receta_cargada !== false) {
+                    dailyPayload.prescripcion_lineas = (fichaForm.prescripcion_lineas || []).map(({ id_temp, ...linea }) => linea);
+                }
 
                 if (fichaRawData.parte_diario) {
                     await api.put(`/medicina-general/parte-diario/${fichaRawData.parte_diario.id}`, dailyPayload);
@@ -887,6 +924,17 @@ const MedicoGeneral_page = () => {
                     const res = await api.post('/medicina-general/parte-diario', dailyPayload);
                     setFichaRawData(prev => ({ ...prev, parte_diario: res.data.data }));
                 }
+            }
+
+            // La receta (paso 7) va después del parte diario (paso 6): se guarda sobre ese parte
+            if (sectionKey === 'prescripcion' && fichaRawData.receta_cargada !== false) {
+                if (!fichaRawData.parte_diario) {
+                    showSystemToast("Guarde primero el diagnóstico (paso 6) para registrar la receta.");
+                    return false;
+                }
+                await api.put(`/medicina-general/parte-diario/${fichaRawData.parte_diario.id}`, {
+                    prescripcion_lineas: (fichaForm.prescripcion_lineas || []).map(({ id_temp, ...linea }) => linea)
+                });
             }
 
             clearDraft();
@@ -1259,7 +1307,94 @@ const MedicoGeneral_page = () => {
         }
     };
 
-    const handleDownloadHistoriaClinicaPdf = async (patientId, targetDate) => {
+    // "Ver receta" de una atención en la pestaña Evolución: receta emitida en Medicina General ese día
+    const handleVerRecetaAtencion = async (record) => {
+        const pid = selectedPatient?.id_usuario || selectedPatient?.id;
+        const fecha = fechaLocalDe(record);
+        if (!pid || !fecha) return;
+
+        let recetas = [];
+        try {
+            const res = await api.get('/medicina-general/recetas', { params: { id_usuario_paciente: pid, fecha } });
+            recetas = (res.data?.data || []).filter(r => (r.lineas || []).length > 0);
+        } catch (err) {
+            console.error('Error al cargar la receta:', err);
+            showSystemToast('No se pudo cargar la receta de esta atención.');
+            return;
+        }
+        if (recetas.length === 0) {
+            showSystemToast('Esta atención no tiene receta registrada.');
+            return;
+        }
+
+        const ident = recetas[0].doctor?.datos_identificacion || {};
+        const medico = [ident.primer_nombre, ident.segundo_nombre, ident.apellido_paterno, ident.apellido_materno].filter(Boolean).join(' ')
+            || recetas[0].doctor?.name || '';
+        const filas = recetas.flatMap(r => r.lineas).map((l, i) => `
+            <tr>
+                <td style="text-align:center;">${i + 1}</td>
+                <td><strong>${escapeHtml(l.detalle_medicamento)}</strong></td>
+                <td>${escapeHtml(l.detalle_dosis)}</td>
+                <td>${escapeHtml(l.detalle_via_administracion)}</td>
+                <td>Cada ${escapeHtml(String(l.frecuencia_horas))} h por ${escapeHtml(String(l.duracion_tratamiento_dias))} días</td>
+                <td>${escapeHtml(l.observaciones || '')}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Receta Médica - Medicina General</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 20px; font-size: 11px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; text-align: left; }
+        th { background: #e0e0e0; font-size: 10px; text-transform: uppercase; }
+        .no-print { margin-top: 18px; text-align: center; }
+        @media print { body { padding: 0; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #002040; padding-bottom:4px; margin-bottom:10px;">
+        <div><div style="font-weight:bold; font-size:13px; color:#b71a34;">BIENESTAR</div><div style="font-size:9px; color:#002040;">UNIVERSITARIO</div></div>
+        <div style="text-align:right; font-size:8px; color:#475569; line-height:1.2;">
+            <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>DIRECCIÓN DE BIENESTAR UNIVERSITARIO<br/>ÁREA DE MEDICINA GENERAL
+        </div>
+    </div>
+    <div style="text-align:center; font-size:14px; font-weight:800; margin:6px 0 12px;">RECETA MÉDICA</div>
+    <table style="margin-bottom:12px;">
+        <tr><th style="width:18%;">Paciente</th><td>${escapeHtml(selectedPatient?.nombre_completo || selectedPatient?.name || '')}</td><th style="width:12%;">Cédula</th><td style="width:18%;">${escapeHtml(selectedPatient?.cedula || selectedPatient?.numero_cedula || '')}</td></tr>
+        <tr><th>Fecha</th><td>${escapeHtml(fecha.split('-').reverse().join('/'))}</td><th>Área</th><td>Medicina General</td></tr>
+    </table>
+    <table>
+        <thead><tr><th style="width:5%;">N°</th><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia / Duración</th><th>Indicaciones</th></tr></thead>
+        <tbody>${filas}</tbody>
+    </table>
+    <div style="margin-top:60px; text-align:center;">
+        <div style="border-top:1px solid #000; width:240px; margin:0 auto; padding-top:4px;">${escapeHtml(medico)}<br/>Médico/a</div>
+    </div>
+    <div class="no-print"><button onclick="window.print()" style="padding:8px 18px; font-size:13px; cursor:pointer;">Imprimir</button></div>
+</body>
+</html>`;
+
+        const ventana = window.open('', '_blank');
+        if (ventana) {
+            ventana.document.open();
+            ventana.document.write(html);
+            ventana.document.close();
+        } else {
+            showSystemToast("El bloqueador de popups impidió abrir la ventana. Permita los popups para este sitio.");
+        }
+    };
+
+    /**
+     * targetDate: solo la atención de esa fecha (Ver detalle). opciones.alcance === 'todo': una historia
+     * clínica y hoja de evolución por cada atención del paciente (Ver todo el historial).
+     */
+    const handleDownloadHistoriaClinicaPdf = async (patientId, targetDate, opciones = {}) => {
+        const { alcance } = opciones;
         showSystemToast("Generando reporte imprimible...");
         const actualPatientId = patientId || selectedPatient?.id_usuario || selectedPatient?.id;
         try {
@@ -1274,7 +1409,8 @@ const MedicoGeneral_page = () => {
                 examenRes,
                 diagnosticoRes,
                 planRes,
-                evolucionRes
+                evolucionRes,
+                recetasRes
             ] = await Promise.all([
                 api.get(`/medicina-general/pacientes/${actualPatientId}/perfil`),
                 api.get('/medicina-general/signos-vitales', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
@@ -1285,7 +1421,8 @@ const MedicoGeneral_page = () => {
                 api.get('/medicina-general/examen-fisico', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/diagnosticos', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/medicina-general/planes-terapeuticos', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
-                api.get('/medicina-general/historial-evolucion', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } }))
+                api.get('/medicina-general/historial-evolucion', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
+                api.get('/medicina-general/recetas', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } }))
             ]);
 
             const patient = profileRes.data.data;
@@ -1305,18 +1442,187 @@ const MedicoGeneral_page = () => {
                 age = Math.abs(ageDate.getUTCFullYear() - 1970);
             }
 
-            const dateStr = targetDate ? targetDate.slice(0, 10) : null;
-
-            const motivos = dateStr ? motivoRes.data.data.filter(m => (m.created_at || '').slice(0, 10) === dateStr) : motivoRes.data.data;
+            // Fecha local del registro (created_at viene en UTC: una atención nocturna caía al día siguiente)
+            const fechaDe = (r) => {
+                if (r?.fecha) return String(r.fecha).slice(0, 10);
+                if (!r?.created_at) return '';
+                const d = new Date(r.created_at);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            };
+            const fechaLegible = (v) => v ? String(v).slice(0, 10).split('-').reverse().join('/') : '';
+            const delDia = (lista, d) => d ? (lista || []).filter(r => fechaDe(r) === d) : (lista || []);
             const antecedentesPersonales = antecedentesRes.data.data.filter(a => a.tipo === 'personal' || a.tipo === 'personales');
             const antecedentesFamiliares = antecedentesRes.data.data.filter(a => a.tipo === 'familiar' || a.tipo === 'familiares');
-            const enfermedades = dateStr ? enfermedadRes.data.data.filter(e => (e.created_at || '').slice(0, 10) === dateStr) : enfermedadRes.data.data;
-            const revisiones = dateStr ? organosRes.data.data.filter(o => (o.created_at || '').slice(0, 10) === dateStr) : organosRes.data.data;
-            const examenFisico = dateStr ? examenRes.data.data.filter(ex => (ex.created_at || '').slice(0, 10) === dateStr) : examenRes.data.data;
-            const diagnosticos = dateStr ? diagnosticoRes.data.data.filter(d => (d.created_at || '').slice(0, 10) === dateStr) : diagnosticoRes.data.data;
-            const planes = dateStr ? planRes.data.data.filter(p => (p.created_at || '').slice(0, 10) === dateStr) : planRes.data.data;
-            const evoluciones = dateStr ? evolucionRes.data.data.filter(ev => (ev.fecha || ev.created_at || '').slice(0, 10) === dateStr) : evolucionRes.data.data;
-            const signos = dateStr ? signosRes.data.data.filter(s => (s.fecha || s.created_at || '').slice(0, 10) === dateStr) : signosRes.data.data;
+            const recetas = recetasRes?.data?.data || [];
+
+            // Historia clínica y hoja de evolución de una atención (d = AAAA-MM-DD) o de todas (d = null)
+            const paginasClinicas = (d) => {
+                const motivos = delDia(motivoRes.data.data, d);
+                const enfermedades = delDia(enfermedadRes.data.data, d);
+                const revisiones = delDia(organosRes.data.data, d);
+                const examenFisico = delDia(examenRes.data.data, d);
+                const diagnosticos = delDia(diagnosticoRes.data.data, d);
+                const planes = delDia(planRes.data.data, d);
+                const evoluciones = delDia(evolucionRes.data.data, d);
+                const signos = delDia(signosRes.data.data, d);
+                const recetasDelDia = delDia(recetas, d).flatMap(r => (r.lineas || []).map(l => ({ ...l, fecha_receta: fechaDe(r) })));
+                return `
+    <div class="page-break"></div>
+    <div class="page-sheet">
+
+    <!-- PAGINA 2: HISTORIA CLÍNICA MEDICINA GENERAL -->
+    <table class="header-table">
+        <tr>
+            <td class="header-title">Historia Clínica Medicina General${d ? ` — Atención del ${fechaLegible(d)}` : ''}</td>
+            <td class="header-logo-container">
+                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
+                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="clinical-history-section-header">1 Motivo de Consulta</div>
+    <div class="clinical-history-section-content">
+        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)} <span style="color:#666; font-size:8px;">(${escapeHtml(m.fecha)})</span></div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">2 Antecedentes Personales</div>
+    <div class="clinical-history-section-content">
+        ${antecedentesPersonales.length > 0 ? antecedentesPersonales.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">3 Antecedentes Familiares</div>
+    <div class="clinical-history-section-content">
+        ${antecedentesFamiliares.length > 0 ? antecedentesFamiliares.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">4 Enfermedad Actual</div>
+    <div class="clinical-history-section-content">
+        ${enfermedades.length > 0 ? enfermedades.map(e => `<div>• ${escapeHtml(e.detalle_enfermedad_actual)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">5 Revisión Actual de Órganos y Sistemas</div>
+    <div class="clinical-history-section-content">
+        ${revisiones.length > 0 ? revisiones.map(r => `<div>• ${escapeHtml(r.detalle_revision_organos)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">6 Signos Vitales</div>
+    <table class="data-table" style="margin-bottom: 12px;">
+        <thead>
+            <tr class="form-label">
+                <th>Fecha</th>
+                <th>Presión Arterial</th>
+                <th>Frec. Cardíaca</th>
+                <th>Frec. Respiratoria</th>
+                <th>Temperatura</th>
+                <th>Talla</th>
+                <th>Peso</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${signos.length > 0 ? signos.map(sv => `
+                <tr class="text-center" style="font-size: 10px;">
+                    <td>${escapeHtml(sv.fecha)}</td>
+                    <td>${escapeHtml(sv.presion_arterial_sistolica || '—')}/${escapeHtml(sv.presion_arterial_diastolica || '—')} mmHg</td>
+                    <td>${escapeHtml(sv.frecuencia_cardiaca || '—')} lpm</td>
+                    <td>${escapeHtml(sv.frecuencia_respiratoria || '—')} rpm</td>
+                    <td>${escapeHtml(sv.temperatura || '—')} ºC</td>
+                    <td>${escapeHtml(sv.talla || '—')} cm</td>
+                    <td>${escapeHtml(sv.peso || '—')} kg</td>
+                </tr>
+            `).join('') : '<tr><td colspan="7" class="text-center">Sin registros.</td></tr>'}
+        </tbody>
+    </table>
+
+    <div class="clinical-history-section-header">7 Examen Físico</div>
+    <div class="clinical-history-section-content">
+        ${examenFisico.length > 0 ? examenFisico.map(ex => `<div>• ${ex.altura_x !== null && ex.altura_y !== null ? `<strong>[Localización: ${escapeHtml(getAnatomicalRegion(ex.altura_x, ex.altura_y))}]</strong> ` : ''}${escapeHtml(ex.detalle_examen_fisico)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">8 Diagnósticos</div>
+    <table class="data-table" style="margin-bottom: 12px;">
+        <thead>
+            <tr class="form-label">
+                <th style="width: 5%;">No.</th>
+                <th style="width: 65%;">Diagnósticos</th>
+                <th style="width: 15%;">CIE-10</th>
+                <th style="width: 7%;">PRE</th>
+                <th style="width: 8%;">DEF</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${diagnosticos.length > 0 ? diagnosticos.map((d, idx) => `
+                <tr style="font-size: 10px;">
+                    <td class="text-center">${escapeHtml(idx + 1)}</td>
+                    <td>${escapeHtml(d.detalle_diagnostico)}</td>
+                    <td class="text-center">${escapeHtml(d.cie10 || '—')}</td>
+                    <td class="text-center">${escapeHtml(d.presuntivo ? 'X' : '')}</td>
+                    <td class="text-center">${escapeHtml(d.definitivo ? 'X' : '')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="5" class="text-center">Sin registros.</td></tr>'}
+        </tbody>
+    </table>
+
+    <div class="clinical-history-section-header">9 Planes Terapéuticos</div>
+    <div class="clinical-history-section-content">
+        ${planes.length > 0 ? planes.map(p => `<div>• ${escapeHtml(p.detalle_plan_terapeutico)}</div>`).join('') : 'Sin registros.'}
+    </div>
+
+    <div class="clinical-history-section-header">10 Receta Médica</div>
+    <div class="clinical-history-section-content">
+        ${recetasDelDia.length > 0 ? recetasDelDia.map(l => `<div>• <strong>${escapeHtml(l.detalle_medicamento)}</strong> — ${escapeHtml(l.detalle_dosis)}, ${escapeHtml(l.detalle_via_administracion)}, cada ${escapeHtml(String(l.frecuencia_horas))} h por ${escapeHtml(String(l.duracion_tratamiento_dias))} días${d ? '' : ` <span style="color:#666; font-size:8px;">(${escapeHtml(fechaLegible(l.fecha_receta))})</span>`}</div>`).join('') : 'Sin receta.'}
+    </div>
+
+    </div>
+    <div class="page-break"></div>
+    <div class="page-sheet">
+
+    <!-- PAGINA 3: HOJA DE EVOLUCIÓN MEDICINA GENERAL -->
+    <table class="header-table">
+        <tr>
+            <td class="header-title">Hoja de Evolución Medicina General</td>
+            <td class="header-logo-container">
+                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
+                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="data-table">
+        <thead>
+            <tr class="form-label">
+                <th style="width: 15%;">Fecha</th>
+                <th style="width: 50%;">Evolución</th>
+                <th style="width: 35%;">Prescripción Médica</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${evoluciones.length > 0 ? evoluciones.map(ev => `
+                <tr style="font-size: 10px; vertical-align: top;">
+                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
+                    <td style="padding: 10px;">${escapeHtml(ev.prescripcion_medica || 'Sin prescripciones.')}</td>
+                </tr>
+            `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
+        </tbody>
+    </table>
+
+    </div>
+`;
+            };
+
+            const fechaUnica = targetDate ? String(targetDate).slice(0, 10) : null;
+            let paginas;
+            if (alcance === 'todo') {
+                // Cada día con algún registro clínico es una atención
+                const fechas = [...new Set([
+                    ...motivoRes.data.data, ...diagnosticoRes.data.data, ...planRes.data.data,
+                    ...evolucionRes.data.data, ...recetas
+                ].map(fechaDe).filter(Boolean))].sort();
+                paginas = fechas.length > 0 ? fechas.map(paginasClinicas).join('') : paginasClinicas(null);
+            } else {
+                paginas = paginasClinicas(fechaUnica);
+            }
 
             // 2. Generate HTML structure matching the sheet images
             const htmlContent = `
@@ -1606,142 +1912,7 @@ const MedicoGeneral_page = () => {
     </table>
 
     </div>
-    <div class="page-break"></div>
-    <div class="page-sheet">
-
-    <!-- PAGINA 2: HISTORIA CLÍNICA MEDICINA GENERAL -->
-    <table class="header-table">
-        <tr>
-            <td class="header-title">Historia Clínica Medicina General</td>
-            <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
-            </td>
-        </tr>
-    </table>
-
-    <div class="clinical-history-section-header">1 Motivo de Consulta</div>
-    <div class="clinical-history-section-content">
-        ${motivos.length > 0 ? motivos.map(m => `<div>• ${escapeHtml(m.detalle_motivo)} <span style="color:#666; font-size:8px;">(${escapeHtml(m.fecha)})</span></div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">2 Antecedentes Personales</div>
-    <div class="clinical-history-section-content">
-        ${antecedentesPersonales.length > 0 ? antecedentesPersonales.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">3 Antecedentes Familiares</div>
-    <div class="clinical-history-section-content">
-        ${antecedentesFamiliares.length > 0 ? antecedentesFamiliares.map(a => `<div>• ${escapeHtml(a.detalle_antecedente)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">4 Enfermedad Actual</div>
-    <div class="clinical-history-section-content">
-        ${enfermedades.length > 0 ? enfermedades.map(e => `<div>• ${escapeHtml(e.detalle_enfermedad_actual)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">5 Revisión Actual de Órganos y Sistemas</div>
-    <div class="clinical-history-section-content">
-        ${revisiones.length > 0 ? revisiones.map(r => `<div>• ${escapeHtml(r.detalle_revision_organos)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">6 Signos Vitales</div>
-    <table class="data-table" style="margin-bottom: 12px;">
-        <thead>
-            <tr class="form-label">
-                <th>Fecha</th>
-                <th>Presión Arterial</th>
-                <th>Frec. Cardíaca</th>
-                <th>Frec. Respiratoria</th>
-                <th>Temperatura</th>
-                <th>Talla</th>
-                <th>Peso</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${signos.length > 0 ? signos.map(sv => `
-                <tr class="text-center" style="font-size: 10px;">
-                    <td>${escapeHtml(sv.fecha)}</td>
-                    <td>${escapeHtml(sv.presion_arterial_sistolica || '—')}/${escapeHtml(sv.presion_arterial_diastolica || '—')} mmHg</td>
-                    <td>${escapeHtml(sv.frecuencia_cardiaca || '—')} lpm</td>
-                    <td>${escapeHtml(sv.frecuencia_respiratoria || '—')} rpm</td>
-                    <td>${escapeHtml(sv.temperatura || '—')} ºC</td>
-                    <td>${escapeHtml(sv.talla || '—')} cm</td>
-                    <td>${escapeHtml(sv.peso || '—')} kg</td>
-                </tr>
-            `).join('') : '<tr><td colspan="7" class="text-center">Sin registros.</td></tr>'}
-        </tbody>
-    </table>
-
-    <div class="clinical-history-section-header">7 Examen Físico</div>
-    <div class="clinical-history-section-content">
-        ${examenFisico.length > 0 ? examenFisico.map(ex => `<div>• ${ex.altura_x !== null && ex.altura_y !== null ? `<strong>[Localización: ${escapeHtml(getAnatomicalRegion(ex.altura_x, ex.altura_y))}]</strong> ` : ''}${escapeHtml(ex.detalle_examen_fisico)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    <div class="clinical-history-section-header">8 Diagnósticos</div>
-    <table class="data-table" style="margin-bottom: 12px;">
-        <thead>
-            <tr class="form-label">
-                <th style="width: 5%;">No.</th>
-                <th style="width: 65%;">Diagnósticos</th>
-                <th style="width: 15%;">CIE-10</th>
-                <th style="width: 7%;">PRE</th>
-                <th style="width: 8%;">DEF</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${diagnosticos.length > 0 ? diagnosticos.map((d, idx) => `
-                <tr style="font-size: 10px;">
-                    <td class="text-center">${escapeHtml(idx + 1)}</td>
-                    <td>${escapeHtml(d.detalle_diagnostico)}</td>
-                    <td class="text-center">${escapeHtml(d.cie10 || '—')}</td>
-                    <td class="text-center">${escapeHtml(d.presuntivo ? 'X' : '')}</td>
-                    <td class="text-center">${escapeHtml(d.definitivo ? 'X' : '')}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="5" class="text-center">Sin registros.</td></tr>'}
-        </tbody>
-    </table>
-
-    <div class="clinical-history-section-header">9 Planes Terapéuticos</div>
-    <div class="clinical-history-section-content">
-        ${planes.length > 0 ? planes.map(p => `<div>• ${escapeHtml(p.detalle_plan_terapeutico)}</div>`).join('') : 'Sin registros.'}
-    </div>
-
-    </div>
-    <div class="page-break"></div>
-    <div class="page-sheet">
-
-    <!-- PAGINA 3: HOJA DE EVOLUCIÓN MEDICINA GENERAL -->
-    <table class="header-table">
-        <tr>
-            <td class="header-title">Hoja de Evolución Medicina General</td>
-            <td class="header-logo-container">
-                <div style="font-weight: bold; font-size: 12px; color: #b71a34; line-height: 1.1;">BIENESTAR</div>
-                <div style="font-size: 9px; color: #002040; letter-spacing: 0.5px;">UNIVERSITARIO</div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="data-table">
-        <thead>
-            <tr class="form-label">
-                <th style="width: 15%;">Fecha</th>
-                <th style="width: 50%;">Evolución</th>
-                <th style="width: 35%;">Prescripción Médica</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${evoluciones.length > 0 ? evoluciones.map(ev => `
-                <tr style="font-size: 10px; vertical-align: top;">
-                    <td class="text-center" style="padding: 10px 5px;">${escapeHtml(ev.fecha)}</td>
-                    <td style="padding: 10px;">${escapeHtml(ev.detalle_evolucion)}</td>
-                    <td style="padding: 10px;">${escapeHtml(ev.prescripcion_medica || 'Sin prescripciones.')}</td>
-                </tr>
-            `).join('') : '<tr><td colspan="3" class="text-center" style="padding: 20px;">Sin evoluciones registradas.</td></tr>'}
-        </tbody>
-    </table>
-
-    </div>
+${paginas}
 </body>
 </html>
             `;
@@ -3017,7 +3188,16 @@ const MedicoGeneral_page = () => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                            {selectedPatient && (
+                                                <button
+                                                    type="button"
+                                                    className="action-button action-button--primary"
+                                                    onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, null, { alcance: 'todo' })}
+                                                >
+                                                    <FileText size={14} /> Ver todo el historial del paciente
+                                                </button>
+                                            )}
                                             <button className="action-button action-button--accent" onClick={() => { setModalSearchCedula(''); setModalSearchResults([]); setIsPatientSearchOpen(true); }}>
                                                 <Search size={14} /> Buscar Paciente
                                             </button>
@@ -3118,16 +3298,47 @@ const MedicoGeneral_page = () => {
                                                                                         {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || record.procedimiento?.nombre_procedimiento || 'Ver detalles'}
                                                                                     </td>
                                                                                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                                                                                        <button
-                                                                                            className={`action-button ${isActive ? 'action-button--accent' : 'action-button--primary'}`}
-                                                                                            style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px' }}
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                setActiveBookRecord(record);
-                                                                                            }}
-                                                                                        >
-                                                                                            {isActive ? 'Viendo' : 'Ver Detalle'}
-                                                                                        </button>
+                                                                                        {activeBookArea === 'medicina' ? (
+                                                                                            // Medicina General: ficha completa de esa atención y su receta
+                                                                                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    className="action-button action-button--primary"
+                                                                                                    style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                                    title="Abrir la ficha con toda la información de esta atención"
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        setActiveBookRecord(record);
+                                                                                                        handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, fechaLocalDe(record));
+                                                                                                    }}
+                                                                                                >
+                                                                                                    Ver Detalle
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    className="action-button action-button--accent"
+                                                                                                    style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                                                                                                    title="Ver la receta emitida en esta atención"
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        handleVerRecetaAtencion(record);
+                                                                                                    }}
+                                                                                                >
+                                                                                                    Ver Receta
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <button
+                                                                                                className={`action-button ${isActive ? 'action-button--accent' : 'action-button--primary'}`}
+                                                                                                style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px' }}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    setActiveBookRecord(record);
+                                                                                                }}
+                                                                                            >
+                                                                                                {isActive ? 'Viendo' : 'Ver Detalle'}
+                                                                                            </button>
+                                                                                        )}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
@@ -3180,16 +3391,6 @@ const MedicoGeneral_page = () => {
                                                             </p>
                                                         </div>
                                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                                            {activeBookArea === 'medicina' && (
-                                                                <button
-                                                                    className="action-button action-button--accent"
-                                                                    style={{ fontSize: '11px', minHeight: '32px', padding: '0 12px', borderRadius: '8px' }}
-                                                                    onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, activeBookRecord?.fecha || activeBookRecord?.created_at)}
-                                                                    title="Descargar Historia Clínica PDF"
-                                                                >
-                                                                    <FileText size={14} /> PDF
-                                                                </button>
-                                                            )}
                                                             <button aria-label="Cerrar detalle"
                                                                 className="action-button action-button--light"
                                                                 style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
