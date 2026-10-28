@@ -102,8 +102,7 @@ const getSvgFaceName = (toothNum, carillaName) => {
     return null;
 };
 
-const getLocalDateString = () => {
-    const d = new Date();
+const getLocalDateString = (d = new Date()) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -504,6 +503,7 @@ const Odontologo_page = () => {
                 await handleSaveFichaSection('diagnostico', 'certificadomedico');
                 await handleSaveOdontograma();
 
+                refrescarHistorialPaciente();
                 handleCloseFichaForm(true);
                 showSystemToast("Atención médica guardada y certificado emitido exitosamente.");
             } catch (err) {
@@ -520,6 +520,14 @@ const Odontologo_page = () => {
         setCertModal(prev => ({ ...prev, isOpen: false }));
     };
 
+    // Tras guardar la atención, la pestaña Evolución debe mostrar ya la cita nueva
+    const refrescarHistorialPaciente = () => {
+        const pid = selectedPatient?.id_usuario || selectedPatient?.id;
+        if (!pid) return;
+        fetchEvoluciones(pid);
+        fetchPatientHistoryByArea(pid);
+    };
+
     const handleSaveAndFinish = async (generateCertificate = false) => {
         if (generateCertificate) {
             handleOpenCertModalFromStep7();
@@ -531,6 +539,7 @@ const Odontologo_page = () => {
             await handleSaveFichaSection('diagnostico', null);
             await handleSaveOdontograma();
 
+            refrescarHistorialPaciente();
             handleCloseFichaForm(true);
             showSystemToast("Atención médica guardada exitosamente. Podrá otorgar certificados en cualquier momento desde la pestaña Evolución.");
         } catch (err) {
@@ -1069,6 +1078,13 @@ const Odontologo_page = () => {
     useEffect(() => {
         if (activeTab === 'procedimientos') {
             fetchProceduresCatalog();
+        }
+        // El historial solo se cargaba al elegir paciente; al terminar una atención el paciente
+        // sigue seleccionado y la cita nueva no aparecía hasta cambiar de paciente.
+        if (activeTab === 'evolucion' && selectedPatient) {
+            const pid = selectedPatient.id_usuario || selectedPatient.id;
+            fetchEvoluciones(pid);
+            fetchPatientHistoryByArea(pid);
         }
     }, [activeTab]);
 
@@ -4130,7 +4146,133 @@ const Odontologo_page = () => {
         );
     };
 
-    const handleDownloadHistoriaClinicaPdf = async (patientId, targetDateOrRecord) => {
+    // Botones de cada cita en la pestaña Evolución: la ficha completa de esa atención y su receta
+    const renderAccionesCita = (cita) => {
+        const estiloBoton = {
+            fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+        };
+        return (
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                <button
+                    type="button"
+                    className="action-button action-button--primary"
+                    style={estiloBoton}
+                    title="Abrir la ficha con toda la información de esta atención"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveBookRecord(cita);
+                        handleDownloadHistoriaClinicaPdf(selectedPatient?.id_usuario || selectedPatient?.id, cita, { alcance: 'cita' });
+                    }}
+                >
+                    Ver Detalle
+                </button>
+                <button
+                    type="button"
+                    className="action-button action-button--accent"
+                    style={estiloBoton}
+                    title="Ver la receta emitida en esta atención"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleVerRecetaCita(cita);
+                    }}
+                >
+                    Ver Receta
+                </button>
+            </div>
+        );
+    };
+
+    // "Ver receta" de una cita en la pestaña Evolución: receta emitida en Odontología ese día
+    const handleVerRecetaCita = async (cita) => {
+        const pid = selectedPatient?.id_usuario || selectedPatient?.id;
+        const fecha = (cita?.fecha || cita?.created_at || '').slice(0, 10);
+        if (!pid || !fecha) return;
+
+        let recetas = [];
+        try {
+            const res = await api.get('/odontologia/recetas', { params: { id_usuario_paciente: pid, fecha } });
+            recetas = (res.data?.data || []).filter(r => (r.lineas || []).length > 0);
+        } catch (err) {
+            console.error('Error al cargar la receta:', err);
+            showSystemToast('No se pudo cargar la receta de esta atención.');
+            return;
+        }
+        if (recetas.length === 0) {
+            showSystemToast('Esta atención no tiene receta registrada.');
+            return;
+        }
+
+        const ident = recetas[0].doctor?.datos_identificacion || {};
+        const odontologo = [ident.primer_nombre, ident.segundo_nombre, ident.apellido_paterno, ident.apellido_materno].filter(Boolean).join(' ')
+            || recetas[0].doctor?.name || '';
+        const paciente = selectedPatient?.nombre_completo || selectedPatient?.name || '';
+        const cedula = selectedPatient?.cedula || selectedPatient?.numero_cedula || '';
+        const filas = recetas.flatMap(r => r.lineas).map((l, i) => `
+            <tr>
+                <td style="text-align:center;">${i + 1}</td>
+                <td><strong>${escapeHtml(l.detalle_medicamento)}</strong></td>
+                <td>${escapeHtml(l.detalle_dosis)}</td>
+                <td>${escapeHtml(l.detalle_via_administracion)}</td>
+                <td>Cada ${escapeHtml(String(l.frecuencia_horas))} h por ${escapeHtml(String(l.duracion_tratamiento_dias))} días</td>
+                <td>${escapeHtml(l.observaciones || '')}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Receta Médica - Odontología</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 20px; font-size: 11px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; text-align: left; }
+        th { background: #e0e0e0; font-size: 10px; text-transform: uppercase; }
+        .no-print { margin-top: 18px; text-align: center; }
+        @media print { body { padding: 0; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #002040; padding-bottom:4px; margin-bottom:10px;">
+        <img src="${headerBienestar}" alt="UEB Bienestar Universitario" style="max-height:40px; width:auto;" />
+        <div style="text-align:right; font-size:8px; color:#475569; line-height:1.2;">
+            <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>DIRECCIÓN DE BIENESTAR UNIVERSITARIO<br/>ÁREA DE ODONTOLOGÍA
+        </div>
+    </div>
+    <div style="text-align:center; font-size:14px; font-weight:800; margin:6px 0 12px;">RECETA MÉDICA</div>
+    <table style="margin-bottom:12px;">
+        <tr><th style="width:18%;">Paciente</th><td>${escapeHtml(paciente)}</td><th style="width:12%;">Cédula</th><td style="width:18%;">${escapeHtml(cedula)}</td></tr>
+        <tr><th>Fecha</th><td>${escapeHtml(fecha)}</td><th>Área</th><td>Odontología</td></tr>
+    </table>
+    <table>
+        <thead><tr><th style="width:5%;">N°</th><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia / Duración</th><th>Indicaciones</th></tr></thead>
+        <tbody>${filas}</tbody>
+    </table>
+    <div style="margin-top:60px; text-align:center;">
+        <div style="border-top:1px solid #000; width:240px; margin:0 auto; padding-top:4px;">${escapeHtml(odontologo)}<br/>Odontólogo/a</div>
+    </div>
+    <div class="no-print"><button onclick="window.print()" style="padding:8px 18px; font-size:13px; cursor:pointer;">Imprimir</button></div>
+</body>
+</html>`;
+
+        const ventana = window.open('', '_blank');
+        if (ventana) {
+            ventana.document.open();
+            ventana.document.write(html);
+            ventana.document.close();
+        } else {
+            showSystemToast("El bloqueador de popups impidió abrir la ventana. Permita los popups para este sitio.");
+        }
+    };
+
+    /**
+     * opciones.alcance: 'cita' = solo la atención indicada (Ver detalle), con el motivo y los exámenes
+     * de esa fecha; 'todo' = todas las atenciones del paciente. Sin alcance: el tratamiento de la cita.
+     */
+    const handleDownloadHistoriaClinicaPdf = async (patientId, targetDateOrRecord, opciones = {}) => {
+        const { alcance } = opciones;
         const actualPatientId = patientId || selectedPatient?.id_usuario || selectedPatient?.id || selectedPatient?.id_paciente;
         if (!actualPatientId) {
             showSystemToast("Seleccione un paciente para imprimir la hoja de evolución.");
@@ -4148,7 +4290,8 @@ const Odontologo_page = () => {
                 periodontalRes,
                 evolucionRes,
                 diarioRes,
-                odontogramaRes
+                odontogramaRes,
+                recetasRes
             ] = await Promise.all([
                 api.get(`/odontologia/pacientes/${actualPatientId}/perfil`).catch(() => ({ data: { data: selectedPatient || {} } })),
                 api.get('/odontologia/motivo-consulta', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
@@ -4156,8 +4299,32 @@ const Odontologo_page = () => {
                 api.get('/odontologia/enfermedad-periodontal', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/historial-evolucion', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
                 api.get('/odontologia/parte-diario-odontologia', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } })),
-                api.get(`/odontologia/odontograma-paciente/${actualPatientId}`).catch(() => ({ data: { data: null } }))
+                api.get(`/odontologia/odontograma-paciente/${actualPatientId}`).catch(() => ({ data: { data: null } })),
+                api.get('/odontologia/recetas', { params: { id_usuario_paciente: actualPatientId } }).catch(() => ({ data: { data: [] } }))
             ]);
+
+            // Fecha local (no UTC) de un registro: una atención a las 23:00 no debe pasar al día siguiente
+            const fechaDeRegistro = (r) => {
+                if (r?.fecha) return String(r.fecha).slice(0, 10);
+                return r?.created_at ? getLocalDateString(new Date(r.created_at)) : '';
+            };
+            const fechaObjetivo = alcance === 'cita' && targetDateOrRecord
+                ? (typeof targetDateOrRecord === 'string' ? targetDateOrRecord : fechaDeRegistro(targetDateOrRecord)).slice(0, 10)
+                : null;
+            // Registro de la fecha de la atención o, sin fecha, el más reciente (las listas no vienen ordenadas igual)
+            const registroDeLaAtencion = (lista) => {
+                const ordenada = [...(lista || [])].sort((a, b) => (b.id || 0) - (a.id || 0));
+                if (fechaObjetivo) return ordenada.find(r => fechaDeRegistro(r) === fechaObjetivo) || {};
+                return ordenada[0] || {};
+            };
+
+            // Medicamentos de las recetas de Odontología por fecha, para la columna de prescripción
+            const recetasPorFecha = {};
+            (recetasRes?.data?.data || []).forEach(receta => {
+                const f = fechaDeRegistro(receta);
+                const meds = (receta.lineas || []).map(l => `${l.detalle_medicamento} — ${l.detalle_dosis}, ${l.detalle_via_administracion}, cada ${l.frecuencia_horas} h por ${l.duracion_tratamiento_dias} días`);
+                recetasPorFecha[f] = [...(recetasPorFecha[f] || []), ...meds];
+            });
 
             const patient = profileRes?.data?.data || selectedPatient || {};
             const ident = patient.datos_identificacion || patient.identificacion || patient || {};
@@ -4179,7 +4346,7 @@ const Odontologo_page = () => {
 
             // Motivo de consulta
             const motivos = motivoRes?.data?.data || [];
-            const activeMotivo = motivos.length > 0 ? motivos[motivos.length - 1] : {};
+            const activeMotivo = registroDeLaAtencion(motivos);
 
             // Antecedentes
             const alergiasList = (patient.alergias || []).map(a => a.nombre_alergia || a.nombre).filter(Boolean);
@@ -4195,11 +4362,11 @@ const Odontologo_page = () => {
 
             // Examen Intra/Extrabucal
             const examenes = examenRes?.data?.data || [];
-            const activeExamen = examenes.length > 0 ? examenes[examenes.length - 1] : {};
+            const activeExamen = registroDeLaAtencion(examenes);
 
             // Periodontal
             const periodontales = periodontalRes?.data?.data || [];
-            const activePeriodontal = periodontales.length > 0 ? periodontales[periodontales.length - 1] : {};
+            const activePeriodontal = registroDeLaAtencion(periodontales);
 
             // Odontograma mapping (Permanent and Deciduous teeth in FDI system)
             const upperRightPermanent = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -4362,7 +4529,11 @@ const Odontologo_page = () => {
             // "si son consultas primarias, con una fila seria suficiente pero si hay mas (un historial), ahi si las filas según la cantidad de citas que haya durado el tratamiento."
             let targetCitas = [];
 
-            if (targetDateOrRecord && targetDateOrRecord.citas && Array.isArray(targetDateOrRecord.citas)) {
+            if (alcance === 'todo') {
+                targetCitas = calculatedTreatments.flatMap(t => t.citas || []);
+            } else if (alcance === 'cita' && targetDateOrRecord && typeof targetDateOrRecord === 'object') {
+                targetCitas = [targetDateOrRecord];
+            } else if (targetDateOrRecord && targetDateOrRecord.citas && Array.isArray(targetDateOrRecord.citas)) {
                 targetCitas = targetDateOrRecord.citas;
             } else if (targetDateOrRecord && targetDateOrRecord.treatment && Array.isArray(targetDateOrRecord.treatment.citas)) {
                 targetCitas = targetDateOrRecord.treatment.citas;
@@ -4402,7 +4573,8 @@ const Odontologo_page = () => {
                     const diag = ev.diagnostico || ev.detalle_diagnostico || ev.cie10_descripcion || '';
                     const trat = ev.tratamiento || ev.detalle_tratamiento || ev.detalle_evolucion || ev.tipo_atencion2 || '';
                     const proc = ev.procedimiento || ev.detalle_procedimiento || '';
-                    const presc = ev.prescripcion || ev.prescripcion_medica || ev.prescripción_farmaceutica || 'Sin prescripción.';
+                    const recetaDelDia = (recetasPorFecha[fDate] || []).join('; ');
+                    const presc = ev.prescripcion || ev.prescripcion_medica || ev.prescripción_farmaceutica || recetaDelDia || 'Sin prescripción.';
 
                     return `
                         <tr style="vertical-align: top; font-size: 8.5px;">
@@ -4535,7 +4707,7 @@ const Odontologo_page = () => {
                 <img src="${headerBienestar}" alt="UEB Bienestar Universitario" style="max-height: 40px; width: auto;" />
             </div>
             <div style="text-align: right; font-size: 8px; color: #475569; line-height: 1.2;">
-                <strong>UNIVERSIDAD ESPÍRITU SANTO</strong><br/>
+                <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>
                 DIRECCIÓN DE BIENESTAR UNIVERSITARIO<br/>
                 ÁREA DE ODONTOLOGÍA
             </div>
@@ -4801,7 +4973,7 @@ const Odontologo_page = () => {
                 <img src="${headerBienestar}" alt="UEB Bienestar Universitario" style="max-height: 38px; width: auto;" />
             </div>
             <div style="text-align: right; font-size: 8px; color: #475569; line-height: 1.2;">
-                <strong>UNIVERSIDAD ESPÍRITU SANTO</strong><br/>
+                <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>
                 DIRECCIÓN DE BIENESTAR UNIVERSITARIO · ÁREA DE ODONTOLOGÍA
             </div>
         </div>
@@ -5513,9 +5685,9 @@ const Odontologo_page = () => {
                                                 <button
                                                     type="button"
                                                     className="action-button action-button--primary"
-                                                    onClick={() => setIsEvolucionModalOpen(true)}
+                                                    onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, null, { alcance: 'todo' })}
                                                 >
-                                                    <Plus size={14} /> Nueva Evolución
+                                                    <FileText size={14} /> Ver todo el historial del paciente
                                                 </button>
                                             )}
                                             <button
@@ -5684,18 +5856,6 @@ const Odontologo_page = () => {
                                                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
                                                                                     <button
                                                                                         type="button"
-                                                                                        className="action-button action-button--accent"
-                                                                                        style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, treatment);
-                                                                                        }}
-                                                                                        title="Descargar Historia Clínica y Hoja de Evolución de este tratamiento"
-                                                                                    >
-                                                                                        <FileText size={13} /> PDF
-                                                                                    </button>
-                                                                                    <button
-                                                                                        type="button"
                                                                                         className="action-button action-button--light"
                                                                                         style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px' }}
                                                                                         onClick={(e) => {
@@ -5719,7 +5879,7 @@ const Odontologo_page = () => {
                                                                                                 <col style={{ width: '85px' }} />
                                                                                                 <col style={{ width: '88px' }} />
                                                                                                 <col style={{ width: 'auto' }} />
-                                                                                                <col style={{ width: '92px' }} />
+                                                                                                <col style={{ width: '178px' }} />
                                                                                             </colgroup>
                                                                                             <thead>
                                                                                                 <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
@@ -5777,28 +5937,7 @@ const Odontologo_page = () => {
                                                                                                             {cita.detalle_evolucion || cita.detalle_diagnostico || cita.procedimiento || 'Consulta registrada'}
                                                                                                         </td>
                                                                                                         <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                                                                                            <button
-                                                                                                                type="button"
-                                                                                                                className="action-button action-button--primary"
-                                                                                                                style={{
-                                                                                                                    fontSize: '11px',
-                                                                                                                    minHeight: '26px',
-                                                                                                                    padding: '0 8px',
-                                                                                                                    borderRadius: '6px',
-                                                                                                                    whiteSpace: 'nowrap',
-                                                                                                                    width: '100%',
-                                                                                                                    maxWidth: '82px',
-                                                                                                                    display: 'inline-flex',
-                                                                                                                    alignItems: 'center',
-                                                                                                                    justifyContent: 'center'
-                                                                                                                }}
-                                                                                                                onClick={(e) => {
-                                                                                                                    e.stopPropagation();
-                                                                                                                    setActiveBookRecord(cita);
-                                                                                                                }}
-                                                                                                            >
-                                                                                                                Ver Detalle
-                                                                                                            </button>
+                                                                                                            {renderAccionesCita(cita)}
                                                                                                         </td>
                                                                                                     </tr>
                                                                                                 ))}
@@ -5820,7 +5959,7 @@ const Odontologo_page = () => {
                                                                         <col style={{ width: '110px' }} />
                                                                         <col style={{ width: '90px' }} />
                                                                         <col style={{ width: 'auto' }} />
-                                                                        <col style={{ width: '92px' }} />
+                                                                        <col style={{ width: '178px' }} />
                                                                     </colgroup>
                                                                     <thead>
                                                                         <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
@@ -5885,25 +6024,7 @@ const Odontologo_page = () => {
                                                                                         {record.detalle_evolucion || record.detalle_diagnostico || record.procedimiento || 'Ver detalles'}
                                                                                     </td>
                                                                                     <td style={{ padding: '9px 10px', textAlign: 'center' }}>
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            className="action-button action-button--primary"
-                                                                                            style={{
-                                                                                                fontSize: '11px',
-                                                                                                minHeight: '26px',
-                                                                                                padding: '0 8px',
-                                                                                                borderRadius: '6px',
-                                                                                                whiteSpace: 'nowrap',
-                                                                                                width: '100%',
-                                                                                                maxWidth: '82px'
-                                                                                            }}
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                setActiveBookRecord(record);
-                                                                                            }}
-                                                                                        >
-                                                                                            Ver Detalle
-                                                                                        </button>
+                                                                                        {renderAccionesCita(record)}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
