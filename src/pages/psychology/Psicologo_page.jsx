@@ -15,6 +15,8 @@ import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { Menu, LogOut, Search, X, Brain, FileText, TrendingUp, Calendar, ChevronDown, ChevronUp, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, CalendarCheck, CalendarDays, UserCheck, HeartHandshake, FileCheck, Printer, Clock, Briefcase, Heart, Eye, Smile, Compass, MessageSquare, Zap, Mail, MapPin, Info } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import PeriodoSelector from '../../components/PeriodoSelector';
+import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 
@@ -254,7 +256,8 @@ const Psicologo_page = () => {
 
     // Estados para el Módulo de Reportes Clínicos
     const [activeReportSubTab, setActiveReportSubTab] = useState('diario'); // diario | citas
-    const [reportCitasFecha, setReportCitasFecha] = useState(new Date().toISOString().slice(0, 10)); // hoy
+    // Reporte de agendamiento: citas de un día o de un mes
+    const [reportCitasPeriodo, setReportCitasPeriodo] = useState(periodoInicial);
     const [reportCitasEstado, setReportCitasEstado] = useState('all'); // all | pendiente | confirmada | cancelada | completada
     const [reportCitasList, setReportCitasList] = useState([]);
     const [reportCitasLoading, setReportCitasLoading] = useState(false);
@@ -265,12 +268,9 @@ const Psicologo_page = () => {
             const res = await api.get('/citas-medicas/doctor/citas');
             const allCitas = res.data.data || [];
             const filtered = allCitas.filter(cita => {
-                if (!cita.fecha) return false;
-                const citaDateStr = String(cita.fecha).slice(0, 10);
-                const matchFecha = reportCitasFecha ? citaDateStr === reportCitasFecha : true;
                 const matchEstado = reportCitasEstado === 'all' ? true : (cita.estado === reportCitasEstado);
-                return matchFecha && matchEstado;
-            });
+                return enPeriodo(cita.fecha, reportCitasPeriodo) && matchEstado;
+            }).sort((a, b) => `${String(a.fecha).slice(0, 10)} ${a.hora_inicio}`.localeCompare(`${String(b.fecha).slice(0, 10)} ${b.hora_inicio}`));
             setReportCitasList(filtered);
         } catch (err) {
             console.error("Error al cargar citas para reporte:", err);
@@ -282,11 +282,11 @@ const Psicologo_page = () => {
 
     const handlePrintReporteCitasRango = () => {
         if (reportCitasList.length === 0) {
-            showSystemToast('No hay citas en esta fecha para generar el reporte.');
+            showSystemToast('No hay citas en este período para generar el reporte.');
             return;
         }
 
-        const formattedFecha = new Date(reportCitasFecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const formattedFecha = describirPeriodo(reportCitasPeriodo).replace(/^(el|en) /, '');
 
         const total = reportCitasList.length;
         const completadas = reportCitasList.filter(c => c.estado === 'completada').length;
@@ -570,7 +570,7 @@ const Psicologo_page = () => {
         if (activeTab === 'historial' && activeReportSubTab === 'citas') {
             fetchReportCitas();
         }
-    }, [activeTab, activeReportSubTab, reportCitasFecha, reportCitasEstado]);
+    }, [activeTab, activeReportSubTab, reportCitasPeriodo, reportCitasEstado]);
 
     // Appointments states
     const [citasList, setCitasList] = useState([]);
@@ -4077,18 +4077,10 @@ ${paginas}
                                                 <div>
                                                     <span className="eyebrow">REPORTE GESTIÓN DE CITAS</span>
                                                     <h3>Reporte de Citas Programadas</h3>
-                                                    <p>Seleccione la fecha y estado para exportar el reporte gerencial.</p>
+                                                    <p>Seleccione el día o el mes y el estado para exportar el reporte gerencial.</p>
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-                                                        <span>Fecha:</span>
-                                                        <input
-                                                            type="date"
-                                                            value={reportCitasFecha}
-                                                            onChange={(e) => setReportCitasFecha(e.target.value)}
-                                                            style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', outline: 0 }}
-                                                        />
-                                                    </label>
+                                                    <PeriodoSelector value={reportCitasPeriodo} onChange={setReportCitasPeriodo} que="de las citas" />
                                                     <select
                                                         aria-label="Filtrar por estado"
                                                         value={reportCitasEstado}

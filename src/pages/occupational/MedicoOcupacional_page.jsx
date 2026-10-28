@@ -20,6 +20,7 @@ import MatrizRegistroModal from './MatrizRegistroModal';
 import ResultadoExamenModal, { abrirResultadoPdf } from './ResultadoExamenModal';
 import ReporteEncabezado, { ListaRegistros } from '../../components/ReporteEncabezado';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
+import PeriodoSelector from '../../components/PeriodoSelector';
 import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup, fechaPrincipal } from './matricesOcupacionales';
 
 const uebBannerLogo = logoUeb;
@@ -683,7 +684,9 @@ export default function MedicoOcupacionalPage() {
     const [parteDiarioDate, setParteDiarioDate] = useState(todayStr);
     const [parteDiarioList, setParteDiarioList] = useState([]);
     const [parteDiarioLoading, setParteDiarioLoading] = useState(false);
-    const [reportCitasFecha, setReportCitasFecha] = useState(todayStr);
+    // Reporte de agendamiento: citas de un día o de un mes (carga propia, no la de la pestaña Citas)
+    const [reportCitasPeriodo, setReportCitasPeriodo] = useState(periodoInicial);
+    const [reportCitasTodas, setReportCitasTodas] = useState([]);
     const [reportCitasEstado, setReportCitasEstado] = useState('all');
     const [citasLoading, setCitasLoading] = useState(false);
     const diarioIframeRef = useRef(null);
@@ -785,35 +788,47 @@ export default function MedicoOcupacionalPage() {
         });
     };
 
+    const mapearCita = (c) => {
+        const p = c.paciente || {};
+        const d = p.datos_identificacion || p.datosIdentificacion || {};
+        const nombre = d.primer_nombre
+            ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.apellido_paterno || ''} ${d.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
+            : (p.name || 'Paciente');
+        return {
+            id: c.id,
+            pacienteNombre: nombre,
+            cedula: d.numero_cedula || p.cedula || 'N/D',
+            fecha: c.fecha,
+            horaInicio: c.hora_inicio ? c.hora_inicio.slice(0, 5) : '08:00',
+            horaFin: c.hora_fin ? c.hora_fin.slice(0, 5) : '08:30',
+            motivo: c.motivo || 'Evaluación Médica Ocupacional',
+            tipoEvaluacion: c.tipo_atencion || 'Periódica',
+            prioridad: 'Normal',
+            estado: c.estado || 'programada',
+            paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '), cedula: d.numero_cedula }
+        };
+    };
+
     const fetchCitas = async () => {
         try {
             const res = await api.get('/citas-medicas/doctor/citas', { params: { fecha: citasDate } });
             if (Array.isArray(res.data?.data)) {
-                const mapped = res.data.data.map(c => {
-                    const p = c.paciente || {};
-                    const d = p.datos_identificacion || p.datosIdentificacion || {};
-                    const nombre = d.primer_nombre
-                        ? `${d.primer_nombre} ${d.segundo_nombre || ''} ${d.apellido_paterno || ''} ${d.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
-                        : (p.name || 'Paciente');
-                    return {
-                        id: c.id,
-                        pacienteNombre: nombre,
-                        cedula: d.numero_cedula || p.cedula || 'N/D',
-                        fecha: c.fecha,
-                        horaInicio: c.hora_inicio ? c.hora_inicio.slice(0, 5) : '08:00',
-                        horaFin: c.hora_fin ? c.hora_fin.slice(0, 5) : '08:30',
-                        motivo: c.motivo || 'Evaluación Médica Ocupacional',
-                        tipoEvaluacion: c.tipo_atencion || 'Periódica',
-                        prioridad: 'Normal',
-                        estado: c.estado || 'programada',
-                        paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '), cedula: d.numero_cedula }
-                    };
-                });
-                setCitasList(mapped);
+                setCitasList(res.data.data.map(mapearCita));
             }
         } catch (err) {
             console.error("Error al cargar las citas:", err);
             setCitasList([]);
+        }
+    };
+
+    // Todas las citas del médico; el reporte las filtra por día o mes
+    const fetchReportCitas = async () => {
+        try {
+            const res = await api.get('/citas-medicas/doctor/citas');
+            setReportCitasTodas(Array.isArray(res.data?.data) ? res.data.data.map(mapearCita) : []);
+        } catch (err) {
+            console.error('Error al cargar citas para el reporte:', err);
+            showSystemToast('No se pudieron cargar las citas para el reporte.');
         }
     };
 
@@ -1021,8 +1036,11 @@ export default function MedicoOcupacionalPage() {
         if (activeTab === 'diario' || (activeTab === 'reportes' && activeReportSubTab === 'diario')) {
             fetchParteDiario();
         }
-        if (activeTab === 'citas' || (activeTab === 'reportes' && activeReportSubTab === 'citas')) {
+        if (activeTab === 'citas') {
             fetchCitas();
+        }
+        if (activeTab === 'reportes' && activeReportSubTab === 'citas') {
+            fetchReportCitas();
         }
         if (activeTab === 'examenes' || (activeTab === 'reportes' && activeReportSubTab === 'examenes')) {
             fetchExamOrders();
@@ -1040,7 +1058,7 @@ export default function MedicoOcupacionalPage() {
             if (fichaSubTab === 'reintegro') fetchReintegros();
             if (fichaSubTab === 'ingreso' || fichaSubTab === 'cese') fetchFichasBackend();
         }
-    }, [activeTab, activeReportSubTab, parteDiarioDate, citasDate, fichaSubTab, genReportMonth, genReportYear, reportCitasFecha, reportCitasEstado]);
+    }, [activeTab, activeReportSubTab, parteDiarioDate, citasDate, fichaSubTab, genReportMonth, genReportYear, reportCitasPeriodo, reportCitasEstado]);
 
     // Citas nuevas, canceladas o confirmadas por los pacientes aparecen sin recargar la página
     useAutoRefresh(() => fetchCitas(), activeTab === 'citas');
@@ -3748,13 +3766,12 @@ export default function MedicoOcupacionalPage() {
     const compileCitasReportHtmlString = (forPrint = false) => {
         try {
             const doctorNameText = user?.name || 'Médico Ocupacional';
-            const formattedDate = reportCitasFecha ? reportCitasFecha : 'Todas las fechas';
+            const formattedDate = describirPeriodo(reportCitasPeriodo).replace(/^(el|en) /, '');
 
-            const filteredReportCitas = citasList.filter(cita => {
-                const matchesFecha = !reportCitasFecha || String(cita.fecha || '').slice(0, 10) === reportCitasFecha;
+            const filteredReportCitas = reportCitasTodas.filter(cita => {
                 const matchesEstado = reportCitasEstado === 'all' || (cita.estado || '').toLowerCase() === reportCitasEstado.toLowerCase();
-                return matchesFecha && matchesEstado;
-            });
+                return enPeriodo(cita.fecha, reportCitasPeriodo) && matchesEstado;
+            }).sort((a, b) => `${String(a.fecha).slice(0, 10)} ${a.horaInicio}`.localeCompare(`${String(b.fecha).slice(0, 10)} ${b.horaInicio}`));
 
             const total = filteredReportCitas.length;
             const completadas = filteredReportCitas.filter(c => c.estado === 'completada').length;
@@ -6376,19 +6393,10 @@ export default function MedicoOcupacionalPage() {
                                             <div>
                                                 <span className="eyebrow">REGISTRO DE AGENDAS</span>
                                                 <h3>Reporte de Citas Programadas</h3>
-                                                <p>Consulte y exporte la bitácora de agendas de citas médicas para el día seleccionado.</p>
+                                                <p>Consulte y exporte la bitácora de agendas de citas médicas de un día o de un mes.</p>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <CalendarDays size={16} color="var(--accent)" />
-                                                    <input
-                                                        aria-label="Fecha del reporte de citas"
-                                                        type="date"
-                                                        value={reportCitasFecha}
-                                                        onChange={(e) => setReportCitasFecha(e.target.value)}
-                                                        style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', outline: 0 }}
-                                                    />
-                                                </label>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <PeriodoSelector value={reportCitasPeriodo} onChange={setReportCitasPeriodo} que="de las citas" />
                                                 <select
                                                     aria-label="Filtrar por estado"
                                                     value={reportCitasEstado}
@@ -6437,7 +6445,7 @@ export default function MedicoOcupacionalPage() {
                                                     fontSize: '11px'
                                                 }}>PDF</div>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Ocupacional_{reportCitasFecha}.pdf</span>
+                                                    <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Ocupacional_{reportCitasPeriodo.tipo === 'dia' ? reportCitasPeriodo.dia : `${reportCitasPeriodo.anio}-${String(reportCitasPeriodo.mes).padStart(2, '0')}`}.pdf</span>
                                                     <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                 </div>
                                             </div>

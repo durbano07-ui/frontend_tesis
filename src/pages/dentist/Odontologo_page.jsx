@@ -18,6 +18,8 @@ import { logoUebTexto } from '../../assets/logoUebTextoBase64.js';
 import { Menu, LogOut, Search, X, Filter, Save, FileText, FileCheck, Printer, Plus, Minus, Pencil, Calendar, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserCheck, UserPlus, HeartHandshake, Shield, CalendarCheck, CalendarDays, Info, TrendingUp, Package, Trash2, PlusCircle, Hash, Clock, BriefcaseMedical, MapPin, Mail, Pill } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import PeriodoSelector from '../../components/PeriodoSelector';
+import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { buildGeneralReportHtml } from './reports/generalReport';
 import { buildCurativasNarrative, buildFacultyNarrative, buildGenderNarrative, buildProcedimientosMorbilidadNarrative, buildProcedimientosPreventivosNarrative, defaultFacultyCareers } from './reports/narratives';
 import { clasificarTipoPaciente, esPersonalAdministrativo } from '../../utils/tipoPaciente';
@@ -794,7 +796,8 @@ const Odontologo_page = () => {
     const insumosIframeRef = useRef(null);
     const citasIframeRef = useRef(null);
     const mensualIframeRef = useRef(null);
-    const [reportCitasFecha, setReportCitasFecha] = useState(new Date().toISOString().slice(0, 10));
+    // Reporte de agendamiento: citas de un día o de un mes
+    const [reportCitasPeriodo, setReportCitasPeriodo] = useState(periodoInicial);
     const [reportCitasEstado, setReportCitasEstado] = useState('all');
     const [reportCitasList, setReportCitasList] = useState([]);
     const [reportCitasLoading, setReportCitasLoading] = useState(false);
@@ -3434,12 +3437,9 @@ const Odontologo_page = () => {
             const res = await api.get('/citas-medicas/doctor/citas');
             const allCitas = res.data.data || [];
             const filtered = allCitas.filter(cita => {
-                if (!cita.fecha) return false;
-                const citaDateStr = String(cita.fecha).slice(0, 10);
-                const matchFecha = reportCitasFecha ? citaDateStr === reportCitasFecha : true;
                 const matchEstado = reportCitasEstado === 'all' ? true : (cita.estado === reportCitasEstado);
-                return matchFecha && matchEstado;
-            });
+                return enPeriodo(cita.fecha, reportCitasPeriodo) && matchEstado;
+            }).sort((a, b) => `${String(a.fecha).slice(0, 10)} ${a.hora_inicio}`.localeCompare(`${String(b.fecha).slice(0, 10)} ${b.hora_inicio}`));
             setReportCitasList(filtered);
         } catch (err) {
             console.error("Error al cargar citas para reporte:", err);
@@ -3450,7 +3450,7 @@ const Odontologo_page = () => {
     };
 
     const compileCitasReportHtmlString = (forPrint = false) => {
-        const formattedFecha = new Date(reportCitasFecha + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const formattedFecha = describirPeriodo(reportCitasPeriodo).replace(/^(el|en) /, '');
 
         const total = reportCitasList.length;
         const completadas = reportCitasList.filter(c => c.estado === 'completada').length;
@@ -3460,7 +3460,7 @@ const Odontologo_page = () => {
 
         const tableRowsHtml = reportCitasList.length === 0 ? `
             <tr>
-                <td colspan="7" style="padding: 30px; color: #64748b; font-style: italic; text-align: center;">No hay citas registradas en la fecha y filtros seleccionados.</td>
+                <td colspan="7" style="padding: 30px; color: #64748b; font-style: italic; text-align: center;">No hay citas registradas en el período y filtros seleccionados.</td>
             </tr>
         ` : reportCitasList.map((cita, idx) => {
             const pIdent = cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion || {};
@@ -3739,7 +3739,7 @@ const Odontologo_page = () => {
 
     const handlePrintReporteCitasRango = () => {
         if (reportCitasList.length === 0) {
-            showSystemToast('No hay citas en esta fecha para generar el reporte.');
+            showSystemToast('No hay citas en este período para generar el reporte.');
             return;
         }
         printIframeDocument(citasIframeRef, () => compileCitasReportHtmlString(false));
@@ -3774,7 +3774,7 @@ const Odontologo_page = () => {
                 fetchAndCompileGeneralReport(m, y);
             }
         }
-    }, [activeTab, activeReportSubTab, parteDiarioDate, reportInsumosFecha, reportCitasFecha, reportCitasEstado, reportMensualFecha]);
+    }, [activeTab, activeReportSubTab, parteDiarioDate, reportInsumosFecha, reportCitasPeriodo, reportCitasEstado, reportMensualFecha]);
 
     useEffect(() => {
         if (activeTab === 'historial') {
@@ -7758,19 +7758,10 @@ ${cuerpo}
                                                 <div>
                                                     <span className="eyebrow">REGISTRO DE AGENDAS</span>
                                                     <h3>Reporte de Citas Programadas</h3>
-                                                    <p>Consulte y exporte la bitácora de agendas de citas médicas para el día seleccionado.</p>
+                                                    <p>Consulte y exporte la bitácora de agendas de citas médicas de un día o de un mes.</p>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <CalendarDays size={16} color="var(--accent)" />
-                                                        <input
-                                                            aria-label="Fecha del reporte de citas"
-                                                            type="date"
-                                                            value={reportCitasFecha}
-                                                            onChange={(e) => setReportCitasFecha(e.target.value)}
-                                                            style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', fontSize: '11px', outline: 0 }}
-                                                        />
-                                                    </label>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    <PeriodoSelector value={reportCitasPeriodo} onChange={setReportCitasPeriodo} que="de las citas" />
                                                     <select
                                                         aria-label="Filtrar por estado"
                                                         value={reportCitasEstado}
@@ -7819,7 +7810,7 @@ ${cuerpo}
                                                         fontSize: '11px'
                                                     }}>PDF</div>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Odontologia_{reportCitasFecha}.pdf</span>
+                                                        <span style={{ color: '#fff', fontSize: '12.5px', fontWeight: 600 }}>Reporte_Citas_Odontologia_{reportCitasPeriodo.tipo === 'dia' ? reportCitasPeriodo.dia : `${reportCitasPeriodo.anio}-${String(reportCitasPeriodo.mes).padStart(2, '0')}`}.pdf</span>
                                                         <span style={{ color: '#94a3b8', fontSize: '11px' }}>Vista previa del documento oficial para impresión</span>
                                                     </div>
                                                 </div>
