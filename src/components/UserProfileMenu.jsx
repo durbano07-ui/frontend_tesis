@@ -8,7 +8,8 @@ import api from '../api/axios';
 import { useBackButtonModal } from '../hooks/useBackButtonModal';
 import { onKeyActivate } from '../a11y/keyboard';
 
-const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPhoto = false }) => {
+// tipoPaciente: tipo de usuario confirmado del paciente (Estudiante, Docente, Administrativo…)
+const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPhoto = false, tipoPaciente = null }) => {
     const { user, logout } = useAuthStore();
     const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -56,10 +57,12 @@ const UserProfileMenu = ({ avatarUrl = null, onPhotoChange = null, isUploadingPh
         odontologo: 'Odontólogo/a',
         psicologo: 'Psicólogo/a',
         medico_ocupacional: 'Médico Ocupacional',
-        paciente: 'Estudiante / Paciente',
+        paciente: 'Paciente',
     };
     const getRoleLabels = () => {
-        const labels = normalizeRoles(user?.roles).map(r => ROLE_SHORT_LABELS[r]).filter(Boolean);
+        const labels = normalizeRoles(user?.roles)
+            .map(r => (r === 'paciente' && tipoPaciente) ? `${tipoPaciente} / Paciente` : ROLE_SHORT_LABELS[r])
+            .filter(Boolean);
         return labels.length > 0 ? labels : ['Personal de Salud'];
     };
     const hasMultipleModules = getUserModules(user).length > 1;

@@ -2210,13 +2210,14 @@ const PacienteDashboard = () => {
                                 <Menu size={20} />
                             </button>
                             <div>
-                                <p className="breadcrumb">Estudiante / <span>{activeTab === 'portal' ? 'Panel Principal' : activeTab === 'citas' ? 'Citas Médicas' : activeTab === 'historial' ? 'Recetario' : 'Ficha Socioeconómica'}</span></p>
+                                <p className="breadcrumb">{profile?.career_study?.tipo_usuario?.nombre || 'Paciente'} / <span>{activeTab === 'portal' ? 'Panel Principal' : activeTab === 'citas' ? 'Citas Médicas' : activeTab === 'historial' ? 'Recetario' : 'Ficha Socioeconómica'}</span></p>
                                 <h1>{activeTab === 'portal' ? 'Mi Portal de Salud' : activeTab === 'citas' ? 'Agendamiento y Citas' : activeTab === 'historial' ? 'Mi Recetario' : 'Ficha Socioeconómica UEB'}</h1>
                             </div>
                         </div>
                         <div className="topbar__right">
                             <NotificationMenu onNavigateToCitas={() => setActiveTab('citas')} />
                             <UserProfileMenu
+                                tipoPaciente={profile?.career_study?.tipo_usuario?.nombre || null}
                                 avatarUrl={getPhotoUrl()}
                                 onPhotoChange={handlePhotoChange}
                                 isUploadingPhoto={uploadingPhoto}
