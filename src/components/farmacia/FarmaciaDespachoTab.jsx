@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import api from '../../api/axios';
 import { PackageCheck, Search, CheckCircle2, Clock, Stethoscope, Pill, FileText, Boxes, Check } from 'lucide-react';
+import { nombreCompleto } from '../../utils/nombreCompleto';
 
 const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
     const [recetasPendientes, setRecetasPendientes] = useState([]);
@@ -41,7 +42,7 @@ const FarmaciaDespachoTab = ({ showSystemToast, onDespachoUpdated }) => {
     recetasPendientes.forEach((receta) => {
         const paciente = receta.paciente || {};
         const pIdent = paciente.datos_identificacion || {};
-        const patientName = `${pIdent.primer_nombre || ''} ${pIdent.apellido_paterno || ''}`.trim() || paciente.name || 'Paciente';
+        const patientName = nombreCompleto(pIdent) || paciente.name || 'Paciente';
         const patientCedula = pIdent.numero_cedula || 'Sin cédula';
         const doctorName = receta.medico?.name || 'Médico General';
 

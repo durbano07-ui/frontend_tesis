@@ -18,6 +18,7 @@ import { HeartPulse, Search, Activity, ClipboardList, BriefcaseMedical, LogOut, 
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
+import { nombreCompleto } from '../../utils/nombreCompleto';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -595,7 +596,7 @@ const Enfermero_page = () => {
     const getFilteredParteDiario = () => {
         return parteDiarioList.filter(item => {
             const patientName = (item.paciente?.datos_identificacion
-                ? `${item.paciente.datos_identificacion.primer_nombre} ${item.paciente.datos_identificacion.apellido_paterno}`
+                ? nombreCompleto(item.paciente.datos_identificacion)
                 : item.paciente?.name || ''
             ).toLowerCase();
             const patientCedula = item.paciente?.datos_identificacion?.numero_cedula || '';
@@ -1213,7 +1214,7 @@ const Enfermero_page = () => {
             // Filtro por texto
             const searchText = historialSearch.toLowerCase();
             const patientName = (item.paciente?.datos_identificacion
-                ? `${item.paciente.datos_identificacion.primer_nombre} ${item.paciente.datos_identificacion.apellido_paterno}`
+                ? nombreCompleto(item.paciente.datos_identificacion)
                 : item.paciente?.name || ''
             ).toLowerCase();
             const patientCedula = item.paciente?.datos_identificacion?.numero_cedula || '';
@@ -1560,7 +1561,7 @@ const Enfermero_page = () => {
                                                                             <td>
                                                                                 <div className="person-cell">
                                                                                     <div>
-                                                                                        <strong>{item.paciente?.datos_identificacion ? `${item.paciente.datos_identificacion.primer_nombre} ${item.paciente.datos_identificacion.apellido_paterno}` : item.paciente?.name}</strong>
+                                                                                        <strong>{item.paciente?.datos_identificacion ? nombreCompleto(item.paciente.datos_identificacion) : item.paciente?.name}</strong>
                                                                                         <span>{item.paciente?.datos_identificacion?.numero_cedula || 'Sin cédula'}</span>
                                                                                     </div>
                                                                                 </div>
@@ -1876,7 +1877,7 @@ const Enfermero_page = () => {
                                                                                     <td>
                                                                                         <div className="person-cell">
                                                                                             <div>
-                                                                                                <strong>{item.paciente?.datos_identificacion ? `${item.paciente.datos_identificacion.primer_nombre} ${item.paciente.datos_identificacion.apellido_paterno}` : item.paciente?.name}</strong>
+                                                                                                <strong>{item.paciente?.datos_identificacion ? nombreCompleto(item.paciente.datos_identificacion) : item.paciente?.name}</strong>
                                                                                                 <span>{item.paciente?.datos_identificacion?.numero_cedula || 'Sin cédula'}</span>
                                                                                             </div>
                                                                                         </div>

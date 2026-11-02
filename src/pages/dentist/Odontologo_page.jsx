@@ -25,6 +25,7 @@ import { buildCurativasNarrative, buildFacultyNarrative, buildGenderNarrative, b
 import { clasificarTipoPaciente, esPersonalAdministrativo } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
+import { nombreCompleto } from '../../utils/nombreCompleto';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -4113,7 +4114,7 @@ const Odontologo_page = () => {
             const searchText = historialSearch.toLowerCase();
             const pIdent = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion;
             const patientName = (pIdent
-                ? `${pIdent.primer_nombre} ${pIdent.apellido_paterno}`
+                ? nombreCompleto(pIdent)
                 : item.paciente?.name || ''
             ).toLowerCase();
             const patientCedula = pIdent?.numero_cedula || '';
@@ -5721,7 +5722,7 @@ ${cuerpo}
                                                 {parteDiarioList.map((item, idx) => {
                                                     const patientIdent = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion;
                                                     const patientName = patientIdent
-                                                        ? `${patientIdent.primer_nombre} ${patientIdent.apellido_paterno}`
+                                                        ? nombreCompleto(patientIdent)
                                                         : item.paciente?.name || item.paciente?.email || 'Usuario registrado';
 
                                                     let itemIcon = <ClipboardList size={16} />;
@@ -8195,8 +8196,8 @@ ${cuerpo}
                                                                                         const patObj = cita.paciente ? {
                                                                                             id: cita.paciente.id,
                                                                                             id_usuario: cita.paciente.id,
-                                                                                            name: `${cita.paciente.datos_identificacion?.primer_nombre || cita.paciente.name || ''} ${cita.paciente.datos_identificacion?.apellido_paterno || ''}`.trim(),
-                                                                                            nombre_completo: `${cita.paciente.datos_identificacion?.primer_nombre || cita.paciente.name || ''} ${cita.paciente.datos_identificacion?.apellido_paterno || ''}`.trim(),
+                                                                                            name: (nombreCompleto(cita.paciente.datos_identificacion) || cita.paciente.name || ''),
+                                                                                            nombre_completo: (nombreCompleto(cita.paciente.datos_identificacion) || cita.paciente.name || ''),
                                                                                             datosIdentificacion: cita.paciente.datosIdentificacion || cita.paciente.datos_identificacion
                                                                                         } : { id: cita.id_usuario_paciente, id_usuario: cita.id_usuario_paciente };
                                                                                         handleSelectPatient(patObj, true);
@@ -11330,7 +11331,7 @@ ${cuerpo}
                                 <div>
                                     <span>Completar Consulta</span>
                                     <h2>{completingCita.paciente?.datos_identificacion
-                                        ? `${completingCita.paciente.datos_identificacion.primer_nombre} ${completingCita.paciente.datos_identificacion.apellido_paterno}`
+                                        ? nombreCompleto(completingCita.paciente.datos_identificacion)
                                         : completingCita.paciente?.name || 'Paciente'}</h2>
                                 </div>
                             </div>

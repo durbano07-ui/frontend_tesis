@@ -16,6 +16,7 @@ import { useAuthStore, getAuthToken } from '../stores/authStore';
 import useAutoRefresh from '../hooks/useAutoRefresh';
 import './NotificationMenu.css';
 import { onKeyActivate } from '../a11y/keyboard';
+import { nombreCompleto } from '../utils/nombreCompleto';
 
 const NotificationMenu = ({ onNavigateToCitas }) => {
     const { user } = useAuthStore();
@@ -161,7 +162,7 @@ const NotificationMenu = ({ onNavigateToCitas }) => {
                     if (!cita.fecha) return;
                     const pIdent = cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion || cita.paciente?.identification;
                     const patientName = pIdent
-                        ? `${pIdent.primer_nombre} ${pIdent.apellido_paterno}`
+                        ? nombreCompleto(pIdent)
                         : cita.paciente?.name || 'Paciente';
 
                     const citaFechaStr = String(cita.fecha).slice(0, 10);

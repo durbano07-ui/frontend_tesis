@@ -20,6 +20,7 @@ import PeriodoSelector from '../../components/PeriodoSelector';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
+import { nombreCompleto } from '../../utils/nombreCompleto';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -2162,7 +2163,7 @@ const Psicologo_page = () => {
             const patientDetails = patientProfilesCache[item.id_usuario_paciente] || item.paciente;
             const pIdent = patientDetails?.datos_identificacion || patientDetails?.datosIdentificacion || patientDetails?.identification;
             const patientName = (pIdent
-                ? `${pIdent.primer_nombre} ${pIdent.apellido_paterno}`
+                ? nombreCompleto(pIdent)
                 : patientDetails?.name || patientDetails?.email || 'Paciente'
             ).toLowerCase();
             const patientCedula = pIdent?.numero_cedula || '';
@@ -3861,7 +3862,7 @@ ${paginas}
                                                                 const patientDetails = patientProfilesCache[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
                                                                 const pIdent = patientDetails?.datos_identificacion || patientDetails?.datosIdentificacion || patientDetails?.identification;
                                                                 const pName = pIdent
-                                                                    ? `${pIdent.primer_nombre || ''} ${pIdent.apellido_paterno || ''}`.trim()
+                                                                    ? nombreCompleto(pIdent)
                                                                     : patientDetails?.name || item.paciente_nombre || '—';
                                                                 const pCedula = pIdent?.numero_cedula || item.paciente_cedula || '—';
 
@@ -3965,7 +3966,7 @@ ${paginas}
                                                         <tbody>
                                                             {reportCitasList.map((cita, idx) => {
                                                                 const pIdent = cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion || cita.paciente?.identification || {};
-                                                                const fullName = `${pIdent.primer_nombre || ''} ${pIdent.apellido_paterno || ''}`.trim() || cita.paciente?.name || cita.paciente?.email || '—';
+                                                                const fullName = nombreCompleto(pIdent) || cita.paciente?.name || cita.paciente?.email || '—';
                                                                 const cedula = pIdent.numero_cedula || '—';
                                                                 return (
                                                                     <tr key={cita.id || idx}>
@@ -4118,8 +4119,8 @@ ${paginas}
                                                                                         const patObj = cita.paciente ? {
                                                                                             id: cita.paciente.id,
                                                                                             id_usuario: cita.paciente.id,
-                                                                                            name: `${cita.paciente.datos_identificacion?.primer_nombre || cita.paciente.name || ''} ${cita.paciente.datos_identificacion?.apellido_paterno || ''}`.trim(),
-                                                                                            nombre_completo: `${cita.paciente.datos_identificacion?.primer_nombre || cita.paciente.name || ''} ${cita.paciente.datos_identificacion?.apellido_paterno || ''}`.trim(),
+                                                                                            name: (nombreCompleto(cita.paciente.datos_identificacion) || cita.paciente.name || ''),
+                                                                                            nombre_completo: (nombreCompleto(cita.paciente.datos_identificacion) || cita.paciente.name || ''),
                                                                                             datosIdentificacion: cita.paciente.datosIdentificacion || cita.paciente.datos_identificacion
                                                                                         } : { id: cita.id_usuario_paciente, id_usuario: cita.id_usuario_paciente };
                                                                                         handleSelectPatient(patObj, true);
@@ -5046,7 +5047,7 @@ ${paginas}
                                 <div>
                                     <span>Completar Consulta</span>
                                     <h2>{completingCita.paciente?.datos_identificacion
-                                        ? `${completingCita.paciente.datos_identificacion.primer_nombre} ${completingCita.paciente.datos_identificacion.apellido_paterno}`
+                                        ? nombreCompleto(completingCita.paciente.datos_identificacion)
                                         : completingCita.paciente?.name || 'Paciente'}</h2>
                                 </div>
                             </div>

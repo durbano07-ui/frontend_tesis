@@ -805,7 +805,7 @@ export default function MedicoOcupacionalPage() {
             tipoEvaluacion: c.tipo_atencion || 'Periódica',
             prioridad: 'Normal',
             estado: c.estado || 'programada',
-            paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: d.primer_nombre, apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '), cedula: d.numero_cedula }
+            paciente: { ...p, ...d, id: p.id || c.id_usuario_paciente, nombres: [d.primer_nombre, d.segundo_nombre].filter(Boolean).join(' '), apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '), cedula: d.numero_cedula }
         };
     };
 
@@ -4948,8 +4948,8 @@ export default function MedicoOcupacionalPage() {
             const patientData = response.data.data;
             const formattedPatient = {
                 id: patientData.id || patientData.id_usuario,
-                nombres: patientData.primer_nombre || patientData.nombre_completo || newPatientForm.nombre_completo,
-                apellidos: patientData.apellido_paterno || '',
+                nombres: [patientData.primer_nombre, patientData.segundo_nombre].filter(Boolean).join(' ') || patientData.nombre_completo || newPatientForm.nombre_completo,
+                apellidos: [patientData.apellido_paterno, patientData.apellido_materno].filter(Boolean).join(' '),
                 nombre_completo: patientData.nombre_completo || newPatientForm.nombre_completo,
                 cedula: patientData.numero_cedula || newPatientForm.cedula,
                 tipo_documento: newPatientForm.tipo_documento,
