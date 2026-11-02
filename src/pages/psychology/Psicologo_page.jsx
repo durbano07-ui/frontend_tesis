@@ -3124,50 +3124,54 @@ ${paginas}
                                                     </div>
                                                 </div>
 
-                                                {parteDiarioList.map((item, idx) => {
-                                                    const patientDetails = patientProfilesCache[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
-                                                    const pIdent = patientDetails?.datos_identificacion || patientDetails?.datosIdentificacion || patientDetails?.identification;
-                                                    const pName = pIdent
-                                                        ? `${pIdent.primer_nombre} ${pIdent.apellido_paterno}`
-                                                        : patientDetails?.name || patientDetails?.email || 'Paciente';
+                                                {/* Una fila por atención, con sus datos en columnas */}
+                                                <div style={{ overflowX: 'auto', marginTop: '14px', border: '1px solid var(--border)', borderRadius: '12px' }}>
+                                                    <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                                        <thead>
+                                                            <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
+                                                                {['N°', 'Paciente', 'Cédula', 'Atención', 'Tipo', 'Diagnóstico'].map(col => (
+                                                                    <th key={col} style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>{col}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {parteDiarioList.map((item, idx) => {
+                                                                const patientDetails = patientProfilesCache[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
+                                                                const pIdent = patientDetails?.datos_identificacion || patientDetails?.datosIdentificacion || patientDetails?.identification;
+                                                                const pName = pIdent
+                                                                    ? [pIdent.primer_nombre, pIdent.segundo_nombre, pIdent.apellido_paterno, pIdent.apellido_materno].filter(Boolean).join(' ')
+                                                                    : patientDetails?.name || patientDetails?.email || 'Paciente';
 
-                                                    let itemIcon = <ClipboardList size={16} />;
-                                                    let iconBg = 'var(--primary-soft)';
-                                                    let iconColor = 'var(--primary)';
+                                                                const ATENCION = {
+                                                                    primaria: { texto: 'Primaria', icono: <HeartHandshake size={14} />, bg: 'var(--primary-soft)', color: 'var(--primary)' },
+                                                                    secundaria: { texto: 'Secundaria', icono: <TrendingUp size={14} />, bg: 'var(--accent-soft)', color: 'var(--accent)' },
+                                                                    certificadomedico: { texto: 'Certificado médico', icono: <FileCheck size={14} />, bg: '#fef3c7', color: '#d97706' },
+                                                                    validacion: { texto: 'Validación', icono: <CheckCircle size={14} />, bg: '#e9f8f2', color: 'var(--success)' }
+                                                                };
+                                                                const atencion = ATENCION[item.tipo_atencion] || { texto: item.tipo_atencion || '—', icono: <ClipboardList size={14} />, bg: 'var(--primary-soft)', color: 'var(--primary)' };
+                                                                const celda = { padding: '12px 14px', fontSize: '12px', color: 'var(--text)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' };
 
-                                                    if (item.tipo_atencion === 'primaria') {
-                                                        itemIcon = <HeartHandshake size={16} />;
-                                                        iconBg = 'var(--primary-soft)';
-                                                        iconColor = 'var(--primary)';
-                                                    } else if (item.tipo_atencion === 'secundaria') {
-                                                        itemIcon = <TrendingUp size={16} />;
-                                                        iconBg = 'var(--accent-soft)';
-                                                        iconColor = 'var(--accent)';
-                                                    } else if (item.tipo_atencion === 'certificadomedico') {
-                                                        itemIcon = <FileCheck size={16} />;
-                                                        iconBg = '#fef3c7';
-                                                        iconColor = '#d97706';
-                                                    } else if (item.tipo_atencion === 'validacion') {
-                                                        itemIcon = <CheckCircle size={16} />;
-                                                        iconBg = '#e9f8f2';
-                                                        iconColor = 'var(--success)';
-                                                    }
-
-                                                    return (
-                                                        <div key={idx} className="list-card" style={{ background: '#fafbfd' }}>
-                                                            <div className="list-card__icon" style={{ background: iconBg, color: iconColor }}>
-                                                                {itemIcon}
-                                                            </div>
-                                                            <div className="list-card__content">
-                                                                <strong>{pName}</strong>
-                                                                <p>Atención: {item.tipo_atencion.toUpperCase()} · Diagnóstico: {item.detalle_diagnostico}</p>
-                                                            </div>
-                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                                                {item.tipo_atencion2.toUpperCase()}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                                return (
+                                                                    <tr key={item.id || idx}>
+                                                                        <td style={{ ...celda, color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
+                                                                        <td style={{ ...celda, fontWeight: 700 }}>{pName}</td>
+                                                                        <td style={{ ...celda, whiteSpace: 'nowrap' }}>{pIdent?.numero_cedula || '—'}</td>
+                                                                        <td style={celda}>
+                                                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                                                                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '6px', background: atencion.bg, color: atencion.color }}>
+                                                                                    {atencion.icono}
+                                                                                </span>
+                                                                                {atencion.texto}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={celda}>{item.tipo_atencion2 === 'preventivo' ? 'Preventivo' : item.tipo_atencion2 === 'curativo' ? 'Curativo' : (item.tipo_atencion2 || '—')}</td>
+                                                                        <td style={celda}>{item.detalle_diagnostico || '—'}</td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         )}
                                     </article>
