@@ -12,6 +12,7 @@ import WeekdayDatePicker from '../../components/WeekdayDatePicker';
 import { compressImage } from '../../utils/compressImage';
 import '../../medical.css';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -1564,9 +1565,12 @@ const PacienteDashboard = () => {
                 </head>
                 <body>
                     <div class="header">
-                        <div class="header-text">
-                            <h1>Universidad Estatal de Bolívar</h1>
-                            <p>Dirección de Bienestar Universitario - Ficha de Registro y Socioeconómica</p>
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 64px; width: auto; max-width: 150px; object-fit: contain;" />
+                            <div class="header-text">
+                                <h1>Universidad Estatal de Bolívar</h1>
+                                <p>Dirección de Bienestar Universitario - Ficha de Registro y Socioeconómica</p>
+                            </div>
                         </div>
                         <div>
                             ${photoHtml}
@@ -1574,7 +1578,7 @@ const PacienteDashboard = () => {
                     </div>
 
                     <div style="font-size: 13px; margin-bottom: 20px; background: #f8fafc; padding: 12px; border-radius: 8px; border-left: 4px solid #0b3155;">
-                        <strong>Usuario:</strong> ${escapeHtml(profile?.identification?.primer_nombre)} ${escapeHtml(profile?.identification?.segundo_nombre || '')} ${escapeHtml(profile?.identification?.apellido_paterno)} ${escapeHtml(profile?.identification?.apellido_materno || '')} 
+                        <strong>Paciente:</strong> ${escapeHtml(profile?.identification?.primer_nombre)} ${escapeHtml(profile?.identification?.segundo_nombre || '')} ${escapeHtml(profile?.identification?.apellido_paterno)} ${escapeHtml(profile?.identification?.apellido_materno || '')} 
                         &nbsp;&nbsp;&nbsp;&nbsp;<strong>Cédula:</strong> ${escapeHtml(profile?.identification?.numero_cedula || '—')}
                     </div>
 
