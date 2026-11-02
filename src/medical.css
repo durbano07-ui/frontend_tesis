@@ -7077,3 +7077,9 @@ div.patient-search-input > input:active {
         justify-content: center;
     }
 }
+
+/* Campo obligatorio vacío al intentar avanzar entre pasos de la atención */
+.campo-con-error {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25) !important;
+}

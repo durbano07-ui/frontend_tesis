@@ -166,6 +166,22 @@ const MedicoGeneral_page = () => {
     // ==========================================
     const [isHistogramModalOpen, setIsHistogramModalOpen] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    // Último paso alcanzado con "Guardar y continuar": la barra de pasos no deja saltar más allá
+    const [pasoMaximo, setPasoMaximo] = useState(0);
+    const [erroresPaso, setErroresPaso] = useState({});
+    // Campos con asterisco (*) de cada paso; signos vitales, antecedentes, receta e histograma no tienen
+    const CAMPOS_OBLIGATORIOS = {
+        motivo: { detalle_motivo: 'Ingrese el motivo de consulta.', detalle_enfermedad_actual: 'Describa la historia de la enfermedad actual.' },
+        organos: { detalle_revision_organos: 'Ingrese los hallazgos de la revisión.' },
+        examen_fisico: { detalle_examen_fisico: 'Describa el examen físico.' },
+        diagnostico: {
+            cie10: 'Ingrese el CIE-10 o diagnóstico principal.',
+            detalle_diagnostico: 'Ingrese la descripción diagnóstica.',
+            detalle_plan_terapeutico: 'Ingrese el plan terapéutico.',
+            tipo_atencion: 'Seleccione el tipo de atención.',
+            tipo: 'Seleccione la clasificación de consulta.'
+        }
+    };
     const steps = [
         { key: 'signos', label: '1. Signos Vitales' },
         { key: 'motivo', label: '2. Motivo y Enfermedad' },
@@ -181,9 +197,43 @@ const MedicoGeneral_page = () => {
         if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1);
     };
     const handleNextStep = () => {
-        if (currentStepIndex < steps.length - 1) setCurrentStepIndex(currentStepIndex + 1);
+        if (currentStepIndex < steps.length - 1) {
+            setCurrentStepIndex(currentStepIndex + 1);
+            setPasoMaximo(prev => Math.max(prev, currentStepIndex + 1));
+        }
     };
+
+    // Campos obligatorios vacíos de un paso: { campo: mensaje }
+    const validarPaso = (idx) => Object.fromEntries(
+        Object.entries(CAMPOS_OBLIGATORIOS[steps[idx]?.key] || {}).filter(([campo]) => !String(fichaForm[campo] ?? '').trim())
+    );
+
+    // Revisa los pasos indicados; si uno tiene campos vacíos, lo abre con los errores marcados
+    const pasosCompletos = (indices) => {
+        for (const idx of indices) {
+            const errores = validarPaso(idx);
+            if (Object.keys(errores).length > 0) {
+                setCurrentStepIndex(idx);
+                setErroresPaso(errores);
+                showSystemToast('Complete los campos obligatorios (*) antes de continuar.');
+                return false;
+            }
+        }
+        setErroresPaso({});
+        return true;
+    };
+
+    const handleIrAPaso = (idx) => {
+        if (idx <= Math.max(pasoMaximo, currentStepIndex)) {
+            setErroresPaso({});
+            setCurrentStepIndex(idx);
+        } else {
+            showSystemToast('Complete y guarde los pasos en orden con «Guardar y continuar».');
+        }
+    };
+
     const handleSaveAndContinue = async () => {
+        if (!pasosCompletos([currentStepIndex])) return;
         const activeStepKey = steps[currentStepIndex].key;
         const success = await handleSaveFichaSection(activeStepKey);
         if (success) {
@@ -195,6 +245,7 @@ const MedicoGeneral_page = () => {
         // El resumen no tiene datos propios: se vuelve a guardar el diagnóstico (parte diario, que
         // incluye la receta) por si se llegó aquí desde la barra de pasos sin "Guardar y continuar".
         if (activeStepKey === 'resumen') {
+            if (!pasosCompletos(steps.map((_, i) => i))) return;
             if (await handleSaveFichaSection('diagnostico')) {
                 handleCloseFichaForm();
             }
@@ -526,6 +577,8 @@ const MedicoGeneral_page = () => {
         setIsFichaModalOpen(false);
         setSelectedPatient(null);
         setCurrentStepIndex(0);
+        setPasoMaximo(0);
+        setErroresPaso({});
         resetFichaForm();
         if (activeTab === 'atencion') {
             setActiveTab('ficha');
@@ -4513,7 +4566,9 @@ ${paginas}
                                                 <div
                                                     role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
-                                                    onClick={() => setCurrentStepIndex(idx)}
+                                                    onClick={() => handleIrAPaso(idx)}
+                                                    aria-disabled={idx > Math.max(pasoMaximo, currentStepIndex)}
+                                                    style={idx > Math.max(pasoMaximo, currentStepIndex) ? { cursor: 'not-allowed' } : undefined}
                                                 >
                                                     <div className="stepper-step__circle">{idx + 1}</div>
                                                     <span className="stepper-step__label">{step.label}</span>
@@ -4593,23 +4648,25 @@ ${paginas}
                                                         <span>Motivo de Consulta <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Motivo de Consulta"
-                                                            value={fichaForm.detalle_motivo}
+                                                            className={erroresPaso.detalle_motivo ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_motivo} value={fichaForm.detalle_motivo}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_motivo: e.target.value })}
                                                             placeholder="Describa el motivo de ingreso del paciente..."
                                                             rows={2}
                                                             required
                                                         />
+{erroresPaso.detalle_motivo && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_motivo}</small>}
                                                     </div>
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Historia de la Enfermedad Actual <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Historia de la Enfermedad Actual"
-                                                            value={fichaForm.detalle_enfermedad_actual}
+                                                            className={erroresPaso.detalle_enfermedad_actual ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_enfermedad_actual} value={fichaForm.detalle_enfermedad_actual}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_enfermedad_actual: e.target.value })}
                                                             placeholder="Cronología y sintomatología reportada..."
                                                             rows={3}
                                                             required
                                                         />
+{erroresPaso.detalle_enfermedad_actual && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_enfermedad_actual}</small>}
                                                     </div>
                                                 </div>
                                             )}
@@ -4647,12 +4704,13 @@ ${paginas}
                                                         <span>Hallazgos de la Revisión <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Hallazgos de la Revisión"
-                                                            value={fichaForm.detalle_revision_organos}
+                                                            className={erroresPaso.detalle_revision_organos ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_revision_organos} value={fichaForm.detalle_revision_organos}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_revision_organos: e.target.value })}
                                                             placeholder="Detalle alteraciones en sistemas (Respiratorio, Digestivo, Cardio, etc.)..."
                                                             rows={3}
                                                             required
                                                         />
+{erroresPaso.detalle_revision_organos && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_revision_organos}</small>}
                                                     </div>
                                                 </div>
                                             )}
@@ -4666,13 +4724,14 @@ ${paginas}
                                                                 <span>Descripción del Examen Físico <span className="field-req-star">*</span></span>
                                                                 <textarea
                                                                     aria-label="Descripción del Examen Físico"
-                                                                    value={fichaForm.detalle_examen_fisico}
+                                                                    className={erroresPaso.detalle_examen_fisico ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_examen_fisico} value={fichaForm.detalle_examen_fisico}
                                                                     onChange={(e) => setFichaForm({ ...fichaForm, detalle_examen_fisico: e.target.value })}
                                                                     placeholder="Detalle exploración física (Cabeza, Cuello, Tórax, Abdomen)..."
                                                                     rows={6}
                                                                     required
                                                                     style={{ minHeight: '130px' }}
                                                                 />
+{erroresPaso.detalle_examen_fisico && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_examen_fisico}</small>}
                                                             </div>
                                                             {fichaForm.altura_x !== null && (
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '11px' }}>
@@ -4844,7 +4903,8 @@ ${paginas}
                                                     <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr', alignItems: 'end', gap: '20px' }}>
                                                         <label className="field" style={{ margin: 0 }}>
                                                             <span>CIE-10 / Diagnóstico Principal <span className="field-req-star">*</span></span>
-                                                            <input type="text" value={fichaForm.cie10} onChange={(e) => setFichaForm({ ...fichaForm, cie10: e.target.value })} placeholder="Ej: J18 - Neumonía..." required />
+                                                            <input type="text" className={erroresPaso.cie10 ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.cie10} value={fichaForm.cie10} onChange={(e) => setFichaForm({ ...fichaForm, cie10: e.target.value })} placeholder="Ej: J18 - Neumonía..." required />
+{erroresPaso.cie10 && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.cie10}</small>}
                                                         </label>
                                                         <div style={{ display: 'flex', gap: '24px', paddingBottom: '12px' }}>
                                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', fontWeight: '600', color: '#334155', cursor: 'pointer', margin: 0 }}>
@@ -4873,23 +4933,25 @@ ${paginas}
                                                         <span>Descripción Diagnóstica <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Descripción Diagnóstica"
-                                                            value={fichaForm.detalle_diagnostico}
+                                                            className={erroresPaso.detalle_diagnostico ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_diagnostico} value={fichaForm.detalle_diagnostico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_diagnostico: e.target.value })}
                                                             placeholder="Detalle clínico del diagnóstico..."
                                                             rows={2}
                                                             required
                                                         />
+{erroresPaso.detalle_diagnostico && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_diagnostico}</small>}
                                                     </div>
                                                     <div className="field field--full" style={{ marginTop: '12px' }}>
                                                         <span>Plan Terapéutico / Tratamiento Indicado <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Plan Terapéutico / Tratamiento Indicado"
-                                                            value={fichaForm.detalle_plan_terapeutico}
+                                                            className={erroresPaso.detalle_plan_terapeutico ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.detalle_plan_terapeutico} value={fichaForm.detalle_plan_terapeutico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_plan_terapeutico: e.target.value })}
                                                             placeholder="Medicamentos indicados, dosis y frecuencia..."
                                                             rows={3}
                                                             required
                                                         />
+{erroresPaso.detalle_plan_terapeutico && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_plan_terapeutico}</small>}
                                                     </div>
 
                                                     <div className="clinical-form-section" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
