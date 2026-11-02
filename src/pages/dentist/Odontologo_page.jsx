@@ -529,7 +529,8 @@ const Odontologo_page = () => {
         if (!selectedPatient) return;
         const isEvol = record?.type === 'evolucion';
         const diag = isEvol ? (record.detalle_evolucion || 'Evolución Odontológica') : (record?.detalle_diagnostico || 'Consulta Dental');
-        const proc = isEvol ? 'Tratamiento y Seguimiento' : (record?.procedimiento || 'Evaluación Odontológica');
+        // Procedimiento registrado en esa atención (las sesiones de evolución lo guardan en detalle_procedimiento)
+        const proc = record?.procedimiento || record?.detalle_procedimiento || (isEvol ? 'Tratamiento y Seguimiento' : 'Evaluación Odontológica');
         const { startH, endH } = getDefaultHorario();
 
         setCertModal({
@@ -9782,14 +9783,15 @@ ${cuerpo}
                                     </div>
                                 ) : (
                                     <div>
-                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Procedimiento Realizado *</span>
+                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Procedimiento Realizado</span>
+                                        {/* Se toma del procedimiento registrado en la atención; no se reescribe aquí */}
                                         <input
                                             aria-label="Procedimiento Realizado"
                                             type="text"
                                             value={certModal.procedimiento}
-                                            onChange={(e) => setCertModal(prev => ({ ...prev, procedimiento: e.target.value }))}
-                                            placeholder="Ej: restauración provisional en la pieza dental 46, profilaxis dental..."
-                                            style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                            readOnly
+                                            title="Procedimiento registrado en la atención"
+                                            style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', background: '#e2e8f0', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '600' }}
                                         />
                                     </div>
                                 )}
