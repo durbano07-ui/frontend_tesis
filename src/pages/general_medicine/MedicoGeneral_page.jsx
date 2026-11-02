@@ -5179,7 +5179,7 @@ ${paginas}
                                                             <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Filtra y visualiza la distribución de frecuencia gráfica del paciente.</p>
                                                         </div>
                                                     </div>
-                                                    <VitalSignsHistogram patient={selectedPatient} isInline={true} />
+                                                    <VitalSignsHistogram patient={selectedPatient} isInline={true} pacienteFijo />
                                                 </div>
                                             )}
                                         </div>

@@ -7508,7 +7508,7 @@ export default function MedicoOcupacionalPage() {
                                                     </div>
                                                 </div>
 
-                                                <VitalSignsHistogram patient={patientSelected} isInline={true} />
+                                                <VitalSignsHistogram patient={patientSelected} isInline={true} pacienteFijo />
                                             </div>
                                         )}
                                     </div>

@@ -136,11 +136,13 @@ const VITAL_CONFIGS = {
     }
 };
 
+// pacienteFijo: dentro de una atención el histograma es solo del paciente atendido (sin buscador)
 const VitalSignsHistogram = ({
     patient = null,
     onClose = null,
     isInline = false,
-    isOpen = true
+    isOpen = true,
+    pacienteFijo = false
 }) => {
     // Estado del paciente seleccionado
     const [activePatient, setActivePatient] = useState(patient);
@@ -460,7 +462,7 @@ const VitalSignsHistogram = ({
     const contentJSX = (
         <div className="vitals-histogram-wrapper" style={{ fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
             {/* BANNER DEL PACIENTE O PANEL DE BÚSQUEDA */}
-            {showPatientSearch || !activePatient ? (
+            {!(pacienteFijo && activePatient) && (showPatientSearch || !activePatient) ? (
                 <div className="vitals-search-box">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -555,14 +557,16 @@ const VitalSignsHistogram = ({
                         </div>
                     </div>
 
-                    <button
-                        type="button"
-                        className="action-button action-button--light"
-                        onClick={() => setShowPatientSearch(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, padding: '7px 12px', borderRadius: '10px' }}
-                    >
-                        <Search size={14} /> Cambiar paciente
-                    </button>
+                    {!pacienteFijo && (
+                        <button
+                            type="button"
+                            className="action-button action-button--light"
+                            onClick={() => setShowPatientSearch(true)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 600, padding: '7px 12px', borderRadius: '10px' }}
+                        >
+                            <Search size={14} /> Cambiar paciente
+                        </button>
+                    )}
                 </div>
             )}
 

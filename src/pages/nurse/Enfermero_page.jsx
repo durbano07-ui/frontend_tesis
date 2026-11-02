@@ -2898,7 +2898,7 @@ const Enfermero_page = () => {
                                             <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Filtra y visualiza la distribución de frecuencia histórica de signos vitales.</p>
                                         </div>
                                     </div>
-                                    <VitalSignsHistogram patient={selectedPatient} isInline={true} />
+                                    <VitalSignsHistogram patient={selectedPatient} isInline={true} pacienteFijo />
                                 </div>
                             )}
 
