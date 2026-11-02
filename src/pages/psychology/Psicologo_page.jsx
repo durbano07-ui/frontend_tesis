@@ -101,6 +101,15 @@ const Psicologo_page = () => {
     // ==========================================
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [validationTriggered, setValidationTriggered] = useState(false);
+    // Último paso alcanzado con "Guardar y continuar": la barra de pasos no deja saltar más allá
+    const [pasoMaximo, setPasoMaximo] = useState(0);
+    // Campos con asterisco (*) de cada paso; el estado mental no tiene obligatorios
+    const CAMPOS_OBLIGATORIOS = {
+        motivo: ['detalle_motivo', 'psicoanamnesis_personal', 'psicoanamnesis_familiar'],
+        historiales: ['detalle_laboral', 'detalle_social', 'detalle_sexual', 'detalle_patologia'],
+        pruebas: ['detalle_prueba_aplicada', 'detalle_analisis_resultados', 'detalle_conclusion'],
+        diagnostico: ['detalle_diagnostico', 'detalle_pronostico', 'detalle_recomendacion', 'tipo_atencion', 'tipo_atencion2']
+    };
     const steps = [
         { key: 'motivo', label: '1. Motivo y Anamnesis' },
         { key: 'historiales', label: '2. Historial de Vida' },
@@ -118,7 +127,17 @@ const Psicologo_page = () => {
     const handleNextStep = () => {
         if (currentStepIndex < steps.length - 1) {
             setCurrentStepIndex(currentStepIndex + 1);
+            setPasoMaximo(prev => Math.max(prev, currentStepIndex + 1));
             setValidationTriggered(false);
+        }
+    };
+
+    const handleIrAPaso = (idx) => {
+        if (idx <= Math.max(pasoMaximo, currentStepIndex)) {
+            setValidationTriggered(false);
+            setCurrentStepIndex(idx);
+        } else {
+            showSystemToast('Complete y guarde los pasos en orden con «Guardar y continuar».');
         }
     };
     const handleSaveAndContinue = async () => {
@@ -130,9 +149,16 @@ const Psicologo_page = () => {
     };
     const handleSaveAndFinish = async () => {
         const activeStepKey = steps[currentStepIndex].key;
-        // El resumen no tiene datos propios. Se vuelve a guardar el paso 5 (diagnóstico y registro
-        // diario) por si se llegó aquí desde la barra de pasos sin pasar por "Guardar y continuar".
+        // El resumen no tiene datos propios. Antes de cerrar se revisan los obligatorios de todos los
+        // pasos y se vuelve a guardar el paso 5 (diagnóstico y registro diario).
         if (activeStepKey === 'resumen') {
+            const pasoIncompleto = steps.findIndex(st => (CAMPOS_OBLIGATORIOS[st.key] || []).some(campo => !String(fichaForm[campo] ?? '').trim()));
+            if (pasoIncompleto >= 0) {
+                setCurrentStepIndex(pasoIncompleto);
+                setValidationTriggered(true);
+                showSystemToast("Por favor complete todos los campos obligatorios marcados en rojo.");
+                return;
+            }
             const success = await handleSaveFichaSection('diagnostico');
             if (success) {
                 handleCloseFichaForm();
@@ -936,23 +962,9 @@ const Psicologo_page = () => {
 
         const patientId = selectedPatient.id_usuario || selectedPatient.id;
 
-        // Validation check for mandatory fields per section
-        let hasErrors = false;
-        if (sectionKey === 'motivo') {
-            if (!fichaForm.detalle_motivo?.trim()) {
-                hasErrors = true;
-            }
-        } else if (sectionKey === 'historiales') {
-            // Section 2 fields are optional if patient doesn't present them
-            // Only error if every single field is empty
-            if (!fichaForm.detalle_laboral?.trim() && !fichaForm.detalle_social?.trim() && !fichaForm.detalle_sexual?.trim() && !fichaForm.detalle_patologia?.trim()) {
-                hasErrors = false;
-            }
-        } else if (sectionKey === 'diagnostico') {
-            if (!fichaForm.detalle_diagnostico?.trim()) {
-                hasErrors = true;
-            }
-        }
+        // Todos los campos con asterisco del paso deben estar llenos (antes solo se exigían el
+        // motivo y el diagnóstico, y se podía avanzar con el resto vacío)
+        const hasErrors = (CAMPOS_OBLIGATORIOS[sectionKey] || []).some(campo => !String(fichaForm[campo] ?? '').trim());
 
         if (hasErrors) {
             setValidationTriggered(true);
@@ -1141,6 +1153,7 @@ const Psicologo_page = () => {
         setIsFichaModalOpen(false);
         setSelectedPatient(null);
         setCurrentStepIndex(0);
+        setPasoMaximo(0);
         resetFichaForm();
     };
 
@@ -4427,7 +4440,9 @@ ${paginas}
                                                 <div
                                                     role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
-                                                    onClick={() => setCurrentStepIndex(idx)}
+                                                    onClick={() => handleIrAPaso(idx)}
+                                                    aria-disabled={idx > Math.max(pasoMaximo, currentStepIndex)}
+                                                    style={idx > Math.max(pasoMaximo, currentStepIndex) ? { cursor: 'not-allowed' } : undefined}
                                                 >
                                                     <div className="stepper-step__circle">{idx + 1}</div>
                                                     <span className="stepper-step__label">{step.label}</span>
