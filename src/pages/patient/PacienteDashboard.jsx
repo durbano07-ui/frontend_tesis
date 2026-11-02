@@ -1452,7 +1452,7 @@ const PacienteDashboard = () => {
             const fecha = (v) => v ? String(v).slice(0, 10).split('-').reverse().join('/') : '—';
             const lista = (items, campo) => (items || []).map(x => x[campo]).filter(Boolean).join(', ') || 'Ninguna';
             const campo = (etiqueta, valor) => `<div class="info-item"><span class="info-label">${escapeHtml(etiqueta)}:</span><span class="info-val">${escapeHtml(valor === null || valor === undefined || valor === '' ? '—' : String(valor))}</span></div>`;
-            const seccion = (titulo, campos) => `<div class="section-title">${escapeHtml(titulo)}</div><div class="info-grid">${campos.join('')}</div>`;
+            const seccion = (titulo, campos) => `<div class="seccion"><div class="section-title">${escapeHtml(titulo)}</div><div class="info-grid">${campos.join('')}</div></div>`;
 
             const photoHtml = getPhotoUrl()
                 ? `<img src="${escapeHtml(getPhotoUrl())}" alt="Foto del paciente" style="width: 100px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" />`
@@ -1520,6 +1520,11 @@ const PacienteDashboard = () => {
                         .info-val {
                             color: #1e293b;
                             font-weight: 600;
+                        }
+                        /* Una sección no se parte entre dos hojas: si no cabe completa, pasa entera a la siguiente */
+                        .seccion {
+                            break-inside: avoid;
+                            page-break-inside: avoid;
                         }
                         @media print {
                             body { margin: 20px; max-width: 100%; }
