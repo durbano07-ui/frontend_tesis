@@ -5,6 +5,14 @@ import { VIAS_ADMINISTRACION } from '../../utils/viasAdministracion';
 import { Pill, Search, Plus, Minus, History, Pencil, Power, AlertTriangle, Package, Boxes, Filter, X, FileSpreadsheet, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 
+// Stock = cajas cerradas × unidades por caja + unidades sueltas. Sin unidades por caja (productos
+// anteriores al cambio) el total no se conoce y se usa la regla antigua por cajas o sueltas.
+const UMBRAL_STOCK_BAJO = 10;
+const totalUnidades = (p) => (p.unidades_por_caja ? p.stock_cajas * p.unidades_por_caja + p.stock_unidades : null);
+const esStockBajo = (p) => (p.unidades_por_caja ? totalUnidades(p) <= UMBRAL_STOCK_BAJO : (p.stock_cajas <= UMBRAL_STOCK_BAJO || p.stock_unidades <= UMBRAL_STOCK_BAJO));
+const estaAgotado = (p) => (p.unidades_por_caja ? totalUnidades(p) === 0 : (p.stock_cajas === 0 && p.stock_unidades === 0));
+const textoStock = (p) => `${p.stock_cajas} ${p.stock_cajas === 1 ? 'caja' : 'cajas'} + ${p.stock_unidades} ${p.stock_unidades === 1 ? 'unidad suelta' : 'unidades sueltas'}`;
+
 const FarmaciaInventarioTab = ({ showSystemToast }) => {
     const [productos, setProductos] = useState([]);
     const [presentaciones, setPresentaciones] = useState([]);
@@ -46,6 +54,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
         via_administracion: '',
         stock_inicial_cajas: 0,
         stock_inicial_unidades: 0,
+        unidades_por_caja: '',
         descripcion: ''
     });
     const [formSaving, setFormSaving] = useState(false);
@@ -85,9 +94,10 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
 
             setStats({
                 totalProductos: res.data.total_productos || data.length,
-                totalCajas: res.data.total_cajas || data.reduce((acc, p) => acc + (p.stock_cajas || 0), 0),
-                totalUnidades: res.data.total_unidades || data.reduce((acc, p) => acc + (p.stock_unidades || 0), 0),
-                totalBajoStock: data.filter(p => (p.stock_cajas <= 10 || p.stock_unidades <= 10)).length
+                // Sumar cajas de productos distintos no dice nada: se suma el total en unidades
+                totalCajas: data.reduce((acc, p) => acc + (totalUnidades(p) || 0), 0),
+                totalUnidades: data.filter(p => !p.unidades_por_caja).length,
+                totalBajoStock: data.filter(esStockBajo).length
             });
         } catch (err) {
             console.error('Error cargando inventario de farmacia:', err);
@@ -120,6 +130,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             via_administracion: '',
             stock_inicial_cajas: 0,
             stock_inicial_unidades: 0,
+            unidades_por_caja: '',
             descripcion: ''
         });
         setIsCreateModalOpen(true);
@@ -131,6 +142,10 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             showSystemToast('Por favor complete todos los campos obligatorios del producto.');
             return;
         }
+        if (!(parseInt(productForm.unidades_por_caja) >= 1)) {
+            showSystemToast('Indique cuántas unidades trae cada caja.');
+            return;
+        }
         setFormSaving(true);
         try {
             await api.post('/farmacia', {
@@ -140,6 +155,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                 via_administracion: productForm.via_administracion || null,
                 stock_inicial_cajas: parseInt(productForm.stock_inicial_cajas) || 0,
                 stock_inicial_unidades: parseInt(productForm.stock_inicial_unidades) || 0,
+                unidades_por_caja: parseInt(productForm.unidades_por_caja),
                 descripcion: productForm.descripcion
             });
             showSystemToast('Producto creado exitosamente en el inventario.');
@@ -164,6 +180,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
             via_administracion: producto.via_administracion || '',
             stock_inicial_cajas: producto.stock_cajas,
             stock_inicial_unidades: producto.stock_unidades,
+            unidades_por_caja: producto.unidades_por_caja || '',
             descripcion: ''
         });
         setIsEditModalOpen(true);
@@ -181,7 +198,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                 codigo: productForm.codigo.trim(),
                 nombre: productForm.nombre.trim(),
                 id_presentacion: parseInt(productForm.id_presentacion),
-                via_administracion: productForm.via_administracion || null
+                via_administracion: productForm.via_administracion || null,
+                unidades_por_caja: parseInt(productForm.unidades_por_caja) || null
             });
             showSystemToast('Producto actualizado correctamente.');
             setIsEditModalOpen(false);
@@ -329,7 +347,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                         <Package size={20} />
                     </div>
                     <div className="psycho-kpi-card__info">
-                        <span>Stock Cajas</span>
+                        <span>Unidades en Stock</span>
                         <strong>{stats.totalCajas}</strong>
                     </div>
                 </div>
@@ -339,8 +357,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                         <Boxes size={20} />
                     </div>
                     <div className="psycho-kpi-card__info">
-                        <span>Stock Unidades</span>
-                        <strong>{stats.totalUnidades}</strong>
+                        <span>Sin Unidades por Caja</span>
+                        <strong style={{ color: stats.totalUnidades > 0 ? '#d97706' : 'inherit' }}>{stats.totalUnidades}</strong>
                     </div>
                 </div>
             </section>
@@ -575,16 +593,16 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                         <th>Nombre del Medicamento / Producto</th>
                                         <th>Presentación</th>
                                         <th>Estado de Inventario</th>
-                                        <th style={{ textAlign: 'center' }}>Stock Cajas</th>
-                                        <th style={{ textAlign: 'center' }}>Stock Unidades</th>
+                                        <th style={{ textAlign: 'center' }}>Stock</th>
+                                        <th style={{ textAlign: 'center' }}>Total</th>
                                         <th style={{ textAlign: 'center' }}>Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {productos.map((prod) => {
-                                        const isLowCajas = prod.stock_cajas <= 10;
-                                        const isLowUnidades = prod.stock_unidades <= 10;
-                                        const isOut = prod.stock_cajas === 0 && prod.stock_unidades === 0;
+                                        const isLowCajas = esStockBajo(prod);
+                                        const isLowUnidades = false;
+                                        const isOut = estaAgotado(prod);
 
                                         return (
                                             <tr key={prod.id} style={{ background: !prod.activo ? '#f8fafc' : isOut ? '#fff5f5' : (isLowCajas || isLowUnidades) ? '#fffbeb' : 'transparent' }}>
@@ -616,14 +634,15 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    <strong style={{ color: isLowCajas ? '#dc2626' : 'var(--text-primary)' }}>
-                                                        {prod.stock_cajas} cajas
-                                                    </strong>
+                                                <td style={{ textAlign: 'center', fontSize: '12px' }}>
+                                                    {textoStock(prod)}
+                                                    <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>
+                                                        {prod.unidades_por_caja ? `${prod.unidades_por_caja} unidades por caja` : 'Unidades por caja sin definir'}
+                                                    </small>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
-                                                    <strong style={{ color: isLowUnidades ? '#dc2626' : 'var(--text-primary)' }}>
-                                                        {prod.stock_unidades} uds.
+                                                    <strong style={{ color: isLowCajas ? '#dc2626' : 'var(--text-primary)' }}>
+                                                        {prod.unidades_por_caja ? `${totalUnidades(prod)} unidades` : '—'}
                                                     </strong>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
@@ -738,9 +757,9 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                                 <div>
-                                    <label htmlFor="farmaciainve-stock-inicial-cajas" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Cajas)</label>
+                                    <label htmlFor="farmaciainve-stock-inicial-cajas" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad de Cajas</label>
                                     <input id="farmaciainve-stock-inicial-cajas"
                                         type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
@@ -750,7 +769,18 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="farmaciainve-stock-inicial-unidades" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Unidades)</label>
+                                    <label htmlFor="farmaciainve-unidades-por-caja" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Unidades por Caja *</label>
+                                    <input id="farmaciainve-unidades-por-caja"
+                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                        min="1"
+                                        placeholder="Ej: 20"
+                                        value={productForm.unidades_por_caja}
+                                        onChange={(e) => setProductForm({ ...productForm, unidades_por_caja: e.target.value })}
+                                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="farmaciainve-stock-inicial-unidades" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Unidades Sueltas (opcional)</label>
                                     <input id="farmaciainve-stock-inicial-unidades"
                                         type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
@@ -760,6 +790,12 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                             </div>
+                            {/* Total que quedará registrado: cajas × unidades por caja + sueltas */}
+                            <p style={{ margin: '-6px 0 0', fontSize: '12px', color: '#475569' }}>
+                                {parseInt(productForm.unidades_por_caja) >= 1
+                                    ? <>Total en stock: <strong>{(parseInt(productForm.stock_inicial_cajas) || 0) * parseInt(productForm.unidades_por_caja) + (parseInt(productForm.stock_inicial_unidades) || 0)} unidades</strong></>
+                                    : 'Indique las unidades por caja para calcular el total.'}
+                            </p>
 
                             <div>
                                 <label htmlFor="farmaciainve-descripcion-u-observaciones" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Descripción u Observaciones</label>
@@ -843,6 +879,23 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 </select>
                             </div>
 
+                            <div>
+                                <label htmlFor="farmaciainve-unidades-por-caja-editar" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Unidades por Caja</label>
+                                <input id="farmaciainve-unidades-por-caja-editar"
+                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                    min="1"
+                                    placeholder="Ej: 20"
+                                    value={productForm.unidades_por_caja}
+                                    onChange={(e) => setProductForm({ ...productForm, unidades_por_caja: e.target.value })}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                />
+                                {!selectedProducto.unidades_por_caja && (
+                                    <small style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#d97706' }}>
+                                        Este producto aún no tiene definidas sus unidades por caja: complételas para calcular el stock total.
+                                    </small>
+                                )}
+                            </div>
+
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                                 <button type="button" onClick={() => setIsEditModalOpen(false)} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>Cancelar</button>
                                 <button type="submit" disabled={formSaving} style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
@@ -870,13 +923,14 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '12.5px' }}>
                                 <strong style={{ color: '#0f172a' }}>{selectedProducto.nombre}</strong>
                                 <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
-                                    Stock Actual: <b>{selectedProducto.stock_cajas} cajas</b> | <b>{selectedProducto.stock_unidades} unidades</b>
+                                    Stock actual: <b>{textoStock(selectedProducto)}</b>
+                                    {selectedProducto.unidades_por_caja && <> (<b>{totalUnidades(selectedProducto)} unidades</b> en total, {selectedProducto.unidades_por_caja} por caja)</>}
                                 </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
-                                    <label htmlFor="farmaciainve-cantidad-cajas" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Cajas</label>
+                                    <label htmlFor="farmaciainve-cantidad-cajas" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cajas Completas</label>
                                     <input id="farmaciainve-cantidad-cajas"
                                         type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
@@ -886,7 +940,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="farmaciainve-cantidad-unidades" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Unidades</label>
+                                    <label htmlFor="farmaciainve-cantidad-unidades" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Unidades Sueltas</label>
                                     <input id="farmaciainve-cantidad-unidades"
                                         type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"

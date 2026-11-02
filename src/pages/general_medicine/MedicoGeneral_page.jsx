@@ -24,6 +24,7 @@ import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo
 import { nombreCompleto } from '../../utils/nombreCompleto';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 import TablaAtencionesDia from '../../components/TablaAtencionesDia';
+import { textoStockFarmacia } from '../../utils/stockFarmacia';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -388,7 +389,6 @@ const MedicoGeneral_page = () => {
             detalle_medicamento: `${product.nombre} (${product.presentacion?.nombre || 'General'})`,
             id_producto_farmacia: product.id,
             detalle_via_administracion: viaDeProducto(product) || prev.detalle_via_administracion,
-            observaciones: `Stock actual: ${product.stock_cajas} cajas / ${product.stock_unidades} unidades`
         }));
         setViaFarmacia(viaDeProducto(product));
         setFarmaciaSearchQuery('');
@@ -5172,7 +5172,7 @@ ${paginas}
                                                                                 </small>
                                                                             </div>
                                                                             <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
-                                                                                Stock: {prod.stock_cajas} cj / {prod.stock_unidades} ud
+                                                                                Stock: {textoStockFarmacia(prod)}
                                                                             </span>
                                                                         </div>
                                                                     ))}

@@ -40,6 +40,7 @@ import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } f
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import { textoStockFarmacia } from '../../utils/stockFarmacia';
 
 const COUNTRIES = [
     'Ecuador', 'Colombia', 'Perú', 'Venezuela', 'Argentina', 'Chile', 'Bolivia', 'Brasil',
@@ -4675,8 +4676,9 @@ export default function MedicoOcupacionalPage() {
             id_producto_farmacia: product.id,
             via: viaDeProducto(product) || prev.via,
             disponible_farmacia: hasStock ? 'farmacia' : 'no_disponible',
+            // El stock no va en las indicaciones de la receta (las ve el paciente)
             observaciones: hasStock
-                ? `Stock actual: ${product.stock_cajas} cajas / ${product.stock_unidades} unidades`
+                ? prev.observaciones
                 : 'Sin stock en Farmacia de Enfermería: receta para compra externa.'
         }));
         setViaFarmacia(viaDeProducto(product));
@@ -7357,7 +7359,7 @@ export default function MedicoOcupacionalPage() {
                                                                             </small>
                                                                         </div>
                                                                         <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
-                                                                            Stock: {prod.stock_cajas} cj / {prod.stock_unidades} ud
+                                                                            Stock: {textoStockFarmacia(prod)}
                                                                         </span>
                                                                     </div>
                                                                 ))}
