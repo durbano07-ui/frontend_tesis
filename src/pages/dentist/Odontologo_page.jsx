@@ -189,6 +189,9 @@ const Odontologo_page = () => {
     // 1. ESTADOS DE FICHA ODONTOLÓGICA
     // ==========================================
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    // Último paso alcanzado con "Guardar y continuar": la barra de pasos no deja saltar más allá
+    const [pasoMaximo, setPasoMaximo] = useState(0);
+    const [erroresPaso, setErroresPaso] = useState({});
     const steps = [
         { key: 'motivo', label: '1. Motivo y Antecedentes' },
         { key: 'examen_clinico', label: '2. Examen Estomatológico' },
@@ -203,9 +206,57 @@ const Odontologo_page = () => {
         if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1);
     };
     const handleNextStep = () => {
-        if (currentStepIndex < steps.length - 1) setCurrentStepIndex(currentStepIndex + 1);
+        if (currentStepIndex < steps.length - 1) {
+            setCurrentStepIndex(currentStepIndex + 1);
+            setPasoMaximo(prev => Math.max(prev, currentStepIndex + 1));
+        }
     };
+
+    // Campos obligatorios de cada paso; devuelve { campo: mensaje } con los que faltan
+    const validarPaso = (idx) => {
+        const vacio = (v) => !String(v ?? '').trim();
+        const errores = {};
+        const key = steps[idx]?.key;
+        if (key === 'motivo') {
+            if (vacio(fichaForm.detalle_motivo)) errores.detalle_motivo = 'Ingrese el motivo de consulta.';
+            if (fichaForm.algun_tratamiento === 'si' && vacio(fichaForm.detalle_tratamiento)) errores.detalle_tratamiento = 'Describa el tratamiento médico.';
+            if (fichaForm.algun_medicamento === 'si' && vacio(fichaForm.detalle_medicamento)) errores.detalle_medicamento = 'Indique el medicamento que toma.';
+        }
+        if (key === 'diagnostico') {
+            if (vacio(fichaForm.detalle_diagnostico)) errores.detalle_diagnostico = 'Ingrese el diagnóstico odontológico.';
+            if (vacio(fichaForm.tipo_atencion)) errores.tipo_atencion = 'Seleccione el tipo de atención.';
+            if (vacio(fichaForm.tipo_atencion2)) errores.tipo_atencion2 = 'Seleccione el subtipo de atención.';
+            if (vacio(fichaForm.procedimiento)) errores.procedimiento = 'Seleccione el procedimiento realizado.';
+        }
+        return errores;
+    };
+
+    // Revisa los pasos indicados; si uno tiene campos vacíos, lo abre con los errores marcados
+    const pasosCompletos = (indices) => {
+        for (const idx of indices) {
+            const errores = validarPaso(idx);
+            if (Object.keys(errores).length > 0) {
+                setCurrentStepIndex(idx);
+                setErroresPaso(errores);
+                showSystemToast('Complete los campos obligatorios (*) antes de continuar.');
+                return false;
+            }
+        }
+        setErroresPaso({});
+        return true;
+    };
+
+    const handleIrAPaso = (idx) => {
+        if (idx <= Math.max(pasoMaximo, currentStepIndex)) {
+            setErroresPaso({});
+            setCurrentStepIndex(idx);
+        } else {
+            showSystemToast('Complete y guarde los pasos en orden con «Guardar y continuar».');
+        }
+    };
+
     const handleSaveAndContinue = async () => {
+        if (!pasosCompletos([currentStepIndex])) return;
         const activeStepKey = steps[currentStepIndex].key;
         if (activeStepKey === 'insumos' || activeStepKey === 'prescripcion') {
             if (currentStepIndex < steps.length - 1) {
@@ -532,6 +583,8 @@ const Odontologo_page = () => {
     };
 
     const handleSaveAndFinish = async (generateCertificate = false) => {
+        // Antes de guardar, todos los pasos con campos obligatorios deben estar completos
+        if (!pasosCompletos(steps.map((_, i) => i))) return;
         if (generateCertificate) {
             handleOpenCertModalFromStep7();
             return;
@@ -1058,6 +1111,8 @@ const Odontologo_page = () => {
         }
         setSessionInsumoIds([]);
         setCurrentStepIndex(0);
+        setPasoMaximo(0);
+        setErroresPaso({});
         resetFichaForm();
     };
 
@@ -8467,7 +8522,9 @@ ${cuerpo}
                                                 <div
                                                     role="button" tabIndex={0} onKeyDown={onKeyActivate}
                                                     className={`stepper-step ${currentStepIndex === idx ? 'active' : ''} ${currentStepIndex > idx ? 'completed' : ''}`}
-                                                    onClick={() => setCurrentStepIndex(idx)}
+                                                    onClick={() => handleIrAPaso(idx)}
+                                                    aria-disabled={idx > Math.max(pasoMaximo, currentStepIndex)}
+                                                    style={idx > Math.max(pasoMaximo, currentStepIndex) ? { cursor: 'not-allowed' } : undefined}
                                                 >
                                                     <div className="stepper-step__circle">{idx + 1}</div>
                                                     <span className="stepper-step__label">{step.label}</span>
@@ -8487,12 +8544,15 @@ ${cuerpo}
                                                         <span>Motivo de Consulta <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Motivo de Consulta"
+                                                            aria-invalid={!!erroresPaso.detalle_motivo}
+                                                            style={erroresPaso.detalle_motivo ? { borderColor: '#dc2626' } : undefined}
                                                             value={fichaForm.detalle_motivo}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_motivo: e.target.value })}
                                                             placeholder="Escriba el motivo principal de la consulta dental..."
                                                             rows={2}
                                                             required
                                                         />
+                                                        {erroresPaso.detalle_motivo && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_motivo}</small>}
                                                     </div>
                                                     <div className="clinical-fields-grid" style={{ marginTop: '12px' }}>
                                                         <div className="field">
@@ -8528,14 +8588,17 @@ ${cuerpo}
                                                     </div>
                                                     {fichaForm.algun_tratamiento === 'si' && (
                                                         <div className="field field--full" style={{ marginTop: '12px' }}>
-                                                            <span>Detalle del tratamiento médico</span>
+                                                            <span>Detalle del tratamiento médico <span className="field-req-star">*</span></span>
                                                             <textarea
                                                                 aria-label="Detalle del tratamiento médico"
+                                                                aria-invalid={!!erroresPaso.detalle_tratamiento}
+                                                                style={erroresPaso.detalle_tratamiento ? { borderColor: '#dc2626' } : undefined}
                                                                 value={fichaForm.detalle_tratamiento}
                                                                 onChange={(e) => setFichaForm({ ...fichaForm, detalle_tratamiento: e.target.value })}
                                                                 placeholder="Describa el tratamiento médico recibido..."
                                                                 rows={2}
                                                             />
+                                                            {erroresPaso.detalle_tratamiento && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_tratamiento}</small>}
                                                         </div>
                                                     )}
                                                     <div className="clinical-fields-grid" style={{ marginTop: '12px' }}>
@@ -8552,14 +8615,17 @@ ${cuerpo}
                                                         </div>
                                                         {fichaForm.algun_medicamento === 'si' && (
                                                             <div className="field">
-                                                                <span>Detalle del medicamento</span>
+                                                                <span>Detalle del medicamento <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Detalle del medicamento"
+                                                                    aria-invalid={!!erroresPaso.detalle_medicamento}
+                                                                    style={erroresPaso.detalle_medicamento ? { borderColor: '#dc2626' } : undefined}
                                                                     type="text"
                                                                     value={fichaForm.detalle_medicamento}
                                                                     onChange={(e) => setFichaForm({ ...fichaForm, detalle_medicamento: e.target.value })}
                                                                     placeholder="Nombre y dosis de los medicamentos..."
                                                                 />
+                                                                {erroresPaso.detalle_medicamento && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_medicamento}</small>}
                                                             </div>
                                                         )}
                                                     </div>
@@ -8768,12 +8834,15 @@ ${cuerpo}
                                                         <span>Diagnóstico Odontológico <span className="field-req-star">*</span></span>
                                                         <textarea
                                                             aria-label="Diagnóstico Odontológico"
+                                                            aria-invalid={!!erroresPaso.detalle_diagnostico}
+                                                            style={erroresPaso.detalle_diagnostico ? { borderColor: '#dc2626' } : undefined}
                                                             value={fichaForm.detalle_diagnostico}
                                                             onChange={(e) => setFichaForm({ ...fichaForm, detalle_diagnostico: e.target.value })}
                                                             placeholder="Describa el diagnóstico clínico completo del paciente (Caries, Pulpitis, Gingivitis, etc.)...."
                                                             rows={3}
                                                             required
                                                         />
+                                                        {erroresPaso.detalle_diagnostico && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.detalle_diagnostico}</small>}
                                                     </div>
 
                                                     <div className="clinical-form-section" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
@@ -9380,7 +9449,7 @@ ${cuerpo}
                                                     <button type="button" className="action-button action-button--primary" onClick={() => handleSaveAndFinish(false)} disabled={fichaSaving}>
                                                         {fichaSaving ? 'Guardando...' : 'Guardar Atención (Sin Certificado)'}
                                                     </button>
-                                                    <button type="button" className="action-button action-button--accent" onClick={handleOpenCertModalFromStep7} disabled={fichaSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <button type="button" className="action-button action-button--accent" onClick={() => { if (pasosCompletos(steps.map((_, i) => i))) handleOpenCertModalFromStep7(); }} disabled={fichaSaving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                         <FileCheck size={16} /> {fichaSaving ? 'Guardando...' : 'Guardar y Generar Certificado'}
                                                     </button>
                                                 </div>
