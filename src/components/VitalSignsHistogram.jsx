@@ -539,21 +539,24 @@ const VitalSignsHistogram = ({
                         </div>
                         <div className="vitals-patient-details">
                             <h4>{activePatient.nombre_completo || activePatient.name || 'Paciente Seleccionado'}</h4>
-                            <div className="vitals-patient-badges">
-                                <span className="vitals-badge vitals-badge--blue" style={{ color: '#0f172a', fontWeight: 700 }}>
-                                    <UserCheck size={13} style={{ color: '#2563eb' }} /> {activePatient.cedula ? `C.I. ${activePatient.cedula}` : 'Sin Cédula'}
-                                </span>
-                                {activePatient.tipo && (
-                                    <span className="vitals-badge vitals-badge--gray" style={{ color: '#0f172a', fontWeight: 700 }}>
-                                        {activePatient.tipo}
+                            {/* Dentro de la atención la cédula y el rango de fechas no aportan: solo el nombre */}
+                            {!pacienteFijo && (
+                                <div className="vitals-patient-badges">
+                                    <span className="vitals-badge vitals-badge--blue" style={{ color: '#0f172a', fontWeight: 700 }}>
+                                        <UserCheck size={13} style={{ color: '#2563eb' }} /> {activePatient.cedula ? `C.I. ${activePatient.cedula}` : 'Sin Cédula'}
                                     </span>
-                                )}
-                                {stats.count > 0 && (
-                                    <span className="vitals-badge vitals-badge--gray" style={{ background: '#e0f2fe', color: '#0f172a', fontWeight: 700 }}>
-                                        <Calendar size={13} style={{ color: '#2563eb' }} /> {stats.firstDate} a {stats.latestDate} ({stats.count} citas)
-                                    </span>
-                                )}
-                            </div>
+                                    {activePatient.tipo && (
+                                        <span className="vitals-badge vitals-badge--gray" style={{ color: '#0f172a', fontWeight: 700 }}>
+                                            {activePatient.tipo}
+                                        </span>
+                                    )}
+                                    {stats.count > 0 && (
+                                        <span className="vitals-badge vitals-badge--gray" style={{ background: '#e0f2fe', color: '#0f172a', fontWeight: 700 }}>
+                                            <Calendar size={13} style={{ color: '#2563eb' }} /> {stats.firstDate} a {stats.latestDate} ({stats.count} citas)
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
