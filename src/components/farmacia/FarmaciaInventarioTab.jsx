@@ -590,8 +590,8 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                             <table className="daily-table" style={{ width: '100%' }}>
                                 <thead>
                                     <tr>
-                                        <th>Código / ID</th>
-                                        <th>Nombre del Medicamento / Producto</th>
+                                        <th>Código</th>
+                                        <th>Medicamento</th>
                                         <th>Presentación</th>
                                         <th>Estado de Inventario</th>
                                         <th style={{ textAlign: 'center' }}>Unidades por Caja</th>
@@ -608,7 +608,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                         return (
                                             <tr key={prod.id} style={{ background: !prod.activo ? '#f8fafc' : isOut ? '#fff5f5' : (isLowCajas || isLowUnidades) ? '#fffbeb' : 'transparent' }}>
                                                 <td style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                                                    #{prod.codigo}
+                                                    {prod.codigo}
                                                 </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
