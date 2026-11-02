@@ -21,6 +21,7 @@ import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 import { nombreCompleto } from '../../utils/nombreCompleto';
+import TablaAtencionesDia from '../../components/TablaAtencionesDia';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -3126,52 +3127,19 @@ ${paginas}
                                                 </div>
 
                                                 {/* Una fila por atención, con sus datos en columnas */}
-                                                <div style={{ overflowX: 'auto', marginTop: '14px', border: '1px solid var(--border)', borderRadius: '12px' }}>
-                                                    <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                                        <thead>
-                                                            <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
-                                                                {['N°', 'Paciente', 'Cédula', 'Atención', 'Tipo', 'Diagnóstico'].map(col => (
-                                                                    <th key={col} style={{ padding: '12px 14px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>{col}</th>
-                                                                ))}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {parteDiarioList.map((item, idx) => {
-                                                                const patientDetails = patientProfilesCache[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
-                                                                const pIdent = patientDetails?.datos_identificacion || patientDetails?.datosIdentificacion || patientDetails?.identification;
-                                                                const pName = pIdent
-                                                                    ? [pIdent.primer_nombre, pIdent.segundo_nombre, pIdent.apellido_paterno, pIdent.apellido_materno].filter(Boolean).join(' ')
-                                                                    : patientDetails?.name || patientDetails?.email || 'Paciente';
-
-                                                                const ATENCION = {
-                                                                    primaria: { texto: 'Primaria', icono: <HeartHandshake size={14} />, bg: 'var(--primary-soft)', color: 'var(--primary)' },
-                                                                    secundaria: { texto: 'Secundaria', icono: <TrendingUp size={14} />, bg: 'var(--accent-soft)', color: 'var(--accent)' },
-                                                                    certificadomedico: { texto: 'Certificado médico', icono: <FileCheck size={14} />, bg: '#fef3c7', color: '#d97706' },
-                                                                    validacion: { texto: 'Validación', icono: <CheckCircle size={14} />, bg: '#e9f8f2', color: 'var(--success)' }
-                                                                };
-                                                                const atencion = ATENCION[item.tipo_atencion] || { texto: item.tipo_atencion || '—', icono: <ClipboardList size={14} />, bg: 'var(--primary-soft)', color: 'var(--primary)' };
-                                                                const celda = { padding: '12px 14px', fontSize: '12px', color: 'var(--text)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' };
-
-                                                                return (
-                                                                    <tr key={item.id || idx}>
-                                                                        <td style={{ ...celda, color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
-                                                                        <td style={{ ...celda, fontWeight: 700 }}>{pName}</td>
-                                                                        <td style={{ ...celda, whiteSpace: 'nowrap' }}>{pIdent?.numero_cedula || '—'}</td>
-                                                                        <td style={celda}>
-                                                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                                                                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '6px', background: atencion.bg, color: atencion.color }}>
-                                                                                    {atencion.icono}
-                                                                                </span>
-                                                                                {atencion.texto}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td style={celda}>{item.tipo_atencion2 === 'preventivo' ? 'Preventivo' : item.tipo_atencion2 === 'curativo' ? 'Curativo' : (item.tipo_atencion2 || '—')}</td>
-                                                                        <td style={celda}>{item.detalle_diagnostico || '—'}</td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
+                                                <div style={{ marginTop: '14px' }}>
+                                                    <TablaAtencionesDia filas={parteDiarioList.map(item => {
+                                                        const paciente = patientProfilesCache[item.id_usuario_paciente || item.paciente?.id] || item.paciente;
+                                                        const ident = paciente?.datos_identificacion || paciente?.datosIdentificacion || paciente?.identification;
+                                                        return {
+                                                            id: item.id,
+                                                            paciente: ident ? nombreCompleto(ident) : (paciente?.name || paciente?.email),
+                                                            cedula: ident?.numero_cedula,
+                                                            tipoAtencion: item.tipo_atencion,
+                                                            tipo: item.tipo_atencion2,
+                                                            diagnostico: item.detalle_diagnostico
+                                                        };
+                                                    })} />
                                                 </div>
                                             </div>
                                         )}

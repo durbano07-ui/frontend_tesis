@@ -10,7 +10,7 @@ import UserProfileMenu from '../../components/UserProfileMenu';
 import NotificationMenu from '../../components/NotificationMenu';
 import { useClinicalDraft } from '../../hooks/useClinicalDraft';
 
-import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, MapPin, Clock, UserCheck, Mail, BarChart3, Pill, Package, Trash2 } from 'lucide-react';
+import { Menu, LogOut, Search, X, FileText, Plus, Calendar, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, Shield, ShieldAlert, CalendarCheck, CalendarDays, Info, TrendingUp, HeartHandshake, HeartPulse, Brain, Printer, FileCheck, MapPin, Clock, UserCheck, Mail, BarChart3, Pill, Package, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioTab';
 import { onKeyActivate } from '../../a11y/keyboard';
@@ -22,6 +22,8 @@ import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministraci
 import ReporteEncabezado from '../../components/ReporteEncabezado';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { nombreCompleto } from '../../utils/nombreCompleto';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import TablaAtencionesDia from '../../components/TablaAtencionesDia';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -270,6 +272,15 @@ const MedicoGeneral_page = () => {
     const [areaHistoriesLoading, setAreaHistoriesLoading] = useState(false);
     const [activeBookArea, setActiveBookArea] = useState('medicina'); // 'medicina' | 'psicologia' | 'odontologia' | 'enfermeria' | null
     const [activeBookRecord, setActiveBookRecord] = useState(null);
+    // Seguimiento: citas agrupadas en tratamientos (mismo diseño que Psicología y Odontología)
+    const [expandedTreatments, setExpandedTreatments] = useState({});
+    const [evolutionViewMode, setEvolutionViewMode] = useState('tratamientos'); // 'tratamientos' | 'todas'
+    const toggleTreatment = (treatmentId, defaultState = true) => {
+        setExpandedTreatments(prev => {
+            const currentVal = prev[treatmentId];
+            return { ...prev, [treatmentId]: currentVal !== undefined ? !currentVal : !defaultState };
+        });
+    };
 
     // Estado de modal de confirmación custom
     const [confirmModal, setConfirmModal] = useState({
@@ -1221,6 +1232,133 @@ const MedicoGeneral_page = () => {
             console.error('Error al imprimir certificado:', error);
             showSystemToast("Error al procesar la impresión del certificado.");
         }
+    };
+
+    // Algoritmo clínico para agrupar citas en Ciclos de Tratamiento:
+    // 1. Atención "Primaria (Primera Vez)" inicia un tratamiento (y cierra el anterior si estaba activo).
+    // 2. Atención "Secundaria (Subsecuente / Evolución)" continúa el tratamiento activo.
+    // 3. Cuando ocurre otra "Primaria", el tratamiento previo se cierra automáticamente y se inicia uno nuevo.
+    const processCitasAndTreatments = (records = []) => {
+        // Ordenar cronológicamente (de la cita más antigua a la más reciente)
+        const sorted = [...records].sort((a, b) => {
+            const dateA = a.fecha || a.created_at || '';
+            const dateB = b.fecha || b.created_at || '';
+            if (dateA === dateB) return (a.id || 0) - (b.id || 0);
+            return dateA.localeCompare(dateB);
+        });
+
+        const treatmentsList = [];
+        let currentTreatment = null;
+        let treatmentIndex = 1;
+
+        sorted.forEach(record => {
+            // En Medicina General las evoluciones no tienen número de sesión: siempre continúan el tratamiento
+            const isExplicitSecundaria = record.tipo_atencion === 'secundaria' || record.type === 'evolucion';
+
+            // Inicia un nuevo tratamiento si es 'primaria' O si no hay ningún tratamiento activo aún
+            const startsNewTreatment = record.tipo_atencion === 'primaria' ||
+                (!currentTreatment && !isExplicitSecundaria);
+
+            if (startsNewTreatment) {
+                // Si había un tratamiento previo en curso, se CIERRA automáticamente
+                if (currentTreatment) {
+                    currentTreatment.estado = 'cerrado';
+                    currentTreatment.fecha_fin = currentTreatment.citas[currentTreatment.citas.length - 1]?.fecha || currentTreatment.fecha_inicio;
+                }
+
+                // Inicia un nuevo ciclo de tratamiento
+                currentTreatment = {
+                    id: `tratamiento-${treatmentIndex}`,
+                    numero: treatmentIndex,
+                    fecha_inicio: record.fecha || (record.created_at || '').slice(0, 10),
+                    fecha_fin: record.fecha || (record.created_at || '').slice(0, 10),
+                    diagnostico: record.detalle_diagnostico || record.detalle_motivo || record.detalle_evolucion || 'Atención y Valoración Psicológica',
+                    tipo_atencion2: record.tipo_atencion2 || 'curativo',
+                    estado: 'en_curso', // Permanece en curso hasta que una próxima cita sea Primaria
+                    citas: [record],
+                    cita_inicial: record
+                };
+                record.treatmentId = currentTreatment.id;
+                record.treatmentNumero = treatmentIndex;
+                record.treatmentEstado = 'en_curso';
+                treatmentsList.push(currentTreatment);
+                treatmentIndex++;
+            } else {
+                // Continúa el tratamiento activo actual
+                if (!currentTreatment) {
+                    currentTreatment = {
+                        id: `tratamiento-${treatmentIndex}`,
+                        numero: treatmentIndex,
+                        fecha_inicio: record.fecha || (record.created_at || '').slice(0, 10),
+                        fecha_fin: record.fecha || (record.created_at || '').slice(0, 10),
+                        diagnostico: record.detalle_diagnostico || record.detalle_evolucion || 'Tratamiento Psicoterapéutico',
+                        tipo_atencion2: record.tipo_atencion2 || 'curativo',
+                        estado: 'en_curso',
+                        citas: [record],
+                        cita_inicial: record
+                    };
+                    treatmentsList.push(currentTreatment);
+                    treatmentIndex++;
+                } else {
+                    currentTreatment.citas.push(record);
+                    currentTreatment.fecha_fin = record.fecha || (record.created_at || '').slice(0, 10);
+                }
+                record.treatmentId = currentTreatment.id;
+                record.treatmentNumero = currentTreatment.numero;
+                record.treatmentEstado = currentTreatment.estado;
+            }
+        });
+
+        // Asegurar que las citas vinculadas tengan referencia al tratamiento y su estado final
+        treatmentsList.forEach(t => {
+            t.citas.forEach(c => {
+                c.treatment = t;
+                c.treatmentEstado = t.estado;
+            });
+        });
+
+        return treatmentsList;
+    };
+
+    // Solo las atenciones (consultas y evoluciones); signos vitales y examen físico no son citas
+    const citasMedicina = React.useMemo(
+        () => (areaHistories.medicina || []).filter(r => r.type === 'diario' || r.type === 'evolucion'),
+        [areaHistories.medicina]
+    );
+    const treatments = React.useMemo(() => processCitasAndTreatments(citasMedicina), [citasMedicina]);
+
+    // Botones de cada cita: ficha completa de esa atención y su receta
+    const renderAccionesCita = (cita) => {
+        const estiloBoton = { fontSize: '11px', minHeight: '26px', padding: '0 8px', borderRadius: '6px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+        return (
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                <button
+                    type="button"
+                    className="action-button action-button--primary"
+                    style={estiloBoton}
+                    title="Abrir la ficha con toda la información de esta atención"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveBookRecord(cita);
+                        handleDownloadHistoriaClinicaPdf(selectedPatient?.id_usuario || selectedPatient?.id, fechaLocalDe(cita));
+                    }}
+                >
+                    Ver Detalle
+                </button>
+                <button
+                    type="button"
+                    className="action-button action-button--accent"
+                    style={estiloBoton}
+                    title="Ver la receta emitida en esta atención"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleVerRecetaAtencion(cita);
+                    }}
+                >
+                    Ver Receta
+                </button>
+            </div>
+        );
     };
 
     // "Ver receta" de una atención en la pestaña Evolución: receta emitida en Medicina General ese día
@@ -3074,12 +3212,23 @@ ${paginas}
                         {/* PESTAÑA 2: EVOLUCION */}
                         {activeTab === 'evolucion' && (
                             <div>
+                                <section className="page-hero" style={{ marginBottom: '20px' }}>
+                                    <div>
+                                        <span className="page-hero__label"><TrendingUp size={14} style={{ marginRight: '6px', display: 'inline' }} /> Seguimiento Clínico</span>
+                                        <h2>Evolución y Seguimiento de Pacientes</h2>
+                                        <p>Consulte el expediente clínico, historial de consultas médicas y el seguimiento continuo de cada paciente atendido.</p>
+                                    </div>
+                                    <div className="page-hero__icon"><TrendingUp size={34} /></div>
+                                </section>
+
                                 <section className="nurse-card patient-selector-card" style={{ marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                            <div className="nurse-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><User size={20} /></div>
+                                            <div className="nurse-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                                                <User size={20} />
+                                            </div>
                                             <div>
-                                                <h3>Paciente para Evolución</h3>
+                                                <h3 style={{ margin: 0 }}>Paciente de Seguimiento</h3>
                                                 <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '12px' }}>
                                                     {selectedPatient ? (
                                                         <strong>{selectedPatient.nombre_completo} (Cédula: {selectedPatient.cedula || selectedPatient.numero_cedula})</strong>
@@ -3099,7 +3248,10 @@ ${paginas}
                                                     <FileText size={14} /> Ver todo el historial del paciente
                                                 </button>
                                             )}
-                                            <button className="action-button action-button--accent" onClick={() => { setModalSearchCedula(''); setModalSearchResults([]); setIsPatientSearchOpen(true); }}>
+                                            <button
+                                                className="action-button action-button--accent"
+                                                onClick={() => { setModalSearchCedula(''); setModalSearchResults([]); setIsPatientSearchOpen(true); }}
+                                            >
                                                 <Search size={14} /> Buscar Paciente
                                             </button>
                                         </div>
@@ -3110,484 +3262,491 @@ ${paginas}
                                     <div className="patient-empty-state show">
                                         <User size={40} />
                                         <strong>No hay paciente seleccionado</strong>
-                                        <p>Busca e introduce un paciente para consultar su historial médico por áreas.</p>
+                                        <p>Busca e introduce un paciente para consultar su historial de medicina general.</p>
                                     </div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        {/* Header Card */}
-                                        <div className="card" style={{ borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: '15px' }}>
-                                            <div>
-                                                <span className="eyebrow">HISTORIAL CLÍNICO</span>
-                                                <h3 style={{ fontSize: '15px', fontWeight: '750', margin: '4px 0 0', color: 'var(--primary)' }}>Historial Clínico del Paciente</h3>
-                                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '2px 0 0' }}>Consulte la evolución y atenciones del paciente agrupadas por área clínica.</p>
-                                            </div>
-
-                                            {/* Liquid Navigation Bar */}
-                                            <div className="liquid-nav" style={{ margin: 0 }}>
-                                                {[
-                                                    { key: 'medicina', label: 'Medicina General', icon: <Stethoscope size={15} /> },
-                                                    { key: 'psicologia', label: 'Psicología Clínica', icon: <Brain size={15} /> },
-                                                    { key: 'odontologia', label: 'Odontología', icon: <Shield size={15} /> },
-                                                    { key: 'enfermeria', label: 'Enfermería', icon: <HeartPulse size={15} /> }
-                                                ].map(area => (
-                                                    <button
-                                                        key={area.key}
-                                                        className={`liquid-nav__item ${activeBookArea === area.key ? 'active' : ''}`}
-                                                        onClick={() => { setActiveBookArea(area.key); setActiveBookRecord(null); setHistoryPage(1); }}
-                                                    >
-                                                        {area.icon}
-                                                        <span>{area.label}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
+                                    <div style={{ padding: '10px 0' }}>
+                                        <div style={{ marginBottom: '24px' }}>
+                                            <h3 style={{ color: 'var(--primary)', fontWeight: '800', fontSize: '18px', margin: 0 }}>Historial Clínico de Medicina General</h3>
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '12px', margin: '4px 0 0' }}>Consulte el seguimiento psicoterapéutico y consultas del paciente.</p>
                                         </div>
 
                                         {/* Table and Detail Grid */}
-                                        <div className="historial-grid-container" style={{ gridTemplateColumns: activeBookRecord ? '1fr 1fr' : '1fr' }}>
-                                            {/* Table Column Card */}
-                                            <div className="card" style={{ padding: 0, borderRadius: '14px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)', background: 'white' }}>
+                                        <div
+                                            className="historial-grid-container"
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: activeBookRecord ? 'minmax(0, 1.35fr) minmax(320px, 0.95fr)' : '1fr',
+                                                gap: '20px',
+                                                alignItems: 'start',
+                                                width: '100%'
+                                            }}
+                                        >
+                                            {/* Column: Treatments List / All Consultations */}
+                                            <div style={{ minWidth: 0, width: '100%' }}>
                                                 {areaHistoriesLoading ? (
                                                     <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Cargando registros...</div>
-                                                ) : !areaHistories[activeBookArea] || areaHistories[activeBookArea].length === 0 ? (
-                                                    <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '50px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                        <FileText size={36} style={{ marginBottom: '10px', opacity: 0.5 }} />
-                                                        <strong style={{ fontSize: '13.5px', color: 'var(--text)' }}>Sin antecedentes registrados</strong>
-                                                        <span style={{ fontSize: '11px', maxWidth: '280px', marginTop: '4px' }}>No se encontraron atenciones previas en el área seleccionada.</span>
+                                                ) : !citasMedicina || citasMedicina.length === 0 ? (
+                                                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontStyle: 'italic', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                        No se registran antecedentes en medicina general.
                                                     </div>
                                                 ) : (
-                                                    <>
-                                                        <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                                                            <table className="medical-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '480px' }}>
-                                                                <thead>
-                                                                    <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Fecha</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Especialidad</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Detalle / Diagnóstico</th>
-                                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textAlign: 'right' }}>Acción</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {areaHistories[activeBookArea]
-                                                                        .slice((historyPage - 1) * HISTORY_PER_PAGE, historyPage * HISTORY_PER_PAGE)
-                                                                        .map((record, index) => {
-                                                                            const rowNumber = (historyPage - 1) * HISTORY_PER_PAGE + index + 1;
-                                                                            const isActive = activeBookRecord?.id === record.id;
+                                                    <div>
+                                                        {/* Top bar with count & view mode toggle */}
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                                {treatments.length} {treatments.length === 1 ? 'tratamiento registrado' : 'tratamientos registrados'} · {citasMedicina.length} {citasMedicina.length === 1 ? 'cita' : 'citas en total'}
+                                                            </div>
+                                                            <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{
+                                                                        padding: '4px 12px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 600,
+                                                                        border: 'none',
+                                                                        borderRadius: '6px',
+                                                                        cursor: 'pointer',
+                                                                        background: evolutionViewMode === 'tratamientos' ? '#ffffff' : 'transparent',
+                                                                        color: evolutionViewMode === 'tratamientos' ? 'var(--primary)' : 'var(--text-muted)',
+                                                                        boxShadow: evolutionViewMode === 'tratamientos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                                    }}
+                                                                    onClick={() => setEvolutionViewMode('tratamientos')}
+                                                                >
+                                                                    Agrupado por Tratamiento
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    style={{
+                                                                        padding: '4px 12px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 600,
+                                                                        border: 'none',
+                                                                        borderRadius: '6px',
+                                                                        cursor: 'pointer',
+                                                                        background: evolutionViewMode === 'todas' ? '#ffffff' : 'transparent',
+                                                                        color: evolutionViewMode === 'todas' ? 'var(--primary)' : 'var(--text-muted)',
+                                                                        boxShadow: evolutionViewMode === 'todas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                                                    }}
+                                                                    onClick={() => setEvolutionViewMode('todas')}
+                                                                >
+                                                                    Todas las Citas
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {evolutionViewMode === 'tratamientos' ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                                                {treatments.slice().reverse().map(treatment => {
+                                                                    const isExpanded = expandedTreatments[treatment.id] !== undefined
+                                                                        ? expandedTreatments[treatment.id]
+                                                                        : (treatment.estado === 'en_curso' || treatments.length === 1);
+
+                                                                    return (
+                                                                        <div
+                                                                            key={treatment.id}
+                                                                            style={{
+                                                                                background: '#ffffff',
+                                                                                border: treatment.estado === 'en_curso' ? '1.5px solid rgba(0, 32, 64, 0.22)' : '1px solid #e2e8f0',
+                                                                                borderRadius: '12px',
+                                                                                overflow: 'hidden',
+                                                                                boxShadow: treatment.estado === 'en_curso' ? '0 4px 12px rgba(0, 32, 64, 0.06)' : '0 1px 4px rgba(0,0,0,0.03)',
+                                                                                transition: 'all 0.2s ease'
+                                                                            }}
+                                                                        >
+                                                                            {/* Header */}
+                                                                            <div
+                                                                                role="button" tabIndex={0} onKeyDown={onKeyActivate}
+                                                                                style={{
+                                                                                    padding: '12px 16px',
+                                                                                    display: 'flex',
+                                                                                    justifyContent: 'space-between',
+                                                                                    alignItems: 'center',
+                                                                                    cursor: 'pointer',
+                                                                                    background: isExpanded ? 'rgba(0, 32, 64, 0.02)' : '#ffffff',
+                                                                                    borderBottom: isExpanded ? '1px solid #edf2f7' : 'none',
+                                                                                    gap: '12px',
+                                                                                    flexWrap: 'wrap'
+                                                                                }}
+                                                                                onClick={() => toggleTreatment(treatment.id, treatment.estado === 'en_curso')}
+                                                                            >
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px', minWidth: 0 }}>
+                                                                                    <div style={{
+                                                                                        width: '36px',
+                                                                                        height: '36px',
+                                                                                        borderRadius: '10px',
+                                                                                        background: treatment.estado === 'en_curso' ? 'var(--primary-soft)' : '#f1f5f9',
+                                                                                        color: treatment.estado === 'en_curso' ? 'var(--primary)' : '#475569',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        flexShrink: 0
+                                                                                    }}>
+                                                                                        <HeartHandshake size={19} />
+                                                                                    </div>
+                                                                                    <div style={{ minWidth: 0 }}>
+                                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.4px' }}>
+                                                                                                Tratamiento #{treatment.numero}
+                                                                                            </span>
+                                                                                            {treatment.estado === 'en_curso' ? (
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 700, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }}></span> En Curso
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span style={{ fontSize: '11px', fontWeight: 600, background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '10px' }}>
+                                                                                                    ✓ Cerrado
+                                                                                                </span>
+                                                                                            )}
+                                                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                                · {treatment.citas.length} {treatment.citas.length === 1 ? 'cita' : 'citas'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <h4 style={{ margin: '3px 0 0', fontSize: '13px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={treatment.diagnostico}>
+                                                                                            {treatment.diagnostico}
+                                                                                        </h4>
+                                                                                        <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                                            Inicio: <strong>{treatment.fecha_inicio}</strong> {treatment.fecha_fin !== treatment.fecha_inicio ? `· Última: ${treatment.fecha_fin}` : ''}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="action-button action-button--light"
+                                                                                    style={{ fontSize: '11px', padding: '4px 10px', minHeight: '28px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        toggleTreatment(treatment.id, treatment.estado === 'en_curso');
+                                                                                    }}
+                                                                                >
+                                                                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                                                    <span>{isExpanded ? 'Ocultar Citas' : `Desplegar Citas (${treatment.citas.length})`}</span>
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {/* Citas del Tratamiento Desplegadas */}
+                                                                            {isExpanded && (
+                                                                                <div style={{ padding: '8px', background: '#fafbfc' }}>
+                                                                                    <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                                                                        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                                            <colgroup>
+                                                                                                <col style={{ width: '80px' }} />
+                                                                                                <col style={{ width: '85px' }} />
+                                                                                                <col style={{ width: '88px' }} />
+                                                                                                <col style={{ width: 'auto' }} />
+                                                                                                <col style={{ width: '178px' }} />
+                                                                                            </colgroup>
+                                                                                            <thead>
+                                                                                                <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Cita</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle Clínico</th>
+                                                                                                    <th style={{ padding: '8px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody>
+                                                                                                {treatment.citas.map((cita, cIdx) => (
+                                                                                                    <tr
+                                                                                                        tabIndex={0} onKeyDown={onKeyActivate}
+                                                                                                        key={cita.id || cIdx}
+                                                                                                        style={{
+                                                                                                            borderBottom: cIdx === treatment.citas.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                                                                            background: activeBookRecord?.id === cita.id ? 'rgba(0, 32, 64, 0.05)' : 'transparent',
+                                                                                                            cursor: 'pointer',
+                                                                                                            transition: 'background 0.15s ease'
+                                                                                                        }}
+                                                                                                        onClick={() => setActiveBookRecord(cita)}
+                                                                                                    >
+                                                                                                        <td style={{ padding: '8px 10px', fontWeight: 700, color: 'var(--primary)', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                                                                                            {cIdx === 0 ? 'Cita #1' : `Cita #${cIdx + 1}`}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>
+                                                                                                            {(cita.fecha || cita.created_at || '').slice(0, 10)}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px' }}>
+                                                                                                            <span style={{
+                                                                                                                background: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                                                color: (cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'var(--primary)' : 'var(--accent)',
+                                                                                                                padding: '2px 7px',
+                                                                                                                borderRadius: '5px',
+                                                                                                                fontSize: '11px',
+                                                                                                                fontWeight: 700,
+                                                                                                                display: 'inline-block',
+                                                                                                                whiteSpace: 'nowrap'
+                                                                                                            }}>
+                                                                                                                {(cita.tipo_atencion === 'primaria' || cIdx === 0) ? 'Primaria' : 'Secundaria'}
+                                                                                                            </span>
+                                                                                                        </td>
+                                                                                                        <td
+                                                                                                            style={{
+                                                                                                                padding: '8px 10px',
+                                                                                                                fontSize: '11px',
+                                                                                                                color: '#475569',
+                                                                                                                overflow: 'hidden',
+                                                                                                                textOverflow: 'ellipsis',
+                                                                                                                whiteSpace: 'nowrap'
+                                                                                                            }}
+                                                                                                            title={cita.detalle_evolucion || cita.detalle_diagnostico || cita.detalle_motivo || 'Consulta registrada'}
+                                                                                                        >
+                                                                                                            {cita.detalle_evolucion || cita.detalle_diagnostico || cita.detalle_motivo || 'Consulta registrada'}
+                                                                                                        </td>
+                                                                                                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                                                                                            {renderAccionesCita(cita)}
+                                                                                                        </td>
+                                                                                                    </tr>
+                                                                                                ))}
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            /* Vista de todas las citas */
+                                                            <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.03)' }}>
+                                                                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', margin: 0 }}>
+                                                                    <colgroup>
+                                                                        <col style={{ width: '85px' }} />
+                                                                        <col style={{ width: '110px' }} />
+                                                                        <col style={{ width: '90px' }} />
+                                                                        <col style={{ width: 'auto' }} />
+                                                                        <col style={{ width: '178px' }} />
+                                                                    </colgroup>
+                                                                    <thead>
+                                                                        <tr style={{ background: '#fafcff', borderBottom: '1px solid #e2e8f0' }}>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Fecha</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Tratamiento</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Nivel</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Detalle / Diagnóstico</th>
+                                                                            <th style={{ padding: '9px 10px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textAlign: 'center' }}>Acción</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {citasMedicina.map((record, index) => {
+                                                                            const isPrimaria = record.tipo_atencion === 'primaria';
                                                                             return (
                                                                                 <tr
                                                                                     tabIndex={0} onKeyDown={onKeyActivate}
                                                                                     key={record.id || index}
                                                                                     style={{
-                                                                                        borderBottom: '1px solid var(--border)',
-                                                                                        background: isActive ? 'rgba(11, 49, 85, 0.04)' : 'transparent',
+                                                                                        borderBottom: index === citasMedicina.length - 1 ? 'none' : '1px solid #f1f5f9',
+                                                                                        background: activeBookRecord?.id === record.id ? 'rgba(0, 32, 64, 0.05)' : 'transparent',
                                                                                         cursor: 'pointer'
                                                                                     }}
                                                                                     onClick={() => setActiveBookRecord(record)}
                                                                                 >
-                                                                                    <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)' }}>
-                                                                                        {rowNumber}
-                                                                                    </td>
-                                                                                    <td style={{ padding: '14px 16px', fontSize: '12px', fontWeight: '600', color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                                                                                    <td style={{ padding: '9px 10px', fontSize: '11px', color: '#334155', whiteSpace: 'nowrap' }}>
                                                                                         {(record.fecha || record.created_at || '').slice(0, 10)}
                                                                                     </td>
-                                                                                    <td style={{ padding: '14px 16px' }}>
-                                                                                        <span className={`evolution-badge evolution-badge--${activeBookArea}`}>
-                                                                                            {record.recordTitle || record.type}
+                                                                                    <td style={{ padding: '9px 10px' }}>
+                                                                                        {record.treatment ? (
+                                                                                            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--primary)', background: '#f1f5f9', padding: '2px 6px', borderRadius: '5px' }}>
+                                                                                                Tratamiento #{record.treatment.numero}
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td style={{ padding: '9px 10px' }}>
+                                                                                        <span style={{
+                                                                                            background: isPrimaria ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                                            color: isPrimaria ? 'var(--primary)' : 'var(--accent)',
+                                                                                            padding: '2px 7px',
+                                                                                            borderRadius: '5px',
+                                                                                            fontSize: '11px',
+                                                                                            fontWeight: 700,
+                                                                                            display: 'inline-block',
+                                                                                            whiteSpace: 'nowrap'
+                                                                                        }}>
+                                                                                            {isPrimaria ? 'Primaria' : 'Secundaria'}
                                                                                         </span>
                                                                                     </td>
-                                                                                    <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                                        {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || record.procedimiento?.nombre_procedimiento || 'Ver detalles'}
+                                                                                    <td
+                                                                                        style={{
+                                                                                            padding: '9px 10px',
+                                                                                            fontSize: '11px',
+                                                                                            color: '#475569',
+                                                                                            overflow: 'hidden',
+                                                                                            textOverflow: 'ellipsis',
+                                                                                            whiteSpace: 'nowrap'
+                                                                                        }}
+                                                                                        title={record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
+                                                                                    >
+                                                                                        {record.detalle_evolucion || record.detalle_diagnostico || record.detalle_motivo || 'Ver detalles'}
                                                                                     </td>
-                                                                                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                                                                                        {activeBookArea === 'medicina' ? (
-                                                                                            // Medicina General: ficha completa de esa atención y su receta
-                                                                                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                                                                                <button
-                                                                                                    type="button"
-                                                                                                    className="action-button action-button--primary"
-                                                                                                    style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                                    title="Abrir la ficha con toda la información de esta atención"
-                                                                                                    onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        setActiveBookRecord(record);
-                                                                                                        handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, fechaLocalDe(record));
-                                                                                                    }}
-                                                                                                >
-                                                                                                    Ver Detalle
-                                                                                                </button>
-                                                                                                <button
-                                                                                                    type="button"
-                                                                                                    className="action-button action-button--accent"
-                                                                                                    style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap' }}
-                                                                                                    title="Ver la receta emitida en esta atención"
-                                                                                                    onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        handleVerRecetaAtencion(record);
-                                                                                                    }}
-                                                                                                >
-                                                                                                    Ver Receta
-                                                                                                </button>
-                                                                                            </div>
-                                                                                        ) : (
-                                                                                            <button
-                                                                                                className={`action-button ${isActive ? 'action-button--accent' : 'action-button--primary'}`}
-                                                                                                style={{ fontSize: '11px', minHeight: '30px', padding: '0 12px', borderRadius: '6px' }}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    setActiveBookRecord(record);
-                                                                                                }}
-                                                                                            >
-                                                                                                {isActive ? 'Viendo' : 'Ver Detalle'}
-                                                                                            </button>
-                                                                                        )}
+                                                                                    <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                                                                                        {renderAccionesCita(record)}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
                                                                         })}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-
-                                                        {Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE) > 1 && (
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', background: 'var(--surface-hover)', borderTop: '1px solid var(--border)' }}>
-                                                                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                                                                    Mostrando {((historyPage - 1) * HISTORY_PER_PAGE) + 1} - {Math.min(historyPage * HISTORY_PER_PAGE, areaHistories[activeBookArea].length)} de {areaHistories[activeBookArea].length} registros
-                                                                </span>
-                                                                <div style={{ display: 'flex', gap: '6px' }}>
-                                                                    <button
-                                                                        disabled={historyPage === 1}
-                                                                        onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                                                                        style={{ opacity: historyPage === 1 ? 0.5 : 1, padding: '4px 10px', borderRadius: '6px', fontSize: '11px', border: '1px solid var(--border)', cursor: historyPage === 1 ? 'not-allowed' : 'pointer' }}
-                                                                    >
-                                                                        Anterior
-                                                                    </button>
-                                                                    <span style={{ fontSize: '11.5px', padding: '4px 8px', fontWeight: '600', color: 'var(--text)' }}>
-                                                                        Página {historyPage} de {Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE)}
-                                                                    </span>
-                                                                    <button
-                                                                        disabled={historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE)}
-                                                                        onClick={() => setHistoryPage(p => Math.min(Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE), p + 1))}
-                                                                        style={{ opacity: historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE) ? 0.5 : 1, padding: '4px 10px', borderRadius: '6px', fontSize: '11px', border: '1px solid var(--border)', cursor: historyPage === Math.ceil(areaHistories[activeBookArea].length / HISTORY_PER_PAGE) ? 'not-allowed' : 'pointer' }}
-                                                                    >
-                                                                        Siguiente
-                                                                    </button>
-                                                                </div>
+                                                                    </tbody>
+                                                                </table>
                                                             </div>
                                                         )}
-                                                    </>
+                                                    </div>
                                                 )}
                                             </div>
 
                                             {/* Detail Column */}
                                             {activeBookRecord && (
-                                                <div className="premium-field-card clinical-detail-card" style={{ padding: '24px', position: 'sticky', top: '20px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 32, 64, 0.05)', paddingBottom: '12px', marginBottom: '16px' }}>
-                                                        <div>
-                                                            <span className="eyebrow" style={{ textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Detalle Clínico</span>
-                                                            <h4 style={{ margin: '4px 0 0', fontSize: '14px', color: 'var(--primary)', fontWeight: 800 }}>
-                                                                {activeBookRecord.recordTitle || 'Ficha de Atención'}
+                                                <div
+                                                    style={{
+                                                        background: '#ffffff',
+                                                        borderRadius: '14px',
+                                                        border: '1.5px solid rgba(0, 32, 64, 0.12)',
+                                                        boxShadow: '0 6px 20px rgba(0, 32, 64, 0.07)',
+                                                        padding: '20px',
+                                                        position: 'sticky',
+                                                        top: '20px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '14px'
+                                                    }}
+                                                >
+                                                    {/* Header */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #edf2f7', paddingBottom: '12px', gap: '10px' }}>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px', display: 'block' }}>
+                                                                Detalle Clínico de Consulta
+                                                            </span>
+                                                            <h4 style={{ margin: '3px 0 0', fontSize: '14.5px', color: 'var(--primary)', fontWeight: 800 }}>
+                                                                {activeBookRecord.recordTitle || (activeBookRecord.type === 'evolucion' ? 'Sesión de Evolución' : 'Atención Psicológica')}
                                                             </h4>
-                                                            <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                                                                Fecha: {(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}
-                                                            </p>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                                    Fecha: <strong>{(activeBookRecord.fecha || activeBookRecord.created_at || '').slice(0, 10)}</strong>
+                                                                </span>
+                                                                {activeBookRecord.treatment && (
+                                                                    <span style={{
+                                                                        fontSize: '11px',
+                                                                        fontWeight: 700,
+                                                                        background: activeBookRecord.treatment.estado === 'en_curso' ? '#dcfce7' : '#f1f5f9',
+                                                                        color: activeBookRecord.treatment.estado === 'en_curso' ? '#15803d' : '#475569',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '10px',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '3px'
+                                                                    }}>
+                                                                        Tratamiento #{activeBookRecord.treatment.numero} ({activeBookRecord.treatment.estado === 'en_curso' ? 'En Curso' : 'Cerrado'})
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                                            <button aria-label="Cerrar detalle"
+
+                                                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                                            <button
+                                                                type="button"
                                                                 className="action-button action-button--light"
-                                                                style={{ minHeight: '32px', width: '32px', padding: 0, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                style={{ minHeight: '30px', width: '30px', padding: 0, borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                                 onClick={() => setActiveBookRecord(null)}
+                                                                title="Cerrar detalle"
                                                             >
                                                                 <X size={15} />
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '500px', overflowY: 'auto', paddingRight: '4px', flex: 'none' }} className="clinical-modal__body">
-                                                        {activeBookArea === 'medicina' && (
-                                                            <>
-                                                                {activeBookRecord.type === 'evolucion' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Nota de Evolución</span>
-                                                                            <p style={{ fontStyle: 'italic', background: '#fff9e6', padding: '12px', borderRadius: '8px', border: '1px solid #ffe89e', lineHeight: '1.5', margin: 0 }}>
-                                                                                {activeBookRecord.detalle_evolucion}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Prescripción y Plan Farmacéutico</span>
-                                                                            <p style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', margin: 0 }}>
-                                                                                {activeBookRecord.prescripcion_medica || 'Sin prescripción indicada.'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'diario' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Tipo de Atención</span>
-                                                                            <strong style={{ textTransform: 'capitalize' }}>{activeBookRecord.tipo_atencion} ({activeBookRecord.tipo || 'Preventivo'})</strong>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Diagnóstico</span>
-                                                                            <p style={{ fontWeight: '600', margin: 0 }}>{activeBookRecord.detalle_diagnostico}</p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'signos' && (
-                                                                    <>
-                                                                        <div className="preview-vitals-grid">
-                                                                            <div>
-                                                                                <span>Presión Arterial</span>
-                                                                                <strong>{activeBookRecord.presion_arterial_sistolica || '—'}/{activeBookRecord.presion_arterial_diastolica || '—'}</strong>
-                                                                                <small>mmHg</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Frec. Cardíaca</span>
-                                                                                <strong>{activeBookRecord.frecuencia_cardiaca || '—'}</strong>
-                                                                                <small>lpm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Frec. Respiratoria</span>
-                                                                                <strong>{activeBookRecord.frecuencia_respiratoria || '—'}</strong>
-                                                                                <small>rpm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Temperatura</span>
-                                                                                <strong>{activeBookRecord.temperatura || '—'}</strong>
-                                                                                <small>°C</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Talla</span>
-                                                                                <strong>{activeBookRecord.talla || '—'}</strong>
-                                                                                <small>cm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Peso</span>
-                                                                                <strong>{activeBookRecord.peso || '—'}</strong>
-                                                                                <small>kg</small>
-                                                                            </div>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'examen_fisico' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Descripción del Examen Físico</span>
-                                                                            <p style={{ fontStyle: 'italic', background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', lineHeight: '1.5', margin: 0 }}>
-                                                                                {activeBookRecord.detalle_examen_fisico}
-                                                                            </p>
-                                                                        </div>
-                                                                        {activeBookRecord.altura_x !== null && activeBookRecord.altura_y !== null && (
-                                                                            <div className="preview-paper-field">
-                                                                                <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                                    <MapPin size={14} style={{ color: 'var(--primary)' }} /> Región Registrada: {getAnatomicalRegion(activeBookRecord.altura_x, activeBookRecord.altura_y)} (Coordenadas: {activeBookRecord.altura_x}%, {activeBookRecord.altura_y}%)
-                                                                                </span>
-                                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)', marginTop: '8px' }}>
-                                                                                    <svg
-                                                                                        viewBox="0 0 200 220"
-                                                                                        style={{
-                                                                                            width: '100%',
-                                                                                            height: '180px',
-                                                                                            background: 'white',
-                                                                                            borderRadius: '8px',
-                                                                                            border: '1px solid var(--border)',
-                                                                                            userSelect: 'none'
-                                                                                        }}
-                                                                                    >
-                                                                                        <g id="front-view-preview">
-                                                                                            <path
-                                                                                                d="M 50,20 C 44,20 40,24 40,30 C 40,36 44,40 50,40 C 56,40 60,36 60,30 C 60,24 56,20 50,20 Z M 47,40 L 53,40 L 53,46 L 47,46 Z M 32,48 C 28,48 26,52 26,56 L 24,96 C 24,100 28,102 30,102 L 34,102 L 32,150 L 38,210 L 46,210 L 48,150 L 50,150 L 52,150 L 54,210 L 62,210 L 68,150 L 66,102 L 70,102 C 72,102 76,100 76,96 L 74,56 C 74,52 72,48 68,48 Z"
-                                                                                                fill="#e2e8f0"
-                                                                                                stroke="#64748b"
-                                                                                                strokeWidth="1.5"
-                                                                                            />
-                                                                                            <text x="50" y="215" textAnchor="middle" style={{ fontSize: '10px', fill: '#64748b', fontWeight: 'bold' }}>FRENTE</text>
-                                                                                        </g>
-                                                                                        <g id="back-view-preview">
-                                                                                            <path
-                                                                                                d="M 150,20 C 144,20 140,24 140,30 C 140,36 144,40 150,40 C 156,40 160,36 160,30 C 160,24 156,20 150,20 Z M 147,40 L 153,40 L 153,46 L 147,46 Z M 132,48 C 128,48 126,52 126,56 L 124,96 C 124,100 128,102 130,102 L 134,102 L 132,150 L 138,210 L 146,210 L 148,150 L 150,150 L 152,150 L 154,210 L 162,210 L 168,150 L 166,102 L 170,102 C 172,102 176,100 176,96 L 74,56 C 74,52 172,48 168,48 Z"
-                                                                                                fill="#cbd5e1"
-                                                                                                stroke="#475569"
-                                                                                                strokeWidth="1.5"
-                                                                                            />
-                                                                                            <text x="150" y="215" textAnchor="middle" style={{ fontSize: '10px', fill: '#475569', fontWeight: 'bold' }}>ESPALDA</text>
-                                                                                        </g>
-                                                                                        <g>
-                                                                                            <circle
-                                                                                                cx={(activeBookRecord.altura_x / 100) * 200}
-                                                                                                cy={(activeBookRecord.altura_y / 100) * 220}
-                                                                                                r="8"
-                                                                                                fill="rgba(183, 26, 52, 0.4)"
-                                                                                            />
-                                                                                            <circle
-                                                                                                cx={(activeBookRecord.altura_x / 100) * 200}
-                                                                                                cy={(activeBookRecord.altura_y / 100) * 220}
-                                                                                                r="3.5"
-                                                                                                fill="#b71a34"
-                                                                                                stroke="white"
-                                                                                                strokeWidth="1"
-                                                                                            />
-                                                                                        </g>
-                                                                                    </svg>
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'diario' && activeBookRecord.procedimiento && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Procedimiento Clínico</span>
-                                                                            <strong>{activeBookRecord.procedimiento?.nombre_procedimiento || 'Procedimiento menor'}</strong>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Observaciones y Detalles</span>
-                                                                            <p style={{ fontStyle: 'italic', lineHeight: '1.5', margin: 0 }}>
-                                                                                {activeBookRecord.detalle_procedimiento || 'Sin observaciones.'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        )}
-
-                                                        {activeBookArea === 'psicologia' && (
-                                                            <>
-                                                                {activeBookRecord.type === 'evolucion' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Detalle de Evolución Psicológica</span>
-                                                                            <p style={{ fontStyle: 'italic', background: '#f5f3ff', padding: '12px', borderRadius: '8px', border: '1px solid #ddd6fe', lineHeight: '1.5', margin: 0 }}>
-                                                                                {activeBookRecord.detalle_evolucion}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Prescripción / Recomendaciones</span>
-                                                                            <p style={{ background: '#f0fdfa', padding: '12px', borderRadius: '8px', border: '1px solid #99f6e4', color: '#0f766e', margin: 0 }}>
-                                                                                {activeBookRecord.prescripcion_medica || 'Sin recomendaciones registradas.'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'diario' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Tipo de Atención</span>
-                                                                            <strong style={{ textTransform: 'capitalize' }}>{activeBookRecord.tipo_atencion} - {activeBookRecord.tipo_atencion2 || 'General'}</strong>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Diagnóstico Clínico</span>
-                                                                            <p style={{ fontWeight: '600', margin: 0 }}>{activeBookRecord.detalle_diagnostico}</p>
-                                                                        </div>
-                                                                        {activeBookRecord.procedimiento && (
-                                                                            <div className="preview-paper-field">
-                                                                                <span>Procedimiento / Terapia</span>
-                                                                                <p style={{ margin: 0 }}>{activeBookRecord.procedimiento}</p>
-                                                                            </div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        )}
-
-                                                        {activeBookArea === 'odontologia' && (
-                                                            <>
-                                                                {activeBookRecord.type === 'evolucion' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Detalle de Evolución Dental</span>
-                                                                            <p style={{ fontStyle: 'italic', background: '#ecfdf5', padding: '12px', borderRadius: '8px', border: '1px solid #a7f3d0', lineHeight: '1.5', margin: 0 }}>
-                                                                                {activeBookRecord.detalle_evolucion}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Prescripción / Indicación</span>
-                                                                            <p style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', margin: 0 }}>
-                                                                                {activeBookRecord.prescripcion_medica || 'Ninguna.'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                {activeBookRecord.type === 'diario' && (
-                                                                    <>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Tipo de Atención</span>
-                                                                            <strong style={{ textTransform: 'capitalize' }}>{activeBookRecord.tipo_atencion} ({activeBookRecord.tipo_atencion2 || 'General'})</strong>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Diagnóstico</span>
-                                                                            <p style={{ fontWeight: '600', margin: 0 }}>{activeBookRecord.detalle_diagnostico}</p>
-                                                                        </div>
-                                                                        <div className="preview-paper-field">
-                                                                            <span>Procedimiento Dental Realizado</span>
-                                                                            <strong style={{ color: 'var(--accent)' }}>{activeBookRecord.procedimiento || 'Ninguno'}</strong>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        )}
-
-                                                        {activeBookArea === 'enfermeria' && (
-                                                            <>
-                                                                {activeBookRecord.type === 'vitals' && (
-                                                                    <>
-                                                                        <div className="preview-vitals-grid">
-                                                                            <div>
-                                                                                <span>Presión Arterial</span>
-                                                                                <strong>{activeBookRecord.presion_arterial_sistolica || '—'}/{activeBookRecord.presion_arterial_diastolica || '—'}</strong>
-                                                                                <small>mmHg</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Frec. Cardíaca</span>
-                                                                                <strong>{activeBookRecord.frecuencia_cardiaca || '—'}</strong>
-                                                                                <small>lpm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Frec. Respiratoria</span>
-                                                                                <strong>{activeBookRecord.frecuencia_respiratoria || '—'}</strong>
-                                                                                <small>rpm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Temperatura</span>
-                                                                                <strong>{activeBookRecord.temperatura || '—'}</strong>
-                                                                                <small>°C</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Talla</span>
-                                                                                <strong>{activeBookRecord.talla || '—'}</strong>
-                                                                                <small>cm</small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <span>Peso</span>
-                                                                                <strong>{activeBookRecord.peso || '—'}</strong>
-                                                                                <small>kg</small>
-                                                                            </div>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        )}
-
-                                                        {/* Acciones de Certificado */}
-                                                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(0,32,64,0.05)' }}>
-                                                            {activeBookRecord.tipo_atencion === 'certificadomedico' ? (
-                                                                <button
-                                                                    className="action-button action-button--accent"
-                                                                    onClick={() => handlePrintSessionCertificate(activeBookRecord)}
-                                                                    style={{ width: '100%', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                                                >
-                                                                    <Printer size={16} /> Imprimir Certificado
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    className="action-button action-button--accent"
-                                                                    onClick={() => handleIssueCertificate(activeBookRecord)}
-                                                                    style={{ width: '100%', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                                                                >
-                                                                    <FileCheck size={16} /> Otorgar Certificado
-                                                                </button>
-                                                            )}
+                                                    {/* Content Fields */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                        {/* Nivel de Atención */}
+                                                        <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                Nivel de Atención
+                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                                                                <span style={{
+                                                                    background: activeBookRecord.tipo_atencion === 'primaria' ? 'var(--primary-soft)' : 'var(--accent-soft)',
+                                                                    color: activeBookRecord.tipo_atencion === 'primaria' ? 'var(--primary)' : 'var(--accent)',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '5px',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: 700
+                                                                }}>
+                                                                    {activeBookRecord.tipo_atencion === 'primaria' ? 'Primaria (Primera Vez)' : activeBookRecord.tipo_atencion === 'secundaria' ? 'Secundaria (Evolución)' : (activeBookRecord.tipo_atencion || 'Atención General')}
+                                                                </span>
+                                                                <span style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize' }}>
+                                                                    · {(activeBookRecord.tipo_atencion2 || activeBookRecord.tipo) === 'preventivo' ? 'Preventivo' : 'Curativo'}
+                                                                </span>
+                                                            </div>
                                                         </div>
+
+                                                        {/* Diagnóstico Clínico */}
+                                                        {(activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico) && (
+                                                            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Diagnóstico Clínico
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}>
+                                                                    {activeBookRecord.detalle_diagnostico || activeBookRecord.diagnostico}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Evolución / Notas Clínicas */}
+                                                        {(activeBookRecord.detalle_evolucion || activeBookRecord.detalle_motivo) && (
+                                                            <div style={{ background: '#f5f3ff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6d28d9', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Detalle de Evolución Psicológica
+                                                                </span>
+                                                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b0764', lineHeight: '1.5', fontStyle: 'italic' }}>
+                                                                    {activeBookRecord.detalle_evolucion || activeBookRecord.detalle_motivo}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Procedimiento */}
+                                                        {activeBookRecord.procedimiento && (
+                                                            <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Procedimiento / Terapia Aplicada
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#334155' }}>
+                                                                    {activeBookRecord.procedimiento}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Prescripción */}
+                                                        {activeBookRecord.prescripcion_medica && (
+                                                            <div style={{ background: '#f0fdf4', padding: '10px 12px', borderRadius: '8px', border: '1px solid #99f6e4' }}>
+                                                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#0f766e', fontWeight: 700, display: 'block', letterSpacing: '0.4px' }}>
+                                                                    Prescripción / Recomendaciones
+                                                                </span>
+                                                                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#134e4a', lineHeight: '1.4' }}>
+                                                                    {activeBookRecord.prescripcion_medica}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Footer Actions */}
+                                                    <div style={{ paddingTop: '8px', borderTop: '1px solid #edf2f7' }}>
+                                                        {activeBookRecord.tipo_atencion === 'certificadomedico' ? (
+                                                            <button
+                                                                type="button"
+                                                                className="action-button action-button--accent"
+                                                                onClick={() => handlePrintSessionCertificate(activeBookRecord)}
+                                                                style={{ width: '100%', fontWeight: 700, fontSize: '12px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                                                            >
+                                                                <Printer size={15} /> Imprimir Certificado
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                className="action-button action-button--accent"
+                                                                onClick={() => handleIssueCertificate(activeBookRecord)}
+                                                                style={{ width: '100%', fontWeight: 700, fontSize: '12px', minHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}
+                                                            >
+                                                                <FileCheck size={15} /> Otorgar Certificado
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
@@ -3597,6 +3756,7 @@ ${paginas}
                             </div>
                         )}
 
+                        {/* TAB 4: HISTORIAL CLINICO GENERAL */}
                         {/* PESTAÑA 3: PARTE DIARIO */}
                         {activeTab === 'diario' && (
                             <div>
@@ -3680,25 +3840,18 @@ ${paginas}
                                                 <span>No se registran atenciones para la fecha {parteDiarioDate}.</span>
                                             </div>
                                         ) : (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                {parteDiarioList.map((item, idx) => {
-                                                    const patientIdent = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion || item.paciente?.identification;
-                                                    const patientName = patientIdent
-                                                        ? `${patientIdent.primer_nombre || ''} ${patientIdent.segundo_nombre || ''} ${patientIdent.apellido_paterno || patientIdent.primer_apellido || ''} ${patientIdent.apellido_materno || ''}`.replace(/\s+/g, ' ').trim()
-                                                        : item.paciente?.nombre_completo || item.paciente?.name || 'Paciente registrado';
-                                                    return (
-                                                        <div key={idx} className="list-card" style={{ background: '#fafbfd' }}>
-                                                            <div className="list-card__icon" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                                                                <ClipboardList size={16} />
-                                                            </div>
-                                                            <div className="list-card__content">
-                                                                <strong>{patientName}</strong>
-                                                                <p>Consulta: {(item.tipo_atencion || 'general').toUpperCase()} · Diagnóstico: {item.detalle_diagnostico || 'Evaluación general'}</p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
+                                            /* Una fila por atención, con sus datos en columnas (igual que Psicología y Odontología) */
+                                            <TablaAtencionesDia filas={parteDiarioList.map(item => {
+                                                const ident = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion || item.paciente?.identification;
+                                                return {
+                                                    id: item.id,
+                                                    paciente: ident ? nombreCompleto(ident) : (item.paciente?.nombre_completo || item.paciente?.name),
+                                                    cedula: ident?.numero_cedula,
+                                                    tipoAtencion: item.tipo_atencion,
+                                                    tipo: item.tipo,
+                                                    diagnostico: item.detalle_diagnostico
+                                                };
+                                            })} />
                                         )}
                                     </article>
                                 </section>
@@ -4587,31 +4740,31 @@ ${paginas}
                                                     <div className="clinical-fields-grid">
                                                         <label className="field">
                                                             <span>PA Sistólica (mmHg)</span>
-                                                            <input type="number" step="0.1" value={fichaForm.presion_arterial_sistolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_sistolica: e.target.value })} placeholder="Ej: 120" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.presion_arterial_sistolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_sistolica: e.target.value })} placeholder="Ej: 120" />
                                                         </label>
                                                         <label className="field">
                                                             <span>PA Diastólica (mmHg)</span>
-                                                            <input type="number" step="0.1" value={fichaForm.presion_arterial_diastolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_diastolica: e.target.value })} placeholder="Ej: 80" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.presion_arterial_diastolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_diastolica: e.target.value })} placeholder="Ej: 80" />
                                                         </label>
                                                         <label className="field">
                                                             <span>Frecuencia Cardiaca (lpm)</span>
-                                                            <input type="number" value={fichaForm.frecuencia_cardiaca} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_cardiaca: e.target.value })} placeholder="Ej: 75" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={fichaForm.frecuencia_cardiaca} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_cardiaca: e.target.value })} placeholder="Ej: 75" />
                                                         </label>
                                                         <label className="field">
                                                             <span>Frecuencia Respiratoria (rpm)</span>
-                                                            <input type="number" value={fichaForm.frecuencia_respiratoria} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_respiratoria: e.target.value })} placeholder="Ej: 18" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={fichaForm.frecuencia_respiratoria} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_respiratoria: e.target.value })} placeholder="Ej: 18" />
                                                         </label>
                                                         <label className="field">
                                                             <span>Temperatura (°C)</span>
-                                                            <input type="number" step="0.1" value={fichaForm.temperatura} onChange={(e) => setFichaForm({ ...fichaForm, temperatura: e.target.value })} placeholder="Ej: 36.5" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.temperatura} onChange={(e) => setFichaForm({ ...fichaForm, temperatura: e.target.value })} placeholder="Ej: 36.5" />
                                                         </label>
                                                         <label className="field">
                                                             <span>Talla (cm)</span>
-                                                            <input type="number" step="0.1" value={fichaForm.talla} onChange={(e) => setFichaForm({ ...fichaForm, talla: e.target.value })} placeholder="Ej: 170" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.talla} onChange={(e) => setFichaForm({ ...fichaForm, talla: e.target.value })} placeholder="Ej: 170" />
                                                         </label>
                                                         <label className="field">
                                                             <span>Peso (kg)</span>
-                                                            <input type="number" step="0.1" value={fichaForm.peso} onChange={(e) => setFichaForm({ ...fichaForm, peso: e.target.value })} placeholder="Ej: 70" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.peso} onChange={(e) => setFichaForm({ ...fichaForm, peso: e.target.value })} placeholder="Ej: 70" />
                                                         </label>
                                                         <div className="premium-field-card" style={{ gridColumn: 'span 2', marginTop: '8px', padding: '14px', border: '1px solid rgba(0,32,64,0.08)' }}>
                                                             <div className="field-header" style={{ marginBottom: '8px' }}>
@@ -5072,7 +5225,7 @@ ${paginas}
                                                                 <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Cada (Horas)"
-                                                                    type="number"
+                                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                     min="1"
                                                                     value={prescripcionLineForm.frecuencia_horas}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, frecuencia_horas: e.target.value })}
@@ -5082,7 +5235,7 @@ ${paginas}
                                                                 <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Durante (Días)"
-                                                                    type="number"
+                                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, duracion_tratamiento_dias: e.target.value })}

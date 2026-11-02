@@ -19,6 +19,7 @@ import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { nombreCompleto } from '../../utils/nombreCompleto';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -2264,7 +2265,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-presion-sistolica-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     value={vitalsForm.presion_arterial_sistolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_sistolica: e.target.value })}
                                                     placeholder="120"
@@ -2285,7 +2286,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-presion-diastolica-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     value={vitalsForm.presion_arterial_diastolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_diastolica: e.target.value })}
                                                     placeholder="80"
@@ -2306,7 +2307,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-frecuencia-cardiaca-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     value={vitalsForm.frecuencia_cardiaca}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_cardiaca: e.target.value })}
                                                     placeholder="72"
@@ -2327,7 +2328,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-frecuencia-respiratoria-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     value={vitalsForm.frecuencia_respiratoria}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_respiratoria: e.target.value })}
                                                     placeholder="16"
@@ -2348,7 +2349,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-temperatura-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     step="0.1"
                                                     value={vitalsForm.temperatura}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, temperatura: e.target.value })}
@@ -2370,7 +2371,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-talla-estatura-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     value={vitalsForm.talla}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, talla: e.target.value })}
                                                     placeholder="160"
@@ -2391,7 +2392,7 @@ const Enfermero_page = () => {
                                             </div>
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-peso-corporal-titulo"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     step="0.1"
                                                     value={vitalsForm.peso}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, peso: e.target.value })}

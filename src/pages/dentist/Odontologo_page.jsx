@@ -26,6 +26,8 @@ import { clasificarTipoPaciente, esPersonalAdministrativo } from '../../utils/ti
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
 import { nombreCompleto } from '../../utils/nombreCompleto';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import TablaAtencionesDia from '../../components/TablaAtencionesDia';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -5719,46 +5721,20 @@ ${cuerpo}
                                                     </div>
                                                 </div>
 
-                                                {parteDiarioList.map((item, idx) => {
-                                                    const patientIdent = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion;
-                                                    const patientName = patientIdent
-                                                        ? nombreCompleto(patientIdent)
-                                                        : item.paciente?.name || item.paciente?.email || 'Usuario registrado';
-
-                                                    let itemIcon = <ClipboardList size={16} />;
-                                                    let iconBg = 'var(--primary-soft)';
-                                                    let iconColor = 'var(--primary)';
-
-                                                    if (item.tipo_atencion === 'primaria') {
-                                                        itemIcon = <HeartHandshake size={16} />;
-                                                        iconBg = 'var(--primary-soft)';
-                                                        iconColor = 'var(--primary)';
-                                                    } else if (item.tipo_atencion === 'secundaria') {
-                                                        itemIcon = <TrendingUp size={16} />;
-                                                        iconBg = 'var(--accent-soft)';
-                                                        iconColor = 'var(--accent)';
-                                                    } else if (item.tipo_atencion === 'certificadomedico') {
-                                                    } else if (item.tipo_atencion === 'validacion') {
-                                                        itemIcon = <CheckCircle size={16} />;
-                                                        iconBg = '#e9f8f2';
-                                                        iconColor = 'var(--success)';
-                                                    }
-
-                                                    return (
-                                                        <div key={idx} className="list-card" style={{ background: '#fafbfd' }}>
-                                                            <div className="list-card__icon" style={{ background: iconBg, color: iconColor }}>
-                                                                {itemIcon}
-                                                            </div>
-                                                            <div className="list-card__content">
-                                                                <strong>{patientName}</strong>
-                                                                <p>Atención: {item.tipo_atencion.toUpperCase()} · Diagnóstico: {item.detalle_diagnostico}</p>
-                                                            </div>
-                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                                                {item.tipo_atencion2.toUpperCase()}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                {/* Una fila por atención, con sus datos en columnas (igual que Psicología y Medicina General) */}
+                                                <div style={{ marginTop: '14px' }}>
+                                                    <TablaAtencionesDia filas={parteDiarioList.map(item => {
+                                                        const ident = item.paciente?.datos_identificacion || item.paciente?.datosIdentificacion;
+                                                        return {
+                                                            id: item.id,
+                                                            paciente: ident ? nombreCompleto(ident) : (item.paciente?.name || item.paciente?.email),
+                                                            cedula: ident?.numero_cedula,
+                                                            tipoAtencion: item.tipo_atencion,
+                                                            tipo: item.tipo_atencion2,
+                                                            diagnostico: item.detalle_diagnostico
+                                                        };
+                                                    })} />
+                                                </div>
                                             </div>
                                         )}
                                     </article>
@@ -6750,7 +6726,7 @@ ${cuerpo}
                                                     </label>
                                                     <input
                                                         aria-label={quickStockType === 'add' ? 'Cantidad a ingresar (unidades)' : 'Cantidad a descontar (unidades)'}
-                                                        type="number"
+                                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                         min="1"
                                                         required
                                                         value={quickStockAmount}
@@ -6833,7 +6809,7 @@ ${cuerpo}
                                                                 <span className="field-badge-opt" style={{ background: '#dcfce7', color: '#166534' }}>Recomendado</span>
                                                             </div>
                                                             <input aria-labelledby="odontologo-anadir-incremento-al-stock-titulo"
-                                                                type="number"
+                                                                type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                 min="0"
                                                                 placeholder="Ej: 10 (se sumará al stock actual)"
                                                                 value={insumoForm.incremento || ''}
@@ -6861,7 +6837,7 @@ ${cuerpo}
                                                                 <span className="field-badge-req">Total Directo</span>
                                                             </div>
                                                             <input aria-labelledby="odontologo-o-establecer-cantidad-total-directa-titulo"
-                                                                type="number"
+                                                                type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                 min="0"
                                                                 placeholder="Ej: 50"
                                                                 value={insumoForm.stock}
@@ -6883,7 +6859,7 @@ ${cuerpo}
                                                             <span className="field-badge-req">Requerido</span>
                                                         </div>
                                                         <input aria-labelledby="odontologo-stock-inicial-unidades-titulo"
-                                                            type="number"
+                                                            type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                             min="0"
                                                             placeholder="Ej: 50"
                                                             value={insumoForm.stock}
@@ -9260,7 +9236,7 @@ ${cuerpo}
                                                                 <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Cada (Horas)"
-                                                                    type="number"
+                                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                     min="1"
                                                                     value={prescripcionLineForm.frecuencia_horas}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, frecuencia_horas: e.target.value })}
@@ -9270,7 +9246,7 @@ ${cuerpo}
                                                                 <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                                 <input
                                                                     aria-label="Durante (Días)"
-                                                                    type="number"
+                                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, duracion_tratamiento_dias: e.target.value })}

@@ -39,6 +39,7 @@ import { compileRecetaFormHtmlString } from './reports/recetaTemplate';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 
 const COUNTRIES = [
     'Ecuador', 'Colombia', 'Perú', 'Venezuela', 'Argentina', 'Chile', 'Bolivia', 'Brasil',
@@ -7042,42 +7043,42 @@ export default function MedicoOcupacionalPage() {
                                                 <div className="clinical-fields-grid">
                                                     <label className="field">
                                                         <span>PA SISTÓLICA (MMHG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
                                                         {errorConsulta('paSystolic')}
                                                     </label>
                                                     <label className="field">
                                                         <span>PA DIASTÓLICA (MMHG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
                                                         {errorConsulta('paDiastolic')}
                                                     </label>
                                                     <label className="field">
                                                         <span>FRECUENCIA CARDIACA (LPM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
                                                         {errorConsulta('fc')}
                                                     </label>
                                                     <label className="field">
                                                         <span>FRECUENCIA RESPIRATORIA (RPM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
                                                         {errorConsulta('fr')}
                                                     </label>
                                                     <label className="field">
                                                         <span>TEMPERATURA (°C) <span className="field-req-star">*</span></span>
-                                                        <input type="number" step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
                                                         {errorConsulta('temp')}
                                                     </label>
                                                     <label className="field">
                                                         <span>TALLA (CM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
                                                         {errorConsulta('talla')}
                                                     </label>
                                                     <label className="field">
                                                         <span>PESO (KG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
                                                         {errorConsulta('peso')}
                                                     </label>
                                                     <label className="field">
                                                         <span>SATURACIÓN SPO2 (%) <span className="field-req-star">*</span></span>
-                                                        <input type="number" value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
                                                         {errorConsulta('spo2')}
                                                     </label>
 
@@ -7409,7 +7410,7 @@ export default function MedicoOcupacionalPage() {
                                                             <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Cada (Horas)"
-                                                                type="number"
+                                                                type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                 min="1"
                                                                 value={prescripcionForm.frecuencia}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, frecuencia: e.target.value })}
@@ -7419,7 +7420,7 @@ export default function MedicoOcupacionalPage() {
                                                             <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                             <input
                                                                 aria-label="Durante (Días)"
-                                                                type="number"
+                                                                type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                                 min="1"
                                                                 value={prescripcionForm.duracion}
                                                                 onChange={(e) => setPrescripcionForm({ ...prescripcionForm, duracion: e.target.value })}
@@ -8056,7 +8057,7 @@ export default function MedicoOcupacionalPage() {
                                             </div>
                                             <span className="field-badge-req">Requerido</span>
                                         </div>
-                                        <input aria-labelledby="medicoocupac-dias-de-incapacidad-titulo" type="number" required value={reintegroForm.diasIncapacidad} onChange={e => setReintegroForm({ ...reintegroForm, diasIncapacidad: e.target.value })} placeholder="15" />
+                                        <input aria-labelledby="medicoocupac-dias-de-incapacidad-titulo" type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} required value={reintegroForm.diasIncapacidad} onChange={e => setReintegroForm({ ...reintegroForm, diasIncapacidad: e.target.value })} placeholder="15" />
                                     </div>
                                 </div>
 

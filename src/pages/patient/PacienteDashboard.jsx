@@ -13,6 +13,7 @@ import { compressImage } from '../../utils/compressImage';
 import '../../medical.css';
 import { escapeHtml } from '../../utils/escapeHtml';
 import { logoBienestar } from '../../assets/logoBienestarBase64.js';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -3182,7 +3183,7 @@ const PacienteDashboard = () => {
                                                 <span>¿Tienes Hijos? (Indica cantidad)</span>
                                                 <input
                                                     aria-label="¿Tienes Hijos? (Indica cantidad)"
-                                                    type="number"
+                                                    type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={0}
                                                     value={extraForm.numero_hijos}
                                                     onChange={e => setExtraForm({ ...extraForm, numero_hijos: parseInt(e.target.value) || 0 })}
@@ -4026,7 +4027,7 @@ const PacienteDashboard = () => {
                                                         <span>Número de personas en el hogar</span>
                                                         <input
                                                             aria-label="Número de personas en el hogar"
-                                                            type="number"
+                                                            type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                             min="1"
                                                             placeholder="Ej. 4"
                                                             value={socioeconomicForm.numero_personas_hogar}
@@ -4039,7 +4040,7 @@ const PacienteDashboard = () => {
                                                         <span>Aportantes económicos en el hogar</span>
                                                         <input
                                                             aria-label="Aportantes económicos en el hogar"
-                                                            type="number"
+                                                            type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                             min="1"
                                                             placeholder="Ej. 2"
                                                             value={socioeconomicForm.numero_aportantes}

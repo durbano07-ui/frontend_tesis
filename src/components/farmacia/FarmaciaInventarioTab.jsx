@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import api from '../../api/axios';
 import { VIAS_ADMINISTRACION } from '../../utils/viasAdministracion';
 import { Pill, Search, Plus, Minus, History, Pencil, Power, AlertTriangle, Package, Boxes, Filter, X, FileSpreadsheet, TrendingUp, TrendingDown, ChevronDown } from 'lucide-react';
+import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
 
 const FarmaciaInventarioTab = ({ showSystemToast }) => {
     const [productos, setProductos] = useState([]);
@@ -741,7 +742,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 <div>
                                     <label htmlFor="farmaciainve-stock-inicial-cajas" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Cajas)</label>
                                     <input id="farmaciainve-stock-inicial-cajas"
-                                        type="number"
+                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
                                         value={productForm.stock_inicial_cajas}
                                         onChange={(e) => setProductForm({ ...productForm, stock_inicial_cajas: e.target.value })}
@@ -751,7 +752,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 <div>
                                     <label htmlFor="farmaciainve-stock-inicial-unidades" style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Stock Inicial (Unidades)</label>
                                     <input id="farmaciainve-stock-inicial-unidades"
-                                        type="number"
+                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
                                         value={productForm.stock_inicial_unidades}
                                         onChange={(e) => setProductForm({ ...productForm, stock_inicial_unidades: e.target.value })}
@@ -877,7 +878,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 <div>
                                     <label htmlFor="farmaciainve-cantidad-cajas" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Cajas</label>
                                     <input id="farmaciainve-cantidad-cajas"
-                                        type="number"
+                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
                                         value={stockForm.cantidad_cajas}
                                         onChange={(e) => setStockForm({ ...stockForm, cantidad_cajas: e.target.value })}
@@ -887,7 +888,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                 <div>
                                     <label htmlFor="farmaciainve-cantidad-unidades" style={{ fontSize: '12px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Cantidad Unidades</label>
                                     <input id="farmaciainve-cantidad-unidades"
-                                        type="number"
+                                        type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                         min="0"
                                         value={stockForm.cantidad_unidades}
                                         onChange={(e) => setStockForm({ ...stockForm, cantidad_unidades: e.target.value })}
