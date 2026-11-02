@@ -23,6 +23,7 @@ import ReporteEncabezado from '../../components/ReporteEncabezado';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { nombreCompleto } from '../../utils/nombreCompleto';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import { RANGOS_SIGNOS, erroresRangoSignos } from '../../utils/signosVitales';
 import TablaAtencionesDia from '../../components/TablaAtencionesDia';
 import { textoStockFarmacia } from '../../utils/stockFarmacia';
 
@@ -206,10 +207,13 @@ const MedicoGeneral_page = () => {
         }
     };
 
-    // Campos obligatorios vacíos de un paso: { campo: mensaje }
-    const validarPaso = (idx) => Object.fromEntries(
-        Object.entries(CAMPOS_OBLIGATORIOS[steps[idx]?.key] || {}).filter(([campo]) => !String(fichaForm[campo] ?? '').trim())
-    );
+    // Campos obligatorios vacíos de un paso: { campo: mensaje }; en signos vitales, valores fuera de rango
+    const validarPaso = (idx) => ({
+        ...Object.fromEntries(
+            Object.entries(CAMPOS_OBLIGATORIOS[steps[idx]?.key] || {}).filter(([campo]) => !String(fichaForm[campo] ?? '').trim())
+        ),
+        ...(steps[idx]?.key === 'signos' ? erroresRangoSignos(fichaForm) : {})
+    });
 
     // Revisa los pasos indicados; si uno tiene campos vacíos, lo abre con los errores marcados
     const pasosCompletos = (indices) => {
@@ -218,7 +222,7 @@ const MedicoGeneral_page = () => {
             if (Object.keys(errores).length > 0) {
                 setCurrentStepIndex(idx);
                 setErroresPaso(errores);
-                showSystemToast('Complete los campos obligatorios (*) antes de continuar.');
+                showSystemToast('Revise los campos marcados en rojo antes de continuar.');
                 return false;
             }
         }
@@ -254,6 +258,7 @@ const MedicoGeneral_page = () => {
             }
             return;
         }
+        if (!pasosCompletos([currentStepIndex])) return;
         const success = await handleSaveFichaSection(activeStepKey);
         if (success) {
             handleCloseFichaForm();
@@ -4740,31 +4745,38 @@ ${paginas}
                                                     <div className="clinical-fields-grid">
                                                         <label className="field">
                                                             <span>PA Sistólica (mmHg)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.presion_arterial_sistolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_sistolica: e.target.value })} placeholder="Ej: 120" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.presion_arterial_sistolica.min} max={RANGOS_SIGNOS.presion_arterial_sistolica.max} className={erroresPaso.presion_arterial_sistolica ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.presion_arterial_sistolica} step="0.1" value={fichaForm.presion_arterial_sistolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_sistolica: e.target.value })} placeholder="Ej: 120" />
+                                                            {erroresPaso.presion_arterial_sistolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.presion_arterial_sistolica}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>PA Diastólica (mmHg)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.presion_arterial_diastolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_diastolica: e.target.value })} placeholder="Ej: 80" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.presion_arterial_diastolica.min} max={RANGOS_SIGNOS.presion_arterial_diastolica.max} className={erroresPaso.presion_arterial_diastolica ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.presion_arterial_diastolica} step="0.1" value={fichaForm.presion_arterial_diastolica} onChange={(e) => setFichaForm({ ...fichaForm, presion_arterial_diastolica: e.target.value })} placeholder="Ej: 80" />
+                                                            {erroresPaso.presion_arterial_diastolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.presion_arterial_diastolica}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>Frecuencia Cardiaca (lpm)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={fichaForm.frecuencia_cardiaca} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_cardiaca: e.target.value })} placeholder="Ej: 75" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.frecuencia_cardiaca.min} max={RANGOS_SIGNOS.frecuencia_cardiaca.max} className={erroresPaso.frecuencia_cardiaca ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.frecuencia_cardiaca} value={fichaForm.frecuencia_cardiaca} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_cardiaca: e.target.value })} placeholder="Ej: 75" />
+                                                            {erroresPaso.frecuencia_cardiaca && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.frecuencia_cardiaca}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>Frecuencia Respiratoria (rpm)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={fichaForm.frecuencia_respiratoria} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_respiratoria: e.target.value })} placeholder="Ej: 18" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.frecuencia_respiratoria.min} max={RANGOS_SIGNOS.frecuencia_respiratoria.max} className={erroresPaso.frecuencia_respiratoria ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.frecuencia_respiratoria} value={fichaForm.frecuencia_respiratoria} onChange={(e) => setFichaForm({ ...fichaForm, frecuencia_respiratoria: e.target.value })} placeholder="Ej: 18" />
+                                                            {erroresPaso.frecuencia_respiratoria && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.frecuencia_respiratoria}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>Temperatura (°C)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.temperatura} onChange={(e) => setFichaForm({ ...fichaForm, temperatura: e.target.value })} placeholder="Ej: 36.5" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.temperatura.min} max={RANGOS_SIGNOS.temperatura.max} className={erroresPaso.temperatura ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.temperatura} step="0.1" value={fichaForm.temperatura} onChange={(e) => setFichaForm({ ...fichaForm, temperatura: e.target.value })} placeholder="Ej: 36.5" />
+                                                            {erroresPaso.temperatura && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.temperatura}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>Talla (cm)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.talla} onChange={(e) => setFichaForm({ ...fichaForm, talla: e.target.value })} placeholder="Ej: 170" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.talla.min} max={RANGOS_SIGNOS.talla.max} className={erroresPaso.talla ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.talla} step="0.1" value={fichaForm.talla} onChange={(e) => setFichaForm({ ...fichaForm, talla: e.target.value })} placeholder="Ej: 170" />
+                                                            {erroresPaso.talla && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.talla}</small>}
                                                         </label>
                                                         <label className="field">
                                                             <span>Peso (kg)</span>
-                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={fichaForm.peso} onChange={(e) => setFichaForm({ ...fichaForm, peso: e.target.value })} placeholder="Ej: 70" />
+                                                            <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS.peso.min} max={RANGOS_SIGNOS.peso.max} className={erroresPaso.peso ? 'campo-con-error' : undefined} aria-invalid={!!erroresPaso.peso} step="0.1" value={fichaForm.peso} onChange={(e) => setFichaForm({ ...fichaForm, peso: e.target.value })} placeholder="Ej: 70" />
+                                                            {erroresPaso.peso && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px' }}>{erroresPaso.peso}</small>}
                                                         </label>
                                                         <div className="premium-field-card" style={{ gridColumn: 'span 2', marginTop: '8px', padding: '14px', border: '1px solid rgba(0,32,64,0.08)' }}>
                                                             <div className="field-header" style={{ marginBottom: '8px' }}>

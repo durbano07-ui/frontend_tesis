@@ -40,6 +40,7 @@ import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } f
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import { RANGOS_SIGNOS } from '../../utils/signosVitales';
 import { textoStockFarmacia } from '../../utils/stockFarmacia';
 
 const COUNTRIES = [
@@ -105,16 +106,19 @@ const TIPOS_ATENCION_DIARIO = {
 };
 
 // Signos vitales obligatorios en la atención ocupacional: [nombre, mínimo, máximo]
-const RANGOS_SIGNOS_OCUPACIONAL = {
-    paSystolic: ['la PA sistólica', 60, 250],
-    paDiastolic: ['la PA diastólica', 30, 150],
-    fc: ['la frecuencia cardiaca', 30, 220],
-    fr: ['la frecuencia respiratoria', 8, 60],
-    temp: ['la temperatura', 34, 43],
-    talla: ['la talla', 50, 250],
-    peso: ['el peso', 2, 300],
-    spo2: ['la saturación SpO2', 50, 100],
+// Campos del formulario de Ocupacional → rangos compartidos de signos vitales
+const CLAVES_SIGNOS_OCUPACIONAL = {
+    paSystolic: 'presion_arterial_sistolica',
+    paDiastolic: 'presion_arterial_diastolica',
+    fc: 'frecuencia_cardiaca',
+    fr: 'frecuencia_respiratoria',
+    temp: 'temperatura',
+    talla: 'talla',
+    peso: 'peso',
+    spo2: 'spo2',
 };
+const RANGOS_SIGNOS_OCUPACIONAL = Object.fromEntries(Object.entries(CLAVES_SIGNOS_OCUPACIONAL)
+    .map(([campo, clave]) => [campo, [RANGOS_SIGNOS[clave].nombre, RANGOS_SIGNOS[clave].min, RANGOS_SIGNOS[clave].max]]));
 
 export default function MedicoOcupacionalPage() {
     const navigate = useNavigate();
@@ -7045,42 +7049,42 @@ export default function MedicoOcupacionalPage() {
                                                 <div className="clinical-fields-grid">
                                                     <label className="field">
                                                         <span>PA SISTÓLICA (MMHG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.paSystolic[1]} max={RANGOS_SIGNOS_OCUPACIONAL.paSystolic[2]} step="0.1" value={vitalSigns.paSystolic} onChange={e => setVitalSigns({ ...vitalSigns, paSystolic: e.target.value })} placeholder="Ej: 120" aria-invalid={!!consultaErrores.paSystolic} />
                                                         {errorConsulta('paSystolic')}
                                                     </label>
                                                     <label className="field">
                                                         <span>PA DIASTÓLICA (MMHG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.paDiastolic[1]} max={RANGOS_SIGNOS_OCUPACIONAL.paDiastolic[2]} step="0.1" value={vitalSigns.paDiastolic} onChange={e => setVitalSigns({ ...vitalSigns, paDiastolic: e.target.value })} placeholder="Ej: 80" aria-invalid={!!consultaErrores.paDiastolic} />
                                                         {errorConsulta('paDiastolic')}
                                                     </label>
                                                     <label className="field">
                                                         <span>FRECUENCIA CARDIACA (LPM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.fc[1]} max={RANGOS_SIGNOS_OCUPACIONAL.fc[2]} value={vitalSigns.fc} onChange={e => setVitalSigns({ ...vitalSigns, fc: e.target.value })} placeholder="Ej: 75" aria-invalid={!!consultaErrores.fc} />
                                                         {errorConsulta('fc')}
                                                     </label>
                                                     <label className="field">
                                                         <span>FRECUENCIA RESPIRATORIA (RPM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.fr[1]} max={RANGOS_SIGNOS_OCUPACIONAL.fr[2]} value={vitalSigns.fr} onChange={e => setVitalSigns({ ...vitalSigns, fr: e.target.value })} placeholder="Ej: 18" aria-invalid={!!consultaErrores.fr} />
                                                         {errorConsulta('fr')}
                                                     </label>
                                                     <label className="field">
                                                         <span>TEMPERATURA (°C) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.temp[1]} max={RANGOS_SIGNOS_OCUPACIONAL.temp[2]} step="0.1" value={vitalSigns.temp} onChange={e => setVitalSigns({ ...vitalSigns, temp: e.target.value })} placeholder="Ej: 36.5" aria-invalid={!!consultaErrores.temp} />
                                                         {errorConsulta('temp')}
                                                     </label>
                                                     <label className="field">
                                                         <span>TALLA (CM) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.talla[1]} max={RANGOS_SIGNOS_OCUPACIONAL.talla[2]} step="0.1" value={vitalSigns.talla} onChange={e => setVitalSigns({ ...vitalSigns, talla: e.target.value })} placeholder="Ej: 170" aria-invalid={!!consultaErrores.talla} />
                                                         {errorConsulta('talla')}
                                                     </label>
                                                     <label className="field">
                                                         <span>PESO (KG) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.peso[1]} max={RANGOS_SIGNOS_OCUPACIONAL.peso[2]} step="0.1" value={vitalSigns.peso} onChange={e => setVitalSigns({ ...vitalSigns, peso: e.target.value })} placeholder="Ej: 70" aria-invalid={!!consultaErrores.peso} />
                                                         {errorConsulta('peso')}
                                                     </label>
                                                     <label className="field">
                                                         <span>SATURACIÓN SPO2 (%) <span className="field-req-star">*</span></span>
-                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
+                                                        <input type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros} min={RANGOS_SIGNOS_OCUPACIONAL.spo2[1]} max={RANGOS_SIGNOS_OCUPACIONAL.spo2[2]} value={vitalSigns.spo2} onChange={e => setVitalSigns({ ...vitalSigns, spo2: e.target.value })} placeholder="Ej: 98" aria-invalid={!!consultaErrores.spo2} />
                                                         {errorConsulta('spo2')}
                                                     </label>
 

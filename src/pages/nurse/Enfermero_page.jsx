@@ -20,6 +20,7 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { nombreCompleto } from '../../utils/nombreCompleto';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
+import { RANGOS_SIGNOS, erroresRangoSignos } from '../../utils/signosVitales';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -126,7 +127,8 @@ const Enfermero_page = () => {
             vitalsForm.frecuencia_respiratoria &&
             vitalsForm.temperatura &&
             vitalsForm.talla &&
-            vitalsForm.peso
+            vitalsForm.peso &&
+            Object.keys(erroresRangoSignos(vitalsForm)).length === 0
         );
     };
 
@@ -136,7 +138,7 @@ const Enfermero_page = () => {
     const handleNextStep = () => {
         setValidationTriggered(true);
         if (currentStepIndex === 0 && !validateVitalsStep()) {
-            showSystemToast('Por favor complete todos los campos obligatorios marcados en rojo.');
+            showSystemToast('Por favor complete o corrija los campos marcados en rojo.');
             return;
         }
         setValidationTriggered(false);
@@ -182,9 +184,10 @@ const Enfermero_page = () => {
         return { display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: '12px', padding: '0 16px', background: '#fcfdfe', minHeight: '46px', boxSizing: 'border-box' };
     };
 
-    const getInputStyle = (value) => {
+    // `campo`: signo vital cuyo rango se revisa (también se marca en rojo si está fuera de rango)
+    const getInputStyle = (value, campo) => {
         const isEmpty = !value || (typeof value === 'string' && value.trim() === '');
-        if (validationTriggered && isEmpty) {
+        if (validationTriggered && (isEmpty || (campo && erroresRangoSignos(vitalsForm)[campo]))) {
             return {
                 borderColor: '#dc2626',
                 boxShadow: '0 0 0 1px rgba(220, 38, 38, 0.25)',
@@ -474,7 +477,7 @@ const Enfermero_page = () => {
 
         if (!validateVitalsStep()) {
             setCurrentStepIndex(0);
-            showSystemToast('Por favor complete los signos vitales obligatorios en rojo.');
+            showSystemToast('Por favor complete o corrija los signos vitales marcados en rojo.');
             return;
         }
 
@@ -2221,7 +2224,7 @@ const Enfermero_page = () => {
                                 <button aria-label="Cerrar" className="clinical-modal__close" onClick={handleCancelVitals}><X size={15} /></button>
                             </div>
                         </header>
-                        <form onSubmit={handleVitalsFormSubmit} className="clinical-modal__body">
+                        <form onSubmit={handleVitalsFormSubmit} noValidate className="clinical-modal__body">
                             {isOffline && (
                                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 16px', borderRadius: '10px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', fontWeight: '600' }}>
                                     <ShieldCheck size={16} color="#dc2626" />
@@ -2266,14 +2269,16 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-presion-sistolica-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.presion_arterial_sistolica.min} max={RANGOS_SIGNOS.presion_arterial_sistolica.max}
                                                     value={vitalsForm.presion_arterial_sistolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_sistolica: e.target.value })}
                                                     placeholder="120"
-                                                    style={getInputStyle(vitalsForm.presion_arterial_sistolica)}
+                                                    style={getInputStyle(vitalsForm.presion_arterial_sistolica, 'presion_arterial_sistolica')}
                                                     required
                                                 />
                                                 <small>mmHg</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).presion_arterial_sistolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_sistolica}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2287,14 +2292,16 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-presion-diastolica-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.presion_arterial_diastolica.min} max={RANGOS_SIGNOS.presion_arterial_diastolica.max}
                                                     value={vitalsForm.presion_arterial_diastolica}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_diastolica: e.target.value })}
                                                     placeholder="80"
-                                                    style={getInputStyle(vitalsForm.presion_arterial_diastolica)}
+                                                    style={getInputStyle(vitalsForm.presion_arterial_diastolica, 'presion_arterial_diastolica')}
                                                     required
                                                 />
                                                 <small>mmHg</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).presion_arterial_diastolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_diastolica}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2308,14 +2315,16 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-frecuencia-cardiaca-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.frecuencia_cardiaca.min} max={RANGOS_SIGNOS.frecuencia_cardiaca.max}
                                                     value={vitalsForm.frecuencia_cardiaca}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_cardiaca: e.target.value })}
                                                     placeholder="72"
-                                                    style={getInputStyle(vitalsForm.frecuencia_cardiaca)}
+                                                    style={getInputStyle(vitalsForm.frecuencia_cardiaca, 'frecuencia_cardiaca')}
                                                     required
                                                 />
                                                 <small>lpm</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).frecuencia_cardiaca && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_cardiaca}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2329,14 +2338,16 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-frecuencia-respiratoria-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.frecuencia_respiratoria.min} max={RANGOS_SIGNOS.frecuencia_respiratoria.max}
                                                     value={vitalsForm.frecuencia_respiratoria}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_respiratoria: e.target.value })}
                                                     placeholder="16"
-                                                    style={getInputStyle(vitalsForm.frecuencia_respiratoria)}
+                                                    style={getInputStyle(vitalsForm.frecuencia_respiratoria, 'frecuencia_respiratoria')}
                                                     required
                                                 />
                                                 <small>rpm</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).frecuencia_respiratoria && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_respiratoria}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2350,15 +2361,17 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-temperatura-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.temperatura.min} max={RANGOS_SIGNOS.temperatura.max}
                                                     step="0.1"
                                                     value={vitalsForm.temperatura}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, temperatura: e.target.value })}
                                                     placeholder="36.5"
-                                                    style={getInputStyle(vitalsForm.temperatura)}
+                                                    style={getInputStyle(vitalsForm.temperatura, 'temperatura')}
                                                     required
                                                 />
                                                 <small>°C</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).temperatura && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).temperatura}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2372,14 +2385,16 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-talla-estatura-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.talla.min} max={RANGOS_SIGNOS.talla.max}
                                                     value={vitalsForm.talla}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, talla: e.target.value })}
                                                     placeholder="160"
-                                                    style={getInputStyle(vitalsForm.talla)}
+                                                    style={getInputStyle(vitalsForm.talla, 'talla')}
                                                     required
                                                 />
                                                 <small>cm</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).talla && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).talla}</small>}
                                         </div>
 
                                         <div className="premium-field-card" style={{ gridColumn: 'span 2' }}>
@@ -2393,15 +2408,17 @@ const Enfermero_page = () => {
                                             <div className="input-with-unit">
                                                 <input aria-labelledby="enfermero-peso-corporal-titulo"
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
+                                                    min={RANGOS_SIGNOS.peso.min} max={RANGOS_SIGNOS.peso.max}
                                                     step="0.1"
                                                     value={vitalsForm.peso}
                                                     onChange={(e) => setVitalsForm({ ...vitalsForm, peso: e.target.value })}
                                                     placeholder="60.0"
-                                                    style={getInputStyle(vitalsForm.peso)}
+                                                    style={getInputStyle(vitalsForm.peso, 'peso')}
                                                     required
                                                 />
                                                 <small>kg</small>
                                             </div>
+                                            {validationTriggered && erroresRangoSignos(vitalsForm).peso && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).peso}</small>}
                                         </div>
                                     </div>
                                 </div>
