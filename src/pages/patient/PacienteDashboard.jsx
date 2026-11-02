@@ -1617,6 +1617,81 @@ const PacienteDashboard = () => {
         }
     };
 
+    // "Ver Recetario" de una atención: receta emitida por ese profesional ese día
+    const handleVerRecetario = async (item) => {
+        const fecha = String(item.fecha || '').slice(0, 10);
+        let recetas = [];
+        try {
+            // El servidor solo devuelve las recetas del propio paciente
+            const res = await api.get('/medicina-general/recetas', { params: { fecha } });
+            recetas = (res.data?.data || []).filter(r =>
+                (r.lineas || []).length > 0 &&
+                (!item.rawRecord?.id_usuario_doctor || String(r.id_usuario_doctor) === String(item.rawRecord.id_usuario_doctor))
+            );
+        } catch (err) {
+            console.error('Error al cargar la receta:', err);
+            setAlertModal({ show: true, title: 'Recetario', message: 'No se pudo cargar la receta de esta atención. Intente nuevamente.', type: 'warning' });
+            return;
+        }
+        if (recetas.length === 0) {
+            setAlertModal({ show: true, title: 'Recetario', message: 'Esta atención no tiene receta registrada.', type: 'warning' });
+            return;
+        }
+
+        const ventana = window.open('', '_blank');
+        if (!ventana) {
+            setAlertModal({ show: true, title: 'Bloqueador de Ventanas Activo', message: 'El navegador impidió abrir la receta. Habilite las ventanas emergentes para este sitio.', type: 'warning' });
+            return;
+        }
+        const ident = profile?.identification || {};
+        const paciente = [ident.primer_nombre, ident.segundo_nombre, ident.apellido_paterno, ident.apellido_materno].filter(Boolean).join(' ');
+        const filas = recetas.flatMap(r => r.lineas).map((l, i) => `
+            <tr>
+                <td style="text-align:center;">${i + 1}</td>
+                <td><strong>${escapeHtml(l.detalle_medicamento)}</strong></td>
+                <td>${escapeHtml(l.detalle_dosis)}</td>
+                <td>${escapeHtml(l.detalle_via_administracion)}</td>
+                <td>Cada ${escapeHtml(String(l.frecuencia_horas))} h por ${escapeHtml(String(l.duracion_tratamiento_dias))} días</td>
+            </tr>`).join('');
+
+        ventana.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Receta Médica - ${escapeHtml(item.areaName)}</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0 auto; padding: 20px; font-size: 11px; max-width: 800px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; text-align: left; }
+        th { background: #e0e0e0; font-size: 10px; text-transform: uppercase; }
+        .no-print { margin-top: 18px; text-align: center; }
+        @media print { body { padding: 0; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #b71a34; padding-bottom:8px; margin-bottom:12px;">
+        <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height:56px; width:auto;" />
+        <div style="text-align:right; font-size:9px; color:#475569; line-height:1.3;">
+            <strong>UNIVERSIDAD ESTATAL DE BOLÍVAR</strong><br/>DIRECCIÓN DE BIENESTAR UNIVERSITARIO<br/>${escapeHtml(item.areaName.toUpperCase())}
+        </div>
+    </div>
+    <div style="text-align:center; font-size:14px; font-weight:800; margin:6px 0 12px;">RECETA MÉDICA</div>
+    <table style="margin-bottom:12px;">
+        <tr><th style="width:18%;">Paciente</th><td>${escapeHtml(paciente)}</td><th style="width:12%;">Cédula</th><td style="width:18%;">${escapeHtml(ident.numero_cedula || '')}</td></tr>
+        <tr><th>Fecha</th><td>${escapeHtml(fecha.split('-').reverse().join('/'))}</td><th>Profesional</th><td>${escapeHtml(item.doctorName || '')}</td></tr>
+    </table>
+    <table>
+        <thead><tr><th style="width:5%;">N°</th><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia / Duración</th></tr></thead>
+        <tbody>${filas}</tbody>
+    </table>
+    <div class="no-print"><button onclick="window.print()" style="padding:8px 18px; font-size:13px; cursor:pointer;">Imprimir</button></div>
+</body>
+</html>`);
+        ventana.document.close();
+    };
+
     const handlePrintPatientCertificate = (area, record) => {
         if (record.tipo_atencion !== 'certificadomedico') {
             setNoCertificateModal({
@@ -3746,11 +3821,12 @@ const PacienteDashboard = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Action Certificate Button */}
-                                                                {item.rawRecord.tipo_atencion === 'certificadomedico' && (
+                                                                {/* Ver la receta de esta atención (el paciente no descarga certificados) */}
+                                                                {['medicina', 'odontologia'].includes(item.areaKey) && (
                                                                     <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                                                                         <button
-                                                                            onClick={() => handlePrintPatientCertificate(item.areaKey, item.rawRecord)}
+                                                                            type="button"
+                                                                            onClick={() => handleVerRecetario(item)}
                                                                             style={{
                                                                                 width: '100%',
                                                                                 background: 'white',
@@ -3770,7 +3846,7 @@ const PacienteDashboard = () => {
                                                                             onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-soft)'; }}
                                                                             onMouseLeave={e => { e.currentTarget.style.background = 'white'; }}
                                                                         >
-                                                                            <FileText size={14} /> Descargar Certificado Médico
+                                                                            <FileText size={14} /> Ver Recetario
                                                                         </button>
                                                                     </div>
                                                                 )}
