@@ -4882,8 +4882,8 @@ ${paginas}
                                                                     required
                                                                     style={getInputStyle(fichaForm.tipo_atencion)}
                                                                 >
-                                                                    <option value="primaria">Primaria (Primera Vez)</option>
-                                                                    <option value="secundaria">Secundaria (Subsecuente / Evolución)</option>
+                                                                    <option value="primaria">Primaria</option>
+                                                                    <option value="secundaria">Secundaria</option>
                                                                 </select>
                                                                 {fichaForm.tipo_atencion === 'primaria' ? (
                                                                     <div style={{ fontSize: '11px', color: '#1e40af', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -4906,8 +4906,8 @@ ${paginas}
                                                                     required
                                                                     style={getInputStyle(fichaForm.tipo_atencion2)}
                                                                 >
-                                                                    <option value="curativo">Curativo (Tratamiento / Psicoterapia)</option>
-                                                                    <option value="preventivo">Preventivo (Orientación / Tamizaje)</option>
+                                                                    <option value="curativo">Curativo</option>
+                                                                    <option value="preventivo">Preventivo</option>
                                                                 </select>
                                                             </div>
                                                         </div>
