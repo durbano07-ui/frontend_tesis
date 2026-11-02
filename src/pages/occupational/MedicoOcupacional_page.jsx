@@ -1255,10 +1255,8 @@ export default function MedicoOcupacionalPage() {
         const rowsHtml = list.map((item, idx) => `
             <tr style="background: ${escapeHtml(idx % 2 === 0 ? '#ffffff' : '#f8fafc')};">
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 10px;">${escapeHtml(idx + 1)}</td>
-                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">
-                    ${escapeHtml((item.paciente || '').toUpperCase())}<br/>
-                    <small style="color: #64748b; font-weight: normal;">C.I: ${escapeHtml(item.cedula || 'N/D')}</small>
-                </td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-weight: 800; font-size: 10px; color: #0b3c5d;">${escapeHtml((item.paciente || '').toUpperCase())}</td>
+                <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${escapeHtml(item.cedula || 'N/D')}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${escapeHtml((item.cargo || '').toUpperCase())}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; text-align: center; font-size: 9.5px;">${escapeHtml(item.fechaAccidente || 'N/D')}</td>
                 <td style="padding: 6px 8px; border: 1px solid #94a3b8; font-size: 9.5px; color: #334155;">${escapeHtml((item.lugar || '').toUpperCase())}</td>
@@ -1313,7 +1311,8 @@ export default function MedicoOcupacionalPage() {
                     <thead>
                         <tr>
                             <th style="width: 40px;">N°</th>
-                            <th>NOMBRE DEL PACIENTE / CÉDULA</th>
+                            <th>NOMBRE DEL PACIENTE</th>
+                            <th style="width: 75px;">CÉDULA</th>
                             <th>CARGO / OCUPACIÓN</th>
                             <th style="width: 100px;">FECHA Y HORA</th>
                             <th>LUGAR / ÁREA</th>
@@ -1325,7 +1324,7 @@ export default function MedicoOcupacionalPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="10" style="text-align: center; padding: 25px; color: #64748b;">No se registraron accidentes en esta matriz.</td></tr>'}
+                        ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="11" style="text-align: center; padding: 25px; color: #64748b;">No se registraron accidentes en esta matriz.</td></tr>'}
                     </tbody>
                 </table>
 
@@ -5955,7 +5954,8 @@ export default function MedicoOcupacionalPage() {
                                             <thead>
                                                 <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
                                                     <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
-                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Paciente / Cédula</th>
+                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Paciente</th>
+                                                    <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Cédula</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Horario</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Motivo</th>
                                                     <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Estado</th>
@@ -5983,7 +5983,9 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {cedula}</div>
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                                                {cedula}
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -5993,9 +5995,6 @@ export default function MedicoOcupacionalPage() {
                                                             </td>
                                                             <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                 {cita.motivo || cita.tipo_evaluacion || 'Atención en Salud Ocupacional'}
-                                                                <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
-                                                                    <strong>Mis Notas:</strong> {cita.notas_doctor || 'Atención registrada directamente por el profesional médico'}
-                                                                </div>
                                                             </td>
                                                             <td style={{ padding: '14px 16px' }}>
                                                                 <span style={{
@@ -6011,11 +6010,6 @@ export default function MedicoOcupacionalPage() {
                                                                 }}>
                                                                     {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
                                                                 </span>
-                                                                {(cita.confirmada_por_paciente || cita.estado === 'completada' || cita.estado === 'confirmada') && (
-                                                                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                                        <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
-                                                                    </div>
-                                                                )}
                                                             </td>
                                                             <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                                                 <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -6508,7 +6502,8 @@ export default function MedicoOcupacionalPage() {
                                                 <thead>
                                                     <tr>
                                                         <th>Fecha de envío</th>
-                                                        <th>Paciente / Cédula</th>
+                                                        <th>Paciente</th>
+                                                        <th>Cédula</th>
                                                         <th>Exámenes solicitados</th>
                                                         <th>Observaciones</th>
                                                         <th>PDF de resultados</th>
@@ -6518,17 +6513,15 @@ export default function MedicoOcupacionalPage() {
                                                 <tbody>
                                                     {filteredExamenes.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan="6" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
+                                                            <td colSpan="7" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
                                                                 No hay órdenes que coincidan con los filtros.
                                                             </td>
                                                         </tr>
                                                     ) : filteredExamenes.map(item => (
                                                         <tr key={item.id}>
                                                             <td style={{ whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</td>
-                                                            <td>
-                                                                <strong>{item.paciente}</strong>
-                                                                <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {item.cedula}</small>
-                                                            </td>
+                                                            <td><strong>{item.paciente}</strong></td>
+                                                            <td style={{ whiteSpace: 'nowrap' }}>{item.cedula || '—'}</td>
                                                             <td style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600 }}>{item.examen || '—'}</td>
                                                             <td style={{ fontSize: '12px', color: '#334155' }}>{item.motivo || '—'}</td>
                                                             <td>

@@ -3869,7 +3869,8 @@ ${paginas}
                                                             <tr>
                                                                 <th>Fecha</th>
                                                                 <th>Horario</th>
-                                                                <th>Paciente / Cédula</th>
+                                                                <th>Paciente</th>
+                                                                <th>Cédula</th>
                                                                 <th>Motivo</th>
                                                                 <th>Estado</th>
                                                             </tr>
@@ -3877,7 +3878,7 @@ ${paginas}
                                                         <tbody>
                                                             {listado.length === 0 ? (
                                                                 <tr>
-                                                                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
+                                                                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b', fontSize: '13px' }}>
                                                                         {reportCitasLoading ? 'Cargando citas...' : 'No hay citas que coincidan con los filtros.'}
                                                                     </td>
                                                                 </tr>
@@ -3885,10 +3886,8 @@ ${paginas}
                                                                 <tr key={cita.id}>
                                                                     <td style={{ whiteSpace: 'nowrap' }}>{formatFecha(cita.fecha)}</td>
                                                                     <td style={{ whiteSpace: 'nowrap' }}>{String(cita.hora_inicio || '').slice(0, 5)} - {String(cita.hora_fin || '').slice(0, 5)}</td>
-                                                                    <td>
-                                                                        <strong>{nombrePaciente(cita)}</strong>
-                                                                        <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>C.I: {(cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion)?.numero_cedula || '—'}</small>
-                                                                    </td>
+                                                                    <td><strong>{nombrePaciente(cita)}</strong></td>
+                                                                    <td style={{ whiteSpace: 'nowrap' }}>{(cita.paciente?.datos_identificacion || cita.paciente?.datosIdentificacion)?.numero_cedula || '—'}</td>
                                                                     <td style={{ fontSize: '12px', color: '#334155' }}>{cita.motivo || '—'}</td>
                                                                     <td style={{ fontWeight: 700, fontSize: '11.5px', color: COLOR_ESTADO[cita.estado] || '#334155', textTransform: 'uppercase' }}>
                                                                         {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
@@ -4080,7 +4079,8 @@ ${paginas}
                                                 <thead>
                                                     <tr style={{ background: 'var(--surface-hover)', borderBottom: '1px solid var(--border)' }}>
                                                         <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>N°</th>
-                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Paciente / Cédula</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Paciente</th>
+                                                        <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Cédula</th>
                                                         <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Horario</th>
                                                         <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Motivo</th>
                                                         <th style={{ padding: '14px 16px', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>Estado</th>
@@ -4110,7 +4110,9 @@ ${paginas}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text)' }}>{patientName}</div>
-                                                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {pIdent?.numero_cedula || 'N/D'}</div>
+                                                                </td>
+                                                                <td style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                                                    {pIdent?.numero_cedula || 'N/D'}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <div style={{ fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text)' }}>
@@ -4120,11 +4122,6 @@ ${paginas}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                                                     {cita.motivo || 'Consulta general'}
-                                                                    {cita.notas_doctor && (
-                                                                        <div style={{ fontSize: '11px', color: '#b45309', marginTop: '2px' }}>
-                                                                            <strong>Mis Notas:</strong> {cita.notas_doctor}
-                                                                        </div>
-                                                                    )}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px' }}>
                                                                     <span style={{
@@ -4140,11 +4137,6 @@ ${paginas}
                                                                     }}>
                                                                         {cita.estado === 'no_asistio' ? 'No asistió' : cita.estado}
                                                                     </span>
-                                                                    {cita.confirmada_por_paciente && (
-                                                                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                                            <CheckCircle size={11} color="#15803d" /> Confirmada por paciente
-                                                                        </div>
-                                                                    )}
                                                                 </td>
                                                                 <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                                                                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
