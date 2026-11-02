@@ -5211,6 +5211,10 @@ const PacienteDashboard = () => {
                                                     {profile?.blood_type?.nombre || 'No asignado'}
                                                 </strong>
                                             </div>
+                                            <div>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Identificación Étnica</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{profile?.demographic?.identificacion_etnica?.nombre || profile?.demographic?.identificacionEtnica?.nombre || '—'}</strong>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -5297,6 +5301,25 @@ const PacienteDashboard = () => {
                                 )}
 
                                 {/* SECCIÓN 4: DIRECCIONES */}
+                                {/* Información adicional de la ficha (paso 4): hijos, alergias y discapacidades */}
+                                <div style={{ marginBottom: '24px' }}>
+                                    <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Información Adicional
+                                    </h3>
+                                    <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                        {[
+                                            ['Número de Hijos', (profile?.children || [])[0]?.numero ?? 0],
+                                            ['Alergias', (profile?.allergies || []).map(a => a.detalle_alergia).filter(Boolean).join(', ') || 'Ninguna'],
+                                            ['Discapacidades', (profile?.disabilities || []).map(d => d.detalle_discapacidad).filter(Boolean).join(', ') || 'Ninguna']
+                                        ].map(([etiqueta, valor]) => (
+                                            <div key={etiqueta}>
+                                                <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>{etiqueta}</small>
+                                                <strong style={{ fontSize: '12.5px' }}>{valor}</strong>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 {profile?.addresses && profile.addresses.length > 0 && (
                                     <div>
                                         <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
