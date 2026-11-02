@@ -4327,15 +4327,22 @@ const Odontologo_page = () => {
     <style>
         @page { size: A4 portrait; margin: 12mm; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 20px; font-size: 11px; }
+        /* Hoja A4 sobre fondo gris, igual que la hoja de evolución */
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 20px; font-size: 11px; background: #cbd5e1; display: flex; flex-direction: column; align-items: center; }
+        .page-sheet { background: #fff; width: 210mm; min-height: 297mm; padding: 12mm 14mm; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; text-align: left; }
         th { background: #e0e0e0; font-size: 10px; text-transform: uppercase; }
         .no-print { margin-top: 18px; text-align: center; }
-        @media print { body { padding: 0; } .no-print { display: none; } }
+        @media print {
+            body { background: transparent; padding: 0; display: block; }
+            .page-sheet { width: 100%; min-height: auto; padding: 0; box-shadow: none; }
+            .no-print { display: none; }
+        }
     </style>
 </head>
 <body>
+    <div class="page-sheet">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #002040; padding-bottom:4px; margin-bottom:10px;">
         <img src="${headerBienestar}" alt="UEB Bienestar Universitario" style="max-height:40px; width:auto;" />
         <div style="text-align:right; font-size:8px; color:#475569; line-height:1.2;">
@@ -4345,7 +4352,7 @@ const Odontologo_page = () => {
     <div style="text-align:center; font-size:14px; font-weight:800; margin:6px 0 12px;">RECETA MÉDICA</div>
     <table style="margin-bottom:12px;">
         <tr><th style="width:18%;">Paciente</th><td>${escapeHtml(paciente)}</td><th style="width:12%;">Cédula</th><td style="width:18%;">${escapeHtml(cedula)}</td></tr>
-        <tr><th>Fecha</th><td>${escapeHtml(fecha)}</td><th>Área</th><td>Odontología</td></tr>
+        <tr><th>Fecha</th><td>${escapeHtml(fecha.split('-').reverse().join('/'))}</td><th>Área</th><td>Odontología</td></tr>
     </table>
     <table>
         <thead><tr><th style="width:5%;">N°</th><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia / Duración</th><th>Indicaciones</th></tr></thead>
@@ -4353,6 +4360,7 @@ const Odontologo_page = () => {
     </table>
     <div style="margin-top:60px; text-align:center;">
         <div style="border-top:1px solid #000; width:240px; margin:0 auto; padding-top:4px;">${escapeHtml(odontologo)}<br/>Odontólogo/a</div>
+    </div>
     </div>
     <div class="no-print"><button onclick="window.print()" style="padding:8px 18px; font-size:13px; cursor:pointer;">Imprimir</button></div>
 </body>
@@ -6233,15 +6241,6 @@ ${cuerpo}
                                                         </div>
 
                                                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                                                            <button
-                                                                type="button"
-                                                                className="action-button action-button--accent"
-                                                                style={{ fontSize: '11px', minHeight: '30px', padding: '0 10px', borderRadius: '7px', display: 'flex', alignItems: 'center', gap: '5px' }}
-                                                                onClick={() => handleDownloadHistoriaClinicaPdf(selectedPatient.id_usuario || selectedPatient.id, activeBookRecord)}
-                                                                title="Descargar Historia Clínica PDF"
-                                                            >
-                                                                <FileText size={13} /> PDF
-                                                            </button>
                                                             <button
                                                                 type="button"
                                                                 className="action-button action-button--light"

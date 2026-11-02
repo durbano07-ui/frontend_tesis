@@ -1662,15 +1662,22 @@ const PacienteDashboard = () => {
     <style>
         @page { size: A4 portrait; margin: 12mm; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0 auto; padding: 20px; font-size: 11px; max-width: 800px; }
+        /* Hoja A4 sobre fondo gris, igual que la hoja de evolución */
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; padding: 20px; font-size: 11px; background: #cbd5e1; display: flex; flex-direction: column; align-items: center; }
+        .page-sheet { background: #fff; width: 210mm; min-height: 297mm; padding: 12mm 14mm; box-shadow: 0 6px 18px rgba(0,0,0,0.15); }
         table { border-collapse: collapse; width: 100%; }
         th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; text-align: left; }
         th { background: #e0e0e0; font-size: 10px; text-transform: uppercase; }
         .no-print { margin-top: 18px; text-align: center; }
-        @media print { body { padding: 0; } .no-print { display: none; } }
+        @media print {
+            body { background: transparent; padding: 0; display: block; }
+            .page-sheet { width: 100%; min-height: auto; padding: 0; box-shadow: none; }
+            .no-print { display: none; }
+        }
     </style>
 </head>
 <body>
+    <div class="page-sheet">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #b71a34; padding-bottom:8px; margin-bottom:12px;">
         <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height:56px; width:auto;" />
         <div style="text-align:right; font-size:9px; color:#475569; line-height:1.3;">
@@ -1686,6 +1693,7 @@ const PacienteDashboard = () => {
         <thead><tr><th style="width:5%;">N°</th><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia / Duración</th></tr></thead>
         <tbody>${filas}</tbody>
     </table>
+    </div>
     <div class="no-print"><button onclick="window.print()" style="padding:8px 18px; font-size:13px; cursor:pointer;">Imprimir</button></div>
 </body>
 </html>`);
