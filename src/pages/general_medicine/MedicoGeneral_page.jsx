@@ -1148,7 +1148,7 @@ const MedicoGeneral_page = () => {
                     `Por medio de la presente, se hace constar y se certifica que el/la paciente <strong>${escapeHtml(selectedPatient.nombre_completo || selectedPatient.name || '—')}</strong>, con cédula de identidad número <strong>${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || selectedPatient.datosIdentificacion?.numero_cedula || '—')}</strong>, fue atendido/a en el consultorio de Medicina General el día <strong>${escapeHtml(fechaCorta(record.fecha || record.created_at))}</strong>, presentando el diagnóstico / motivo de consulta de: <strong>${escapeHtml(diagnosis)}</strong>.`,
                     'Se expide la presente certificación a petición de la parte interesada para los fines pertinentes que se estimen convenientes.'
                 ],
-                firmaNombre: user?.name || 'Médico General',
+                firmaNombre: (user?.nombre_completo || user?.name) || 'Médico General',
                 firmaCargo: 'Médico de Bienestar Universitario'
             });
             printWindow.document.open();
@@ -1981,7 +1981,7 @@ ${paginas}
         const yearNum = parseInt((reportMensualFecha || '').split('-')[0]) || 2026;
         const selectedMonthText = monthsText[monthNum - 1] || 'Enero';
 
-        const doctorNameText = user?.name ? user.name.toUpperCase() : 'PROFESIONAL RESPONSABLE';
+        const doctorNameText = (user?.nombre_completo || user?.name) ? (user?.nombre_completo || user.name).toUpperCase() : 'PROFESIONAL RESPONSABLE';
 
         let totalEstCareersCount = 0;
         data.reportingFaculties.forEach(f => {
@@ -2617,7 +2617,7 @@ ${paginas}
                 return;
             }
 
-            const doctorNameText = user?.name || 'Profesional Responsable';
+            const doctorNameText = (user?.nombre_completo || user?.name) || 'Profesional Responsable';
             const formattedDate = etiquetaFecha;
 
             const totalCitas = lista.length;
@@ -2763,29 +2763,6 @@ ${paginas}
                         <div class="meta-info">
                             <div><strong>Médico/a General Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
                             <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
-                        </div>
-
-                        <div class="totals-grid">
-                            <div class="stat-box" style="border-left: 4px solid #3b82f6;">
-                                <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${escapeHtml(countProgramadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #10b981;">
-                                <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${escapeHtml(countConfirmadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #64748b;">
-                                <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${escapeHtml(countCompletadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #ef4444;">
-                                <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${escapeHtml(countCanceladas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #0b2240;">
-                                <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${escapeHtml(totalCitas)}</strong>
-                            </div>
                         </div>
 
                         <table>

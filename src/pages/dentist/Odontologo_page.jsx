@@ -126,7 +126,7 @@ const getInsumoDescontado = (cantidadGastada) => {
 const Odontologo_page = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuthStore();
-    const doctorNameText = user?.name ? user.name.toUpperCase() : 'PROFESIONAL RESPONSABLE';
+    const doctorNameText = (user?.nombre_completo || user?.name) ? (user?.nombre_completo || user.name).toUpperCase() : 'PROFESIONAL RESPONSABLE';
 
     // Estado de pestañas activas
     // 'ficha' | 'odontograma' | 'diario' | 'evolucion' | 'historial'
@@ -328,7 +328,7 @@ const Odontologo_page = () => {
             const cie10Text = data.cie10 && data.cie10.trim() ? ` (${data.cie10.trim()})` : '';
             const tiempoReposo = data.tiempoReposo || '48 horas';
             const proc = data.procedimiento || 'procedimiento odontológico';
-            const doctorName = data.doctorName || user?.name || 'Dra. Andrea García León';
+            const doctorName = data.doctorName || (user?.nombre_completo || user?.name) || 'Dra. Andrea García León';
 
             const htmlContent = `
                 <!DOCTYPE html>
@@ -522,7 +522,7 @@ const Odontologo_page = () => {
             tiempoReposo: '48 horas',
             reposoOtro: false,
             procedimiento: fichaForm.procedimiento || 'Evaluación Odontológica',
-            doctorName: user?.name || 'Dra. Andrea García León'
+            doctorName: (user?.nombre_completo || user?.name) || 'Dra. Andrea García León'
         });
     };
 
@@ -546,7 +546,7 @@ const Odontologo_page = () => {
             tiempoReposo: '48 horas',
             reposoOtro: false,
             procedimiento: proc,
-            doctorName: user?.name || 'Dra. Andrea García León'
+            doctorName: (user?.nombre_completo || user?.name) || 'Dra. Andrea García León'
         });
     };
 
@@ -2193,7 +2193,7 @@ const Odontologo_page = () => {
                     <div class="signatures-container">
                         <div class="signature-box">
                             <div class="signature-line"></div>
-                            <strong>Odontólogo/a: ${escapeHtml(user?.name || 'Profesional Responsable')}</strong><br>
+                            <strong>Odontólogo/a: ${escapeHtml((user?.nombre_completo || user?.name) || 'Profesional Responsable')}</strong><br>
                             <span>Responsable de Bienestar Universitario</span>
                         </div>
                     </div>
@@ -3753,29 +3753,6 @@ const Odontologo_page = () => {
                             </div>
                         </header>
 
-                        <div class="summary-section">
-                            <div class="summary-card">
-                                <span>Total Citas</span>
-                                <strong>${escapeHtml(total)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Completadas</span>
-                                <strong class="status-completada">${escapeHtml(completadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Confirmadas</span>
-                                <strong class="status-confirmada">${escapeHtml(confirmadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Programadas</span>
-                                <strong class="status-programada">${escapeHtml(programadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Canceladas</span>
-                                <strong class="status-cancelada">${escapeHtml(canceladas)}</strong>
-                            </div>
-                        </div>
-
                         <table>
                             <thead>
                                 <tr>
@@ -3933,7 +3910,7 @@ const Odontologo_page = () => {
                 return;
             }
 
-            const doctorNameText = user?.name || 'Profesional Responsable';
+            const doctorNameText = (user?.nombre_completo || user?.name) || 'Profesional Responsable';
             const formattedDate = citasDate ? citasDate : 'Todas las fechas';
 
             const totalCitas = citasList.length;
@@ -4079,29 +4056,6 @@ const Odontologo_page = () => {
                         <div class="meta-info">
                             <div><strong>Odontólogo/a Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
                             <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
-                        </div>
-
-                        <div class="totals-grid">
-                            <div class="stat-box" style="border-left: 4px solid #3b82f6;">
-                                <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${escapeHtml(countProgramadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #10b981;">
-                                <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${escapeHtml(countConfirmadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #64748b;">
-                                <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${escapeHtml(countCompletadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #ef4444;">
-                                <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${escapeHtml(countCanceladas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #0b2240;">
-                                <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${escapeHtml(totalCitas)}</strong>
-                            </div>
                         </div>
 
                         <table>
@@ -7195,7 +7149,7 @@ ${cuerpo}
                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', fontSize: '11px', marginBottom: '15px' }}>
                                                             <div>
                                                                 <div style={{ marginBottom: '4px' }}><strong>UNIDAD:</strong> BIENESTAR UNIVERSITARIO</div>
-                                                                <div><strong>ODONTÓLOGO UNIDAD OPERATIVA:</strong> {user?.name ? user.name.toUpperCase() : 'PROFESIONAL RESPONSABLE'}</div>
+                                                                <div><strong>ODONTÓLOGO UNIDAD OPERATIVA:</strong> {(user?.nombre_completo || user?.name) ? (user?.nombre_completo || user.name).toUpperCase() : 'PROFESIONAL RESPONSABLE'}</div>
                                                             </div>
                                                             <div style={{ textAlign: 'right' }}>
                                                                 <div><strong>FECHA:</strong> {reportInsumosFecha.split('-').reverse().join('/')}</div>
@@ -10045,7 +9999,7 @@ ${cuerpo}
 
                                                 {/* Fila 6: Datos del Funcionario */}
                                                 <tr style={{ fontSize: '8px' }}>
-                                                    <td style={{ border: '1px solid #4b5563', padding: '5px', textAlign: 'left' }}>{user?.name || 'Andrea García León'}</td>
+                                                    <td style={{ border: '1px solid #4b5563', padding: '5px', textAlign: 'left' }}>{(user?.nombre_completo || user?.name) || 'Andrea García León'}</td>
                                                     <td style={{ border: '1px solid #4b5563', padding: '5px', textAlign: 'center' }}>167 &nbsp; 168 &nbsp; 169</td>
                                                     <td style={{ border: '1px solid #4b5563', padding: '5px', textAlign: 'left' }}>{user?.email || 'angarcia@ueb.edu.ec'}</td>
                                                     <td style={{ border: '1px solid #4b5563', padding: '5px', textAlign: 'left' }}>Odontóloga de Bienestar Universitario</td>

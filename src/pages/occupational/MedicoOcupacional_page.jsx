@@ -459,7 +459,7 @@ export default function MedicoOcupacionalPage() {
             type: 'ocupacional',
             detalle_evolucion: evolucionForm.detalle_evolucion,
             prescripcion_medica: evolucionForm.prescripcion_medica || 'Sin prescripción adicional',
-            medico: user?.name || 'Dr. Medicina Ocupacional'
+            medico: (user?.nombre_completo || user?.name) || 'Dr. Medicina Ocupacional'
         };
 
         setAreaHistories(prev => ({
@@ -3765,7 +3765,7 @@ export default function MedicoOcupacionalPage() {
 
     const compileCitasReportHtmlString = (forPrint = false) => {
         try {
-            const doctorNameText = user?.name || 'Médico Ocupacional';
+            const doctorNameText = (user?.nombre_completo || user?.name) || 'Médico Ocupacional';
             const formattedDate = describirPeriodo(reportCitasPeriodo).replace(/^(el|en) /, '');
 
             const filteredReportCitas = reportCitasTodas.filter(cita => {
@@ -3863,29 +3863,6 @@ export default function MedicoOcupacionalPage() {
                             <div><strong>FECHA REPORTE:</strong> ${escapeHtml(formattedDate)}</div>
                             <div><strong>ESTADO FILTRADO:</strong> ${escapeHtml(reportCitasEstado.toUpperCase())}</div>
                             <div><strong>MÉDICO RESPONSABLE:</strong> ${escapeHtml(doctorNameText)}</div>
-                        </div>
-
-                        <div class="summary-grid">
-                            <div class="summary-box">
-                                <span>Total Citas</span>
-                                <strong>${escapeHtml(total)}</strong>
-                            </div>
-                            <div class="summary-box">
-                                <span>Completadas</span>
-                                <strong style="color: #15803d;">${escapeHtml(completadas)}</strong>
-                            </div>
-                            <div class="summary-box">
-                                <span>Confirmadas</span>
-                                <strong style="color: #065f46;">${escapeHtml(confirmadas)}</strong>
-                            </div>
-                            <div class="summary-box">
-                                <span>Programadas</span>
-                                <strong style="color: #1e40af;">${escapeHtml(programadas)}</strong>
-                            </div>
-                            <div class="summary-box">
-                                <span>Canceladas</span>
-                                <strong style="color: #991b1b;">${escapeHtml(canceladas)}</strong>
-                            </div>
                         </div>
 
                         <table>
@@ -4094,7 +4071,7 @@ export default function MedicoOcupacionalPage() {
     const compileGeneralReportHtmlString = (data, forPrint = false) => {
         const monthsText = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const selectedMonthText = monthsText[genReportMonth - 1] || 'Enero';
-        const doctorNameText = user?.name ? user.name.toUpperCase() : 'DR(A). MÉDICO OCUPACIONAL';
+        const doctorNameText = (user?.nombre_completo || user?.name) ? (user?.nombre_completo || user.name).toUpperCase() : 'DR(A). MÉDICO OCUPACIONAL';
 
         if (!data) {
             return `
@@ -5241,7 +5218,7 @@ export default function MedicoOcupacionalPage() {
                                     <span className="page-hero__label">
                                         <Stethoscope size={14} style={{ marginRight: '6px', display: 'inline' }} /> Salud Ocupacional
                                     </span>
-                                    <h2>Bienvenido(a), Dr(a). {user?.name || 'Médica/o Ocupacional'}</h2>
+                                    <h2>Bienvenido(a), Dr(a). {(user?.nombre_completo || user?.name) || 'Médica/o Ocupacional'}</h2>
                                     <p>Gestión Integral de Salud Ocupacional, Evaluaciones Aptitudinales y Reintegros Laborales.</p>
                                 </div>
                                 <div className="page-hero__icon"><Stethoscope size={34} /></div>
@@ -7628,7 +7605,7 @@ export default function MedicoOcupacionalPage() {
                                                 profesional: {
                                                     fecha: hoy,
                                                     hora: new Date().toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }),
-                                                    nombre: user?.name || '',
+                                                    nombre: (user?.nombre_completo || user?.name) || '',
                                                     codigo: user?.numero_cedula || ''
                                                 },
                                                 ...(tipoFicha === 'Retiro' && {

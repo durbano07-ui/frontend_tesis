@@ -520,29 +520,6 @@ const Psicologo_page = () => {
                             </div>
                         </header>
 
-                        <div class="summary-section">
-                            <div class="summary-card">
-                                <span>Total Citas</span>
-                                <strong>${escapeHtml(total)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Completadas</span>
-                                <strong class="status-completada">${escapeHtml(completadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Confirmadas</span>
-                                <strong class="status-confirmada">${escapeHtml(confirmadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Programadas</span>
-                                <strong class="status-programada">${escapeHtml(programadas)}</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Canceladas</span>
-                                <strong class="status-cancelada">${escapeHtml(canceladas)}</strong>
-                            </div>
-                        </div>
-
                         <table>
                             <thead>
                                 <tr>
@@ -1613,7 +1590,7 @@ const Psicologo_page = () => {
                     <div class="signatures-container">
                         <div class="signature-box">
                             <div class="signature-line"></div>
-                            <strong>Psicólogo/a: ${escapeHtml(user?.name || 'Profesional Responsable')}</strong><br>
+                            <strong>Psicólogo/a: ${escapeHtml((user?.nombre_completo || user?.name) || 'Profesional Responsable')}</strong><br>
                             <span>Responsable de Bienestar Estudiantil</span>
                         </div>
                     </div>
@@ -1968,7 +1945,7 @@ const Psicologo_page = () => {
                 return;
             }
 
-            const doctorNameText = user?.name || 'Profesional Responsable';
+            const doctorNameText = (user?.nombre_completo || user?.name) || 'Profesional Responsable';
             const formattedDate = citasDate ? citasDate : 'Todas las fechas';
 
             const totalCitas = citasList.length;
@@ -2114,29 +2091,6 @@ const Psicologo_page = () => {
                         <div class="meta-info">
                             <div><strong>Psicólogo/a Responsable:</strong> ${escapeHtml(doctorNameText)}</div>
                             <div><strong>Total de Citas en Registro:</strong> ${escapeHtml(totalCitas)}</div>
-                        </div>
-
-                        <div class="totals-grid">
-                            <div class="stat-box" style="border-left: 4px solid #3b82f6;">
-                                <span style="font-size: 8px; color: #64748b;">PROGRAMADAS</span>
-                                <strong>${escapeHtml(countProgramadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #10b981;">
-                                <span style="font-size: 8px; color: #64748b;">CONFIRMADAS</span>
-                                <strong>${escapeHtml(countConfirmadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #64748b;">
-                                <span style="font-size: 8px; color: #64748b;">COMPLETADAS</span>
-                                <strong>${escapeHtml(countCompletadas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #ef4444;">
-                                <span style="font-size: 8px; color: #64748b;">CANCELADAS</span>
-                                <strong>${escapeHtml(countCanceladas)}</strong>
-                            </div>
-                            <div class="stat-box" style="border-left: 4px solid #0b2240;">
-                                <span style="font-size: 8px; color: #64748b;">TOTAL REGISTROS</span>
-                                <strong>${escapeHtml(totalCitas)}</strong>
-                            </div>
                         </div>
 
                         <table>
@@ -2896,7 +2850,7 @@ ${paginas}
                     `El paciente recibió atención y soporte psicoterapéutico individualizado, registrando en su ficha clínica el diagnóstico de <strong>"${escapeHtml(diagnosis)}"</strong>, mostrando una respuesta favorable y cooperativa durante la sesión.`,
                     'Se expide el presente documento a petición de la parte interesada para los fines legales, académicos o personales pertinentes.'
                 ],
-                firmaNombre: user?.name || 'Psicólogo/a Responsable',
+                firmaNombre: (user?.nombre_completo || user?.name) || 'Psicólogo/a Responsable',
                 firmaCargo: 'Psicólogo/a de Bienestar Universitario'
             });
 
