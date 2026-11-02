@@ -106,7 +106,8 @@ const Psicologo_page = () => {
         { key: 'historiales', label: '2. Historial de Vida' },
         { key: 'mental', label: '3. Estado Mental' },
         { key: 'pruebas', label: '4. Pruebas Aplicadas' },
-        { key: 'diagnostico', label: '5. Diag. y Diario' }
+        { key: 'diagnostico', label: '5. Diag. y Diario' },
+        { key: 'resumen', label: '6. Resumen de la Atención' }
     ];
     const handlePrevStep = () => {
         if (currentStepIndex > 0) {
@@ -129,6 +130,18 @@ const Psicologo_page = () => {
     };
     const handleSaveAndFinish = async () => {
         const activeStepKey = steps[currentStepIndex].key;
+        // El resumen no tiene datos propios. Se vuelve a guardar el paso 5 (diagnóstico y registro
+        // diario) por si se llegó aquí desde la barra de pasos sin pasar por "Guardar y continuar".
+        if (activeStepKey === 'resumen') {
+            const success = await handleSaveFichaSection('diagnostico');
+            if (success) {
+                handleCloseFichaForm();
+            } else {
+                // Falta el diagnóstico: se abre el paso 5 con los campos obligatorios marcados
+                setCurrentStepIndex(steps.findIndex(st => st.key === 'diagnostico'));
+            }
+            return;
+        }
         const success = await handleSaveFichaSection(activeStepKey);
         if (success) {
             handleCloseFichaForm();
@@ -4901,6 +4914,69 @@ ${paginas}
                                                     </div>
                                                 </div>
                                             )}
+                                            {currentStepIndex === 5 && (() => {
+                                                // Resumen final: todo lo registrado en la atención antes de cerrarla
+                                                const hoy = new Date();
+                                                const Seccion = ({ titulo, campos }) => (
+                                                    <div style={{ marginBottom: '18px' }}>
+                                                        <h4 style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', margin: '0 0 10px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase' }}>{titulo}</h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '12px' }}>
+                                                            {campos.map(([etiqueta, valor, completo]) => (
+                                                                <div key={etiqueta} style={completo ? { gridColumn: '1 / -1' } : undefined}>
+                                                                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>{etiqueta}</span>
+                                                                    <strong style={{ color: '#0f172a', fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>{valor || '—'}</strong>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                                return (
+                                                    <div>
+                                                        <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <ClipboardList size={18} /> 6. Resumen de la Atención
+                                                        </h3>
+                                                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 18px' }}>
+                                                            Revise los datos registrados. Si algo es incorrecto, use «Atrás» para corregirlo y guárdelo de nuevo antes de finalizar.
+                                                        </p>
+                                                        <Seccion titulo="Paciente" campos={[
+                                                            ['Nombre', selectedPatient?.nombre_completo],
+                                                            ['Cédula', selectedPatient?.numero_cedula || selectedPatient?.cedula],
+                                                            ['Fecha de la atención', hoy.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' })]
+                                                        ]} />
+                                                        <Seccion titulo="1. Motivo y Anamnesis" campos={[
+                                                            ['Motivo de consulta', fichaForm.detalle_motivo, true],
+                                                            ['Anamnesis personal', fichaForm.psicoanamnesis_personal, true],
+                                                            ['Anamnesis familiar', fichaForm.psicoanamnesis_familiar, true]
+                                                        ]} />
+                                                        <Seccion titulo="2. Historial de Vida" campos={[
+                                                            ['Historial laboral / académico', fichaForm.detalle_laboral, true],
+                                                            ['Historial social y entorno', fichaForm.detalle_social, true],
+                                                            ['Historial sexual y de pareja', fichaForm.detalle_sexual, true],
+                                                            ['Patologías y antecedentes clínicos', fichaForm.detalle_patologia, true]
+                                                        ]} />
+                                                        <Seccion titulo="3. Estado Mental" campos={[
+                                                            ['Apariencia física', fichaForm.apariencia], ['Actitud inicial', fichaForm.actitud],
+                                                            ['Juicio y raciocinio', fichaForm.juicio], ['Conducta motora', fichaForm.conducta_motora],
+                                                            ['Calidad del sueño', fichaForm.sueno], ['Apetito y nutrición', fichaForm.apetito],
+                                                            ['Afectividad y estado de ánimo', fichaForm.afectividad], ['Orientación', fichaForm.orientacion],
+                                                            ['Atención', fichaForm.atencion], ['Memoria', fichaForm.memoria],
+                                                            ['Lenguaje', fichaForm.lenguaje], ['Pensamiento', fichaForm.pensamiento]
+                                                        ]} />
+                                                        <Seccion titulo="4. Pruebas Aplicadas" campos={[
+                                                            ['Pruebas psicométricas / proyectivas', fichaForm.detalle_prueba_aplicada, true],
+                                                            ['Análisis e interpretación de resultados', fichaForm.detalle_analisis_resultados, true],
+                                                            ['Conclusiones clínicas', fichaForm.detalle_conclusion, true]
+                                                        ]} />
+                                                        <Seccion titulo="5. Diagnóstico y Registro Diario" campos={[
+                                                            ['Diagnóstico clínico (CIE-10 / DSM-5)', fichaForm.detalle_diagnostico, true],
+                                                            ['Pronóstico clínico', fichaForm.detalle_pronostico, true],
+                                                            ['Recomendaciones y plan terapéutico', fichaForm.detalle_recomendacion, true],
+                                                            ['Nivel de atención', fichaForm.tipo_atencion === 'secundaria' ? 'Secundaria' : 'Primaria'],
+                                                            ['Tipo de atención', fichaForm.tipo_atencion2 === 'preventivo' ? 'Preventivo' : 'Curativo']
+                                                        ]} />
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 
