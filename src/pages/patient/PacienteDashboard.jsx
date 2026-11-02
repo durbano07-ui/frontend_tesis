@@ -244,6 +244,14 @@ const PacienteDashboard = () => {
     const isFixedField = (field) => !!profile?.identification?.[field];
     const [profileLoading, setProfileLoading] = useState(true);
     const [isRegistering, setIsRegistering] = useState(false);
+    // Editar una ficha ya completa: se elige la sección en lugar de recorrer el asistente entero
+    const [editandoFicha, setEditandoFicha] = useState(false);
+    const SECCIONES_FICHA = [
+        { paso: 1, titulo: 'Identificación' },
+        { paso: 2, titulo: 'Datos universitarios' },
+        { paso: 3, titulo: 'Datos demográficos' },
+        { paso: 4, titulo: 'Contacto de emergencia' }
+    ];
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [isViewFichaOpen, setIsViewFichaOpen] = useState(false);
@@ -1216,6 +1224,32 @@ const PacienteDashboard = () => {
         setCurrentStep(prev => prev - 1);
     };
 
+    const irASeccionFicha = (paso) => {
+        setFormErrors({});
+        setCurrentStep(paso);
+        if (paso === 3) setSubStep3(1);
+    };
+
+    // Guardar desde cualquier sección: se revisan todas y, si una tiene errores, se abre esa
+    const handleGuardarCambiosFicha = () => {
+        for (const { paso } of SECCIONES_FICHA) {
+            if (!validateStep(paso)) {
+                setCurrentStep(paso);
+                return;
+            }
+        }
+        handleSaveProfile();
+    };
+
+    // Cancelar la edición descarta lo no guardado volviendo a cargar la ficha
+    const handleCancelarEdicionFicha = () => {
+        setIsRegistering(false);
+        setEditandoFicha(false);
+        setFormErrors({});
+        setCurrentStep(1);
+        fetchProfile();
+    };
+
     const handleSaveProfile = async () => {
         if (!validateStep(4)) return;
         setSaving(true);
@@ -1309,6 +1343,7 @@ const PacienteDashboard = () => {
 
             await fetchProfile();
             setIsRegistering(false);
+            setEditandoFicha(false);
             setCurrentStep(1);
         } catch (err) {
             console.error("Error al guardar perfil:", err);
@@ -1462,7 +1497,7 @@ const PacienteDashboard = () => {
                 <!DOCTYPE html>
                 <html lang="es">
                 <head>
-                    <title>Ficha Médica & Socioeconómica - UEB</title>
+                    <title>Ficha de Registro y Socioeconómica - UEB</title>
                     <style>
                         body {
                             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -1531,7 +1566,7 @@ const PacienteDashboard = () => {
                     <div class="header">
                         <div class="header-text">
                             <h1>Universidad Estatal de Bolívar</h1>
-                            <p>Dirección de Bienestar Universitario - Ficha Médica y Socioeconómica</p>
+                            <p>Dirección de Bienestar Universitario - Ficha de Registro y Socioeconómica</p>
                         </div>
                         <div>
                             ${photoHtml}
@@ -2195,15 +2230,44 @@ const PacienteDashboard = () => {
                             <div className="nurse-card span-12 student-wizard-card" style={{ position: 'relative', maxWidth: '840px', margin: '0 auto', width: '100%' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
                                     <div>
-                                        <span className="eyebrow" style={{ color: 'var(--accent)' }}>REGISTRO DE FICHA</span>
-                                        <h2>Completa tu Perfil Médico-Académico</h2>
+                                        <span className="eyebrow" style={{ color: 'var(--accent)' }}>{editandoFicha ? 'EDICIÓN DE FICHA' : 'REGISTRO DE FICHA'}</span>
+                                        <h2>{editandoFicha ? 'Editar Ficha de Registro' : 'Completa tu Ficha de Registro'}</h2>
                                     </div>
-                                    <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 'bold', padding: '6px 12px', borderRadius: '20px', fontSize: '12px' }}>
-                                        Paso {currentStep} de 4
-                                    </span>
+                                    {!editandoFicha && (
+                                        <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontWeight: 'bold', padding: '6px 12px', borderRadius: '20px', fontSize: '12px' }}>
+                                            Paso {currentStep} de 4
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* PROGRESS BAR */}
+                                {editandoFicha ? (
+                                    /* SELECTOR DE SECCIÓN: al editar se va directo a la sección que se quiere cambiar */
+                                    <div style={{ marginBottom: '28px' }}>
+                                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+                                            Selecciona la sección que deseas editar. Puedes guardar los cambios desde cualquier sección.
+                                        </p>
+                                        <div role="group" aria-label="Secciones de la ficha de registro" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
+                                            {SECCIONES_FICHA.map(({ paso, titulo }) => (
+                                                <button
+                                                    key={paso}
+                                                    type="button"
+                                                    aria-pressed={currentStep === paso}
+                                                    onClick={() => irASeccionFicha(paso)}
+                                                    style={{
+                                                        padding: '10px 12px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 650, cursor: 'pointer', textAlign: 'left',
+                                                        border: currentStep === paso ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                                                        background: currentStep === paso ? 'var(--primary-soft)' : 'var(--surface, #fff)',
+                                                        color: currentStep === paso ? 'var(--primary)' : 'var(--text)'
+                                                    }}
+                                                >
+                                                    <span style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: 'var(--accent)' }}>Sección {paso}</span>
+                                                    {titulo}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                /* PROGRESS BAR */
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '32px' }}>
                                     {[1, 2, 3, 4].map(s => (
                                         <div
@@ -2218,6 +2282,7 @@ const PacienteDashboard = () => {
                                         />
                                     ))}
                                 </div>
+                                )}
 
                                 {/* STEP 1: PERSONAL INFORMATION */}
                                 {currentStep === 1 && (
@@ -2226,7 +2291,7 @@ const PacienteDashboard = () => {
                                             <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <User size={18} color="var(--accent)" /> 1. Información de Identificación
                                             </h3>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 1 de 4</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{editandoFicha ? 'Sección 1 de 4' : 'Paso 1 de 4'}</span>
                                         </div>
 
                                         <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(183,26,52,0.04)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(183,26,52,0.15)', marginBottom: '4px', opacity: !!profile?.identification?.numero_cedula ? 0.7 : 1 }}>
@@ -2456,7 +2521,7 @@ const PacienteDashboard = () => {
                                             <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <GraduationCap size={18} color="var(--accent)" /> 2. Datos Universitarios
                                             </h3>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 2 de 4</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{editandoFicha ? 'Sección 2 de 4' : 'Paso 2 de 4'}</span>
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2597,7 +2662,7 @@ const PacienteDashboard = () => {
                                             <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <MapPin size={18} color="var(--accent)" /> 3. Datos Demográficos y Residencia
                                             </h3>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 3 de 4</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{editandoFicha ? 'Sección 3 de 4' : 'Paso 3 de 4'}</span>
                                         </div>
 
                                         {/* Sub-step Tabs Selector - Solo números compactos */}
@@ -2957,7 +3022,7 @@ const PacienteDashboard = () => {
                                             <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <ShieldAlert size={18} color="var(--accent)" /> 4. Contacto de Emergencia e Indicadores Médicos
                                             </h3>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 4 de 4</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{editandoFicha ? 'Sección 4 de 4' : 'Paso 4 de 4'}</span>
                                         </div>
 
                                         <div style={{ background: '#fff0f2', padding: '20px', borderRadius: '16px', border: '1px solid #fed7da', marginBottom: '16px' }}>
@@ -3071,6 +3136,26 @@ const PacienteDashboard = () => {
                                 )}
 
                                 {/* UNIFIED ACTIONS FOOTER WITH CLINICAL BUTTONS */}
+                                {editandoFicha ? (
+                                    <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                                        <button
+                                            className="action-button action-button--danger"
+                                            onClick={handleCancelarEdicionFicha}
+                                            type="button"
+                                            disabled={saving}
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            className="action-button action-button--success"
+                                            onClick={handleGuardarCambiosFicha}
+                                            disabled={saving}
+                                            type="button"
+                                        >
+                                            {saving ? 'Guardando...' : 'Guardar cambios'}
+                                        </button>
+                                    </footer>
+                                ) : (
                                 <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                                     {currentStep > 1 ? (
                                         <button
@@ -3109,6 +3194,7 @@ const PacienteDashboard = () => {
                                         </button>
                                     )}
                                 </footer>
+                                )}
                             </div>
                         ) : (
                             /* SCENARIO B: PORTAL / REGULAR STUDENT WORKFLOW */
@@ -3222,7 +3308,8 @@ const PacienteDashboard = () => {
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setIsRegistering(true);
-                                                                    setCurrentStep(1);
+                                                                    setEditandoFicha(true);
+                                                                    irASeccionFicha(1);
                                                                 }}
                                                                 style={{
                                                                     display: 'inline-flex',
@@ -4962,7 +5049,7 @@ const PacienteDashboard = () => {
                                     )}
                                     <div>
                                         <span>Resumen del Registro</span>
-                                        <h2 style={{ color: 'white', margin: 0 }}>Ficha Médica & Demográfica</h2>
+                                        <h2 style={{ color: 'white', margin: 0 }}>Ficha de Registro</h2>
                                         <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', margin: '2px 0 0' }}>
                                             {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
                                         </p>
