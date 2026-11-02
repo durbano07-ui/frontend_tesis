@@ -595,7 +595,6 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                         <th>Presentación</th>
                                         <th>Estado de Inventario</th>
                                         <th style={{ textAlign: 'center' }}>Stock</th>
-                                        <th style={{ textAlign: 'center' }}>Total</th>
                                         <th style={{ textAlign: 'center' }}>Acciones</th>
                                     </tr>
                                 </thead>
@@ -635,16 +634,14 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td style={{ textAlign: 'center', fontSize: '12px' }}>
-                                                    {textoStock(prod)}
-                                                    <small style={{ display: 'block', color: '#64748b', fontSize: '11px' }}>
-                                                        {prod.unidades_por_caja ? `${prod.unidades_por_caja} unidades por caja` : 'Unidades por caja sin definir'}
-                                                    </small>
-                                                </td>
+                                                {/* Stock total en unidades; sin unidades por caja no hay total y se muestran cajas y unidades */}
                                                 <td style={{ textAlign: 'center' }}>
                                                     <strong style={{ color: isLowCajas ? '#dc2626' : 'var(--text-primary)' }}>
-                                                        {prod.unidades_por_caja ? `${totalUnidades(prod)} unidades` : '—'}
+                                                        {prod.unidades_por_caja ? `${totalUnidades(prod)} unidades` : textoStock(prod)}
                                                     </strong>
+                                                    <small style={{ display: 'block', color: prod.unidades_por_caja ? '#64748b' : '#d97706', fontSize: '11px' }}>
+                                                        {prod.unidades_por_caja ? `${prod.unidades_por_caja} unidades por caja` : 'Unidades por caja sin definir'}
+                                                    </small>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
