@@ -1498,7 +1498,7 @@ const PacienteDashboard = () => {
                 <!DOCTYPE html>
                 <html lang="es">
                 <head>
-                    <title>Ficha de Registro y Socioeconómica - UEB</title>
+                    <title>Ficha de Registro - UEB</title>
                     <style>
                         body {
                             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -1569,7 +1569,7 @@ const PacienteDashboard = () => {
                             <img src="${logoBienestar}" alt="Bienestar Universitario UEB" style="max-height: 64px; width: auto; max-width: 150px; object-fit: contain;" />
                             <div class="header-text">
                                 <h1>Universidad Estatal de Bolívar</h1>
-                                <p>Dirección de Bienestar Universitario - Ficha de Registro y Socioeconómica</p>
+                                <p>Dirección de Bienestar Universitario - Ficha de Registro</p>
                             </div>
                         </div>
                         <div>
@@ -5053,11 +5053,10 @@ const PacienteDashboard = () => {
                                         </span>
                                     )}
                                     <div>
-                                        <span>Resumen del Registro</span>
-                                        <h2 style={{ color: 'white', margin: 0 }}>Ficha de Registro</h2>
-                                        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', margin: '2px 0 0' }}>
+                                        <span>Ficha de Registro</span>
+                                        <h2 style={{ color: 'white', margin: 0 }}>
                                             {profile?.identification?.primer_nombre} {profile?.identification?.segundo_nombre || ''} {profile?.identification?.apellido_paterno} {profile?.identification?.apellido_materno || ''}
-                                        </p>
+                                        </h2>
                                     </div>
                                 </div>
                                 <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setIsViewFichaOpen(false)} style={{ color: 'white' }}><X size={16} /></button>
