@@ -15,6 +15,7 @@ import { logoBienestar } from '../../assets/logoBienestarBase64.js';
 import { Menu, LogOut, Search, X, Brain, FileText, TrendingUp, Calendar, ChevronDown, ChevronUp, ChevronRight, Activity, ClipboardList, CheckCircle, AlertTriangle, Stethoscope, User, UserPlus, CalendarCheck, CalendarDays, UserCheck, HeartHandshake, FileCheck, Printer, Clock, Briefcase, Heart, Eye, Smile, Compass, MessageSquare, Zap, Mail, MapPin, Info } from 'lucide-react';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { certificadoHtml, fechaCorta } from '../../utils/certificadoHtml';
 import PeriodoSelector from '../../components/PeriodoSelector';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
@@ -2870,175 +2871,21 @@ ${paginas}
                 return;
             }
 
-            const today = new Date();
-            const year = today.getFullYear();
-            const months = [
-                "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-            ];
-            const monthName = months[today.getMonth()];
-            const dayNum = today.getDate();
-
             const isEvol = record.type === 'evolucion';
             const diagnosis = isEvol ? 'Consulta/Evolución Psicológica' : (record.detalle_diagnostico || 'Evaluación Psicológica');
 
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Certificado Psicológico</title>
-                    <style>
-                        body {
-                            font-family: 'Georgia', Times, serif;
-                            color: #1e293b;
-                            margin: 0;
-                            padding: 40px;
-                            background-color: #ffffff;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            min-height: 100vh;
-                            box-sizing: border-box;
-                        }
-                        .certificate-border {
-                            border: 8px double #0b2240;
-                            padding: 50px;
-                            width: 100%;
-                            max-width: 750px;
-                            border-radius: 4px;
-                            box-shadow: 0 0 15px rgba(0,0,0,0.05);
-                            position: relative;
-                            box-sizing: border-box;
-                        }
-                        .header {
-                            text-align: center;
-                            margin-bottom: 40px;
-                        }
-                        .logo-main {
-                            font-size: 20px;
-                            font-weight: bold;
-                            color: #0b2240;
-                            text-transform: uppercase;
-                            letter-spacing: 1px;
-                        }
-                        .logo-sub {
-                            font-size: 11px;
-                            color: #b71a34;
-                            font-weight: bold;
-                            margin-top: 5px;
-                            letter-spacing: 0.5px;
-                        }
-                        .certificate-title {
-                            text-align: center;
-                            font-size: 26px;
-                            font-weight: bold;
-                            color: #0b2240;
-                            margin: 30px 0;
-                            letter-spacing: 2px;
-                            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
-                        }
-                        .certificate-body {
-                            font-size: 13.5px;
-                            line-height: 1.8;
-                            text-align: justify;
-                            margin-bottom: 50px;
-                        }
-                        .bold-text {
-                            font-weight: bold;
-                            color: #000;
-                        }
-                        .footer-date {
-                            text-align: right;
-                            font-style: italic;
-                            margin-bottom: 60px;
-                            font-size: 12px;
-                        }
-                        .signatures-container {
-                            display: flex;
-                            justify-content: center;
-                            margin-top: 40px;
-                        }
-                        .signature-box {
-                            width: 300px;
-                            text-align: center;
-                        }
-                        .signature-line {
-                            border-top: 1.5px solid #475569;
-                            margin-top: 50px;
-                            margin-bottom: 6px;
-                        }
-                        .credentials {
-                            font-size: 10.5px;
-                            color: #475569;
-                        }
-                        @media print {
-                            body {
-                                padding: 0;
-                                background-color: transparent;
-                            }
-                            .certificate-border {
-                                border: 8px double #000;
-                                box-shadow: none;
-                                padding: 40px 30px;
-                                margin: 0;
-                                width: 100%;
-                                max-width: 100%;
-                            }
-                            body, table, th, td {
-                                -webkit-print-color-adjust: exact !important;
-                                print-color-adjust: exact !important;
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="certificate-border">
-                        <div class="header">
-                            <div style="margin-bottom: 12px; display: flex; justify-content: center;">
-                                <img src="${escapeHtml(logoBienestar)}" alt="Bienestar Universitario UEB" style="max-height: 58px; width: auto; object-fit: contain;" />
-                            </div>
-                            <div class="logo-main">Universidad Estatal de Bolívar</div>
-                            <div class="logo-sub">DEPARTAMENTO DE BIENESTAR UNIVERSITARIO</div>
-                        </div>
-
-                        <div class="certificate-title">CERTIFICADO CLÍNICO</div>
-
-                        <div class="certificate-body">
-                            Por medio de la presente, se hace constar y se certifica que el/la estudiante 
-                            <span class="bold-text">${escapeHtml(selectedPatient.nombre_completo)}</span>, con cédula de identidad número 
-                            <span class="bold-text">${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || '—')}</span>, asistió 
-                            a la consulta del área de <span class="bold-text">Psicología Clínica</span> el día 
-                            <span class="bold-text">${escapeHtml(record.fecha)}</span>.
-                            <br><br>
-                            El paciente recibió atención y soporte psicoterapéutico individualizado, registrando en su ficha clínica el diagnóstico 
-                            de <span class="bold-text">"${escapeHtml(diagnosis)}"</span>, mostrando una respuesta favorable y cooperativa durante la sesión.
-                            <br><br>
-                            Se expide el presente documento a petición de la parte interesada para los fines legales, académicos o personales pertinentes.
-                        </div>
-
-                        <div class="footer-date">
-                            Dado y firmado en la ciudad de Guaranda, a los ${escapeHtml(dayNum)} días del mes de ${escapeHtml(monthName)} del año ${escapeHtml(year)}.
-                        </div>
-
-                        <div class="signatures-container">
-                            <div class="signature-box">
-                                <div class="signature-line"></div>
-                                <strong style="font-size: 13px; color: #0f172a;">${escapeHtml(user?.name || 'Psicólogo/a Responsable')}</strong><br>
-                                <span class="credentials">Responsable del Área de Psicología</span><br>
-                                <span class="credentials">Bienestar Universitario</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                        }
-                    </script>
-                </body>
-                </html>
-            `;
+            // Mismo diseño que el certificado de Odontología
+            const htmlContent = certificadoHtml({
+                tituloPestana: `Certificado Psicológico - ${selectedPatient.nombre_completo || ''}`,
+                titulo: 'Certificado Psicológico',
+                parrafos: [
+                    `Por medio de la presente, se hace constar y se certifica que el/la paciente <strong>${escapeHtml(selectedPatient.nombre_completo)}</strong>, con cédula de identidad número <strong>${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || '—')}</strong>, asistió a la consulta del área de <strong>Psicología Clínica</strong> el día <strong>${escapeHtml(fechaCorta(record.fecha || record.created_at))}</strong>.`,
+                    `El paciente recibió atención y soporte psicoterapéutico individualizado, registrando en su ficha clínica el diagnóstico de <strong>"${escapeHtml(diagnosis)}"</strong>, mostrando una respuesta favorable y cooperativa durante la sesión.`,
+                    'Se expide el presente documento a petición de la parte interesada para los fines legales, académicos o personales pertinentes.'
+                ],
+                firmaNombre: user?.name || 'Psicólogo/a Responsable',
+                firmaCargo: 'Psicólogo/a de Bienestar Universitario'
+            });
 
             printWindow.document.open();
             printWindow.document.write(htmlContent);

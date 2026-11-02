@@ -15,6 +15,7 @@ import VitalSignsHistogram from '../../components/VitalSignsHistogram';
 import FarmaciaInventarioTab from '../../components/farmacia/FarmaciaInventarioTab';
 import { onKeyActivate } from '../../a11y/keyboard';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { certificadoHtml, fechaCorta } from '../../utils/certificadoHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { formatFecha } from '../../utils/fecha';
 import { VIAS_ADMINISTRACION, viaDeProducto } from '../../utils/viasAdministracion';
@@ -1134,170 +1135,22 @@ const MedicoGeneral_page = () => {
                 return;
             }
 
-            const today = new Date();
-            const year = today.getFullYear();
-            const months = [
-                "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-            ];
-            const monthName = months[today.getMonth()];
-            const dayNum = today.getDate();
-
             const isEvol = record.type === 'evolucion';
             const diagnosis = isEvol
                 ? (record.detalle_evolucion || 'Consulta Médica General')
                 : (record.detalle_diagnostico || record.detalle_motivo || 'Atención en Medicina General');
 
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Certificado Médico General</title>
-                    <style>
-                        body {
-                            font-family: 'Georgia', Times, serif;
-                            color: #1e293b;
-                            margin: 0;
-                            padding: 40px;
-                            background-color: #ffffff;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            min-height: 100vh;
-                            box-sizing: border-box;
-                        }
-                        .certificate-border {
-                            border: 8px double #0b2240;
-                            padding: 50px;
-                            width: 100%;
-                            max-width: 750px;
-                            border-radius: 4px;
-                            box-shadow: 0 0 15px rgba(0,0,0,0.05);
-                            position: relative;
-                            box-sizing: border-box;
-                        }
-                        .header {
-                            text-align: center;
-                            margin-bottom: 40px;
-                        }
-                        .logo-main {
-                            font-size: 20px;
-                            font-weight: bold;
-                            color: #0b2240;
-                            text-transform: uppercase;
-                            letter-spacing: 1px;
-                        }
-                        .logo-sub {
-                            font-size: 11px;
-                            color: #b71a34;
-                            font-weight: bold;
-                            margin-top: 5px;
-                            letter-spacing: 0.5px;
-                        }
-                        .certificate-title {
-                            text-align: center;
-                            font-size: 26px;
-                            font-weight: bold;
-                            color: #0b2240;
-                            margin: 30px 0;
-                            letter-spacing: 2px;
-                            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
-                        }
-                        .certificate-body {
-                            font-size: 13.5px;
-                            line-height: 1.8;
-                            text-align: justify;
-                            margin-bottom: 50px;
-                        }
-                        .bold-text {
-                            font-weight: bold;
-                            color: #000;
-                        }
-                        .footer-date {
-                            text-align: right;
-                            font-style: italic;
-                            margin-bottom: 60px;
-                            font-size: 12px;
-                        }
-                        .signatures-container {
-                            display: flex;
-                            justify-content: center;
-                            margin-top: 40px;
-                        }
-                        .signature-box {
-                            width: 300px;
-                            text-align: center;
-                        }
-                        .signature-line {
-                            border-top: 1.5px solid #475569;
-                            margin-top: 50px;
-                            margin-bottom: 6px;
-                        }
-                        .credentials {
-                            font-size: 10.5px;
-                            color: #475569;
-                        }
-                        @media print {
-                            body {
-                                padding: 0;
-                                background-color: transparent;
-                            }
-                            .certificate-border {
-                                border: 8px double #000;
-                                box-shadow: none;
-                                padding: 40px 30px;
-                                margin: 0;
-                                width: 100%;
-                                max-width: 100%;
-                            }
-                            body, table, th, td {
-                                -webkit-print-color-adjust: exact !important;
-                                print-color-adjust: exact !important;
-                            }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="certificate-border">
-                        <div class="header">
-                            <div class="logo-main">Universidad Estatal de Bolívar</div>
-                            <div class="logo-sub">DEPARTAMENTO DE BIENESTAR UNIVERSITARIO</div>
-                        </div>
-
-                        <div class="certificate-title">CERTIFICADO MÉDICO GENERAL</div>
-
-                        <div class="certificate-body">
-                            Por medio de la presente, se hace constar y se certifica que el/la paciente 
-                            <span class="bold-text">${escapeHtml(selectedPatient.nombre_completo || selectedPatient.name || '—')}</span>, con cédula de identidad número 
-                            <span class="bold-text">${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || selectedPatient.datosIdentificacion?.numero_cedula || '—')}</span>, fue atendido/a en el consultorio de Medicina General el día 
-                            <span class="bold-text">${escapeHtml(record.fecha || (record.created_at ? record.created_at.slice(0, 10) : '—'))}</span>, presentando el diagnóstico / motivo de consulta de: 
-                            <span class="bold-text">${escapeHtml(diagnosis)}</span>.
-                            <br/><br/>
-                            Se expide la presente certificación a petición de la parte interesada para los fines pertinentes que se estimen convenientes.
-                        </div>
-
-                        <div class="footer-date">
-                            Guaranda, ${escapeHtml(dayNum)} de ${escapeHtml(monthName)} de ${escapeHtml(year)}
-                        </div>
-
-                        <div class="signatures-container">
-                            <div class="signature-box">
-                                <div class="signature-line"></div>
-                                <div class="bold-text" style="font-size: 12px;">${escapeHtml(user?.name || 'Médico General')}</div>
-                                <div class="credentials">Medicina General - Bienestar Universitario</div>
-                                <div class="credentials">Universidad Estatal de Bolívar</div>
-                            </div>
-                        </div>
-                    </div>
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                        };
-                    </script>
-                </body>
-                </html>
-            `;
+            // Mismo diseño que el certificado de Odontología
+            const htmlContent = certificadoHtml({
+                tituloPestana: `Certificado Médico - ${selectedPatient.nombre_completo || selectedPatient.name || ''}`,
+                titulo: 'Certificado Médico',
+                parrafos: [
+                    `Por medio de la presente, se hace constar y se certifica que el/la paciente <strong>${escapeHtml(selectedPatient.nombre_completo || selectedPatient.name || '—')}</strong>, con cédula de identidad número <strong>${escapeHtml(selectedPatient.cedula || selectedPatient.numero_cedula || selectedPatient.datosIdentificacion?.numero_cedula || '—')}</strong>, fue atendido/a en el consultorio de Medicina General el día <strong>${escapeHtml(fechaCorta(record.fecha || record.created_at))}</strong>, presentando el diagnóstico / motivo de consulta de: <strong>${escapeHtml(diagnosis)}</strong>.`,
+                    'Se expide la presente certificación a petición de la parte interesada para los fines pertinentes que se estimen convenientes.'
+                ],
+                firmaNombre: user?.name || 'Médico General',
+                firmaCargo: 'Médico de Bienestar Universitario'
+            });
             printWindow.document.open();
             printWindow.document.write(htmlContent);
             printWindow.document.close();
