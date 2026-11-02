@@ -594,6 +594,7 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                         <th>Nombre del Medicamento / Producto</th>
                                         <th>Presentación</th>
                                         <th>Estado de Inventario</th>
+                                        <th style={{ textAlign: 'center' }}>Unidades por Caja</th>
                                         <th style={{ textAlign: 'center' }}>Stock</th>
                                         <th style={{ textAlign: 'center' }}>Acciones</th>
                                     </tr>
@@ -620,28 +621,19 @@ const FarmaciaInventarioTab = ({ showSystemToast }) => {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {isOut ? (
-                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                            ● SIN STOCK (Agotado)
-                                                        </span>
-                                                    ) : (isLowCajas || isLowUnidades) ? (
-                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                            ▲ STOCK CRÍTICO
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                            ✓ DISPONIBLE
-                                                        </span>
-                                                    )}
+                                                    {/* Estado en texto simple, sin fondos de color */}
+                                                    <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                        {!prod.activo ? 'Inactivo' : isOut ? 'Agotado' : (isLowCajas || isLowUnidades) ? 'Stock bajo' : 'Disponible'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ textAlign: 'center', fontSize: '12.5px' }}>
+                                                    {prod.unidades_por_caja || <span style={{ color: '#d97706' }}>Sin definir</span>}
                                                 </td>
                                                 {/* Stock total en unidades; sin unidades por caja no hay total y se muestran cajas y unidades */}
                                                 <td style={{ textAlign: 'center' }}>
                                                     <strong style={{ color: isLowCajas ? '#dc2626' : 'var(--text-primary)' }}>
                                                         {prod.unidades_por_caja ? `${totalUnidades(prod)} unidades` : textoStock(prod)}
                                                     </strong>
-                                                    <small style={{ display: 'block', color: prod.unidades_por_caja ? '#64748b' : '#d97706', fontSize: '11px' }}>
-                                                        {prod.unidades_por_caja ? `${prod.unidades_por_caja} unidades por caja` : 'Unidades por caja sin definir'}
-                                                    </small>
                                                 </td>
                                                 <td style={{ textAlign: 'center' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
