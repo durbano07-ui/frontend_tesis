@@ -296,7 +296,6 @@ const Odontologo_page = () => {
         horarioFin: '08h30',
         diagnostico: '',
         cie10: '',
-        piezaDental: '',
         tiempoReposo: '48 horas',
         procedimiento: '',
         doctorName: ''
@@ -327,7 +326,6 @@ const Odontologo_page = () => {
             const horario = `${data.horarioInicio || '08h00'} a ${data.horarioFin || '08h30'}`;
             const diag = data.diagnostico || 'odontalgia';
             const cie10Text = data.cie10 && data.cie10.trim() ? ` (${data.cie10.trim()})` : '';
-            const piezaText = data.piezaDental && data.piezaDental.trim() ? `, Pieza Dental ${data.piezaDental.trim()}` : '';
             const tiempoReposo = data.tiempoReposo || '48 horas';
             const proc = data.procedimiento || 'procedimiento odontológico';
             const doctorName = data.doctorName || user?.name || 'Dra. Andrea García León';
@@ -473,7 +471,7 @@ const Odontologo_page = () => {
 
                         <div class="cert-body">
                             <p>
-                                Por medio de la presente certifico haber atendido al paciente <strong>${escapeHtml(patientName)}</strong>, con cédula de identidad <strong>${escapeHtml(cedula)}</strong>, es atendido en el horario de <strong>${escapeHtml(horario)}</strong>, por presentar odontalgia con Diagnóstico Definitivo <strong>${escapeHtml(diag)}${escapeHtml(cie10Text)}</strong>${isReposo ? `${escapeHtml(piezaText)}. Necesita reposo de <strong>${escapeHtml(tiempoReposo)}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.` : `, Se realiza <strong>${escapeHtml(proc)}</strong>, <strong>NO NECESITA REPOSO</strong>.`}
+                                Por medio de la presente certifico haber atendido al paciente <strong>${escapeHtml(patientName)}</strong>, con cédula de identidad <strong>${escapeHtml(cedula)}</strong>, es atendido en el horario de <strong>${escapeHtml(horario)}</strong>, por presentar odontalgia con Diagnóstico <strong>${escapeHtml(diag)}${escapeHtml(cie10Text)}</strong>${isReposo ? `. Necesita reposo de <strong>${escapeHtml(tiempoReposo)}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.` : `, Se realiza <strong>${escapeHtml(proc)}</strong>, <strong>NO NECESITA REPOSO</strong>.`}
                             </p>
                             <p>
                                 Por el cual el paciente puede hacer uso de este documento para trámites académicos.
@@ -520,8 +518,8 @@ const Odontologo_page = () => {
             horarioFin: endH,
             diagnostico: fichaForm.detalle_diagnostico || fichaForm.detalle_motivo || 'Odontalgia',
             cie10: '',
-            piezaDental: '',
             tiempoReposo: '48 horas',
+            reposoOtro: false,
             procedimiento: fichaForm.procedimiento || 'Evaluación Odontológica',
             doctorName: user?.name || 'Dra. Andrea García León'
         });
@@ -543,14 +541,18 @@ const Odontologo_page = () => {
             horarioFin: record?.hora_fin ? record.hora_fin.replace(':', 'h').slice(0, 5) : endH,
             diagnostico: diag,
             cie10: '',
-            piezaDental: '',
             tiempoReposo: '48 horas',
+            reposoOtro: false,
             procedimiento: proc,
             doctorName: user?.name || 'Dra. Andrea García León'
         });
     };
 
     const handleConfirmEmitirCertificado = async () => {
+        if (certModal.tipo === 'reposo' && !String(certModal.tiempoReposo || '').trim()) {
+            showSystemToast('Indique el tiempo de reposo.');
+            return;
+        }
         if (certModal.fromStep7) {
             setFichaSaving(true);
             try {
@@ -9717,14 +9719,15 @@ ${cuerpo}
                                 {/* DIAGNÓSTICO Y CIE-10 */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '12px' }}>
                                     <div>
-                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Diagnóstico Definitivo *</span>
+                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Diagnóstico</span>
+                                        {/* Se toma del diagnóstico registrado en la atención; no se reescribe aquí */}
                                         <input
-                                            aria-label="Diagnóstico Definitivo"
+                                            aria-label="Diagnóstico"
                                             type="text"
                                             value={certModal.diagnostico}
-                                            onChange={(e) => setCertModal(prev => ({ ...prev, diagnostico: e.target.value }))}
-                                            placeholder="Ej: Raíz Dental Retenida, Pulpitis Irreversible..."
-                                            style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                            readOnly
+                                            title="Diagnóstico registrado en la atención"
+                                            style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', background: '#e2e8f0', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '600' }}
                                         />
                                     </div>
                                     <div>
@@ -9742,49 +9745,40 @@ ${cuerpo}
 
                                 {/* CAMPOS ESPECÍFICOS SEGÚN EL TIPO */}
                                 {certModal.tipo === 'reposo' ? (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '12px' }}>
-                                        <div>
-                                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Pieza Dental (Opcional)</span>
-                                            <input
-                                                aria-label="Pieza Dental (Opcional)"
-                                                type="text"
-                                                value={certModal.piezaDental}
-                                                onChange={(e) => setCertModal(prev => ({ ...prev, piezaDental: e.target.value }))}
-                                                placeholder="Ej: 35, 46, 18..."
-                                                style={{ width: '100%', padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                                            />
-                                        </div>
-                                        <div>
-                                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Tiempo de Reposo *</span>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <input
-                                                    aria-label="Tiempo de Reposo"
-                                                    type="text"
-                                                    value={certModal.tiempoReposo}
-                                                    onChange={(e) => setCertModal(prev => ({ ...prev, tiempoReposo: e.target.value }))}
-                                                    placeholder="Ej: 48 horas"
-                                                    style={{ flex: 1, padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                                                />
-                                                {['24 horas', '48 horas', '72 horas'].map(preset => (
+                                    <div>
+                                        <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '4px' }}>Tiempo de Reposo *</span>
+                                        <div role="group" aria-label="Tiempo de reposo" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                            {[['24 horas', '24 horas'], ['48 horas', '48 horas'], ['72 horas', '72 horas'], ['otro', 'Otro horario']].map(([valor, texto]) => {
+                                                const activo = valor === 'otro' ? !!certModal.reposoOtro : (!certModal.reposoOtro && certModal.tiempoReposo === valor);
+                                                return (
                                                     <button
-                                                        key={preset}
+                                                        key={valor}
                                                         type="button"
-                                                        onClick={() => setCertModal(prev => ({ ...prev, tiempoReposo: preset }))}
+                                                        aria-pressed={activo}
+                                                        onClick={() => setCertModal(prev => valor === 'otro'
+                                                            ? { ...prev, reposoOtro: true, tiempoReposo: '' }
+                                                            : { ...prev, reposoOtro: false, tiempoReposo: valor })}
                                                         style={{
-                                                            fontSize: '11px',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #cbd5e1',
-                                                            background: certModal.tiempoReposo === preset ? 'var(--primary)' : '#fff',
-                                                            color: certModal.tiempoReposo === preset ? '#fff' : '#334155',
-                                                            cursor: 'pointer'
+                                                            fontSize: '12px', padding: '7px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', cursor: 'pointer',
+                                                            background: activo ? 'var(--primary)' : '#fff', color: activo ? '#fff' : '#334155', fontWeight: 600
                                                         }}
                                                     >
-                                                        {preset}
+                                                        {texto}
                                                     </button>
-                                                ))}
-                                            </div>
+                                                );
+                                            })}
                                         </div>
+                                        {certModal.reposoOtro && (
+                                            <input
+                                                aria-label="Otro tiempo de reposo"
+                                                type="text"
+                                                autoFocus
+                                                value={certModal.tiempoReposo}
+                                                onChange={(e) => setCertModal(prev => ({ ...prev, tiempoReposo: e.target.value }))}
+                                                placeholder="Ej: 5 días, 1 semana..."
+                                                style={{ width: '100%', marginTop: '8px', padding: '8px 10px', fontSize: '12.5px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                            />
+                                        )}
                                     </div>
                                 ) : (
                                     <div>
@@ -9808,11 +9802,11 @@ ${cuerpo}
                                 </strong>
                                 {certModal.tipo === 'reposo' ? (
                                     <span>
-                                        Por medio de la presente certifico haber atendido al paciente <strong>{selectedPatient?.nombre_completo || '—'}</strong>, con cédula de identidad <strong>{selectedPatient?.cedula || selectedPatient?.numero_cedula || '—'}</strong>, es atendido en el horario de <strong>{certModal.horarioInicio} a {certModal.horarioFin}</strong>, por presentar odontalgia con Diagnóstico Definitivo <strong>{certModal.diagnostico || 'Odontalgia'}{certModal.cie10 ? ` (${certModal.cie10.trim()})` : ''}</strong>{certModal.piezaDental ? `, Pieza Dental ${certModal.piezaDental.trim()}` : ''}. Necesita reposo de <strong>{certModal.tiempoReposo}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.
+                                        Por medio de la presente certifico haber atendido al paciente <strong>{selectedPatient?.nombre_completo || '—'}</strong>, con cédula de identidad <strong>{selectedPatient?.cedula || selectedPatient?.numero_cedula || '—'}</strong>, es atendido en el horario de <strong>{certModal.horarioInicio} a {certModal.horarioFin}</strong>, por presentar odontalgia con Diagnóstico <strong>{certModal.diagnostico || 'Odontalgia'}{certModal.cie10 ? ` (${certModal.cie10.trim()})` : ''}</strong>. Necesita reposo de <strong>{certModal.tiempoReposo}</strong> para su pronta recuperación, se acompaña terapia antiinflamatoria.
                                     </span>
                                 ) : (
                                     <span>
-                                        Por medio de la presente certifico haber atendido al paciente <strong>{selectedPatient?.nombre_completo || '—'}</strong>, con cédula de identidad <strong>{selectedPatient?.cedula || selectedPatient?.numero_cedula || '—'}</strong>, es atendido en el horario de <strong>{certModal.horarioInicio} a {certModal.horarioFin}</strong>, por presentar odontalgia con Diagnóstico Definitivo <strong>{certModal.diagnostico || 'Odontalgia'}{certModal.cie10 ? ` (${certModal.cie10.trim()})` : ''}</strong>, Se realiza <strong>{certModal.procedimiento || 'Evaluación Odontológica'}</strong>, <strong>NO NECESITA REPOSO</strong>.
+                                        Por medio de la presente certifico haber atendido al paciente <strong>{selectedPatient?.nombre_completo || '—'}</strong>, con cédula de identidad <strong>{selectedPatient?.cedula || selectedPatient?.numero_cedula || '—'}</strong>, es atendido en el horario de <strong>{certModal.horarioInicio} a {certModal.horarioFin}</strong>, por presentar odontalgia con Diagnóstico <strong>{certModal.diagnostico || 'Odontalgia'}{certModal.cie10 ? ` (${certModal.cie10.trim()})` : ''}</strong>, Se realiza <strong>{certModal.procedimiento || 'Evaluación Odontológica'}</strong>, <strong>NO NECESITA REPOSO</strong>.
                                     </span>
                                 )}
                             </div>
