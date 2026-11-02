@@ -4499,7 +4499,7 @@ ${paginas}
                                                         <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <Brain size={18} color="var(--accent)" /> 1. Motivo de Consulta y Anamnesis
                                                         </h3>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 1 de 5</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 1 de 6</span>
                                                     </div>
 
                                                     <div className="premium-field-card">
@@ -4520,7 +4520,7 @@ ${paginas}
                                                         <span className="field-hint">Defina los síntomas o causas prioritarias de consulta.</span>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4563,10 +4563,10 @@ ${paginas}
                                                         <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <FileText size={18} color="var(--accent)" /> 2. Historial de Vida y Patologías
                                                         </h3>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 2 de 5</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 2 de 6</span>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4601,7 +4601,7 @@ ${paginas}
                                                         </div>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4644,7 +4644,7 @@ ${paginas}
                                                         <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <Activity size={18} color="var(--accent)" /> 3. Examen del Estado Mental
                                                         </h3>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 3 de 5</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 3 de 6</span>
                                                     </div>
 
                                                     {/* CLUSTER 1: APARIENCIA Y CONDUCTA */}
@@ -4656,7 +4656,7 @@ ${paginas}
                                                                 <p>Observación conductual directa e inspección clínica inicial</p>
                                                             </div>
                                                         </div>
-                                                        <div className="mental-status-grid">
+                                                        <div className="mental-status-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                             <div className="mental-status-card">
                                                                 <label><Eye size={13} style={{ color: 'var(--accent)' }} /> Apariencia física</label>
                                                                 <input aria-label="Apariencia física" value={fichaForm.apariencia} onChange={(e) => setFichaForm(prev => ({ ...prev, apariencia: e.target.value }))} placeholder="Ej. Aseado, alineado, marcha normal..." />
@@ -4685,7 +4685,7 @@ ${paginas}
                                                                 <p>Valoración de estado de ánimo, patrones de descanso y alimentación</p>
                                                             </div>
                                                         </div>
-                                                        <div className="mental-status-grid">
+                                                        <div className="mental-status-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                             <div className="mental-status-card">
                                                                 <label><Clock size={13} style={{ color: 'var(--primary)' }} /> Calidad del sueño</label>
                                                                 <input aria-label="Calidad del sueño" value={fichaForm.sueno} onChange={(e) => setFichaForm(prev => ({ ...prev, sueno: e.target.value }))} placeholder="Ej. Insomnio de conciliación, reparador..." />
@@ -4710,7 +4710,7 @@ ${paginas}
                                                                 <p>Orientación, capacidad atencional, memoria y estructuración del discurso</p>
                                                             </div>
                                                         </div>
-                                                        <div className="mental-status-grid">
+                                                        <div className="mental-status-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                             <div className="mental-status-card">
                                                                 <label><Compass size={13} style={{ color: 'var(--accent)' }} /> Orientación</label>
                                                                 <input aria-label="Orientación" value={fichaForm.orientacion} onChange={(e) => setFichaForm(prev => ({ ...prev, orientacion: e.target.value }))} placeholder="Ej. Autopsíquica y alopsíquica conservada..." />
@@ -4742,10 +4742,10 @@ ${paginas}
                                                         <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <TrendingUp size={18} color="var(--accent)" /> 4. Pruebas Aplicadas y Análisis
                                                         </h3>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 4 de 5</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 4 de 6</span>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4788,10 +4788,10 @@ ${paginas}
                                                         <h3 style={{ fontSize: '15px', color: 'var(--primary)', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <CheckCircle size={18} color="var(--accent)" /> 5. Conclusiones, Diagnóstico y Diario Estadístico
                                                         </h3>
-                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 5 de 5</span>
+                                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Paso 5 de 6</span>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4826,7 +4826,7 @@ ${paginas}
                                                         </div>
                                                     </div>
 
-                                                    <div className="clinical-fields-grid">
+                                                    <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr' }}>
                                                         <div className="premium-field-card">
                                                             <div className="field-header">
                                                                 <div className="field-header__left">
@@ -4872,7 +4872,7 @@ ${paginas}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="clinical-fields-grid" style={{ marginTop: '6px' }}>
+                                                        <div className="clinical-fields-grid" style={{ marginTop: '6px', gridTemplateColumns: '1fr' }}>
                                                             <div className="field">
                                                                 <span>Nivel de Atención <span className="field-req-star">*</span></span>
                                                                 <select
