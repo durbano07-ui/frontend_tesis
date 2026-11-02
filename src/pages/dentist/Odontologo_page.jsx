@@ -408,15 +408,16 @@ const Odontologo_page = () => {
                             font-size: 11pt;
                             line-height: 1.85;
                         }
+                        /* Fecha alineada a la izquierda y espacio amplio para firmar a mano */
                         .cert-date {
-                            text-align: center;
+                            text-align: left;
                             font-size: 11pt;
                             color: #000;
-                            margin: 45px 0 60px 0;
+                            margin: 45px 0 0 0;
                         }
                         .signature-section {
                             text-align: center;
-                            margin-top: 50px;
+                            margin-top: 120px;
                         }
                         .signature-line {
                             width: 250px;

@@ -39,8 +39,9 @@ export const certificadoHtml = ({ tituloPestana, titulo, parrafos, firmaNombre, 
             margin: 35px 0 30px 0; text-transform: uppercase;
         }
         .cert-body p { margin: 0 0 25px 0; text-align: justify; font-size: 11pt; line-height: 1.85; color: #000; }
-        .cert-date { text-align: center; font-size: 11pt; color: #000; margin: 45px 0 60px 0; }
-        .signature-section { text-align: center; margin-top: 50px; }
+        /* Fecha alineada a la izquierda y espacio amplio para firmar a mano */
+        .cert-date { text-align: left; font-size: 11pt; color: #000; margin: 45px 0 0 0; }
+        .signature-section { text-align: center; margin-top: 120px; }
         .signature-line { width: 250px; border-top: 1px solid #000; margin: 0 auto 8px auto; }
         .signature-name { font-size: 11pt; font-weight: bold; color: #000; }
         .signature-role { font-size: 10pt; color: #333; }
