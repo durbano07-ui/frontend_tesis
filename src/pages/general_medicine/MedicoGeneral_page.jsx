@@ -174,7 +174,8 @@ const MedicoGeneral_page = () => {
         { key: 'examen_fisico', label: '5. Examen Físico' },
         { key: 'diagnostico', label: '6. Diag. y Tratamiento' },
         { key: 'prescripcion', label: '7. Prescripción Médica' },
-        { key: 'histograma', label: '8. Histograma' }
+        { key: 'histograma', label: '8. Histograma' },
+        { key: 'resumen', label: '9. Resumen de la Atención' }
     ];
     const handlePrevStep = () => {
         if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1);
@@ -191,6 +192,14 @@ const MedicoGeneral_page = () => {
     };
     const handleSaveAndFinish = async () => {
         const activeStepKey = steps[currentStepIndex].key;
+        // El resumen no tiene datos propios: se vuelve a guardar el diagnóstico (parte diario, que
+        // incluye la receta) por si se llegó aquí desde la barra de pasos sin "Guardar y continuar".
+        if (activeStepKey === 'resumen') {
+            if (await handleSaveFichaSection('diagnostico')) {
+                handleCloseFichaForm();
+            }
+            return;
+        }
         const success = await handleSaveFichaSection(activeStepKey);
         if (success) {
             handleCloseFichaForm();
@@ -4905,29 +4914,22 @@ ${paginas}
                                             )}
 
                                             {steps[currentStepIndex].key === 'prescripcion' && (
-                                                <div className="clinical-form-section">
-                                                    <div className="clinical-form-section__title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--primary-soft, #eff6ff)', color: 'var(--primary, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                <Pill size={22} />
-                                                            </div>
-                                                            <div>
-                                                                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>Punto 7: Prescripción Médica / Receta</h3>
-                                                                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Conéctese al inventario de Farmacia para prescribir y generar orden de despacho.</p>
-                                                            </div>
-                                                        </div>
-                                                        <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '6px 12px', borderRadius: '16px', fontWeight: '700', border: '1px solid #bfdbfe' }}>
-                                                            ✓ Despacho Automático en Farmacia
-                                                        </span>
-                                                    </div>
+                                                <div>
+                                                    <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <Pill size={16} /> 7. Prescripción Médica y Recetario
+                                                    </h3>
+                                                    <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                                                        Prescribe medicamentos desde el inventario de Farmacia para la atención de este paciente.
+                                                    </p>
 
                                                     {/* BUSCADOR DE PRODUCTOS DE FARMACIA */}
                                                     <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                                                        <label htmlFor="medicogenera-buscar-medicamento-en-catalogo-de-farmac" style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
-                                                            🔍 Buscar Medicamento en Catálogo de Farmacia
+                                                        <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px' }}>
+                                                            <Search size={15} color="var(--primary)" /> Buscar Medicamento en Catálogo de Farmacia
                                                         </label>
                                                         <div style={{ position: 'relative' }}>
-                                                            <input id="medicogenera-buscar-medicamento-en-catalogo-de-farmac"
+                                                            <input
+                                                                aria-label="Buscar Medicamento en Catálogo de Farmacia"
                                                                 type="text"
                                                                 value={farmaciaSearchQuery}
                                                                 onChange={(e) => handleSearchFarmacia(e.target.value)}
@@ -4975,23 +4977,23 @@ ${paginas}
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_medicamento}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_medicamento: e.target.value })}
-                                                                    placeholder="Ej: Paracetamol 500mg Tabletas"
+                                                                    placeholder="Ej: Amoxicilina 500mg"
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Dosis Indicada</span>
+                                                                <span>Dosis <span className="field-req-star">*</span></span>
                                                                 <input
-                                                                    aria-label="Dosis Indicada"
+                                                                    aria-label="Dosis"
                                                                     type="text"
                                                                     value={prescripcionLineForm.detalle_dosis}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_dosis: e.target.value })}
-                                                                    placeholder="Ej: 1 tableta"
+                                                                    placeholder="Ej: 1 cápsula"
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Vía de Administración</span>
+                                                                <span>Vía de Adm. <span className="field-req-star">*</span></span>
                                                                 <select
-                                                                    aria-label="Vía de Administración"
+                                                                    aria-label="Vía de Adm."
                                                                     value={prescripcionLineForm.detalle_via_administracion}
                                                                     disabled={!!viaFarmacia}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, detalle_via_administracion: e.target.value })}
@@ -5005,9 +5007,9 @@ ${paginas}
                                                         {/* Sin "Cant. Cajas" ni "Cant. Unidades": las cantidades las define Farmacia al despachar */}
                                                         <div className="clinical-fields-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Frecuencia (Horas)</span>
+                                                                <span>Cada (Horas) <span className="field-req-star">*</span></span>
                                                                 <input
-                                                                    aria-label="Frecuencia (Horas)"
+                                                                    aria-label="Cada (Horas)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.frecuencia_horas}
@@ -5015,9 +5017,9 @@ ${paginas}
                                                                 />
                                                             </div>
                                                             <div className="field" style={{ margin: 0 }}>
-                                                                <span>Duración (Días)</span>
+                                                                <span>Durante (Días) <span className="field-req-star">*</span></span>
                                                                 <input
-                                                                    aria-label="Duración (Días)"
+                                                                    aria-label="Durante (Días)"
                                                                     type="number"
                                                                     min="1"
                                                                     value={prescripcionLineForm.duracion_tratamiento_dias}
@@ -5026,82 +5028,145 @@ ${paginas}
                                                             </div>
                                                         </div>
 
-                                                        <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                                            <div style={{ flex: 1 }}>
+                                                        <div style={{ marginTop: '12px' }}>
+                                                            <div className="field" style={{ margin: 0 }}>
+                                                                <span>Indicaciones Adicionales / Observaciones</span>
                                                                 <input
-                                                                    aria-label="Observaciones / Indicaciones especiales"
+                                                                    aria-label="Indicaciones Adicionales / Observaciones"
                                                                     type="text"
                                                                     value={prescripcionLineForm.observaciones}
                                                                     onChange={(e) => setPrescripcionLineForm({ ...prescripcionLineForm, observaciones: e.target.value })}
-                                                                    placeholder="Observaciones / Indicaciones especiales..."
-                                                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12.5px' }}
+                                                                    placeholder="Ej: Tomar después de las comidas..."
                                                                 />
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleAddPrescripcionLine}
-                                                                style={{ background: 'var(--primary)', color: '#ffffff', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                                                            >
-                                                                <Plus size={15} /> Agregar a la Receta
-                                                            </button>
                                                         </div>
+
+                                                        <button
+                                                            type="button"
+                                                            className="action-button action-button--primary"
+                                                            onClick={handleAddPrescripcionLine}
+                                                            style={{ marginTop: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                                        >
+                                                            <Plus size={16} /> Agregar a la Receta
+                                                        </button>
                                                     </div>
 
-                                                    {/* TABLA DE RECETA ACTUAL */}
-                                                    <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-                                                        <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>📋 Medicamentos en la Receta</strong>
-                                                            <span style={{ fontSize: '12px', color: '#475569', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
-                                                                {(fichaForm.prescripcion_lineas || []).length} ítem(s)
+                                                    {/* LISTADO DE MEDICAMENTOS EN LA RECETA */}
+                                                    <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                            <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <Pill size={16} color="var(--primary)" /> Medicamentos Prescritos
+                                                            </h4>
+                                                            <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontWeight: '700', border: '1px solid #bae6fd' }}>
+                                                                {(fichaForm.prescripcion_lineas || []).length} medicamento(s)
                                                             </span>
                                                         </div>
 
                                                         {(!fichaForm.prescripcion_lineas || fichaForm.prescripcion_lineas.length === 0) ? (
-                                                            <div style={{ padding: '30px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                                                                No hay medicamentos agregados a la receta aún. Use el formulario superior para añadir fármacos.
+                                                            <div style={{ textAlign: 'center', padding: '22px 14px', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#475569', fontSize: '12px' }}>
+                                                                <Pill size={22} color="#94a3b8" style={{ marginBottom: '6px', display: 'block', margin: '0 auto 6px' }} />
+                                                                No ha agregado medicamentos a la receta. Use el buscador o el formulario para añadir prescripciones.
                                                             </div>
                                                         ) : (
-                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-                                                                <thead style={{ background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase' }}>
-                                                                    <tr>
-                                                                        <th style={{ padding: '10px 14px' }}>Medicamento</th>
-                                                                        <th style={{ padding: '10px 14px' }}>Dosis & Vía</th>
-                                                                        <th style={{ padding: '10px 14px', textAlign: 'center' }}>Frecuencia / Duración</th>
-                                                                        <th style={{ padding: '10px 14px', textAlign: 'center' }}>Acción</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {(fichaForm.prescripcion_lineas || []).map((item) => (
-                                                                        <tr key={item.id_temp} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                                            <td style={{ padding: '10px 14px', fontWeight: '600', color: '#0f172a' }}>
-                                                                                {item.detalle_medicamento}
-                                                                                {item.id_producto_farmacia && (
-                                                                                    <span style={{ display: 'block', fontSize: '11px', color: '#0284c7', fontWeight: '700' }}>✓ Vinculado a Inventario Farmacia</span>
-                                                                                )}
-                                                                            </td>
-                                                                            <td style={{ padding: '10px 14px', color: '#475569' }}>
-                                                                                {item.detalle_dosis} ({item.detalle_via_administracion})
-                                                                            </td>
-                                                                            <td style={{ padding: '10px 14px', textAlign: 'center', color: '#475569' }}>
-                                                                                Cada {item.frecuencia_horas}h por {item.duracion_tratamiento_dias} días
-                                                                            </td>
-                                                                            <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => handleRemovePrescripcionLine(item.id_temp)}
-                                                                                    style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                                                >
-                                                                                    <Trash2 size={13} /> Eliminar
-                                                                                </button>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                                {(fichaForm.prescripcion_lineas || []).map((item) => (
+                                                                    <div key={item.id_temp} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                                                        <div>
+                                                                            <strong style={{ color: '#0f172a', fontSize: '13px', display: 'block' }}>{item.detalle_medicamento}</strong>
+                                                                            <span style={{ fontSize: '11.5px', color: '#475569' }}>
+                                                                                {item.detalle_dosis} · Cada {item.frecuencia_horas} horas por {item.duracion_tratamiento_dias} días ({item.detalle_via_administracion})
+                                                                            </span>
+                                                                            {item.observaciones && (
+                                                                                <small style={{ display: 'block', color: '#64748b', fontSize: '11px', marginTop: '2px' }}>
+                                                                                    {item.observaciones}
+                                                                                </small>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemovePrescripcionLine(item.id_temp)}
+                                                                            style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#d52525', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}
+                                                                        >
+                                                                            <Trash2 size={13} /> Quitar
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {steps[currentStepIndex].key === 'resumen' && (() => {
+                                                // Resumen final: todo lo registrado en la atención antes de cerrarla
+                                                const TIPOS_SANGRE = { 1: 'A+', 2: 'A-', 3: 'B+', 4: 'B-', 5: 'AB+', 6: 'AB-', 7: 'O+', 8: 'O-' };
+                                                const conUnidad = (v, u) => (v === '' || v === null || v === undefined) ? '' : `${v} ${u}`;
+                                                const Seccion = ({ titulo, campos }) => (
+                                                    <div style={{ marginBottom: '18px' }}>
+                                                        <h4 style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', margin: '0 0 10px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase' }}>{titulo}</h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '12px' }}>
+                                                            {campos.map(([etiqueta, valor, completo]) => (
+                                                                <div key={etiqueta} style={completo ? { gridColumn: '1 / -1' } : undefined}>
+                                                                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>{etiqueta}</span>
+                                                                    <strong style={{ color: '#0f172a', fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>{valor || '—'}</strong>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                                return (
+                                                    <div>
+                                                        <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <ClipboardList size={18} /> 9. Resumen de la Atención
+                                                        </h3>
+                                                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 18px' }}>
+                                                            Revise los datos registrados. Si algo es incorrecto, use «Atrás» para corregirlo y guárdelo de nuevo antes de finalizar.
+                                                        </p>
+                                                        <Seccion titulo="Paciente" campos={[
+                                                            ['Nombre', selectedPatient?.nombre_completo],
+                                                            ['Cédula', selectedPatient?.numero_cedula || selectedPatient?.cedula],
+                                                            ['Fecha de la atención', fechaLocalHoy().split('-').reverse().join('/')]
+                                                        ]} />
+                                                        <Seccion titulo="1. Signos Vitales" campos={[
+                                                            ['Presión arterial', fichaForm.presion_arterial_sistolica || fichaForm.presion_arterial_diastolica ? `${fichaForm.presion_arterial_sistolica || '—'}/${fichaForm.presion_arterial_diastolica || '—'} mmHg` : ''],
+                                                            ['Frecuencia cardíaca', conUnidad(fichaForm.frecuencia_cardiaca, 'lpm')],
+                                                            ['Frecuencia respiratoria', conUnidad(fichaForm.frecuencia_respiratoria, 'rpm')],
+                                                            ['Temperatura', conUnidad(fichaForm.temperatura, '°C')],
+                                                            ['Talla', conUnidad(fichaForm.talla, 'cm')],
+                                                            ['Peso', conUnidad(fichaForm.peso, 'kg')],
+                                                            ['Tipo de sangre', TIPOS_SANGRE[Number(fichaForm.id_tipo_sangre)]]
+                                                        ]} />
+                                                        <Seccion titulo="2. Motivo y Enfermedad Actual" campos={[
+                                                            ['Motivo de consulta', fichaForm.detalle_motivo, true],
+                                                            ['Enfermedad actual', fichaForm.detalle_enfermedad_actual, true]
+                                                        ]} />
+                                                        <Seccion titulo="3. Antecedentes" campos={[
+                                                            ['Antecedentes personales', fichaForm.detalle_antecedente_personal, true],
+                                                            ['Antecedentes familiares', fichaForm.detalle_antecedente_familiar, true]
+                                                        ]} />
+                                                        <Seccion titulo="4. Revisión de Órganos y Sistemas" campos={[
+                                                            ['Revisión', fichaForm.detalle_revision_organos, true]
+                                                        ]} />
+                                                        <Seccion titulo="5. Examen Físico" campos={[
+                                                            ['Hallazgos', fichaForm.detalle_examen_fisico, true],
+                                                            ['Región anatómica marcada', fichaForm.altura_x !== null && fichaForm.altura_y !== null && fichaForm.altura_x !== undefined ? getAnatomicalRegion(fichaForm.altura_x, fichaForm.altura_y) : '', true]
+                                                        ]} />
+                                                        <Seccion titulo="6. Diagnóstico y Tratamiento" campos={[
+                                                            ['CIE-10 / Diagnóstico principal', fichaForm.cie10],
+                                                            ['Condición', fichaForm.definitivo ? 'Definitivo' : 'Presuntivo'],
+                                                            ['Descripción diagnóstica', fichaForm.detalle_diagnostico, true],
+                                                            ['Plan terapéutico', fichaForm.detalle_plan_terapeutico, true],
+                                                            ['Tipo de atención', fichaForm.tipo_atencion === 'secundaria' ? 'Secundaria' : 'Primaria'],
+                                                            ['Clasificación de consulta', fichaForm.tipo === 'preventivo' ? 'Preventivo' : 'Curativo']
+                                                        ]} />
+                                                        <Seccion titulo="7. Prescripción Médica" campos={[
+                                                            ['Medicamentos', (fichaForm.prescripcion_lineas || []).length
+                                                                ? fichaForm.prescripcion_lineas.map(l => `${l.detalle_medicamento} — ${l.detalle_dosis}, ${l.detalle_via_administracion}, cada ${l.frecuencia_horas} h por ${l.duracion_tratamiento_dias} días`).join('\n')
+                                                                : 'Sin receta', true]
+                                                        ]} />
+                                                    </div>
+                                                );
+                                            })()}
 
                                             {steps[currentStepIndex].key === 'histograma' && (
                                                 <div className="clinical-form-section">
