@@ -2314,7 +2314,7 @@ const PacienteDashboard = () => {
                                                     style={{ width: '18px', height: '18px', cursor: !!profile?.identification?.numero_cedula ? 'not-allowed' : 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }}
                                                 />
                                                 <Globe size={17} color="var(--accent)" style={{ flexShrink: 0 }} />
-                                                <span>Soy estudiante extranjero</span>
+                                                <span>Soy paciente extranjero</span>
                                             </label>
                                         </div>
 
@@ -2840,7 +2840,7 @@ const PacienteDashboard = () => {
                                                             <Globe size={16} color="var(--accent)" /> 2. Lugar de Nacimiento
                                                         </h4>
                                                         <p className="substep-header__subtitle">
-                                                            {demographicForm.es_extranjero ? 'Estudiante Extranjero' : 'Identificado como Ecuatoriano'}
+                                                            {demographicForm.es_extranjero ? 'Paciente Extranjero' : 'Identificado como Ecuatoriano'}
                                                         </p>
                                                     </div>
                                                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -3269,7 +3269,7 @@ const PacienteDashboard = () => {
                                                                 textTransform: 'uppercase'
                                                             }}>
                                                                 <GraduationCap size={13} style={{ color: 'var(--primary, #002040)' }} />
-                                                                Portal del Estudiante • UEB
+                                                                Portal del Paciente • UEB
                                                             </span>
                                                         </div>
 
