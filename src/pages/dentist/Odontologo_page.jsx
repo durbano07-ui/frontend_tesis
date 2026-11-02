@@ -196,7 +196,8 @@ const Odontologo_page = () => {
         { key: 'diagnostico', label: '4. Diag. y Tratamiento' },
         { key: 'odontograma', label: '5. Odontograma' },
         { key: 'insumos', label: '6. Insumos y Consumos' },
-        { key: 'prescripcion', label: '7. Prescripción Médica' }
+        { key: 'prescripcion', label: '7. Prescripción Médica' },
+        { key: 'resumen', label: '8. Resumen de la Atención' }
     ];
     const handlePrevStep = () => {
         if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1);
@@ -8787,8 +8788,8 @@ ${cuerpo}
                                                             <div className="field">
                                                                 <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
-                                                                    <option value="primaria">Primaria (Consulta Inicial)</option>
-                                                                    <option value="secundaria">Secundaria (Seguimiento)</option>
+                                                                    <option value="primaria">Primaria</option>
+                                                                    <option value="secundaria">Secundaria</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">
@@ -9091,46 +9092,6 @@ ${cuerpo}
                                                         );
                                                     })()}
 
-                                                    {/* Resumen Final de la Consulta */}
-                                                    <div style={{ marginTop: '20px', background: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '12px', padding: '16px 20px' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-                                                            <h4 style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <ClipboardList size={16} /> Resumen General de la Consulta
-                                                            </h4>
-                                                            <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '3px 10px', borderRadius: '12px', fontWeight: '600' }}>
-                                                                Atención Odontológica
-                                                            </span>
-                                                        </div>
-
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', fontSize: '12px' }}>
-                                                            <div>
-                                                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: '600' }}>Paciente Atendido:</span>
-                                                                <strong style={{ color: '#0f172a', fontSize: '13px' }}>{selectedPatient?.nombre_completo}</strong>
-                                                                <small style={{ display: 'block', color: '#64748b' }}>Cédula: {selectedPatient?.numero_cedula}</small>
-                                                            </div>
-
-                                                            <div>
-                                                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: '600' }}>Diagnóstico Registrado:</span>
-                                                                <strong style={{ color: '#0f172a', fontSize: '12.5px' }}>
-                                                                    {fichaForm.detalle_diagnostico || fichaForm.detalle_motivo || 'Evaluación General'}
-                                                                </strong>
-                                                            </div>
-
-                                                            <div>
-                                                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: '600' }}>Procedimiento Realizado:</span>
-                                                                <strong style={{ color: 'var(--primary)', fontSize: '12.5px' }}>
-                                                                    {fichaForm.procedimiento || 'Profilaxis'}
-                                                                </strong>
-                                                            </div>
-
-                                                            <div>
-                                                                <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: '600' }}>Insumos Registrados:</span>
-                                                                <strong style={{ color: '#0f172a', fontSize: '12.5px' }}>
-                                                                    {insumosPacienteList.filter(item => String(item.id_usuario_paciente) === String(selectedPatient?.id_usuario || selectedPatient?.id)).length} insumo(s) consumido(s)
-                                                                </strong>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             )}
                                             {currentStepIndex === 6 && (
@@ -9316,6 +9277,88 @@ ${cuerpo}
                                                     </div>
                                                 </div>
                                             )}
+                                            {currentStepIndex === 7 && (() => {
+                                                // Resumen final: todo lo registrado en la atención antes de guardarla
+                                                const pid = selectedPatient?.id_usuario || selectedPatient?.id;
+                                                const hoy = getLocalDateString();
+                                                const insumosCita = insumosPacienteList.filter(item =>
+                                                    String(item.id_usuario_paciente) === String(pid) &&
+                                                    (sessionInsumoIds.includes(item.id) || String(item.fecha || item.created_at || '').slice(0, 10) === hoy));
+                                                const siNo = (v) => v === 'si' ? 'Sí' : 'No';
+                                                const normal = (v) => v === 'anormal' ? 'Anormal' : 'Normal';
+                                                const CARAS = { top: 'superior', bottom: 'inferior', left: 'izquierda', right: 'derecha', center: 'central' };
+                                                const nombreEstado = (id) => odontogramaEstados.find(e => String(e.id) === String(id))?.nombre || `Estado ${id}`;
+                                                const hallazgos = Object.entries(odontogramaState || {}).flatMap(([pieza, t]) => {
+                                                    if (!t) return [];
+                                                    if (t.ausente) return [`Pieza ${pieza}: ausente`];
+                                                    const caras = Object.keys(CARAS).filter(c => t[c] && t[c] !== 'sano');
+                                                    return caras.length ? [`Pieza ${pieza}: ${caras.map(c => `${nombreEstado(t[c]).toLowerCase()} (${CARAS[c]})`).join(', ')}`] : [];
+                                                });
+                                                const Seccion = ({ titulo, campos }) => (
+                                                    <div style={{ marginBottom: '18px' }}>
+                                                        <h4 style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', margin: '0 0 10px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase' }}>{titulo}</h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '12px' }}>
+                                                            {campos.map(([etiqueta, valor, completo]) => (
+                                                                <div key={etiqueta} style={completo ? { gridColumn: '1 / -1' } : undefined}>
+                                                                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>{etiqueta}</span>
+                                                                    <strong style={{ color: '#0f172a', fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>{valor || '—'}</strong>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                                return (
+                                                    <div>
+                                                        <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            <ClipboardList size={18} /> 8. Resumen de la Atención
+                                                        </h3>
+                                                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 18px' }}>
+                                                            Revise los datos registrados. Si algo es incorrecto, use «Atrás» para corregirlo antes de guardar la atención.
+                                                        </p>
+                                                        <Seccion titulo="Paciente" campos={[
+                                                            ['Nombre', selectedPatient?.nombre_completo],
+                                                            ['Cédula', selectedPatient?.numero_cedula || selectedPatient?.cedula],
+                                                            ['Fecha de la atención', hoy.split('-').reverse().join('/')]
+                                                        ]} />
+                                                        <Seccion titulo="1. Motivo y Antecedentes" campos={[
+                                                            ['Motivo de consulta', fichaForm.detalle_motivo, true],
+                                                            ['Última visita al dentista', fichaForm.ultima_visita_fecha ? fichaForm.ultima_visita_fecha.split('-').reverse().join('/') : ''],
+                                                            ['¿Recibe tratamiento médico?', fichaForm.algun_tratamiento === 'si' ? `Sí — ${fichaForm.detalle_tratamiento || ''}` : 'No'],
+                                                            ['¿Toma algún medicamento?', fichaForm.algun_medicamento === 'si' ? `Sí — ${fichaForm.detalle_medicamento || ''}` : 'No']
+                                                        ]} />
+                                                        <Seccion titulo="2. Examen Estomatológico" campos={[
+                                                            ['Piel', normal(fichaForm.piel)], ['Labios', normal(fichaForm.labios)],
+                                                            ['Carrillos', normal(fichaForm.carrillos)], ['Paladar', normal(fichaForm.paladar)],
+                                                            ['Piso de la boca', normal(fichaForm.piso_de_la_boca)], ['Lengua', normal(fichaForm.lengua)],
+                                                            ['Glándulas salivales', normal(fichaForm['glándulas_salivales'])], ['Ganglios', normal(fichaForm.ganglios)],
+                                                            ['Tejido muscular', normal(fichaForm.tejido_muscular)], ['ATM', normal(fichaForm.atm)],
+                                                            ['Maxilar superior', normal(fichaForm.maxilar_superior)], ['Maxilar inferior', normal(fichaForm.maxilar_inferior)],
+                                                            ['Observaciones', fichaForm.observaciones, true]
+                                                        ]} />
+                                                        <Seccion titulo="3. Enfermedad Periodontal" campos={[
+                                                            ['Placa bacteriana', siNo(fichaForm.placa_bacteriana)], ['Cálculos dentales', siNo(fichaForm.calculos_dentales)],
+                                                            ['Bolsa periodontal', siNo(fichaForm.bolsa_periodontal)], ['Movilidad dental', siNo(fichaForm.movilidad_dental)]
+                                                        ]} />
+                                                        <Seccion titulo="4. Diagnóstico y Tratamiento" campos={[
+                                                            ['Diagnóstico odontológico', fichaForm.detalle_diagnostico, true],
+                                                            ['Tipo de atención', fichaForm.tipo_atencion === 'secundaria' ? 'Secundaria' : 'Primaria'],
+                                                            ['Subtipo de atención', fichaForm.tipo_atencion2 === 'preventivo' ? 'Preventivo' : 'Curativo'],
+                                                            ['Procedimiento realizado', fichaForm.procedimiento]
+                                                        ]} />
+                                                        <Seccion titulo="5. Odontograma" campos={[
+                                                            ['Hallazgos', hallazgos.length ? hallazgos.join('\n') : 'Sin hallazgos: todas las piezas sanas', true]
+                                                        ]} />
+                                                        <Seccion titulo="6. Insumos Utilizados" campos={[
+                                                            ['Insumos', insumosCita.length ? insumosCita.map(item => `${item.insumo?.nombre || insumosCatalogo.find(c => String(c.id) === String(item.id_insumo))?.nombre || 'Insumo'}: ${item.cantidad_gastada}`).join('\n') : 'No se registraron insumos', true]
+                                                        ]} />
+                                                        <Seccion titulo="7. Prescripción Médica" campos={[
+                                                            ['Medicamentos', (fichaForm.prescripcion_lineas || []).length
+                                                                ? fichaForm.prescripcion_lineas.map(l => `${l.detalle_medicamento} — ${l.detalle_dosis}, ${l.detalle_via_administracion}, cada ${l.frecuencia_horas} h por ${l.duracion_tratamiento_dias} días`).join('\n')
+                                                                : 'Sin receta', true]
+                                                        ]} />
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 
