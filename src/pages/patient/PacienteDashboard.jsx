@@ -1440,55 +1440,19 @@ const PacienteDashboard = () => {
                 return;
             }
 
-            const getFullAddressHtml = () => {
-                if (!profile.directions || profile.directions.length === 0) return '<p>No registrado</p>';
-                return profile.directions.map((dir, idx) => `
-                    <div style="margin-bottom: 12px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                        <strong style="color: #b71a34; font-size: 11px; text-transform: uppercase;">Dirección de ${escapeHtml(dir.id_tipo_direccion === 1 ? 'Procedencia' : dir.id_tipo_direccion === 2 ? 'Residencia Actual' : 'Lugar de Nacimiento')}</strong>
-                        <table style="width:100%; border-collapse: collapse; margin-top: 6px; font-size: 12px;">
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; padding: 3px 0;">Provincia:</td>
-                                <td>${escapeHtml(dir.provincia?.nombre || '—')}</td>
-                                <td style="width: 25%; font-weight: bold; padding: 3px 0;">Cantón:</td>
-                                <td>${escapeHtml(dir.canton?.nombre || '—')}</td>
-                            </tr>
-                            ${dir.id_tipo_direccion !== 3 ? `
-                            <tr>
-                                <td style="font-weight: bold; padding: 3px 0;">Calle Principal:</td>
-                                <td>${escapeHtml(dir.calle_principal || '—')}</td>
-                                <td style="font-weight: bold; padding: 3px 0;">Calle Sec.:</td>
-                                <td>${escapeHtml(dir.calle_secundaria || '—')}</td>
-                            </tr>
-                            <tr>
-                                <td style="font-weight: bold; padding: 3px 0;">Referencia:</td>
-                                <td colspan="3">${escapeHtml(dir.referencia || '—')}</td>
-                            </tr>
-                            ` : ''}
-                        </table>
-                    </div>
-                `).join('');
-            };
-
-            const getEmergencyHtml = () => {
-                if (!profile.emergency_contacts || profile.emergency_contacts.length === 0) return '<p>No registrado</p>';
-                const contact = profile.emergency_contacts[0];
-                return `
-                    <table style="width:100%; border-collapse: collapse; font-size: 12px;">
-                        <tr>
-                            <td style="width: 25%; font-weight: bold; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">Nombre:</td>
-                            <td style="border-bottom: 1px solid #f1f5f9;">${escapeHtml(contact.nombre_completo || '—')}</td>
-                            <td style="width: 25%; font-weight: bold; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">Parentesco:</td>
-                            <td style="border-bottom: 1px solid #f1f5f9;">${escapeHtml(contact.parentesco || '—')}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight: bold; padding: 6px 0;">Teléfono Fijo:</td>
-                            <td>${escapeHtml(contact.telefono || '—')}</td>
-                            <td style="font-weight: bold; padding: 6px 0;">Celular:</td>
-                            <td>${escapeHtml(contact.celular || '—')}</td>
-                        </tr>
-                    </table>
-                `;
-            };
+            // Todos los datos de la ficha de registro, en el orden de sus secciones
+            const ident = profile.identification || {};
+            const demo = profile.demographic || {};
+            const estudio = profile.career_study || {};
+            const direcciones = profile.addresses || [];
+            const residencia = direcciones.find(d => Number(d.id_tipo_direccion) === 2) || direcciones[0] || {};
+            const nacimiento = direcciones.find(d => Number(d.id_tipo_direccion) === 3) || {};
+            const contacto = (profile.emergency_contacts || [])[0] || {};
+            const esExtranjero = !!(ident.es_extranjero || residencia.es_extranjero);
+            const fecha = (v) => v ? String(v).slice(0, 10).split('-').reverse().join('/') : '—';
+            const lista = (items, campo) => (items || []).map(x => x[campo]).filter(Boolean).join(', ') || 'Ninguna';
+            const campo = (etiqueta, valor) => `<div class="info-item"><span class="info-label">${escapeHtml(etiqueta)}:</span><span class="info-val">${escapeHtml(valor === null || valor === undefined || valor === '' ? '—' : String(valor))}</span></div>`;
+            const seccion = (titulo, campos) => `<div class="section-title">${escapeHtml(titulo)}</div><div class="info-grid">${campos.join('')}</div>`;
 
             const photoHtml = getPhotoUrl()
                 ? `<img src="${escapeHtml(getPhotoUrl())}" alt="Foto del paciente" style="width: 100px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" />`
@@ -1582,31 +1546,51 @@ const PacienteDashboard = () => {
                         &nbsp;&nbsp;&nbsp;&nbsp;<strong>Cédula:</strong> ${escapeHtml(profile?.identification?.numero_cedula || '—')}
                     </div>
 
-                    <div class="section-title">Datos Personales y Demográficos</div>
-                    <div class="info-grid">
-                        <div class="info-item"><span class="info-label">Fecha de Nacimiento:</span><span class="info-val">${escapeHtml(profile?.identification?.fecha_nacimiento || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Identificación de Género:</span><span class="info-val" style="text-transform: capitalize;">${escapeHtml(profile?.demographic?.genero?.nombre || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Estado Civil:</span><span class="info-val" style="text-transform: capitalize;">${escapeHtml(profile?.demographic?.estado_civil?.nombres || profile?.demographic?.estadoCivil?.nombres || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Nacionalidad:</span><span class="info-val">${profile?.identification?.es_extranjero ? `Extranjera (${escapeHtml(profile?.identification?.nacionalidad || '—')})` : 'Ecuatoriana'}</span></div>
-                    </div>
+                    ${seccion('1. Información de Identificación', [
+                        campo(esExtranjero ? 'Pasaporte' : 'Cédula', ident.numero_cedula),
+                        campo('Fecha de Nacimiento', fecha(ident.fecha_nacimiento)),
+                        campo('Nombres', [ident.primer_nombre, ident.segundo_nombre].filter(Boolean).join(' ')),
+                        campo('Apellidos', [ident.apellido_paterno, ident.apellido_materno].filter(Boolean).join(' ')),
+                        campo('Nacionalidad', esExtranjero ? (demo.nacionalidad || ident.nacionalidad || 'Extranjera') : 'Ecuatoriana')
+                    ])}
 
-                    <div class="section-title">Información Institucional</div>
-                    <div class="info-grid">
-                        <div class="info-item"><span class="info-label">Tipo de Usuario:</span><span class="info-val">${escapeHtml(profile?.career_study?.tipo_usuario?.nombre || 'Sin confirmar')}</span></div>
-                        <div class="info-item"><span class="info-label">Facultad:</span><span class="info-val">${escapeHtml(profile?.career_study?.facultad?.nombre || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Carrera:</span><span class="info-val">${escapeHtml(profile?.career_study?.carrera?.nombre || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Ciclo / Semestre:</span><span class="info-val">${escapeHtml(profile?.career_study?.ciclo?.numero || '—')} (Paralelo: ${escapeHtml(profile?.career_study?.paralelo || '—')})</span></div>
-                    </div>
+                    ${seccion('2. Datos Universitarios', [
+                        campo('Tipo de Usuario', estudio.tipo_usuario?.nombre || 'Sin confirmar'),
+                        campo('Facultad', estudio.facultad?.nombre),
+                        campo('Carrera', estudio.carrera?.nombre),
+                        campo('Ciclo / Semestre', estudio.ciclo?.numero)
+                    ])}
 
-                    <div class="section-title">Datos de Contacto y Ubicación</div>
-                    <div class="info-grid" style="margin-bottom: 12px;">
-                        <div class="info-item"><span class="info-label">Teléfono Fijo:</span><span class="info-val">${escapeHtml(profile?.addresses?.[0]?.telefono_convencional || '—')}</span></div>
-                        <div class="info-item"><span class="info-label">Correo:</span><span class="info-val">${escapeHtml(user?.email || '—')}</span></div>
-                    </div>
-                    ${getFullAddressHtml()}
+                    ${seccion('3. Datos Demográficos', [
+                        campo('Género', demo.genero?.nombre),
+                        campo('Estado Civil', demo.estado_civil?.nombres || demo.estadoCivil?.nombres),
+                        campo('Identificación Étnica', demo.identificacion_etnica?.nombre || demo.identificacionEtnica?.nombre),
+                        campo('Tipo de Sangre', profile.blood_type?.nombre || 'No asignado')
+                    ])}
 
-                    <div class="section-title">Contacto de Emergencia</div>
-                    ${getEmergencyHtml()}
+                    ${seccion('Lugar de Nacimiento', esExtranjero
+                        ? [campo('País de Origen', demo.nacionalidad || ident.nacionalidad)]
+                        : [campo('Provincia', nacimiento.provincia?.nombre), campo('Cantón', nacimiento.canton?.nombre)])}
+
+                    ${seccion('Residencia Actual', [
+                        ...(esExtranjero ? [] : [campo('Provincia', residencia.provincia?.nombre), campo('Cantón', residencia.canton?.nombre)]),
+                        campo('Dirección', residencia.direccion_referencia),
+                        campo('Teléfono Fijo', residencia.telefono_convencional),
+                        campo('Correo Institucional', user?.email)
+                    ])}
+
+                    ${seccion('4. Contacto de Emergencia', [
+                        campo('Nombre', contacto.nombre_completo),
+                        campo('Parentesco', contacto.parentesco),
+                        campo('Teléfono', contacto.telefono),
+                        campo('Celular', contacto.celular)
+                    ])}
+
+                    ${seccion('Información Adicional', [
+                        campo('Número de Hijos', (profile.children || [])[0]?.numero ?? 0),
+                        campo('Alergias', lista(profile.allergies, 'detalle_alergia')),
+                        campo('Discapacidades', lista(profile.disabilities, 'detalle_discapacidad'))
+                    ])}
 
                     <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px;">
                         Documento generado automáticamente desde el Portal de Salud UEB.
@@ -5232,16 +5216,16 @@ const PacienteDashboard = () => {
                                 )}
 
                                 {/* SECCIÓN 4: DIRECCIONES */}
-                                {profile?.directions && profile.directions.length > 0 && (
+                                {profile?.addresses && profile.addresses.length > 0 && (
                                     <div>
                                         <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                             Ubicación y Direcciones Registradas
                                         </h3>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                            {profile.directions.map((dir, idx) => (
+                                            {profile.addresses.map((dir, idx) => (
                                                 <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                                                     <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                                                        Dirección de {dir.id_tipo_direccion === 1 ? 'Procedencia' : 'Residencia'}
+                                                        {Number(dir.id_tipo_direccion) === 3 ? 'Lugar de Nacimiento' : Number(dir.id_tipo_direccion) === 1 ? 'Dirección de Procedencia' : 'Residencia Actual'}
                                                     </span>
                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
                                                         <div>
@@ -5250,15 +5234,11 @@ const PacienteDashboard = () => {
                                                         <div>
                                                             <span style={{ color: 'var(--text-muted)' }}>Cantón:</span> <strong>{dir.canton?.nombre || '—'}</strong>
                                                         </div>
-                                                        <div>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Calle Principal:</span> <strong>{dir.calle_principal || '—'}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Calle Secundaria:</span> <strong>{dir.calle_secundaria || '—'}</strong>
-                                                        </div>
-                                                        <div>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Referencia:</span> <strong>{dir.referencia || '—'}</strong>
-                                                        </div>
+                                                        {Number(dir.id_tipo_direccion) !== 3 && (
+                                                            <div style={{ gridColumn: '1 / -1' }}>
+                                                                <span style={{ color: 'var(--text-muted)' }}>Dirección:</span> <strong>{dir.direccion_referencia || '—'}</strong>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
