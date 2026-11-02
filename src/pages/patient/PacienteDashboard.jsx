@@ -5226,27 +5226,25 @@ const PacienteDashboard = () => {
                                         <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                             Ubicación y Direcciones Registradas
                                         </h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                            {profile.addresses.map((dir, idx) => (
-                                                <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                                                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                                                        {Number(dir.id_tipo_direccion) === 3 ? 'Lugar de Nacimiento' : Number(dir.id_tipo_direccion) === 1 ? 'Dirección de Procedencia' : 'Residencia Actual'}
-                                                    </span>
-                                                    <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
-                                                        <div>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Provincia:</span> <strong>{dir.provincia?.nombre || '—'}</strong>
+                                        {/* Mismo estilo que los demás datos: etiqueta pequeña y valor, sin cajas */}
+                                        <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                            {[...profile.addresses]
+                                                .sort((x, y) => (Number(x.id_tipo_direccion) === 3) - (Number(y.id_tipo_direccion) === 3))
+                                                .flatMap((dir, idx) => {
+                                                    const tipo = Number(dir.id_tipo_direccion);
+                                                    const sufijo = tipo === 3 ? 'de Nacimiento' : tipo === 1 ? 'de Procedencia' : 'de Residencia';
+                                                    const campos = [
+                                                        [`Provincia ${sufijo}`, dir.provincia?.nombre],
+                                                        [`Cantón ${sufijo}`, dir.canton?.nombre]
+                                                    ];
+                                                    if (tipo !== 3) campos.push([`Dirección ${sufijo}`, dir.direccion_referencia, true]);
+                                                    return campos.map(([etiqueta, valor, completo]) => (
+                                                        <div key={`${idx}-${etiqueta}`} style={completo ? { gridColumn: '1 / -1' } : undefined}>
+                                                            <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>{etiqueta}</small>
+                                                            <strong style={{ fontSize: '12.5px' }}>{valor || '—'}</strong>
                                                         </div>
-                                                        <div>
-                                                            <span style={{ color: 'var(--text-muted)' }}>Cantón:</span> <strong>{dir.canton?.nombre || '—'}</strong>
-                                                        </div>
-                                                        {Number(dir.id_tipo_direccion) !== 3 && (
-                                                            <div style={{ gridColumn: '1 / -1' }}>
-                                                                <span style={{ color: 'var(--text-muted)' }}>Dirección:</span> <strong>{dir.direccion_referencia || '—'}</strong>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                    ));
+                                                })}
                                         </div>
                                     </div>
                                 )}
