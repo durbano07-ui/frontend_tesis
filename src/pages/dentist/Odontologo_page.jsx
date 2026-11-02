@@ -928,6 +928,8 @@ const Odontologo_page = () => {
     const [proceduresCatalog, setProceduresCatalog] = useState([]);
     const [procedureSearchQuery, setProcedureSearchQuery] = useState('');
     const [newProcedureName, setNewProcedureName] = useState('');
+    // Edición en línea de un procedimiento del catálogo: { id, nombre }
+    const [procedimientoEditando, setProcedimientoEditando] = useState(null);
     const [procedureLoading, setProcedureLoading] = useState(false);
     const [procedureCurrentPage, setProcedureCurrentPage] = useState(1);
 
@@ -960,6 +962,23 @@ const Odontologo_page = () => {
         } catch (err) {
             console.error('Error al agregar procedimiento:', err);
             showSystemToast(err.response?.data?.message || 'Error al guardar el procedimiento.');
+        }
+    };
+
+    const handleGuardarEdicionProcedimiento = async () => {
+        const nombre = procedimientoEditando?.nombre?.trim();
+        if (!nombre) {
+            showSystemToast('El nombre del procedimiento no puede quedar vacío.');
+            return;
+        }
+        try {
+            await api.put(`/odontologia/procedimientos/${procedimientoEditando.id}`, { nombre_procedimiento: nombre });
+            setProcedimientoEditando(null);
+            showSystemToast('Procedimiento actualizado.');
+            fetchProceduresCatalog();
+        } catch (err) {
+            console.error('Error al editar procedimiento:', err);
+            showSystemToast(err.response?.data?.message || 'Error al editar el procedimiento.');
         }
     };
 
@@ -7513,9 +7532,23 @@ ${cuerpo}
                                                                         <tr key={proc.id || idx}>
                                                                             <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)' }}>{globalIdx}</td>
                                                                             <td style={{ fontWeight: '600', color: 'var(--primary)' }}>
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                                    <span>{proc.nombre_procedimiento}</span>
-                                                                                </div>
+                                                                                {procedimientoEditando?.id === proc.id ? (
+                                                                                    <input
+                                                                                        aria-label="Nuevo nombre del procedimiento"
+                                                                                        autoFocus
+                                                                                        value={procedimientoEditando.nombre}
+                                                                                        onChange={(e) => setProcedimientoEditando({ ...procedimientoEditando, nombre: e.target.value })}
+                                                                                        onKeyDown={(e) => {
+                                                                                            if (e.key === 'Enter') handleGuardarEdicionProcedimiento();
+                                                                                            if (e.key === 'Escape') setProcedimientoEditando(null);
+                                                                                        }}
+                                                                                        style={{ width: '100%', border: '1px solid var(--primary)', borderRadius: '6px', padding: '6px 10px', fontSize: '12.5px' }}
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                                        <span>{proc.nombre_procedimiento}</span>
+                                                                                    </div>
+                                                                                )}
                                                                             </td>
                                                                             <td>
                                                                                 <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--success)', background: 'var(--success-soft)', padding: '3px 8px', borderRadius: '12px' }}>
@@ -7523,6 +7556,24 @@ ${cuerpo}
                                                                                 </span>
                                                                             </td>
                                                                             <td style={{ textAlign: 'center' }}>
+                                                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                                                {procedimientoEditando?.id === proc.id ? (
+                                                                                    <>
+                                                                                        <button type="button" onClick={handleGuardarEdicionProcedimiento} title="Guardar cambios" aria-label="Guardar cambios"
+                                                                                            style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', color: '#047857', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                                                                                            <Check size={14} />
+                                                                                        </button>
+                                                                                        <button type="button" onClick={() => setProcedimientoEditando(null)} title="Cancelar" aria-label="Cancelar edición"
+                                                                                            style={{ background: '#f8fafc', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                                                                                            <X size={14} />
+                                                                                        </button>
+                                                                                    </>
+                                                                                ) : (
+                                                                                <>
+                                                                                <button type="button" onClick={() => setProcedimientoEditando({ id: proc.id, nombre: proc.nombre_procedimiento })} title="Editar procedimiento" aria-label="Editar procedimiento"
+                                                                                    style={{ background: '#eff6ff', border: '1px solid #93c5fd', color: '#1d4ed8', borderRadius: '6px', width: '28px', height: '28px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                                                                                    <Pencil size={14} />
+                                                                                </button>
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => handleDeleteProcedure(proc.id)}
@@ -7543,6 +7594,9 @@ ${cuerpo}
                                                                                 >
                                                                                     <Trash2 size={14} />
                                                                                 </button>
+                                                                                </>
+                                                                                )}
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     );
@@ -8872,15 +8926,10 @@ ${cuerpo}
                                                         <div className="field" style={{ marginTop: '10px' }}>
                                                             <span>Procedimiento Dental Realizado <span className="field-req-star">*</span></span>
                                                             <select aria-label="Procedimiento Dental Realizado" value={fichaForm.procedimiento} onChange={(e) => setFichaForm({ ...fichaForm, procedimiento: e.target.value })}>
-                                                                <option value="Profilaxis">Profilaxis</option>
-                                                                <option value="Fluorizacion">Fluorización</option>
-                                                                <option value="Destartraje">Destartraje (Limpieza profunda)</option>
-                                                                <option value="Rest. Provisional">Restauración Provisional</option>
-                                                                <option value="Rest. con Resina">Restauración con Resina (Calzas)</option>
-                                                                <option value="Desgaste">Desgaste selectivo</option>
-                                                                <option value="Exodoncias">Exodoncia (Extracción)</option>
-                                                                <option value="Receta">Receta Médica</option>
-                                                                <option value="Orden de RX">Orden de Rayos X</option>
+                                                                {/* El catálogo (pestaña Procedimientos) es la única fuente; se conserva el valor ya guardado aunque se haya renombrado */}
+                                                                {fichaForm.procedimiento && !proceduresCatalog.some(p => p.nombre_procedimiento === fichaForm.procedimiento) && (
+                                                                    <option value={fichaForm.procedimiento}>{fichaForm.procedimiento}</option>
+                                                                )}
                                                                 {proceduresCatalog.map(p => (
                                                                     <option key={p.id || p.nombre_procedimiento} value={p.nombre_procedimiento}>{p.nombre_procedimiento}</option>
                                                                 ))}
