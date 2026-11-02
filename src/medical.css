@@ -7042,3 +7042,38 @@ div.patient-search-input > input:active {
         overflow-x: auto;
     }
 }
+
+/* ===== Ventana "Ver Ficha" del paciente en celular: sin huecos en blanco ===== */
+@media (max-width: 600px) {
+    /* La foto va arriba y centrada; los datos ocupan todo el ancho debajo */
+    .ficha-vista__identidad {
+        flex-direction: column;
+        align-items: center !important;
+    }
+
+    .ficha-vista__identidad > .ficha-vista__campos {
+        width: 100%;
+    }
+
+    /* Dos datos por fila en lugar de uno */
+    .ficha-vista__campos {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+    }
+
+    /* Los dos botones en una sola fila, repartiendo el ancho */
+    .clinical-modal__actions.ficha-vista__acciones {
+        flex-direction: row;
+        margin-top: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .clinical-modal__actions.ficha-vista__acciones .action-button {
+        flex: 1;
+        min-width: 0 !important;
+        max-width: none !important;
+        padding: 0 12px !important;
+        justify-content: center;
+    }
+}

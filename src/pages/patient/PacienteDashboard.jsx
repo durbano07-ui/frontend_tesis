@@ -5057,7 +5057,7 @@ const PacienteDashboard = () => {
                                     <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Datos Personales de Identificación
                                     </h3>
-                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    <div className="ficha-vista__identidad" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                                         {getPhotoUrl() ? (
                                             <div style={{ flexShrink: 0, marginBottom: '10px' }}>
                                                 <img
@@ -5094,7 +5094,7 @@ const PacienteDashboard = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                                        <div className="ficha-vista__campos" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
                                             <div>
                                                 <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Cédula / Pasaporte</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile?.identification?.numero_cedula || '—'}</strong>
@@ -5144,7 +5144,7 @@ const PacienteDashboard = () => {
                                     <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Información Institucional
                                     </h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                    <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
                                             <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Tipo de Usuario</small>
                                             <strong style={{ fontSize: '12.5px' }}>{profile?.career_study?.tipo_usuario?.nombre || 'Sin confirmar'}</strong>
@@ -5181,7 +5181,7 @@ const PacienteDashboard = () => {
                                     <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                         Información de Contacto
                                     </h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                    <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                         <div>
                                             <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Teléfono Convencional (Fijo)</small>
                                             <strong style={{ fontSize: '12.5px' }}>{profile?.addresses?.[0]?.telefono_convencional || '—'}</strong>
@@ -5199,7 +5199,7 @@ const PacienteDashboard = () => {
                                         <h3 style={{ fontSize: '13px', color: 'var(--primary)', borderBottom: '2px solid var(--primary-soft)', paddingBottom: '6px', margin: '0 0 14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                             Contacto de Emergencia
                                         </h3>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                                        <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                                             <div>
                                                 <small style={{ color: 'var(--text-muted)', display: 'block', fontSize: '11px', textTransform: 'uppercase' }}>Nombre Completo</small>
                                                 <strong style={{ fontSize: '12.5px' }}>{profile.emergency_contacts[0].nombre_completo || '—'}</strong>
@@ -5232,7 +5232,7 @@ const PacienteDashboard = () => {
                                                     <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
                                                         {Number(dir.id_tipo_direccion) === 3 ? 'Lugar de Nacimiento' : Number(dir.id_tipo_direccion) === 1 ? 'Dirección de Procedencia' : 'Residencia Actual'}
                                                     </span>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
+                                                    <div className="ficha-vista__campos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '12px' }}>
                                                         <div>
                                                             <span style={{ color: 'var(--text-muted)' }}>Provincia:</span> <strong>{dir.provincia?.nombre || '—'}</strong>
                                                         </div>
@@ -5252,7 +5252,7 @@ const PacienteDashboard = () => {
                                 )}
                             </div>
 
-                            <footer className="clinical-modal__actions" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <footer className="clinical-modal__actions ficha-vista__acciones" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                 <button
                                     className="action-button action-button--primary"
                                     onClick={handlePrintFicha}
