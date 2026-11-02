@@ -4888,8 +4888,8 @@ ${paginas}
                                                             <div className="field">
                                                                 <span>Tipo de Atención <span className="field-req-star">*</span></span>
                                                                 <select aria-label="Tipo de Atención" value={fichaForm.tipo_atencion} onChange={(e) => setFichaForm({ ...fichaForm, tipo_atencion: e.target.value })}>
-                                                                    <option value="primaria">Primaria (Consulta Inicial)</option>
-                                                                    <option value="secundaria">Secundaria (Seguimiento)</option>
+                                                                    <option value="primaria">Primaria</option>
+                                                                    <option value="secundaria">Secundaria</option>
                                                                 </select>
                                                             </div>
                                                             <div className="field">

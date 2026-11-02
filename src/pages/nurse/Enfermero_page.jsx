@@ -2446,8 +2446,8 @@ const Enfermero_page = () => {
                                                 onChange={(e) => setVitalsForm({ ...vitalsForm, tipo_atencion: e.target.value })}
                                                 style={getInputStyle(vitalsForm.tipo_atencion)}
                                             >
-                                                <option value="primaria">Primaria (Consulta Inicial)</option>
-                                                <option value="secundaria">Secundaria (Revisión)</option>
+                                                <option value="primaria">Primaria</option>
+                                                <option value="secundaria">Secundaria</option>
                                             </select>
                                         </div>
 

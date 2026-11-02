@@ -7137,8 +7137,8 @@ export default function MedicoOcupacionalPage() {
                                                             value={tipoAtencion}
                                                             onChange={e => setTipoAtencion(e.target.value)}
                                                         >
-                                                            <option value="primaria">Primaria (Consulta Inicial)</option>
-                                                            <option value="secundaria">Subsecuente (Seguimiento)</option>
+                                                            <option value="primaria">Primaria</option>
+                                                            <option value="secundaria">Secundaria</option>
                                                         </select>
                                                         <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
                                                             La atención primaria inicia un nuevo tratamiento en la evolución del paciente.
