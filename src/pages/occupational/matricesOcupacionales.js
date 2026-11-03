@@ -370,6 +370,8 @@ export const MATRICES = {
     personal_nuevo: {
         label: 'Personal Nuevo',
         path: '/medicina-ocupacional/personal-nuevo',
+        // Lo normal es que el funcionario aún no exista en el sistema: se puede registrar desde la matriz
+        permiteRegistrarPaciente: true,
         fields: [
             { name: 'fechaIngreso', label: 'Fecha de ingreso', type: 'date', required: true },
             { name: 'cargo', label: 'Cargo', type: 'text' }

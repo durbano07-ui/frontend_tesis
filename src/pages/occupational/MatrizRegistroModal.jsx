@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FileSpreadsheet, Loader2, Save, Search, X } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Save, Search, UserPlus, X } from 'lucide-react';
 import api from '../../api/axios';
 import { MATRICES, ensureCatalogId } from './matricesOcupacionales';
+import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 
 // Cargo que el médico puede asignar si el paciente no lo ha definido (ids de tipo_usuario)
 const TIPOS_TRABAJADOR = [
@@ -20,6 +21,8 @@ const buildInitialForm = (fields, today) => Object.fromEntries(fields.map(f => {
     return [f.name, ''];
 }));
 
+const NUEVO_PACIENTE_VACIO = { tipo_documento: 'cedula', cedula: '', nombre_completo: '', correo: '' };
+
 const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const config = MATRICES[matrizKey];
     const [form, setForm] = useState(() => buildInitialForm(config.fields, today));
@@ -31,6 +34,10 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const [error, setError] = useState('');
     // Tipo de trabajador elegido por el médico cuando el paciente no tiene cargo definido
     const [cargoTipo, setCargoTipo] = useState('');
+    // Registro del paciente desde la matriz (p. ej. Personal Nuevo) cuando la búsqueda no lo encuentra
+    const [nuevoPaciente, setNuevoPaciente] = useState(null);
+    const [registrando, setRegistrando] = useState(false);
+    const [errorRegistro, setErrorRegistro] = useState('');
     const pideCargo = config.fields.some(f => f.name === 'cargo');
     const cargoDefinido = patient?.tipo_usuario_confirmado !== false;
     // Campo que sale del tipo de usuario del perfil (p. ej. Tipo de servidor en Riesgo Psicosocial)
@@ -68,6 +75,53 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
         const definido = p.tipo_usuario_confirmado !== false;
         setForm(prev => ({ ...prev, cargo: definido ? (p.puestoTrabajo || '') : '' }));
         setCargoTipo(!definido && TIPOS_TRABAJADOR.some(t => t.id === p.id_tipo_usuario) ? String(p.id_tipo_usuario) : '');
+    };
+
+    const abrirRegistro = () => {
+        const termino = searchTerm.trim();
+        setNuevoPaciente({ ...NUEVO_PACIENTE_VACIO, ...(/^\d+$/.test(termino) ? { cedula: termino } : { nombre_completo: termino }) });
+        setErrorRegistro('');
+    };
+
+    const registrarPaciente = async () => {
+        const datos = nuevoPaciente;
+        setErrorRegistro('');
+        if (!datos.cedula.trim() || !datos.nombre_completo.trim() || !datos.correo.trim()) {
+            setErrorRegistro('Complete el documento, los nombres y apellidos y el correo.');
+            return;
+        }
+        if (datos.tipo_documento !== 'pasaporte' && !esCedulaValida(datos.cedula.trim())) {
+            setErrorRegistro(MENSAJE_CEDULA_INVALIDA);
+            return;
+        }
+        const correo = datos.correo.trim().includes('@') ? datos.correo.trim() : `${datos.correo.trim()}@ueb.edu.ec`;
+        setRegistrando(true);
+        try {
+            const res = await api.post('/users/register-patient', {
+                email: correo,
+                cedula: datos.cedula.trim(),
+                nombre_completo: datos.nombre_completo.trim(),
+                tipo_documento: datos.tipo_documento
+            });
+            const d = res.data?.data || {};
+            setNuevoPaciente(null);
+            // Recién registrado: aún no tiene cargo, así que el médico lo elige como con cualquier paciente sin cargo
+            selectPatient({
+                id: d.id || d.id_usuario,
+                nombres: [d.primer_nombre, d.segundo_nombre].filter(Boolean).join(' ') || d.nombre_completo,
+                apellidos: [d.apellido_paterno, d.apellido_materno].filter(Boolean).join(' '),
+                cedula: d.numero_cedula || datos.cedula.trim(),
+                id_tipo_usuario: null,
+                tipo_usuario_confirmado: false,
+                puestoTrabajo: ''
+            });
+        } catch (err) {
+            const data = err.response?.data;
+            const firstError = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
+            setErrorRegistro(firstError || data?.message || 'No se pudo registrar al paciente.');
+        } finally {
+            setRegistrando(false);
+        }
     };
 
     const changePatient = () => {
@@ -188,10 +242,61 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                             ))}
                                         </div>
                                     )}
-                                    {searchTerm.trim().length >= 2 && !searching && results.length === 0 && (
-                                        <small style={{ display: 'block', color: '#64748b', marginTop: '6px' }}>
-                                            No se encontraron pacientes. El paciente debe estar registrado en el sistema.
-                                        </small>
+                                    {searchTerm.trim().length >= 2 && !searching && results.length === 0 && !nuevoPaciente && (
+                                        config.permiteRegistrarPaciente ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                                <small style={{ color: '#64748b' }}>No se encontraron pacientes con ese dato.</small>
+                                                <button type="button" className="action-button" onClick={abrirRegistro} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}>
+                                                    <UserPlus size={14} /> Registrar paciente nuevo
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <small style={{ display: 'block', color: '#64748b', marginTop: '6px' }}>
+                                                No se encontraron pacientes. El paciente debe estar registrado en el sistema.
+                                            </small>
+                                        )
+                                    )}
+                                    {nuevoPaciente && (
+                                        // Sin <form> anidado: Enter registra al paciente en lugar de enviar la matriz
+                                        <div
+                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); registrarPaciente(); } }}
+                                            style={{ marginTop: '10px', padding: '14px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc' }}
+                                        >
+                                            <strong style={{ display: 'block', fontSize: '12.5px', color: 'var(--primary)', marginBottom: '10px' }}>Registrar paciente nuevo</strong>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                                                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>
+                                                    Tipo de documento
+                                                    <select value={nuevoPaciente.tipo_documento} onChange={(e) => setNuevoPaciente(prev => ({ ...prev, tipo_documento: e.target.value }))} style={{ width: '100%', minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }}>
+                                                        <option value="cedula">Cédula</option>
+                                                        <option value="pasaporte">Pasaporte</option>
+                                                    </select>
+                                                </label>
+                                                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>
+                                                    {nuevoPaciente.tipo_documento === 'pasaporte' ? 'Pasaporte' : 'Cédula'} <span className="field-req-star">*</span>
+                                                    <input type="text" value={nuevoPaciente.cedula} maxLength={20} onChange={(e) => setNuevoPaciente(prev => ({ ...prev, cedula: e.target.value }))} style={{ width: '100%', minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }} />
+                                                </label>
+                                                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', gridColumn: '1 / -1' }}>
+                                                    Nombres y apellidos <span className="field-req-star">*</span>
+                                                    <input type="text" value={nuevoPaciente.nombre_completo} placeholder="Ej: Juan Carlos Pérez López" onChange={(e) => setNuevoPaciente(prev => ({ ...prev, nombre_completo: e.target.value }))} style={{ width: '100%', minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }} />
+                                                </label>
+                                                <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', gridColumn: '1 / -1' }}>
+                                                    Correo <span className="field-req-star">*</span>
+                                                    <input type="text" value={nuevoPaciente.correo} placeholder="usuario o correo completo (se completa con @ueb.edu.ec)" onChange={(e) => setNuevoPaciente(prev => ({ ...prev, correo: e.target.value }))} style={{ width: '100%', minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }} />
+                                                </label>
+                                            </div>
+                                            <small style={{ display: 'block', color: '#64748b', fontSize: '11px', marginTop: '8px' }}>
+                                                Se le enviará una contraseña temporal a ese correo.
+                                            </small>
+                                            {errorRegistro && (
+                                                <p role="alert" style={{ margin: '10px 0 0', padding: '8px 10px', borderRadius: '8px', background: '#fef2f2', color: '#b91c1c', fontSize: '12px', fontWeight: 600 }}>{errorRegistro}</p>
+                                            )}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                                                <button type="button" className="action-button" onClick={() => setNuevoPaciente(null)} disabled={registrando}>Cancelar</button>
+                                                <button type="button" className="action-button action-button--primary" onClick={registrarPaciente} disabled={registrando} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                    {registrando ? <Loader2 size={14} className="spin-icon" /> : <UserPlus size={14} />} Registrar paciente
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </>
                             )}
