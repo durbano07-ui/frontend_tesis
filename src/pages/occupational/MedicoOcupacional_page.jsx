@@ -6937,7 +6937,10 @@ export default function MedicoOcupacionalPage() {
                                             <thead>
                                                 <tr style={{ background: '#f8fafc', textAlign: 'left', color: '#475569' }}>
                                                     <th style={{ padding: '8px 12px' }}>{MATRICES[activeReportSubTab]?.noPatient ? 'Período' : 'Paciente'}</th>
-                                                    <th style={{ padding: '8px 12px' }}>Detalle</th>
+                                                    {!MATRICES[activeReportSubTab]?.noPatient && <th style={{ padding: '8px 12px' }}>Cédula</th>}
+                                                    {MATRICES[activeReportSubTab].columns.map(([titulo]) => (
+                                                        <th key={titulo} style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{titulo}</th>
+                                                    ))}
                                                     <th style={{ padding: '8px 12px', width: '60px' }}></th>
                                                 </tr>
                                             </thead>
@@ -6946,9 +6949,11 @@ export default function MedicoOcupacionalPage() {
                                                     <tr key={row.id} style={{ borderTop: '1px solid #f1f5f9' }}>
                                                         <td style={{ padding: '8px 12px' }}>
                                                             <strong style={{ color: '#0f172a' }}>{MATRICES[activeReportSubTab].rowName ? MATRICES[activeReportSubTab].rowName(row) : row.paciente}</strong>
-                                                            {row.cedula && <small style={{ display: 'block', color: '#64748b' }}>{row.cedula}</small>}
                                                         </td>
-                                                        <td style={{ padding: '8px 12px', color: '#334155' }}>{MATRICES[activeReportSubTab].summary(row)}</td>
+                                                        {!MATRICES[activeReportSubTab].noPatient && <td style={{ padding: '8px 12px', color: '#334155', whiteSpace: 'nowrap' }}>{row.cedula || '—'}</td>}
+                                                        {MATRICES[activeReportSubTab].columns.map(([titulo, valor]) => (
+                                                            <td key={titulo} style={{ padding: '8px 12px', color: '#334155' }}>{[null, undefined, ''].includes(valor(row)) ? '—' : valor(row)}</td>
+                                                        ))}
                                                         <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                                                             <button
                                                                 type="button"

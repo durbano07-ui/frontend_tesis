@@ -1,6 +1,7 @@
 // Configuración de las matrices estadísticas de Medicina Ocupacional que se llenan a mano.
-// Cada matriz define: endpoint del backend, campos del formulario, cómo armar el payload
-// y cómo convertir la fila del backend al formato que usan las plantillas PDF de la página.
+// Cada matriz define: endpoint del backend, campos del formulario, cómo armar el payload,
+// cómo convertir la fila del backend al formato que usan las plantillas PDF de la página y
+// las columnas ([título, valor]) de la tabla de registros guardados.
 
 const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
 
@@ -81,7 +82,7 @@ export const MATRICES = {
             recibioTratamiento: row.recibio_tratamiento || '',
             novedades: upper(row.detalle_novedades)
         }),
-        summary: (r) => r.tipoEnfermedad
+        columns: [['Enfermedad', r => r.tipoEnfermedad], ['Clasificación', r => r.clasificacion], ['Fecha de diagnóstico', r => r.fechaDiagnostico], ['Tratamiento', r => r.recibioTratamiento]]
     },
 
     accidentes: {
@@ -129,7 +130,7 @@ export const MATRICES = {
             gravedad: row.gravedad || 'LEVE',
             novedades: upper(row.novedades)
         }),
-        summary: (r) => `${r.fechaAccidente} · ${r.tipoAccidente}`
+        columns: [['Fecha', r => r.fechaAccidente], ['Tipo de accidente', r => r.tipoAccidente], ['Lugar', r => r.lugar], ['Días perdidos', r => r.diasIncapacidad], ['Gravedad', r => r.gravedad]]
     },
 
     covid: {
@@ -174,7 +175,13 @@ export const MATRICES = {
             };
         },
         rowName: (r) => r.pacienteSospechoso,
-        summary: (r) => (r.pacienteConfirmado ? 'CONFIRMADO' : (r.entregaResultados === 'DESCARTADO' ? 'DESCARTADO' : 'SOSPECHOSO'))
+        columns: [
+            ['Estado', r => (r.pacienteConfirmado ? 'CONFIRMADO' : (r.entregaResultados === 'DESCARTADO' ? 'DESCARTADO' : 'SOSPECHOSO'))],
+            ['Entrega de resultados', r => r.entregaResultados],
+            ['Días de aislamiento', r => r.diasAislamiento],
+            ['Pruebas', r => [r.pcr && 'PCR', r.pruebaRapida && 'RÁPIDA'].filter(Boolean).join(', ') || 'NINGUNA'],
+            ['Alta médica', r => (r.altaMedica ? 'SÍ' : 'NO')]
+        ]
     },
 
     ausentismo: {
@@ -209,6 +216,7 @@ export const MATRICES = {
             return {
                 ...base(row),
                 numeroCaso: idx + 1,
+                fecha: toDmy(row.fecha),
                 cargo: upper(row.cargo),
                 ...motivo,
                 diasPerdidos: row.dias_perdidos,
@@ -218,7 +226,13 @@ export const MATRICES = {
                 ...yearMonth(row.fecha || row.created_at)
             };
         },
-        summary: (r) => r.enfermedadComun || r.enfermedadLaboral || r.accidenteLaboral || r.otrosMotivos
+        columns: [
+            ['Fecha', r => r.fecha],
+            ['Motivo', r => AUSENTISMO_TIPOS.find(t => r[t.key])?.label.toUpperCase()],
+            ['Detalle', r => r.enfermedadComun || r.enfermedadLaboral || r.accidenteLaboral || r.otrosMotivos],
+            ['Días perdidos', r => r.diasPerdidos],
+            ['Índice', r => r.indiceAusentismo]
+        ]
     },
 
     embarazadas: {
@@ -250,7 +264,7 @@ export const MATRICES = {
             controles: row.numero_controles,
             telefono: row.telefono || ''
         }),
-        summary: (r) => `${r.semanasGestacion} · FPP ${r.fechaProbableParto}`
+        columns: [['Semanas de gestación', r => r.semanasGestacion], ['FUM', r => r.fum], ['Fecha probable de parto', r => r.fechaProbableParto], ['Controles', r => r.controles]]
     },
 
     psicosocial: {
@@ -271,7 +285,7 @@ export const MATRICES = {
             tiposervidor: upper(row.tipo_servidor),
             diagnostico: upper(row.detalle_diagnostico)
         }),
-        summary: (r) => r.diagnostico
+        columns: [['Tipo de servidor', r => r.tiposervidor], ['Diagnóstico', r => r.diagnostico]]
     },
 
     enfermedades_nuevas: {
@@ -291,7 +305,7 @@ export const MATRICES = {
             fechaAparecimiento: toDmy(row.fecha_aparicion),
             year: String(row.fecha_aparicion || '').slice(0, 4)
         }),
-        summary: (r) => `${r.patologiaNueva} · ${r.fechaAparecimiento}`
+        columns: [['Patología nueva', r => r.patologiaNueva], ['Fecha de aparición', r => r.fechaAparecimiento]]
     },
 
     discapacidad: {
@@ -322,7 +336,7 @@ export const MATRICES = {
             dependencia: upper(row.dependencia),
             condicionLaboral: upper(row.condicion_laboral)
         }),
-        summary: (r) => `${r.tipoDiscapacidad} ${r.porcentaje}`
+        columns: [['Tipo de discapacidad', r => r.tipoDiscapacidad], ['Porcentaje', r => r.porcentaje], ['Condición laboral', r => r.condicionLaboral], ['Dependencia', r => r.dependencia]]
     },
 
     vulnerables_patologias: {
@@ -350,7 +364,7 @@ export const MATRICES = {
                 patologia: upper(row.detalle_otra_enfermedad)
             };
         },
-        summary: (r) => VULNERABLE_GRUPOS.find(g => g.key === r.grupo)?.label + (r.patologia ? ` · ${r.patologia}` : '')
+        columns: [['Grupo', r => VULNERABLE_GRUPOS.find(g => g.key === r.grupo)?.label], ['Patología', r => r.patologia], ['Edad', r => r.edad]]
     },
 
     personal_nuevo: {
@@ -370,7 +384,7 @@ export const MATRICES = {
             anio: String(row.fecha_ingreso || '').slice(0, 4),
             cargo: upper(row.cargo)
         }),
-        summary: (r) => `${r.fechaIngreso} · ${r.cargo || 'SIN CARGO'}`
+        columns: [['Fecha de ingreso', r => r.fechaIngreso], ['Cargo', r => r.cargo]]
     },
 
     examenes_periodicos: {
@@ -394,7 +408,7 @@ export const MATRICES = {
             paciente: `${MESES[row.mes - 1] || row.mes} ${row.anio}`,
             cantidad: row.cantidad
         }),
-        summary: (r) => `${r.cantidad} exámenes / fichas`
+        columns: [['Exámenes y fichas realizadas', r => r.cantidad]]
     }
 ,
 
@@ -415,7 +429,7 @@ export const MATRICES = {
             fechaSalida: toDmy(row.fecha_salida),
             motivo: upper(row.detalle_motivo_salida)
         }),
-        summary: (r) => `${r.fechaSalida} · ${r.motivo}`
+        columns: [['Fecha de salida', r => r.fechaSalida], ['Motivo', r => r.motivo]]
     },
 
     ficha_reintegro: {
@@ -437,7 +451,7 @@ export const MATRICES = {
             fechaReintegro: toDmy(row.fecha_reintegro),
             motivo: upper(row.detalle_motivo_salida)
         }),
-        summary: (r) => `${r.fechaSalida} → ${r.fechaReintegro} · ${r.motivo}`
+        columns: [['Fecha de salida', r => r.fechaSalida], ['Fecha de reintegro', r => r.fechaReintegro], ['Motivo', r => r.motivo]]
     }
 };
 
