@@ -32,3 +32,16 @@ export const erroresRangoSignos = (valores) => {
     }
     return e;
 };
+
+/**
+ * Filtro para el onChange: rechaza lo que ya no puede ser válido mientras se escribe (negativos,
+ * más del máximo o más de un decimal). Lo que queda por debajo del mínimo (p. ej. "3" camino de
+ * "36.5") se deja escribir y se marca al salir del campo o al continuar.
+ */
+export const valorSignoPermitido = (campo, valor) => {
+    const texto = String(valor ?? '').trim().replace(',', '.');
+    if (!texto) return true;
+    const rango = RANGOS_SIGNOS[campo];
+    if (!rango || !/^\d*\.?\d?$/.test(texto)) return false;
+    return Number(texto) <= rango.max;
+};

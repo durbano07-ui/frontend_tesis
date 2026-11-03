@@ -20,7 +20,7 @@ import { escapeHtml } from '../../utils/escapeHtml';
 import { clasificarTipoPaciente, esPersonalAdministrativo, getEstudioCarrera } from '../../utils/tipoPaciente';
 import { nombreCompleto } from '../../utils/nombreCompleto';
 import { bloquearNoNumericos, pegarSoloNumeros } from '../../utils/soloNumeros';
-import { RANGOS_SIGNOS, erroresRangoSignos } from '../../utils/signosVitales';
+import { RANGOS_SIGNOS, erroresRangoSignos, valorSignoPermitido } from '../../utils/signosVitales';
 
 const COUNTRIES = [
     'Afganistán', 'Albania', 'Alemania', 'Andorra', 'Angola', 'Antigua y Barbuda', 'Arabia Saudita',
@@ -111,14 +111,17 @@ const Enfermero_page = () => {
     const [vitalsModalSearchOpen, setVitalsModalSearchOpen] = useState(false);
     const [vitalsModalRegisterOpen, setVitalsModalRegisterOpen] = useState(false);
     const [vitalsModalFormOpen, setVitalsModalFormOpen] = useState(false);
-    const [vitalsBookPreviewOpen, setVitalsBookPreviewOpen] = useState(false);
     const [isHistogramModalOpen, setIsHistogramModalOpen] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const steps = [
         { key: 'vitals', label: '1. Signos Vitales' },
         { key: 'attention', label: '2. Atención Realizada' },
-        { key: 'histogram', label: '3. Histograma de Signos' }
+        { key: 'histogram', label: '3. Histograma de Signos' },
+        { key: 'resumen', label: '4. Resumen de la Atención' }
     ];
+    // Signos vitales que ya se dejaron (al salir del campo se marca si quedó fuera de rango)
+    const [signosTocados, setSignosTocados] = useState({});
+    const [guardandoAtencion, setGuardandoAtencion] = useState(false);
     const validateVitalsStep = () => {
         return (
             vitalsForm.presion_arterial_sistolica &&
@@ -139,6 +142,10 @@ const Enfermero_page = () => {
         setValidationTriggered(true);
         if (currentStepIndex === 0 && !validateVitalsStep()) {
             showSystemToast('Por favor complete o corrija los campos marcados en rojo.');
+            return;
+        }
+        if (currentStepIndex === 1 && !validateAttentionStep()) {
+            showSystemToast('Por favor complete todos los campos de atención obligatorios en rojo.');
             return;
         }
         setValidationTriggered(false);
@@ -187,7 +194,8 @@ const Enfermero_page = () => {
     // `campo`: signo vital cuyo rango se revisa (también se marca en rojo si está fuera de rango)
     const getInputStyle = (value, campo) => {
         const isEmpty = !value || (typeof value === 'string' && value.trim() === '');
-        if (validationTriggered && (isEmpty || (campo && erroresRangoSignos(vitalsForm)[campo]))) {
+        const fueraDeRango = campo && (validationTriggered || signosTocados[campo]) && erroresRangoSignos(vitalsForm)[campo];
+        if ((validationTriggered && isEmpty) || fueraDeRango) {
             return {
                 borderColor: '#dc2626',
                 boxShadow: '0 0 0 1px rgba(220, 38, 38, 0.25)',
@@ -420,6 +428,7 @@ const Enfermero_page = () => {
     const openVitalsFormFor = async (patient) => {
         setSelectedPatient(patient);
         setCurrentStepIndex(0);
+        setSignosTocados({});
 
         // La cita se marca como atendida al guardar la atención (el backend lo hace al registrar el
         // parte diario), no al abrir la ficha: así abrirla por error no da la cita por completada.
@@ -482,13 +491,13 @@ const Enfermero_page = () => {
         }
 
         if (!validateAttentionStep()) {
+            setCurrentStepIndex(1);
             showSystemToast('Por favor complete todos los campos de atención obligatorios en rojo.');
             return;
         }
 
         setValidationTriggered(false);
-        setVitalsModalFormOpen(false);
-        setVitalsBookPreviewOpen(true);
+        handleSaveClinicalRecord();
     };
 
     const handleCancelVitals = () => {
@@ -511,6 +520,8 @@ const Enfermero_page = () => {
             showSystemToast('Error: No se ha seleccionado un paciente válido.');
             return;
         }
+        if (guardandoAtencion) return;
+        setGuardandoAtencion(true);
 
         try {
             // Guardar Signos Vitales
@@ -558,8 +569,9 @@ const Enfermero_page = () => {
             }
 
             clearDraft();
-            setVitalsBookPreviewOpen(false);
             setVitalsModalFormOpen(false);
+            setCurrentStepIndex(0);
+            setSignosTocados({});
             setValidationTriggered(false);
             showSystemToast('Atención y signos vitales guardados con éxito.');
             setSelectedPatient(null);
@@ -569,6 +581,8 @@ const Enfermero_page = () => {
             console.error('Error al guardar registro clínico:', err, err.response?.data);
             const backendMsg = err.response?.data?.message || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(' | ') : null);
             showSystemToast(`Error: ${backendMsg || 'Verifique los datos ingresados.'}`);
+        } finally {
+            setGuardandoAtencion(false);
         }
     };
 
@@ -2271,14 +2285,15 @@ const Enfermero_page = () => {
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={RANGOS_SIGNOS.presion_arterial_sistolica.min} max={RANGOS_SIGNOS.presion_arterial_sistolica.max}
                                                     value={vitalsForm.presion_arterial_sistolica}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_sistolica: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('presion_arterial_sistolica', e.target.value) && setVitalsForm({ ...vitalsForm, presion_arterial_sistolica: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, presion_arterial_sistolica: true }))}
                                                     placeholder="120"
                                                     style={getInputStyle(vitalsForm.presion_arterial_sistolica, 'presion_arterial_sistolica')}
                                                     required
                                                 />
                                                 <small>mmHg</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).presion_arterial_sistolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_sistolica}</small>}
+                                            {(validationTriggered || signosTocados.presion_arterial_sistolica) && erroresRangoSignos(vitalsForm).presion_arterial_sistolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_sistolica}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2294,14 +2309,15 @@ const Enfermero_page = () => {
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={RANGOS_SIGNOS.presion_arterial_diastolica.min} max={RANGOS_SIGNOS.presion_arterial_diastolica.max}
                                                     value={vitalsForm.presion_arterial_diastolica}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, presion_arterial_diastolica: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('presion_arterial_diastolica', e.target.value) && setVitalsForm({ ...vitalsForm, presion_arterial_diastolica: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, presion_arterial_diastolica: true }))}
                                                     placeholder="80"
                                                     style={getInputStyle(vitalsForm.presion_arterial_diastolica, 'presion_arterial_diastolica')}
                                                     required
                                                 />
                                                 <small>mmHg</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).presion_arterial_diastolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_diastolica}</small>}
+                                            {(validationTriggered || signosTocados.presion_arterial_diastolica) && erroresRangoSignos(vitalsForm).presion_arterial_diastolica && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).presion_arterial_diastolica}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2317,14 +2333,15 @@ const Enfermero_page = () => {
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={RANGOS_SIGNOS.frecuencia_cardiaca.min} max={RANGOS_SIGNOS.frecuencia_cardiaca.max}
                                                     value={vitalsForm.frecuencia_cardiaca}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_cardiaca: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('frecuencia_cardiaca', e.target.value) && setVitalsForm({ ...vitalsForm, frecuencia_cardiaca: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, frecuencia_cardiaca: true }))}
                                                     placeholder="72"
                                                     style={getInputStyle(vitalsForm.frecuencia_cardiaca, 'frecuencia_cardiaca')}
                                                     required
                                                 />
                                                 <small>lpm</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).frecuencia_cardiaca && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_cardiaca}</small>}
+                                            {(validationTriggered || signosTocados.frecuencia_cardiaca) && erroresRangoSignos(vitalsForm).frecuencia_cardiaca && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_cardiaca}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2340,14 +2357,15 @@ const Enfermero_page = () => {
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={RANGOS_SIGNOS.frecuencia_respiratoria.min} max={RANGOS_SIGNOS.frecuencia_respiratoria.max}
                                                     value={vitalsForm.frecuencia_respiratoria}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, frecuencia_respiratoria: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('frecuencia_respiratoria', e.target.value) && setVitalsForm({ ...vitalsForm, frecuencia_respiratoria: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, frecuencia_respiratoria: true }))}
                                                     placeholder="16"
                                                     style={getInputStyle(vitalsForm.frecuencia_respiratoria, 'frecuencia_respiratoria')}
                                                     required
                                                 />
                                                 <small>rpm</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).frecuencia_respiratoria && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_respiratoria}</small>}
+                                            {(validationTriggered || signosTocados.frecuencia_respiratoria) && erroresRangoSignos(vitalsForm).frecuencia_respiratoria && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).frecuencia_respiratoria}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2364,14 +2382,15 @@ const Enfermero_page = () => {
                                                     min={RANGOS_SIGNOS.temperatura.min} max={RANGOS_SIGNOS.temperatura.max}
                                                     step="0.1"
                                                     value={vitalsForm.temperatura}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, temperatura: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('temperatura', e.target.value) && setVitalsForm({ ...vitalsForm, temperatura: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, temperatura: true }))}
                                                     placeholder="36.5"
                                                     style={getInputStyle(vitalsForm.temperatura, 'temperatura')}
                                                     required
                                                 />
                                                 <small>°C</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).temperatura && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).temperatura}</small>}
+                                            {(validationTriggered || signosTocados.temperatura) && erroresRangoSignos(vitalsForm).temperatura && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).temperatura}</small>}
                                         </div>
 
                                         <div className="premium-field-card">
@@ -2387,14 +2406,15 @@ const Enfermero_page = () => {
                                                     type="number" onKeyDown={bloquearNoNumericos} onPaste={pegarSoloNumeros}
                                                     min={RANGOS_SIGNOS.talla.min} max={RANGOS_SIGNOS.talla.max}
                                                     value={vitalsForm.talla}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, talla: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('talla', e.target.value) && setVitalsForm({ ...vitalsForm, talla: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, talla: true }))}
                                                     placeholder="160"
                                                     style={getInputStyle(vitalsForm.talla, 'talla')}
                                                     required
                                                 />
                                                 <small>cm</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).talla && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).talla}</small>}
+                                            {(validationTriggered || signosTocados.talla) && erroresRangoSignos(vitalsForm).talla && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).talla}</small>}
                                         </div>
 
                                         <div className="premium-field-card" style={{ gridColumn: 'span 2' }}>
@@ -2411,14 +2431,15 @@ const Enfermero_page = () => {
                                                     min={RANGOS_SIGNOS.peso.min} max={RANGOS_SIGNOS.peso.max}
                                                     step="0.1"
                                                     value={vitalsForm.peso}
-                                                    onChange={(e) => setVitalsForm({ ...vitalsForm, peso: e.target.value })}
+                                                    onChange={(e) => valorSignoPermitido('peso', e.target.value) && setVitalsForm({ ...vitalsForm, peso: e.target.value })}
+                                                    onBlur={() => setSignosTocados(prev => ({ ...prev, peso: true }))}
                                                     placeholder="60.0"
                                                     style={getInputStyle(vitalsForm.peso, 'peso')}
                                                     required
                                                 />
                                                 <small>kg</small>
                                             </div>
-                                            {validationTriggered && erroresRangoSignos(vitalsForm).peso && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).peso}</small>}
+                                            {(validationTriggered || signosTocados.peso) && erroresRangoSignos(vitalsForm).peso && <small role="alert" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '4px', fontWeight: 600 }}>{erroresRangoSignos(vitalsForm).peso}</small>}
                                         </div>
                                     </div>
                                 </div>
@@ -2920,6 +2941,62 @@ const Enfermero_page = () => {
                                 </div>
                             )}
 
+                            {currentStepIndex === 3 && (() => {
+                                // Resumen final: todo lo registrado antes de guardar la atención
+                                const conUnidad = (v, u) => (v === '' || v === null || v === undefined) ? '' : `${v} ${u}`;
+                                const ids = Array.isArray(vitalsForm.id_procedimiento_enfermeria) ? vitalsForm.id_procedimiento_enfermeria : [vitalsForm.id_procedimiento_enfermeria].filter(Boolean);
+                                const procedimientos = ids
+                                    .map(id => proceduresCatalog.find(p => String(p.id) === String(typeof id === 'object' ? id?.id : id))?.nombre_procedimiento)
+                                    .filter(Boolean);
+                                const medico = doctoresCampus.find(d => String(d.id) === String(vitalsForm.id_usuario_medico_general));
+                                const Seccion = ({ titulo, campos }) => (
+                                    <div style={{ marginBottom: '18px' }}>
+                                        <h4 style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)', margin: '0 0 10px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase' }}>{titulo}</h4>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '12px' }}>
+                                            {campos.map(([etiqueta, valor, completo]) => (
+                                                <div key={etiqueta} style={completo ? { gridColumn: '1 / -1' } : undefined}>
+                                                    <span style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>{etiqueta}</span>
+                                                    <strong style={{ color: '#0f172a', fontSize: '12.5px', whiteSpace: 'pre-wrap' }}>{valor || '—'}</strong>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                                return (
+                                    <div className="clinical-form-section">
+                                        <h3 style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <ClipboardList size={18} /> 4. Resumen de la Atención
+                                        </h3>
+                                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 18px' }}>
+                                            Revise los datos registrados. Si algo es incorrecto, use «Atrás» para corregirlo antes de guardar.
+                                        </p>
+                                        <Seccion titulo="Paciente" campos={[
+                                            ['Nombre', selectedPatient?.nombre_completo],
+                                            ['Cédula', selectedPatient?.numero_cedula || selectedPatient?.cedula],
+                                            ['Fecha y hora de la atención', `${(vitalsForm.fecha || '').split('-').reverse().join('/')} ${vitalsForm.hora || ''}`.trim()]
+                                        ]} />
+                                        <Seccion titulo="1. Signos Vitales" campos={[
+                                            ['Presión arterial', `${vitalsForm.presion_arterial_sistolica || '—'}/${vitalsForm.presion_arterial_diastolica || '—'} mmHg`],
+                                            ['Frecuencia cardíaca', conUnidad(vitalsForm.frecuencia_cardiaca, 'lpm')],
+                                            ['Frecuencia respiratoria', conUnidad(vitalsForm.frecuencia_respiratoria, 'rpm')],
+                                            ['Temperatura', conUnidad(vitalsForm.temperatura, '°C')],
+                                            ['Talla', conUnidad(vitalsForm.talla, 'cm')],
+                                            ['Peso', conUnidad(vitalsForm.peso, 'kg')]
+                                        ]} />
+                                        <Seccion titulo="2. Atención Realizada" campos={[
+                                            ['Procedimientos', procedimientos.join('\n'), true],
+                                            ['Tipo de atención', vitalsForm.tipo_atencion === 'secundaria' ? 'Secundaria' : 'Primaria'],
+                                            ['Clasificación', vitalsForm.tipo === 'preventivo' ? 'Preventivo' : 'Curativo'],
+                                            ['Médico de referencia', medico ? (medico.nombre_completo || medico.name) : ''],
+                                            ['Observaciones', vitalsForm.detalle_procedimiento, true]
+                                        ]} />
+                                        <Seccion titulo="Responsable" campos={[
+                                            ['Profesional de enfermería', user?.nombre_completo || user?.name]
+                                        ]} />
+                                    </div>
+                                );
+                            })()}
+
                             <footer className="clinical-modal__actions" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '20px' }}>
                                 <button className="action-button action-button--light" type="button" onClick={handlePrevStep} disabled={currentStepIndex === 0}>
                                     Atrás
@@ -2933,128 +3010,14 @@ const Enfermero_page = () => {
                                             Siguiente
                                         </button>
                                     ) : (
-                                        <button className="action-button action-button--success" type="submit">
-                                            Generar Vista Previa
+                                        <button className="action-button action-button--success" type="submit" disabled={guardandoAtencion} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Save size={14} /> {guardandoAtencion ? 'Guardando...' : 'Guardar Atención'}
                                         </button>
                                     )}
                                 </div>
                             </footer>
                         </form>
                     </section>
-                </div>
-            )}
-
-            {/* ==========================================
-               MODAL: VISTA PREVIA CLINICA ADAPTADA
-            ========================================== */}
-            {vitalsBookPreviewOpen && (
-                <div className="clinical-modal show">
-                    <div className="clinical-modal__backdrop" onClick={() => setVitalsBookPreviewOpen(false)}></div>
-                    <div className="clinical-modal__dialog" style={{ maxWidth: '600px' }}>
-                        <header className="clinical-modal__header">
-                            <div className="clinical-modal__patient">
-                                <span className="clinical-modal__avatar"><ShieldCheck size={18} /></span>
-                                <div>
-                                    <span>Vista previa de atención</span>
-                                    <h2>Confirmar Registro Clínico</h2>
-                                </div>
-                            </div>
-                            <button aria-label="Cerrar" className="clinical-modal__close" onClick={() => setVitalsBookPreviewOpen(false)}><X size={15} /></button>
-                        </header>
-
-                        <div className="clinical-modal__body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {/* Patient info card */}
-                            <div className="premium-field-card" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '15px', alignItems: 'center', background: 'var(--primary-soft)', padding: '16px', borderRadius: '12px' }}>
-                                <div className="person-avatar" style={{ width: '45px', height: '45px', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary)', color: '#fff', borderRadius: '50%', fontWeight: 'bold' }}>
-                                    {selectedPatient?.nombre_completo?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                                </div>
-                                <div>
-                                    <span className="eyebrow" style={{ color: 'var(--accent)', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase' }}>PACIENTE</span>
-                                    <h3 style={{ margin: '2px 0 0', fontSize: '15px', color: 'var(--primary)', fontWeight: 'bold' }}>{selectedPatient?.nombre_completo}</h3>
-                                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Cédula: {selectedPatient?.numero_cedula || selectedPatient?.cedula || '—'} · Tipo: {selectedPatient?.tipo || selectedPatient?.tipo_usuario || 'Paciente'}</p>
-                                </div>
-                            </div>
-
-                            {/* Vitals preview */}
-                            <div>
-                                <span className="eyebrow" style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>SIGNOS VITALES</span>
-                                <div className="preview-vitals-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Presión Arterial</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.presion_arterial_sistolica || '—'}/{vitalsForm.presion_arterial_diastolica || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>mmHg</small>
-                                    </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Frec. Cardíaca</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.frecuencia_cardiaca || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>lpm</small>
-                                    </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Frec. Respiratoria</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.frecuencia_respiratoria || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>rpm</small>
-                                    </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Temperatura</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.temperatura || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>°C</small>
-                                    </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Talla</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.talla || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>cm</small>
-                                    </div>
-                                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Peso</span>
-                                        <strong style={{ display: 'block', fontSize: '15px', color: 'var(--primary)', marginTop: '4px' }}>{vitalsForm.peso || '—'}</strong>
-                                        <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>kg</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Procedure preview */}
-                            <div className="premium-field-card" style={{ padding: '16px', borderRadius: '12px' }}>
-                                <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PROCEDIMIENTO</span>
-                                <h4 style={{ margin: '4px 0 0', color: 'var(--primary)', fontWeight: '600', fontSize: '13.5px' }}>
-                                    {proceduresCatalog.find(p => p.id === Number(vitalsForm.id_procedimiento_enfermeria))?.nombre_procedimiento || 'Procedimiento menor'}
-                                </h4>
-                            </div>
-
-                            {/* Notes preview */}
-                            <div className="premium-field-card" style={{ padding: '16px', borderRadius: '12px' }}>
-                                <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OBSERVACIONES DE ENFERMERÍA</span>
-                                <p style={{ margin: '4px 0 0', fontStyle: 'italic', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                                    {vitalsForm.detalle_procedimiento || 'Sin observaciones adicionales.'}
-                                </p>
-                            </div>
-
-                            {/* Signature block */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '15px', marginTop: '10px' }}>
-                                <div>
-                                    <span className="eyebrow" style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>RESPONSABLE</span>
-                                    <strong style={{ display: 'block', fontSize: '12px', color: 'var(--primary)' }}>{user?.name || 'Andrea Molina'}</strong>
-                                    <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Firma Digital de Enfermería</small>
-                                </div>
-                                <div className="preview-state" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--success-soft)', padding: '8px 12px', borderRadius: '8px', color: 'var(--success)' }}>
-                                    <ShieldCheck size={16} />
-                                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Listo para firmar</span>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '15px' }}>
-                                <button className="action-button action-button--light" onClick={() => setVitalsBookPreviewOpen(false)} style={{ borderRadius: '8px', minHeight: '38px' }}>
-                                    Cancelar
-                                </button>
-                                <button className="action-button action-button--outline" onClick={() => { setVitalsBookPreviewOpen(false); setVitalsModalFormOpen(true); }} style={{ borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', minHeight: '38px' }}>
-                                    <Pencil size={12} /> Editar
-                                </button>
-                                <button className="action-button action-button--accent" onClick={handleSaveClinicalRecord} style={{ borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', minHeight: '38px' }}>
-                                    <Save size={12} /> Guardar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
 
@@ -3070,7 +3033,7 @@ const Enfermero_page = () => {
                     { title: 'Paso 1: Buscar o Seleccionar Paciente', content: 'Use el buscador superior derecho por número de Cédula. Si no está registrado en el sistema, presione "Registrar paciente nuevo" para ingresarlo.' },
                     { title: 'Paso 2: Registro de Signos Vitales', content: 'Haga clic en "Atender" para abrir el formulario clínico. Llene la presión sistólica/diastólica, frecuencia cardíaca, respiración, temperatura, talla y peso.' },
                     { title: 'Paso 3: Declaración de Procedimiento', content: 'En el paso 2 del formulario, seleccione el procedimiento de enfermería realizado de la lista y añada cualquier observación clínica relevante.' },
-                    { title: 'Paso 4: Confirmación y Guardado', content: 'Avance para ver la Vista Previa interactiva en formato de libro. Si los datos son correctos, haga clic en "Guardar" para registrar la valoración.' }
+                    { title: 'Paso 4: Resumen y Guardado', content: 'En el último paso revise el resumen de la atención. Si los datos son correctos, haga clic en "Guardar Atención" para registrar la valoración.' }
                 ]}
                 contactInfo={{ email: 'soporte@ueb.edu.ec' }}
             />
