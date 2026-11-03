@@ -257,7 +257,8 @@ export const MATRICES = {
         label: 'Riesgo Psicosocial',
         path: '/medicina-ocupacional/grupo-riesgo-psicosocial',
         fields: [
-            { name: 'tipoServidor', label: 'Tipo de servidor', type: 'select', required: true, options: ['DOCENTE', 'ADMINISTRATIVO', 'TRABAJADOR'], default: 'DOCENTE' },
+            // deTipoUsuario: se toma del perfil del paciente (id de tipo_usuario → opción); si no lo tiene, se elige
+            { name: 'tipoServidor', label: 'Tipo de servidor', type: 'select', required: true, options: ['DOCENTE', 'ADMINISTRATIVO', 'TRABAJADOR'], deTipoUsuario: { 3: 'DOCENTE', 4: 'ADMINISTRATIVO', 5: 'TRABAJADOR' } },
             { name: 'diagnostico', label: 'Diagnóstico', type: 'text', required: true, full: true, placeholder: 'Ej: DEPRESIÓN Y ANSIEDAD' }
         ],
         toPayload: (f) => ({

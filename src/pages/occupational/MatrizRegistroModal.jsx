@@ -33,6 +33,10 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const [cargoTipo, setCargoTipo] = useState('');
     const pideCargo = config.fields.some(f => f.name === 'cargo');
     const cargoDefinido = patient?.tipo_usuario_confirmado !== false;
+    // Campo que sale del tipo de usuario del perfil (p. ej. Tipo de servidor en Riesgo Psicosocial)
+    const campoTipo = config.fields.find(f => f.deTipoUsuario);
+    const tipoDelPerfil = (p) => (campoTipo && p && p.tipo_usuario_confirmado !== false ? campoTipo.deTipoUsuario[p.id_tipo_usuario] : undefined);
+    const tipoDefinido = tipoDelPerfil(patient);
 
     useEffect(() => {
         if (config.noPatient || patient) return undefined;
@@ -58,6 +62,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const selectPatient = (p) => {
         setPatient(p);
         setResults([]);
+        if (campoTipo) setForm(prev => ({ ...prev, [campoTipo.name]: tipoDelPerfil(p) || '' }));
         if (!pideCargo) return;
         // El cargo se toma del sistema; si el paciente no lo definió, el médico lo elige de la lista
         const definido = p.tipo_usuario_confirmado !== false;
@@ -70,6 +75,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
         setSearchTerm('');
         setCargoTipo('');
         if (pideCargo) setForm(prev => ({ ...prev, cargo: '' }));
+        if (campoTipo) setForm(prev => ({ ...prev, [campoTipo.name]: '' }));
     };
 
     const handleSubmit = async (e) => {
@@ -83,9 +89,19 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
             setError('Seleccione el cargo del paciente.');
             return;
         }
+        if (campoTipo && patient && !form[campoTipo.name]) {
+            setError(`Seleccione el ${campoTipo.label.toLowerCase()} del paciente.`);
+            return;
+        }
         setSaving(true);
         try {
             let datos = form;
+            if (campoTipo && patient && !tipoDefinido && patient.tipo_usuario_confirmado === false) {
+                // Igual que el cargo: se guarda en el perfil para que las próximas matrices ya lo tengan
+                const idTipo = Object.keys(campoTipo.deTipoUsuario).find(id => campoTipo.deTipoUsuario[id] === form[campoTipo.name]);
+                const res = await api.put(`/medicina-ocupacional/patient/${patient.id}/tipo-trabajador`, { id_tipo_usuario: Number(idTipo) });
+                setPatient(prev => ({ ...prev, tipo_usuario_confirmado: true, id_tipo_usuario: Number(idTipo), puestoTrabajo: res.data?.data?.puestoTrabajo || prev.puestoTrabajo }));
+            }
             if (pideCargo && patient && !cargoDefinido) {
                 // Se guarda en el perfil del paciente para que las próximas matrices ya lo tengan
                 const res = await api.put(`/medicina-ocupacional/patient/${patient.id}/tipo-trabajador`, { id_tipo_usuario: Number(cargoTipo) });
@@ -205,6 +221,27 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                                     {TIPOS_TRABAJADOR.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                                                 </select>
                                                 <small style={{ color: '#64748b', fontSize: '11px' }}>El paciente no ha definido su cargo; se guardará en su perfil.</small>
+                                            </>
+                                        )
+                                    ) : f.deTipoUsuario && !config.noPatient ? (
+                                        !patient ? (
+                                            <input type="text" value="" disabled placeholder="Seleccione primero el paciente" />
+                                        ) : tipoDefinido ? (
+                                            <>
+                                                <input type="text" value={tipoDefinido} readOnly aria-readonly="true" style={{ background: '#f1f5f9', cursor: 'default' }} />
+                                                <small style={{ color: '#64748b', fontSize: '11px' }}>Registrado en el sistema</small>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <select value={form[f.name]} required onChange={(e) => setField(f.name, e.target.value)}>
+                                                    <option value="">Seleccione...</option>
+                                                    {f.options.map(opt => (
+                                                        <option key={optionValue(opt)} value={optionValue(opt)}>{optionLabel(opt)}</option>
+                                                    ))}
+                                                </select>
+                                                {patient.tipo_usuario_confirmado === false && (
+                                                    <small style={{ color: '#64748b', fontSize: '11px' }}>El paciente no ha definido su tipo; se guardará en su perfil.</small>
+                                                )}
                                             </>
                                         )
                                     ) : f.type === 'select' ? (
