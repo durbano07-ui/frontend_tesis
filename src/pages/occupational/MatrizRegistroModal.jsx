@@ -183,18 +183,10 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                     )}
 
                     <div className="clinical-fields-grid responsive-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        {config.fields.map(f => {
+                        {config.fields.filter(f => f.type !== 'checkbox').map(f => {
                             const style = f.full ? { gridColumn: '1 / -1' } : undefined;
                             const required = f.required || (f.name === 'cargo' && patient && !cargoDefinido);
                             const label = <>{f.label}{required && <> <span className="field-req-star">*</span></>}</>;
-                            if (f.type === 'checkbox') {
-                                return (
-                                    <label key={f.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={!!form[f.name]} onChange={(e) => setField(f.name, e.target.checked)} />
-                                        {f.label}
-                                    </label>
-                                );
-                            }
                             return (
                                 <label key={f.name} className="field" style={style}>
                                     <span>{label}</span>
@@ -235,6 +227,20 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                 </label>
                             );
                         })}
+                        {/* Las casillas van juntas en una fila propia, no repartidas entre las celdas */}
+                        {config.fields.some(f => f.type === 'checkbox') && (
+                            <div className="field" style={{ gridColumn: '1 / -1' }}>
+                                <span>Pruebas y seguimiento</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                    {config.fields.filter(f => f.type === 'checkbox').map(f => (
+                                        <label key={f.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 14px', border: `1px solid ${form[f.name] ? 'var(--primary)' : '#e2e8f0'}`, borderRadius: '10px', background: form[f.name] ? 'var(--primary-soft)' : '#fff', fontSize: '12.5px', fontWeight: 600, color: '#0f172a', cursor: 'pointer' }}>
+                                            <input type="checkbox" checked={!!form[f.name]} onChange={(e) => setField(f.name, e.target.checked)} style={{ width: '16px', height: '16px', minHeight: 0, padding: 0, margin: 0, flexShrink: 0, accentColor: 'var(--primary)' }} />
+                                            {f.label}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {error && (
