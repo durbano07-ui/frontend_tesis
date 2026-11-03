@@ -21,7 +21,7 @@ import ResultadoExamenModal, { abrirResultadoPdf } from './ResultadoExamenModal'
 import ReporteEncabezado, { ListaRegistros } from '../../components/ReporteEncabezado';
 import { periodoInicial, enPeriodo, describirPeriodo } from '../../utils/periodo';
 import PeriodoSelector from '../../components/PeriodoSelector';
-import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup, fechaPrincipal } from './matricesOcupacionales';
+import { MATRICES, buildExamenesPeriodicosByYear, buildVulnerablesByGroup, fechaPrincipal, pacienteNombre, pacienteCedula } from './matricesOcupacionales';
 
 const uebBannerLogo = logoUeb;
 
@@ -873,7 +873,36 @@ export default function MedicoOcupacionalPage() {
     // Fichas emitidas en las atenciones: contenido clínico guardado + identificación real del trabajador
     const fetchFichasBackend = async () => {
         try {
-            const res = await api.get('/medicina-ocupacional/fichas');
+            const [res, resCese, resReintegro] = await Promise.all([
+                api.get('/medicina-ocupacional/fichas'),
+                // Fichas de retiro y reintegro registradas a mano en "Matrices y Fichas"
+                api.get('/medicina-ocupacional/cese-funciones').catch(() => ({ data: { data: [] } })),
+                api.get('/medicina-ocupacional/reintegro-ueb').catch(() => ({ data: { data: [] } }))
+            ]);
+            // Fecha de registro en hora local (created_at viene en UTC); si no hay, la fecha propia del registro
+            const fechaRegistro = (row, respaldo) => (row.created_at ? localDateStr(new Date(row.created_at)) : String(respaldo || '').slice(0, 10));
+            const manual = (row, tipoFicha) => {
+                const di = row.paciente?.datos_identificacion || {};
+                return {
+                    id: `${tipoFicha}-manual-${row.id}`,
+                    fecha: fechaRegistro(row, tipoFicha === 'reintegro' ? row.fecha_reintegro : row.fecha_salida),
+                    tipo: TIPO_FICHA_LABEL[tipoFicha],
+                    tipoFicha,
+                    paciente: pacienteNombre(row.paciente),
+                    cedula: pacienteCedula(row.paciente),
+                    fechaSalida: row.fecha_salida,
+                    fechaRetiro: row.fecha_salida,
+                    fechaReintegro: row.fecha_reintegro,
+                    motivo: row.detalle_motivo_salida,
+                    causaRetiro: row.detalle_motivo_salida,
+                    patientSelected: { ...di, nombre_completo: pacienteNombre(row.paciente), cedula: pacienteCedula(row.paciente) },
+                    estado: 'Completado'
+                };
+            };
+            const manuales = [
+                ...(Array.isArray(resCese.data?.data) ? resCese.data.data : []).map(row => manual(row, 'retiro')),
+                ...(Array.isArray(resReintegro.data?.data) ? resReintegro.data.data : []).map(row => manual(row, 'reintegro'))
+            ];
             const fichas = (Array.isArray(res.data?.data) ? res.data.data : []).map(f => {
                 const contenido = f.contenido || {};
                 const paciente = f.paciente || {};
@@ -895,8 +924,9 @@ export default function MedicoOcupacionalPage() {
                     estado: 'Completado'
                 };
             });
-            setFichasData(fichas.filter(f => f.tipoFicha !== 'reintegro'));
-            setReintegrosData(fichas.filter(f => f.tipoFicha === 'reintegro'));
+            const todas = [...fichas, ...manuales].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+            setFichasData(todas.filter(f => f.tipoFicha !== 'reintegro'));
+            setReintegrosData(todas.filter(f => f.tipoFicha === 'reintegro'));
         } catch (err) {
             console.error('No se pudieron cargar las fichas ocupacionales:', err);
             showSystemToast(`No se pudieron cargar las fichas: ${err.response?.data?.message || 'sin conexión con el servidor'}.`);
