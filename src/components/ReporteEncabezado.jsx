@@ -50,33 +50,32 @@ const ReporteEncabezado = ({
     </article>
 );
 
-/** Lista de registros del período para elegir cuál ver en el visor. */
-export const ListaRegistros = ({ items, seleccionado, onSeleccionar }) => items.length > 0 && (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', marginTop: '8px' }}>
-        {items.map(item => {
-            const activo = seleccionado === item.id;
-            return (
-                <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={activo}
-                    onClick={() => onSeleccionar(item.id)}
-                    style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', textAlign: 'left',
-                        padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-                        border: activo ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                        background: activo ? 'var(--primary-soft)' : '#f8fafc'
-                    }}
-                >
-                    <span style={{ minWidth: 0 }}>
-                        <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>{item.titulo}</strong>
-                        <small style={{ color: '#64748b', fontSize: '11px' }}>{item.detalle}</small>
-                    </span>
-                    <small style={{ color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>{formatFecha(item.fecha)}</small>
-                </button>
-            );
-        })}
-    </div>
-);
+/**
+ * Selector del registro del período que se ve en el visor: solo el nombre del paciente. Si un
+ * nombre se repite (varias fichas o recetas de la misma persona), se le añade la fecha.
+ */
+export const ListaRegistros = ({ items, seleccionado, onSeleccionar }) => {
+    if (items.length === 0) return null;
+    const repetidos = new Set(items.map(i => i.titulo).filter((t, idx, arr) => arr.indexOf(t) !== idx));
+    return (
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#475569' }}>Paciente</span>
+            <select
+                value={seleccionado ?? ''}
+                onChange={(e) => {
+                    const item = items.find(i => String(i.id) === e.target.value);
+                    if (item) onSeleccionar(item.id);
+                }}
+                style={{ flex: '1 1 260px', maxWidth: '480px', minHeight: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '12.5px', fontWeight: 600, color: '#0f172a' }}
+            >
+                {items.map(item => (
+                    <option key={item.id} value={item.id}>
+                        {repetidos.has(item.titulo) ? `${item.titulo} — ${formatFecha(item.fecha)}` : item.titulo}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+};
 
 export default ReporteEncabezado;

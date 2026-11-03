@@ -30,11 +30,22 @@ describe('encabezado común de los reportes', () => {
         expect(onPeriodo).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'dia' }));
     });
 
-    it('la lista permite elegir el registro a mostrar', () => {
+    it('el selector muestra solo el nombre del paciente y permite cambiarlo', () => {
         const onSeleccionar = vi.fn();
-        render(<ListaRegistros items={[{ id: 3, titulo: 'Luis Bayas', detalle: 'C.I. 0201864329', fecha: '2026-10-25' }]} seleccionado={null} onSeleccionar={onSeleccionar} />);
-        fireEvent.click(screen.getByRole('button', { name: /Luis Bayas/ }));
-        expect(onSeleccionar).toHaveBeenCalledWith(3);
-        expect(screen.getByText('25/10/2026')).toBeTruthy();
+        render(<ListaRegistros items={[
+            { id: 3, titulo: 'Luis Bayas', fecha: '2026-10-25' },
+            { id: 4, titulo: 'Ana Paz', fecha: '2026-10-26' }
+        ]} seleccionado={3} onSeleccionar={onSeleccionar} />);
+        expect(screen.getByRole('option', { name: 'Luis Bayas' })).toBeTruthy();
+        fireEvent.change(screen.getByRole('combobox'), { target: { value: '4' } });
+        expect(onSeleccionar).toHaveBeenCalledWith(4);
+    });
+
+    it('si el nombre se repite, la opción lleva la fecha', () => {
+        render(<ListaRegistros items={[
+            { id: 1, titulo: 'Luis Bayas', fecha: '2026-10-25' },
+            { id: 2, titulo: 'Luis Bayas', fecha: '2026-10-27' }
+        ]} seleccionado={1} onSeleccionar={() => {}} />);
+        expect(screen.getByRole('option', { name: 'Luis Bayas — 27/10/2026' })).toBeTruthy();
     });
 });

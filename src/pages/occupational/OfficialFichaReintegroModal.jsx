@@ -404,12 +404,12 @@ export const compileOfficialReintegroFormHtml = (record = {}, uebBannerLogo = ''
                 <td>PSICOSOCIAL</td>
             </tr>
             <tr class="text-center" style="font-size: 7.5px;">
-                <td>${factRiesgo.fisico?.length > 0 ? factRiesgo.fisico.join(', ') : 'Ninguno relevante'}</td>
-                <td>${factRiesgo.mecanico?.length > 0 ? factRiesgo.mecanico.join(', ') : 'Caídas al mismo nivel'}</td>
-                <td>${factRiesgo.quimico?.length > 0 ? factRiesgo.quimico.join(', ') : 'No aplica'}</td>
-                <td>${factRiesgo.biologico?.length > 0 ? factRiesgo.biologico.join(', ') : 'Virus respiratorios'}</td>
-                <td>${factRiesgo.ergonomico?.length > 0 ? factRiesgo.ergonomico.join(', ') : 'Sedestación / Movimientos repetitivos'}</td>
-                <td>${factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : 'Atención al usuario'}</td>
+                <td>${factRiesgo.fisico?.length > 0 ? factRiesgo.fisico.join(', ') : ''}</td>
+                <td>${factRiesgo.mecanico?.length > 0 ? factRiesgo.mecanico.join(', ') : ''}</td>
+                <td>${factRiesgo.quimico?.length > 0 ? factRiesgo.quimico.join(', ') : ''}</td>
+                <td>${factRiesgo.biologico?.length > 0 ? factRiesgo.biologico.join(', ') : ''}</td>
+                <td>${factRiesgo.ergonomico?.length > 0 ? factRiesgo.ergonomico.join(', ') : ''}</td>
+                <td>${factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : ''}</td>
             </tr>
             <tr>
                 <td colspan="6" style="padding: 4px;"><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> ${escapeHtml(factRiesgo.medidasPreventivas || '')}</td>
@@ -1013,12 +1013,12 @@ export default function OfficialFichaReintegroModal({ isOpen, onClose, record, u
                                             <td style={{ border: '1px solid #000', padding: '3px' }}>PSICOSOCIAL</td>
                                         </tr>
                                         <tr style={{ textAlign: 'center', fontSize: '8.5px' }}>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.fisico?.length > 0 ? factRiesgo.fisico.join(', ') : 'Ninguno relevante'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.mecanico?.length > 0 ? factRiesgo.mecanico.join(', ') : 'Caídas al mismo nivel'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.quimico?.length > 0 ? factRiesgo.quimico.join(', ') : 'No aplica'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.biologico?.length > 0 ? factRiesgo.biologico.join(', ') : 'Virus respiratorios'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.ergonomico?.length > 0 ? factRiesgo.ergonomico.join(', ') : 'Sedestación / Movimientos repetitivos'}</td>
-                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : 'Atención al usuario'}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.fisico?.length > 0 ? factRiesgo.fisico.join(', ') : ''}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.mecanico?.length > 0 ? factRiesgo.mecanico.join(', ') : ''}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.quimico?.length > 0 ? factRiesgo.quimico.join(', ') : ''}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.biologico?.length > 0 ? factRiesgo.biologico.join(', ') : ''}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.ergonomico?.length > 0 ? factRiesgo.ergonomico.join(', ') : ''}</td>
+                                            <td style={{ border: '1px solid #000', padding: '4px' }}>{factRiesgo.psicosocial?.length > 0 ? factRiesgo.psicosocial.join(', ') : ''}</td>
                                         </tr>
                                         <tr>
                                             <td colSpan="6" style={{ border: '1px solid #000', padding: '5px' }}><strong>Medidas Preventivas y Recomendaciones Ergonómicas:</strong> {factRiesgo.medidasPreventivas || ''}</td>

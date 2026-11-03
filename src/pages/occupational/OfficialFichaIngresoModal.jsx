@@ -467,21 +467,9 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                 <tr style="font-size: 7.5px;">
                     <td class="font-bold uppercase">${escapeHtml(factRiesgo.puesto || '')}</td>
                     <td class="font-bold uppercase">${escapeHtml(factRiesgo.actividades || '')}</td>
-                    <td>
-                        <span class="check-box checked">X</span> Temperaturas altas<br />
-                        <span class="check-box checked">X</span> Temperaturas bajas<br />
-                        <span class="check-box"></span> Ruido / Vibración / Radiación
-                    </td>
-                    <td>
-                        <span class="check-box checked">X</span> Caídas al mismo nivel<br />
-                        <span class="check-box checked">X</span> Caídas a diferente nivel<br />
-                        <span class="check-box"></span> Atrapamiento / Cortes
-                    </td>
-                    <td>
-                        <span class="check-box"></span> Polvos / Humos / Vapores<br />
-                        <span class="check-box"></span> Líquidos / Químicos<br />
-                        <em>(No aplica)</em>
-                    </td>
+                    <td>${escapeHtml((factRiesgo.fisico || []).join(', '))}</td>
+                    <td>${escapeHtml((factRiesgo.mecanico || []).join(', '))}</td>
+                    <td>${escapeHtml((factRiesgo.quimico || []).join(', '))}</td>
                 </tr>
                 <tr class="bg-green">
                     <td colspan="2">BIOLÓGICO</td>
@@ -490,18 +478,9 @@ export const compileOfficialIngresoFormHtml = (record = {}, uebBannerLogo = '', 
                     <td>MEDIDAS PREVENTIVAS</td>
                 </tr>
                 <tr style="font-size: 7.5px;">
-                    <td colspan="2">
-                        <span class="check-box checked">X</span> Virus (Exposición respiratoria)<br />
-                        <span class="check-box"></span> Hongos / Bacterias / Parásitos
-                    </td>
-                    <td>
-                        <span class="check-box checked">X</span> Otros: Posiciones estáticas prolongadas<br />
-                        <span class="check-box"></span> Manejo cargas / Repetitivos
-                    </td>
-                    <td>
-                        <span class="check-box checked">X</span> Inestabilidad laboral<br />
-                        <span class="check-box"></span> Sobrecarga / Alta responsabilidad
-                    </td>
+                    <td colspan="2">${escapeHtml((factRiesgo.biologico || []).join(', '))}</td>
+                    <td>${escapeHtml((factRiesgo.ergonomico || []).join(', '))}</td>
+                    <td>${escapeHtml((factRiesgo.psicosocial || []).join(', '))}</td>
                     <td style="background: #fafafa; font-size: 7px; line-height: 1.25;">
                         ${escapeHtml(factRiesgo.medidasPreventivas)}
                     </td>
@@ -1269,21 +1248,9 @@ export default function OfficialFichaIngresoModal({
                                         <td style={{ border: '1px solid #000', padding: '6px', fontWeight: 'bold', textTransform: 'uppercase' }}>
                                             {factRiesgo.actividades || ''}
                                         </td>
-                                        <td style={{ border: '1px solid #000', padding: '6px' }}>
-                                            <div><strong>[X] Temperaturas altas</strong></div>
-                                            <div><strong>[X] Temperaturas bajas</strong></div>
-                                            <div style={{ color: '#888' }}>[ ] Radiación / Ruido</div>
-                                        </td>
-                                        <td style={{ border: '1px solid #000', padding: '6px' }}>
-                                            <div><strong>[X] Caídas al mismo nivel</strong></div>
-                                            <div><strong>[X] Caídas a diferente nivel</strong></div>
-                                            <div style={{ color: '#888' }}>[ ] Atrapamiento / Cortes</div>
-                                        </td>
-                                        <td style={{ border: '1px solid #000', padding: '6px', color: '#777' }}>
-                                            [ ] Polvos / Vapores<br />
-                                            [ ] Humos / Químicos<br />
-                                            <em>(Sin exposición directa)</em>
-                                        </td>
+                                        <td style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.fisico || []).join(', ')}</td>
+                                        <td style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.mecanico || []).join(', ')}</td>
+                                        <td style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.quimico || []).join(', ')}</td>
                                     </tr>
                                     <tr style={{ background: '#e2efda', fontWeight: 'bold', textAlign: 'center', fontSize: '8.5px' }}>
                                         <td colSpan={2} style={{ border: '1px solid #000', padding: '4px' }}>BIOLÓGICO</td>
@@ -1292,18 +1259,9 @@ export default function OfficialFichaIngresoModal({
                                         <td style={{ border: '1px solid #000', padding: '4px' }}>MEDIDAS PREVENTIVAS</td>
                                     </tr>
                                     <tr style={{ fontSize: '9px' }}>
-                                        <td colSpan={2} style={{ border: '1px solid #000', padding: '6px' }}>
-                                            <div><strong>[X] Virus</strong> (Exposición comunitaria)</div>
-                                            <div style={{ color: '#888' }}>[ ] Hongos / Bacterias</div>
-                                        </td>
-                                        <td style={{ border: '1px solid #000', padding: '6px' }}>
-                                            <div><strong>[X] Posiciones estáticas</strong> prolongadas</div>
-                                            <div style={{ color: '#888' }}>[ ] Manejo de cargas</div>
-                                        </td>
-                                        <td style={{ border: '1px solid #000', padding: '6px' }}>
-                                            <div><strong>[X] Inestabilidad laboral</strong></div>
-                                            <div style={{ color: '#888' }}>[ ] Monotonía / Sobrecarga</div>
-                                        </td>
+                                        <td colSpan={2} style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.biologico || []).join(', ')}</td>
+                                        <td style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.ergonomico || []).join(', ')}</td>
+                                        <td style={{ border: '1px solid #000', padding: '6px' }}>{(factRiesgo.psicosocial || []).join(', ')}</td>
                                         <td style={{ border: '1px solid #000', padding: '6px', background: '#fafafa', fontSize: '8.5px', lineHeight: '1.3' }}>
                                             {factRiesgo.medidasPreventivas}
                                         </td>

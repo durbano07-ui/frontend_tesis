@@ -6316,7 +6316,7 @@ export default function MedicoOcupacionalPage() {
                                             : `${activeFichas.length} ${activeFichas.length === 1 ? 'ficha emitida' : 'fichas emitidas'} ${describirPeriodo(fichaPeriodo)}`}
                                     >
                                         <ListaRegistros
-                                            items={activeFichas.map(f => ({ id: f.id, titulo: f.paciente || 'Sin nombre', detalle: `C.I. ${f.cedula || '—'} · ${f.tipo}`, fecha: f.fecha }))}
+                                            items={activeFichas.map(f => ({ id: f.id, titulo: f.paciente || 'Sin nombre', fecha: f.fecha }))}
                                             seleccionado={selectedFichaRecord?.id}
                                             onSeleccionar={setSelectedFichaWorkerId}
                                         />
@@ -6638,7 +6638,7 @@ export default function MedicoOcupacionalPage() {
                                                 : `${filteredRecetas.length} ${filteredRecetas.length === 1 ? 'receta emitida' : 'recetas emitidas'} ${describirPeriodo(recetaPeriodo)}`}
                                         >
                                             <ListaRegistros
-                                                items={filteredRecetas.map(r => ({ id: r.id, titulo: r.paciente || 'Sin nombre', detalle: `C.I. ${r.cedula || '—'} · ${r.numero_receta} · ${r.estado}`, fecha: r.fecha }))}
+                                                items={filteredRecetas.map(r => ({ id: r.id, titulo: r.paciente || 'Sin nombre', fecha: r.fecha }))}
                                                 seleccionado={currentSelectedReceta?.id}
                                                 onSeleccionar={setSelectedRecetaId}
                                             />
