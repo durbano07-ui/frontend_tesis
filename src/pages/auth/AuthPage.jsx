@@ -4,12 +4,25 @@ import { useAuthStore } from '../../stores/authStore';
 import { getUserModules } from '../../utils/roleModules';
 import api from '../../api/axios';
 import PasswordRequirements from '../../components/PasswordRequirements';
+import DominioCorreoSelect from '../../components/DominioCorreoSelect';
+import { DOMINIO_POR_DEFECTO, DOMINIOS_INSTITUCIONALES, TEXTO_DOMINIOS, armarCorreo, separarCorreo } from '../../utils/correoInstitucional';
 import '../../auth.css';
 
 // Importación de recursos
 import logoUeb from '../../assets/ueb.webp';
 import UEBLogo from '../../assets/leftUEB.webp';
 import UEBpet from '../../assets/UEBpet.webp';
+
+// Último dominio usado al iniciar sesión (comodidad del navegador; si no hay almacenamiento se usa el por defecto)
+const CLAVE_DOMINIO = 'auth_dominio_correo';
+const dominioGuardado = () => {
+    try {
+        const d = localStorage.getItem(CLAVE_DOMINIO);
+        return DOMINIOS_INSTITUCIONALES.includes(d) ? d : DOMINIO_POR_DEFECTO;
+    } catch {
+        return DOMINIO_POR_DEFECTO;
+    }
+};
 
 // Iconos de Lucide
 import {
@@ -73,6 +86,7 @@ const AuthPage = () => {
     // ESTADOS: LOGIN
     // ==========================================
     const [loginEmail, setLoginEmail] = useState('');
+    const [loginDominio, setLoginDominio] = useState(dominioGuardado);
     const [loginPassword, setLoginPassword] = useState('');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
     const [loginError, setLoginError] = useState(null);
@@ -84,7 +98,8 @@ const AuthPage = () => {
         setLoginError(null);
         setLoginLoading(true);
 
-        const finalEmail = loginEmail.includes('@') ? loginEmail.trim() : `${loginEmail.trim()}@ueb.edu.ec`;
+        const finalEmail = armarCorreo(loginEmail, loginDominio);
+        try { localStorage.setItem(CLAVE_DOMINIO, loginDominio); } catch { /* sin almacenamiento */ }
 
         try {
             const response = await api.post('/auth/login', { email: finalEmail, password: loginPassword });
@@ -116,6 +131,7 @@ const AuthPage = () => {
     // ==========================================
     // ESTADOS: REGISTRO
     // ==========================================
+    const [regDominio, setRegDominio] = useState(DOMINIO_POR_DEFECTO);
     const [regForm, setRegForm] = useState({
         email: '',
         password: '',
@@ -160,7 +176,7 @@ const AuthPage = () => {
     const translateError = (msg) => {
         if (!msg) return 'Error al solicitar el registro. Por favor intente nuevamente.';
         const lowerMsg = msg.toLowerCase();
-        if (lowerMsg.includes('only institutional emails')) return 'Solo se permiten correos institucionales (@ueb.edu.ec).';
+        if (lowerMsg.includes('only institutional emails')) return `Solo se permiten correos institucionales (${TEXTO_DOMINIOS}).`;
         if (lowerMsg.includes('already been taken')) return 'Este correo electrónico ya se encuentra registrado.';
         if (lowerMsg.includes('password confirmation does not match')) return 'Las contraseñas ingresadas no coinciden.';
         if (lowerMsg.includes('password must be at least')) return 'La contraseña debe tener al menos 12 caracteres.';
@@ -172,7 +188,7 @@ const AuthPage = () => {
         e.preventDefault();
         setRegError(null);
 
-        const finalEmail = regForm.email.includes('@') ? regForm.email.trim() : `${regForm.email.trim()}@ueb.edu.ec`;
+        const finalEmail = armarCorreo(regForm.email, regDominio);
 
         if (!regForm.email.trim()) {
             setRegError('Por favor, ingresa tu correo institucional.');
@@ -331,15 +347,14 @@ const AuthPage = () => {
                                                     placeholder="correo.institucional"
                                                     value={loginEmail}
                                                     onChange={(e) => {
-                                                        const val = e.target.value.replace(/@.*/, '').trim();
-                                                        setLoginEmail(val);
+                                                        const { usuario, dominio } = separarCorreo(e.target.value);
+                                                        setLoginEmail(usuario);
+                                                        if (dominio) setLoginDominio(dominio);
                                                     }}
                                                     required
-                                                    style={{ flex: 1 }}
+                                                    style={{ flex: 1, minWidth: 0 }}
                                                 />
-                                                <span className="email-suffix">
-                                                    @ueb.edu.ec
-                                                </span>
+                                                <DominioCorreoSelect className="email-suffix" value={loginDominio} onChange={setLoginDominio} />
                                             </div>
                                         </div>
                                         <div className="form-group">
@@ -447,16 +462,15 @@ const AuthPage = () => {
                                                                 placeholder="correo.institucional"
                                                                 value={regForm.email}
                                                                 onChange={(e) => {
-                                                                    const val = e.target.value.replace(/@.*/, '').trim();
-                                                                    setRegForm(prev => ({ ...prev, email: val }));
+                                                                    const { usuario, dominio } = separarCorreo(e.target.value);
+                                                                    setRegForm(prev => ({ ...prev, email: usuario }));
+                                                                    if (dominio) setRegDominio(dominio);
                                                                     setRegError(null);
                                                                 }}
                                                                 required
-                                                                style={{ flex: 1 }}
+                                                                style={{ flex: 1, minWidth: 0 }}
                                                             />
-                                                            <span className="email-suffix">
-                                                                @ueb.edu.ec
-                                                            </span>
+                                                            <DominioCorreoSelect className="email-suffix" value={regDominio} onChange={setRegDominio} />
                                                         </div>
                                                     </div>
 
@@ -574,7 +588,7 @@ const AuthPage = () => {
                                                             id="resetEmail"
                                                             type="email"
                                                             name="email"
-                                                            placeholder="nombre@ueb.edu.ec"
+                                                            placeholder="Tu correo institucional completo"
                                                             value={forgotEmail}
                                                             onChange={(e) => setForgotEmail(e.target.value)}
                                                             autoComplete="email"

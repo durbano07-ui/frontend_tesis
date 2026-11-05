@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import DominioCorreoSelect from '../../components/DominioCorreoSelect';
+import { DOMINIO_POR_DEFECTO, armarCorreo, separarCorreo } from '../../utils/correoInstitucional';
 import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { createPortal } from 'react-dom';
@@ -81,6 +83,7 @@ const Psicologo_page = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Formulario de registro rápido
+    const [dominioPaciente, setDominioPaciente] = useState(DOMINIO_POR_DEFECTO);
     const [newPatientForm, setNewPatientForm] = useState({
         nombre_completo: '',
         tipo_documento: 'cedula', // 'cedula' | 'pasaporte'
@@ -667,15 +670,6 @@ const Psicologo_page = () => {
     };
 
     // Registro rápido de paciente
-    const handleEmailBlur = () => {
-        if (newPatientForm.correo && !newPatientForm.correo.includes('@')) {
-            setNewPatientForm(prev => ({
-                ...prev,
-                correo: `${prev.correo.trim()}@ueb.edu.ec`
-            }));
-        }
-    };
-
     const handleQuickRegisterPatient = async (e) => {
         e.preventDefault();
         setRegisterLoading(true);
@@ -688,10 +682,7 @@ const Psicologo_page = () => {
         }
 
         try {
-            let finalEmail = newPatientForm.correo.trim();
-            if (finalEmail && !finalEmail.includes('@')) {
-                finalEmail = `${finalEmail}@ueb.edu.ec`;
-            }
+            const finalEmail = armarCorreo(newPatientForm.correo, dominioPaciente);
 
             const response = await api.post('/users/register-patient', {
                 email: finalEmail,
@@ -4320,8 +4311,9 @@ ${paginas}
                                             type="text"
                                             value={newPatientForm.correo}
                                             onChange={(e) => {
-                                                const val = e.target.value.replace(/@.*/, '').trim();
-                                                setNewPatientForm({ ...newPatientForm, correo: val });
+                                                const { usuario, dominio } = separarCorreo(e.target.value);
+                                                setNewPatientForm({ ...newPatientForm, correo: usuario });
+                                                if (dominio) setDominioPaciente(dominio);
                                             }}
                                             placeholder="nombre.apellido"
                                             required
@@ -4341,9 +4333,7 @@ ${paginas}
                                                 boxShadow: 'none'
                                             }}
                                         />
-                                        <span style={{ color: 'var(--text-muted)', fontSize: '12.5px', fontWeight: 600, paddingLeft: '14px', borderLeft: '1.5px solid var(--border)', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                                            @ueb.edu.ec
-                                        </span>
+                                        <DominioCorreoSelect value={dominioPaciente} onChange={setDominioPaciente} style={{ color: 'var(--text-muted)', fontSize: '12.5px', fontWeight: 600, padding: '0 0 0 10px', border: 'none', borderLeft: '1.5px solid var(--border)', borderRadius: 0, background: 'transparent', boxShadow: 'none', height: '100%' }} />
                                     </div>
                                 </div>
 

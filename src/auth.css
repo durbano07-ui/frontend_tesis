@@ -455,6 +455,18 @@
     flex-shrink: 0;
 }
 
+/* Variante selector: el usuario elige entre los dominios institucionales */
+select.email-suffix {
+    font-family: inherit;
+    height: auto;
+    padding: 4px 6px;
+}
+
+select.email-suffix:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+}
+
 .password-toggle {
     width: 31px;
     height: 31px;

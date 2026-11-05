@@ -3,6 +3,8 @@ import { FileSpreadsheet, Loader2, Save, Search, UserPlus, X } from 'lucide-reac
 import api from '../../api/axios';
 import { MATRICES, ensureCatalogId } from './matricesOcupacionales';
 import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
+import DominioCorreoSelect from '../../components/DominioCorreoSelect';
+import { DOMINIO_POR_DEFECTO, armarCorreo, separarCorreo } from '../../utils/correoInstitucional';
 
 // Cargo que el médico puede asignar si el paciente no lo ha definido (ids de tipo_usuario)
 const TIPOS_TRABAJADOR = [
@@ -36,6 +38,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
     const [cargoTipo, setCargoTipo] = useState('');
     // Registro del paciente desde la matriz (p. ej. Personal Nuevo) cuando la búsqueda no lo encuentra
     const [nuevoPaciente, setNuevoPaciente] = useState(null);
+    const [dominioPaciente, setDominioPaciente] = useState(DOMINIO_POR_DEFECTO);
     const [registrando, setRegistrando] = useState(false);
     const [errorRegistro, setErrorRegistro] = useState('');
     const pideCargo = config.fields.some(f => f.name === 'cargo');
@@ -94,7 +97,7 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
             setErrorRegistro(MENSAJE_CEDULA_INVALIDA);
             return;
         }
-        const correo = datos.correo.trim().includes('@') ? datos.correo.trim() : `${datos.correo.trim()}@ueb.edu.ec`;
+        const correo = armarCorreo(datos.correo, dominioPaciente);
         setRegistrando(true);
         try {
             const res = await api.post('/users/register-patient', {
@@ -281,7 +284,10 @@ const MatrizRegistroModal = ({ matrizKey, today, onClose, onSaved }) => {
                                                 </label>
                                                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', gridColumn: '1 / -1' }}>
                                                     Correo <span className="field-req-star">*</span>
-                                                    <input type="text" value={nuevoPaciente.correo} placeholder="usuario o correo completo (se completa con @ueb.edu.ec)" onChange={(e) => setNuevoPaciente(prev => ({ ...prev, correo: e.target.value }))} style={{ width: '100%', minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }} />
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <input type="text" value={nuevoPaciente.correo} placeholder="usuario" onChange={(e) => { const { usuario, dominio } = separarCorreo(e.target.value); setNuevoPaciente(prev => ({ ...prev, correo: usuario })); if (dominio) setDominioPaciente(dominio); }} style={{ flex: 1, minWidth: 0, minHeight: '40px', padding: '0 12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px', boxSizing: 'border-box' }} />
+                                                        <DominioCorreoSelect value={dominioPaciente} onChange={setDominioPaciente} style={{ minHeight: '40px', padding: '0 8px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12.5px' }} />
+                                                    </div>
                                                 </label>
                                             </div>
                                             <small style={{ display: 'block', color: '#64748b', fontSize: '11px', marginTop: '8px' }}>

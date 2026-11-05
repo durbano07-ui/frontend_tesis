@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DominioCorreoSelect from '../../components/DominioCorreoSelect';
+import { DOMINIO_POR_DEFECTO, armarCorreo, separarCorreo } from '../../utils/correoInstitucional';
 import { esCedulaValida, MENSAJE_CEDULA_INVALIDA } from '../../utils/cedula';
 import useAutoRefresh from '../../hooks/useAutoRefresh';
 import { useNavigate } from 'react-router-dom';
@@ -160,6 +162,7 @@ const Enfermero_page = () => {
     const [modalSearchError, setModalSearchError] = useState('');
 
     // Formulario de Registro Rápido de Paciente Nuevo
+    const [dominioPaciente, setDominioPaciente] = useState(DOMINIO_POR_DEFECTO);
     const [newPatientForm, setNewPatientForm] = useState({
         nombre_completo: '',
         tipo_documento: 'cedula', // 'cedula' | 'pasaporte'
@@ -388,7 +391,7 @@ const Enfermero_page = () => {
         }
 
         try {
-            const finalEmail = newPatientForm.correo.includes('@') ? newPatientForm.correo.trim() : `${newPatientForm.correo.trim()}@ueb.edu.ec`;
+            const finalEmail = armarCorreo(newPatientForm.correo, dominioPaciente);
 
             const response = await api.post('/users/register-patient', {
                 email: finalEmail,
@@ -2168,8 +2171,9 @@ const Enfermero_page = () => {
                                         type="text"
                                         value={newPatientForm.correo}
                                         onChange={(e) => {
-                                            const val = e.target.value.replace(/@.*/, '').trim();
-                                            setNewPatientForm({ ...newPatientForm, correo: val });
+                                            const { usuario, dominio } = separarCorreo(e.target.value);
+                                            setNewPatientForm({ ...newPatientForm, correo: usuario });
+                                            if (dominio) setDominioPaciente(dominio);
                                         }}
                                         placeholder="usuario.estudiante"
                                         style={{
@@ -2189,9 +2193,7 @@ const Enfermero_page = () => {
                                         }}
                                         required
                                     />
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '12.5px', fontWeight: 600, paddingLeft: '14px', borderLeft: '1.5px solid var(--border)', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                                        @ueb.edu.ec
-                                    </span>
+                                    <DominioCorreoSelect value={dominioPaciente} onChange={setDominioPaciente} style={{ color: 'var(--text-muted)', fontSize: '12.5px', fontWeight: 600, padding: '0 0 0 10px', border: 'none', borderLeft: '1.5px solid var(--border)', borderRadius: 0, background: 'transparent', boxShadow: 'none', height: '100%' }} />
                                 </div>
                             </div>
 
